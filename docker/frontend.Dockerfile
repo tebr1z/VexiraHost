@@ -11,7 +11,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/api-sdk/package.json ./packages/api-sdk/
 # husky prepare fails in Docker — skip lifecycle scripts
-RUN pnpm install --frozen-lockfile --filter @vexira/frontend... --ignore-scripts
+RUN pnpm install --no-frozen-lockfile --filter @vexira/frontend... --ignore-scripts
 
 FROM base AS builder
 ARG NEXT_PUBLIC_APP_URL=https://vexirahost.com

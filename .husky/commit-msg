@@ -1,4 +1,1 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/h"
-
-pnpm exec commitlint --edit "$1"
+commitlint --edit "$1"

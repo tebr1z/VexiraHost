@@ -9,7 +9,8 @@ COPY apps/backend/package.json ./apps/backend/
 COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
 # husky prepare fails in Docker — skip lifecycle scripts
-RUN pnpm install --frozen-lockfile --filter @vexira/backend... --ignore-scripts
+# no-frozen-lockfile: allows install if lockfile briefly lags package.json on server
+RUN pnpm install --no-frozen-lockfile --filter @vexira/backend... --ignore-scripts
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
