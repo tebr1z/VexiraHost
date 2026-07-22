@@ -1,0 +1,2 @@
+# Prisma migrations directory
+# Run `pnpm prisma:migrate` to create migrations when models are added.

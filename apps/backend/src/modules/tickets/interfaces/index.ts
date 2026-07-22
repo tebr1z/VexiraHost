@@ -1,0 +1,2 @@
+﻿/** Tickets module interfaces */
+export {};

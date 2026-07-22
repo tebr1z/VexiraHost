@@ -1,0 +1,24 @@
+{
+  "name": "@vexira/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vexira Host mobile application — architecture scaffold",
+  "scripts": {
+    "dev": "echo \"Mobile app scaffold — implement with React Native or Expo\"",
+    "build": "echo \"Mobile build not configured yet\"",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@vexira/api-sdk": "workspace:*",
+    "@vexira/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.8"
+  }
+}

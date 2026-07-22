@@ -1,0 +1,7 @@
+# E2E tests placeholder
+
+Playwright end-to-end tests live in this directory.
+
+```bash
+pnpm test:e2e
+```

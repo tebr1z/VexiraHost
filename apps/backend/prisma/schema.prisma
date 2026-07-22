@@ -1,0 +1,788 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String?
+  firstName       String?
+  lastName        String?
+  role            UserRole   @default(CUSTOMER)
+  status          UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt DateTime?
+  preferredCurrency String?
+  billingPeriod     String?
+  currencyChangedAt DateTime?
+  currencyLocked    Boolean    @default(false)
+  /** Saved invoice/billing address — reused on checkout after first entry. */
+  billingAddress    Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  oauthAccounts           OAuthAccount[]
+  domains                 Domain[]
+  servers                 Server[]
+  hostingAccounts         HostingAccount[]
+  addonServices           AddonService[]
+  orders                  Order[]
+  invoices                Invoice[]
+  paymentMethods          PaymentMethod[]
+  payments                Payment[]
+  tickets                 Ticket[]
+  ticketMessages          TicketMessage[]
+  ticketAttachments       TicketAttachment[]
+  assignedTickets         Ticket[]         @relation("AssignedTickets")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model OAuthAccount {
+  id         String        @id @default(cuid())
+  provider   OAuthProvider
+  providerId String
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+
+  @@unique([provider, providerId])
+  @@map("oauth_accounts")
+}
+
+enum ProductCategory {
+  DOMAIN
+  HOSTING
+  VPS
+  DEDICATED
+  LICENSE
+  SSL
+  EMAIL
+  BACKUP
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+  ONE_TIME
+}
+
+model Product {
+  id              String          @id @default(cuid())
+  slug            String          @unique
+  name            String
+  description     String?
+  category        ProductCategory
+  hostingPlanSlug String?
+  price           Decimal         @db.Decimal(10, 2)
+  currency        String          @default("USD")
+  billingCycle    BillingCycle
+  isActive        Boolean         @default(true)
+  sortOrder       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  orderItems   OrderItem[]
+  invoiceItems InvoiceItem[]
+  prices       ProductPrice[]
+
+  @@map("products")
+}
+
+enum PriceCurrency {
+  USD
+  EUR
+  AZN
+}
+
+enum PricePeriod {
+  MONTHLY
+  YEARLY
+}
+
+model ProductPrice {
+  id            String        @id @default(cuid())
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  currency      PriceCurrency
+  period        PricePeriod
+  originalPrice Decimal       @db.Decimal(10, 2)
+  salePrice     Decimal       @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([productId, currency, period])
+  @@index([productId])
+  @@map("product_prices")
+}
+
+enum DomainStatus {
+  PENDING
+  ACTIVE
+  TRANSFER_PENDING
+  EXPIRED
+  SUSPENDED
+}
+
+enum TransferStatus {
+  INITIATED
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum DnsRecordType {
+  A
+  AAAA
+  CNAME
+  MX
+  TXT
+  NS
+}
+
+model Domain {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String       @unique
+  tld          String
+  status       DomainStatus @default(PENDING)
+  registrarRef String?
+  registeredAt DateTime?
+  expiresAt    DateTime?
+  autoRenew    Boolean      @default(true)
+  nameservers  String[]     @default([])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  dnsRecords DnsRecord[]
+  transfers  DomainTransfer[]
+
+  @@index([userId])
+  @@map("domains")
+}
+
+model DnsRecord {
+  id        String        @id @default(cuid())
+  domainId  String
+  domain    Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  type      DnsRecordType
+  name      String
+  value     String
+  ttl       Int           @default(3600)
+  priority  Int?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([domainId])
+  @@map("dns_records")
+}
+
+model DomainTransfer {
+  id           String         @id @default(cuid())
+  domainId     String
+  domain       Domain         @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  userId       String
+  authCodeHash String
+  status       TransferStatus @default(INITIATED)
+  registrarRef String?
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([domainId])
+  @@index([userId])
+  @@map("domain_transfers")
+}
+
+model TldPricing {
+  id            String   @id @default(cuid())
+  tld           String   @unique
+  registerPrice Decimal  @db.Decimal(10, 2)
+  renewPrice    Decimal  @db.Decimal(10, 2)
+  transferPrice Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("tld_pricing")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+enum ServerType {
+  VPS
+  DEDICATED
+}
+
+enum ServerStatus {
+  PROVISIONING
+  RUNNING
+  STOPPED
+  SUSPENDED
+  ERROR
+}
+
+enum ServerPowerAction {
+  START
+  STOP
+  REBOOT
+  SHUTDOWN
+}
+
+model ServerPlan {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  name         String
+  description  String?
+  type         ServerType
+  cpuCores     Int
+  ramGb        Int
+  diskGb       Int
+  bandwidthGbps Decimal     @default(1.0) @db.Decimal(4, 2)
+  price        Decimal      @db.Decimal(10, 2)
+  currency     String       @default("USD")
+  billingCycle BillingCycle @default(MONTHLY)
+  regions      String[]     @default(["fra-01", "nyc-01", "sin-01"])
+  isActive     Boolean      @default(true)
+  sortOrder    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  servers Server[]
+
+  @@map("server_plans")
+}
+
+model Server {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId       String
+  plan         ServerPlan   @relation(fields: [planId], references: [id])
+  hostname     String       @unique
+  displayName  String
+  type         ServerType
+  status       ServerStatus @default(PROVISIONING)
+  region       String
+  ipv4         String?
+  osTemplate   String       @default("ubuntu-22.04")
+  proxmoxVmId  String?
+  proxmoxNode  String?
+  cpuCores     Int
+  ramGb        Int
+  diskGb       Int
+  provisionedAt DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  powerLogs ServerPowerLog[]
+
+  @@index([userId])
+  @@index([planId])
+  @@map("servers")
+}
+
+model ServerPowerLog {
+  id        String            @id @default(cuid())
+  serverId  String
+  server    Server            @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  action    ServerPowerAction
+  success   Boolean           @default(true)
+  message   String?
+  createdAt DateTime          @default(now())
+
+  @@index([serverId])
+  @@map("server_power_logs")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  OVERDUE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethodType {
+  CARD
+  BANK_ACCOUNT
+  PAYPAL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketRelatedServiceType {
+  HOSTING
+  SERVER
+  DOMAIN
+  ADDON
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    OrderStatus @default(PENDING)
+  subtotal  Decimal     @db.Decimal(10, 2)
+  total     Decimal     @db.Decimal(10, 2)
+  currency  String      @default("USD")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  items            OrderItem[]
+  invoices         Invoice[]
+  hostingAccounts  HostingAccount[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  totalPrice  Decimal  @db.Decimal(10, 2)
+  productName String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId       String?
+  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoiceNumber String        @unique
+  status        InvoiceStatus @default(OPEN)
+  subtotal      Decimal       @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  currency      String        @default("USD")
+  dueDate       DateTime
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@index([userId])
+  @@index([orderId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  description String
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  totalPrice  Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+model PaymentMethod {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        PaymentMethodType @default(CARD)
+  label       String
+  last4       String?
+  brand       String?
+  expiryMonth Int?
+  expiryYear  Int?
+  isDefault   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  payments Payment[]
+
+  @@index([userId])
+  @@map("payment_methods")
+}
+
+model Payment {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoiceId     String
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  methodId      String?
+  method        PaymentMethod? @relation(fields: [methodId], references: [id], onDelete: SetNull)
+  amount        Decimal        @db.Decimal(10, 2)
+  currency      String         @default("USD")
+  status        PaymentStatus  @default(PENDING)
+  gatewayRef    String?
+  failureReason String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+model Ticket {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject      String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  relatedServiceType  TicketRelatedServiceType?
+  relatedServiceId    String?
+  relatedServiceLabel String?
+  assignedToId String?
+  assignedTo   User?          @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  messages TicketMessage[]
+  attachments TicketAttachment[]
+
+  @@index([userId])
+  @@index([assignedToId])
+  @@index([relatedServiceType, relatedServiceId])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  isStaff   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName   String
+  mimeType   String
+  storageKey String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_attachments")
+}
+
+enum ServiceStatus {
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+enum AddonServiceType {
+  LICENSE
+  SSL
+  EMAIL
+  BACKUP
+}
+
+model AddonService {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          AddonServiceType
+  name          String
+  identifier    String?
+  status        ServiceStatus    @default(PROVISIONING)
+  metadata      Json?
+  expiresAt     DateTime?
+  provisionedAt DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId])
+  @@map("addon_services")
+}
+
+enum HostingPanel {
+  CPANEL
+  PLESK
+}
+
+model HostingServer {
+  id             String       @id @default(cuid())
+  name           String
+  hostname       String
+  ipAddress      String
+  panel          HostingPanel
+  whmUsername    String
+  whmPasswordEnc String
+  apiTokenEnc    String?
+  isDefault      Boolean      @default(false)
+  isActive       Boolean      @default(true)
+  maxAccounts    Int?
+  accountCount      Int          @default(0)
+  lastCheckedAt     DateTime?
+  lastConnectionOk  Boolean?
+  createdAt         DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  accounts HostingAccount[]
+  plans    HostingPlan[]
+
+  @@map("hosting_servers")
+}
+
+model HostingPlan {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  name         String
+  description  String?
+  panel        HostingPanel
+  diskGb       Int
+  bandwidthGb  Int
+  maxDomains   Int
+  maxEmails    Int
+  maxDatabases Int
+  price        Decimal      @db.Decimal(10, 2)
+  currency     String       @default("USD")
+  billingCycle BillingCycle @default(MONTHLY)
+  isActive     Boolean      @default(true)
+  sortOrder    Int          @default(0)
+  serverId     String?
+  pleskPlanName String?
+  server       HostingServer? @relation(fields: [serverId], references: [id], onDelete: Restrict)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  accounts HostingAccount[]
+
+  @@index([serverId])
+  @@map("hosting_plans")
+}
+
+model HostingAccount {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId           String
+  plan             HostingPlan    @relation(fields: [planId], references: [id])
+  serverId         String?
+  server           HostingServer? @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  orderId          String?
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  primaryDomain    String         @unique
+  username         String         @unique
+  panel            HostingPanel
+  status           ServiceStatus  @default(PROVISIONING)
+  panelUrl         String?
+  panelUsername    String?
+  panelPasswordEnc String?
+  panelRef         String?
+  panelSessionTokenEnc String?
+  panelSessionExpiresAt DateTime?
+  provisionStage   String?
+  provisionError   String?
+  provisionedAt    DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([planId])
+  @@index([serverId])
+  @@index([orderId])
+  @@map("hosting_accounts")
+}
+
+model NavGroup {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  labels    Json
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  items     NavItem[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("nav_groups")
+}
+
+model NavItem {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     NavGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  labels    Json
+  href      String
+  pathMatch String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId])
+  @@map("nav_items")
+}
+
+enum CmsSectionType {
+  HERO
+  PLANS
+  INCLUDED
+  FEATURES
+  FAQ
+  CTA
+  STATS
+  RICH_TEXT
+  BANNER
+  CUSTOM
+}
+
+model CmsPage {
+  id        String           @id @default(cuid())
+  slug      String           @unique
+  title     Json
+  isActive  Boolean          @default(true)
+  sections  CmsPageSection[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("cms_pages")
+}
+
+model CmsPageSection {
+  id        String         @id @default(cuid())
+  pageId    String
+  page      CmsPage        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  key       String
+  type      CmsSectionType
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  content   Json
+  design    Json           @default("{}")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([pageId, key])
+  @@index([pageId])
+  @@map("cms_page_sections")
+}

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vexira Host | Elite Performance Infrastructure</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e0e3e5",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#acedff",
+                        "tertiary": "#000000",
+                        "on-tertiary-fixed": "#001f26",
+                        "on-tertiary-container": "#0090a9",
+                        "inverse-primary": "#bec6e0",
+                        "primary": "#000000",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#131b2e",
+                        "surface-dim": "#d8dadc",
+                        "on-surface": "#191c1e",
+                        "primary-container": "#131b2e",
+                        "primary-fixed-dim": "#bec6e0",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#7c839b",
+                        "secondary-fixed-dim": "#d2bbff",
+                        "surface-tint": "#565e74",
+                        "secondary-container": "#8a4cfc",
+                        "surface-variant": "#e0e3e5",
+                        "tertiary-fixed-dim": "#4cd7f6",
+                        "primary-fixed": "#dae2fd",
+                        "on-surface-variant": "#45464d",
+                        "on-secondary-container": "#fffbff",
+                        "surface": "#f7f9fb",
+                        "tertiary-container": "#001f26",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-secondary-fixed-variant": "#5a00c6",
+                        "background": "#f7f9fb",
+                        "on-background": "#191c1e",
+                        "secondary-fixed": "#eaddff",
+                        "surface-container": "#eceef0",
+                        "surface-bright": "#f7f9fb",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "secondary": "#712ae2",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#004e5c",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#c6c6cd",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-primary": "#ffffff",
+                        "outline": "#76777d",
+                        "inverse-surface": "#2d3133",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#25005a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "48px",
+                        "margin-tablet": "32px",
+                        "stack-sm": "12px",
+                        "gutter": "32px",
+                        "unit": "8px",
+                        "container-max": "1280px",
+                        "stack-md": "24px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "label-sm": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "code-snippet": ["Geist"],
+                        "display-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["13px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "display-lg-mobile": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "code-snippet": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "display-lg": ["72px", {"lineHeight": "80px", "letterSpacing": "-0.04em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(234, 221, 255, 0.4) 0%, rgba(247, 249, 251, 0) 70%);
+        }
+        .stats-blur {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.6) 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-secondary-fixed selection:text-on-secondary-fixed">
+<!-- Top Navigation Bar -->
+<nav class="bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 docked full-width top-0 sticky z-50 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300">
+<div class="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-4 max-w-container-max mx-auto">
+<div class="flex items-center gap-12">
+<a class="font-plus-jakarta-sans text-headline-lg font-bold tracking-tighter text-primary" href="#">Vexira Host</a>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-on-surface-variant font-geist text-label-sm hover:text-primary transition-colors" href="#infrastructure">Infrastructure</a>
+<a class="text-primary font-geist text-label-sm border-b-2 border-primary pb-1 font-semibold" href="#products">Products</a>
+<a class="text-on-surface-variant font-geist text-label-sm hover:text-primary transition-colors" href="#solutions">Solutions</a>
+<a class="text-on-surface-variant font-geist text-label-sm hover:text-primary transition-colors" href="#pricing">Pricing</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden lg:flex items-center gap-3">
+<button class="material-symbols-outlined p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-all">notifications</button>
+<button class="material-symbols-outlined p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-all">settings</button>
+</div>
+<div class="h-8 w-px bg-outline-variant/30 hidden md:block"></div>
+<button class="hidden sm:block text-on-surface-variant font-geist text-label-sm px-4 py-2 hover:bg-surface-container-low rounded-lg transition-all">Client Portal</button>
+<button class="bg-primary text-on-primary font-geist text-label-sm px-6 py-2.5 rounded-full font-semibold hover:opacity-90 active:scale-[0.98] transition-all">Deploy Now</button>
+</div>
+</div>
+</nav>
+<main class="relative">
+<!-- Hero Section -->
+<section class="relative pt-24 pb-32 overflow-hidden hero-gradient">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+<div class="z-10">
+<span class="inline-block px-4 py-1.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-geist text-label-sm mb-6">NEXT GENERATION CLOUD</span>
+<h1 class="font-plus-jakarta-sans text-display-lg-mobile md:text-display-lg text-primary mb-6 leading-tight">The Future of <br/>Infrastructure</h1>
+<p class="font-inter text-body-lg text-on-surface-variant max-w-xl mb-10">
+                        Experience unshakeable trust and elite performance with our hardware-accelerated cloud ecosystem. Built for high-growth startups and enterprise leaders who demand more than just a utility.
+                    </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-primary text-on-primary px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:translate-y-[-2px] transition-all">Start Deploying</button>
+<button class="bg-surface-container-lowest border border-outline-variant px-8 py-4 rounded-xl font-semibold text-primary hover:bg-surface-container-low transition-all">View Documentation</button>
+</div>
+</div>
+<div class="relative lg:h-[600px] flex items-center justify-center">
+<div class="absolute inset-0 bg-secondary/5 blur-[120px] rounded-full"></div>
+<img alt="Vexira Cloud Engine 3D Representation" class="relative w-full max-w-lg z-10 drop-shadow-2xl animate-[float_6s_ease-in-out_infinite]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCayp-vou0QhgIjdhQ7ZxDJ-21MY4WqT8uiA-YXcjsRFAFA-sL4CXHBgzh_mUcbQWVdhwxigBLW0Rct_sSJupJFsLufbEPq2YEsy8E0agYif2THGNTs8aWvbYTISQvdrzfOLDYs_xAyZ0PRg2dBzlNSSvVLgT1hhtQidAajfxP7hvaGGNSTXS8xbhtsJNR-ngVZ35XN97qcsr7-FF9wnOb4ms6Ss-VhxZfuMUAXBKKyNITxM0PrZ1dB74MSpoVAAsANBniEy0aQPcET"/>
+</div>
+</div>
+<!-- Domain Search Floating Card -->
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop mt-stack-lg">
+<div class="glass-card rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
+<div class="flex-shrink-0">
+<h3 class="font-plus-jakarta-sans text-headline-lg text-primary">Find your domain</h3>
+<p class="text-on-surface-variant text-body-md">Secure your digital identity today.</p>
+</div>
+<div class="flex-grow w-full">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full h-16 pl-12 pr-32 bg-surface-container-low border border-outline-variant focus:ring-2 focus:ring-secondary/50 focus:border-secondary rounded-2xl transition-all font-inter text-body-lg" placeholder="yourcompany.com" type="text"/>
+<button class="absolute right-2 top-2 bottom-2 bg-primary text-on-primary px-6 rounded-xl font-semibold hover:opacity-90">Search</button>
+</div>
+</div>
+<div class="flex gap-4 text-on-surface-variant font-geist text-label-sm">
+<span class="flex items-center gap-1"><span class="text-secondary">.com</span> $9.99</span>
+<span class="flex items-center gap-1"><span class="text-secondary">.net</span> $11.99</span>
+<span class="flex items-center gap-1"><span class="text-secondary">.ai</span> $69.00</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Packages Section -->
+<section class="py-stack-lg bg-surface-container-lowest relative z-10" id="pricing">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+<div class="text-center mb-16">
+<h2 class="font-plus-jakarta-sans text-headline-xl text-primary mb-4">Elite Hosting Packages</h2>
+<p class="text-on-surface-variant text-body-lg max-w-2xl mx-auto">Engineered for stability, speed, and scalability. Choose the foundation for your next big breakthrough.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Web Hosting Card -->
+<div class="bg-surface border border-outline-variant/50 rounded-[32px] p-8 hover:border-secondary/30 transition-all group">
+<div class="w-16 h-16 bg-surface-container-high rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+<img alt="Hosting Icon" class="w-10 h-10 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwa7xekeMCs1VUL53hN-BdQR-E9-YMQj_hoCMsizTj-WcSi8kNK05XQzQW1m_-nIZ1unhRNhY9Cro66xglIQqxHK7GHRagMsVF735xifN8L27ZK0VvAwL3Uo6AFqgXrWbSdboSX4F1cmgcGmHOTxT-OO3tQ84Frj1U5NHRBHilcYznzqHq_HfJ3JoPiPBhqHJBWGUYfHgg3VMeMuiVoaYrsNr2wCVKGnFngy1-qr49l3wxz4Cly2xiZ5dJ-gk9mwrodkZKA0MM4nmq" style="clip-path: inset(0 66% 66% 0);"/>
+</div>
+<h3 class="font-plus-jakarta-sans text-headline-lg mb-2">Web Hosting</h3>
+<p class="text-on-surface-variant mb-6 h-12">Perfect for startups and portfolios requiring 99.9% uptime.</p>
+<div class="mb-8">
+<span class="text-display-lg-mobile font-bold text-primary">$12</span>
+<span class="text-on-surface-variant">/month</span>
+</div>
+<ul class="space-y-4 mb-10 text-body-md text-on-surface-variant">
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span> 50GB NVMe Storage</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span> Unlimited Bandwidth</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span> Free SSL &amp; CDN</li>
+</ul>
+<button class="w-full py-4 border border-outline-variant rounded-xl font-bold text-primary hover:bg-primary hover:text-on-primary transition-all">Get Started</button>
+</div>
+<!-- VPS Hosting Card (Featured) -->
+<div class="bg-primary-container text-on-primary-container rounded-[32px] p-8 shadow-xl shadow-primary/10 relative overflow-hidden transform md:scale-105 z-10">
+<div class="absolute top-0 right-0 p-6">
+<span class="bg-secondary text-on-secondary px-3 py-1 rounded-full text-[12px] font-bold tracking-widest uppercase">Popular</span>
+</div>
+<div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-8">
+<img alt="VPS Icon" class="w-10 h-10 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwa7xekeMCs1VUL53hN-BdQR-E9-YMQj_hoCMsizTj-WcSi8kNK05XQzQW1m_-nIZ1unhRNhY9Cro66xglIQqxHK7GHRagMsVF735xifN8L27ZK0VvAwL3Uo6AFqgXrWbSdboSX4F1cmgcGmHOTxT-OO3tQ84Frj1U5NHRBHilcYznzqHq_HfJ3JoPiPBhqHJBWGUYfHgg3VMeMuiVoaYrsNr2wCVKGnFngy1-qr49l3wxz4Cly2xiZ5dJ-gk9mwrodkZKA0MM4nmq" style="clip-path: inset(0 33% 66% 33%);"/>
+</div>
+<h3 class="font-plus-jakarta-sans text-headline-lg mb-2 text-white">VPS Hosting</h3>
+<p class="text-on-primary-container/70 mb-6 h-12">Dedicated resources with full root access for custom environments.</p>
+<div class="mb-8">
+<span class="text-display-lg-mobile font-bold text-white">$49</span>
+<span class="text-on-primary-container/60">/month</span>
+</div>
+<ul class="space-y-4 mb-10 text-body-md text-on-primary-container/80">
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-[20px]">check_circle</span> 8 vCPU Cores</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-[20px]">check_circle</span> 32GB DDR5 RAM</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary-fixed text-[20px]">check_circle</span> 500GB SSD NVMe</li>
+</ul>
+<button class="w-full py-4 bg-secondary text-white rounded-xl font-bold hover:bg-secondary/90 transition-all shadow-lg">Upgrade Now</button>
+</div>
+<!-- Dedicated Card -->
+<div class="bg-surface border border-outline-variant/50 rounded-[32px] p-8 hover:border-secondary/30 transition-all group">
+<div class="w-16 h-16 bg-surface-container-high rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
+<img alt="Dedicated Icon" class="w-10 h-10 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwa7xekeMCs1VUL53hN-BdQR-E9-YMQj_hoCMsizTj-WcSi8kNK05XQzQW1m_-nIZ1unhRNhY9Cro66xglIQqxHK7GHRagMsVF735xifN8L27ZK0VvAwL3Uo6AFqgXrWbSdboSX4F1cmgcGmHOTxT-OO3tQ84Frj1U5NHRBHilcYznzqHq_HfJ3JoPiPBhqHJBWGUYfHgg3VMeMuiVoaYrsNr2wCVKGnFngy1-qr49l3wxz4Cly2xiZ5dJ-gk9mwrodkZKA0MM4nmq" style="clip-path: inset(66% 33% 0 33%);"/>
+</div>
+<h3 class="font-plus-jakarta-sans text-headline-lg mb-2">Dedicated</h3>
+<p class="text-on-surface-variant mb-6 h-12">Bare-metal performance for massive applications and data.</p>
+<div class="mb-8">
+<span class="text-display-lg-mobile font-bold text-primary">$189</span>
+<span class="text-on-surface-variant">/month</span>
+</div>
+<ul class="space-y-4 mb-10 text-body-md text-on-surface-variant">
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span> AMD EPYC™ Gen 4</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span> 128GB ECC RAM</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-secondary text-[20px]">check_circle</span> 10Gbps Uplink</li>
+</ul>
+<button class="w-full py-4 border border-outline-variant rounded-xl font-bold text-primary hover:bg-primary hover:text-on-primary transition-all">Configure Server</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Global Infrastructure & Features (Bento) -->
+<section class="py-stack-lg bg-surface overflow-hidden" id="infrastructure">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+<div class="bento-grid">
+<!-- Global Network Map -->
+<div class="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-[40px] p-12 border border-outline-variant/30 relative overflow-hidden min-h-[500px]">
+<div class="relative z-10 max-w-md">
+<h2 class="font-plus-jakarta-sans text-headline-xl text-primary mb-4">Global Low-Latency Network</h2>
+<p class="text-on-surface-variant text-body-lg">Deploy nodes closer to your users with 24+ data centers worldwide. 10ms average global latency.</p>
+</div>
+<div class="absolute bottom-0 right-0 w-full h-[350px] lg:h-[450px]">
+<div class="w-full h-full opacity-60 grayscale-[0.8] hover:grayscale-0 transition-all duration-700" data-alt="A clean, minimalist high-tech global map visualization featuring glowing connection lines and data nodes pulsing across continents. The map is rendered in a soft gray and blue palette, fitting a luxury digital infrastructure brand. Small glowing points of light indicate Vexira server locations in major global tech hubs, radiating a sense of global connectivity and performance." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDBiyD3LGFepVnsatZ14ONWIiFOhWv8DmcRs5jWWoBWMp4H577JPlsiZsn-zpHh3Ni9_mAxkF6oXSo6cnQ4c_MFHg0Nbo2qMMJuSXB2GK-SrpeU-0Epjdcht0WnOdFuN5bT0IIm4X2-zfcFXzAWa3wRbpNAlTRPzI9p0zqJ89sbkpGwCTGf0fQOaUMXx8aO4w7n8O4NKNGAQ4_xYV2XMJN-2Owoe-nV_W6kwfXyIjGnM6rwy40kysjRA43_gdfHPSHsl5d-pq5yws9r')"></div>
+</div>
+</div>
+<!-- Security Pulse -->
+<div class="col-span-12 lg:col-span-4 bg-primary text-on-primary rounded-[40px] p-10 flex flex-col justify-between overflow-hidden relative group">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-[48px] text-secondary mb-6" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+<h3 class="font-plus-jakarta-sans text-headline-lg mb-4">Advanced Guard Protection</h3>
+<p class="text-on-primary/70 mb-8">Integrated DDoS mitigation up to 2.5Tbps and enterprise-grade firewalls.</p>
+</div>
+<div class="relative h-24 overflow-hidden rounded-2xl bg-white/5 border border-white/10 flex items-center px-6">
+<div class="flex flex-col">
+<span class="text-label-sm text-secondary uppercase tracking-widest">System Status</span>
+<span class="text-headline-lg font-bold">100% SECURE</span>
+</div>
+<div class="ml-auto">
+<div class="w-4 h-4 rounded-full bg-green-500 animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.6)]"></div>
+</div>
+</div>
+</div>
+<!-- Stats Card -->
+<div class="col-span-12 md:col-span-6 bg-surface-container-low rounded-[40px] p-10 border border-outline-variant/30 flex flex-col justify-center text-center">
+<div class="grid grid-cols-2 gap-8">
+<div>
+<div class="text-display-lg-mobile font-bold text-primary">99.99<span class="text-headline-lg">%</span></div>
+<div class="text-label-sm text-on-surface-variant uppercase tracking-widest mt-2">Uptime SLA</div>
+</div>
+<div>
+<div class="text-display-lg-mobile font-bold text-primary">120<span class="text-headline-lg">TB</span></div>
+<div class="text-label-sm text-on-surface-variant uppercase tracking-widest mt-2">Core Backbone</div>
+</div>
+</div>
+</div>
+<!-- Performance Benchmark -->
+<div class="col-span-12 md:col-span-6 bg-secondary-container text-on-secondary-container rounded-[40px] p-10 flex items-center gap-8 overflow-hidden group">
+<div class="flex-shrink-0 w-24 h-24 bg-white/10 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[48px]" style="font-variation-settings: 'FILL' 1;">speed</span>
+</div>
+<div>
+<h3 class="font-plus-jakarta-sans text-headline-lg mb-2">3.2x Faster</h3>
+<p class="text-on-secondary-container/80">Outperforming standard cloud providers in I/O operations and CPU cycles.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-stack-lg bg-surface-container-lowest">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+<div class="max-w-xl">
+<h2 class="font-plus-jakarta-sans text-headline-xl text-primary mb-4">Trusted by Infrastructure Architects</h2>
+<p class="text-on-surface-variant text-body-lg">Hear from the engineering teams scaling world-class applications on Vexira.</p>
+</div>
+<div class="flex gap-4">
+<button class="p-4 rounded-full border border-outline-variant hover:bg-surface-container-low transition-all"><span class="material-symbols-outlined">arrow_back</span></button>
+<button class="p-4 rounded-full border border-outline-variant hover:bg-surface-container-low transition-all"><span class="material-symbols-outlined">arrow_forward</span></button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="glass-card p-10 rounded-[32px]">
+<div class="flex gap-1 mb-6">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">star</span>
+</div></div></div></div></section></main></body></html>

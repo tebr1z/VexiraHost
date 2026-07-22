@@ -1,0 +1,2 @@
+﻿/** Admin module types */
+export {};

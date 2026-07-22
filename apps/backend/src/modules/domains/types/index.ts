@@ -1,0 +1,2 @@
+﻿/** Domains module types */
+export {};

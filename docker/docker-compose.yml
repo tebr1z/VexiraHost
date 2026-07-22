@@ -1,0 +1,94 @@
+# Vexira Host — production stack (Postgres + Redis + Backend + Frontend)
+# Usage (from repo root):
+#   cp deploy/.env.docker.example deploy/.env.docker
+#   # edit secrets in deploy/.env.docker
+#   docker compose -f docker/docker-compose.yml --env-file deploy/.env.docker up -d --build
+
+name: vexira-host
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vexira-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vexira}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env.docker}
+      POSTGRES_DB: ${POSTGRES_DB:-vexira_host}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vexira} -d ${POSTGRES_DB:-vexira_host}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks:
+      - vexira
+
+  redis:
+    image: redis:7-alpine
+    container_name: vexira-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks:
+      - vexira
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: vexira-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_HOST_PORT:-4000}:4000"
+    env_file:
+      - ../deploy/.env.docker
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vexira}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vexira_host}?schema=public
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vexira
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://vexirahost.com}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.vexirahost.com/api/v1}
+    container_name: vexira-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      - backend
+    networks:
+      - vexira
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  vexira:
+    driver: bridge

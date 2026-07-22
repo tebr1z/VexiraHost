@@ -1,0 +1,2 @@
+﻿/** Licenses module types */
+export {};

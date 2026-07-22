@@ -1,0 +1,2 @@
+﻿/** Hosting module types */
+export {};

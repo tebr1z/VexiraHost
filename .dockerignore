@@ -1,0 +1,29 @@
+# Dependencies & build junk
+node_modules
+**/node_modules
+.git
+.github
+.husky
+.turbo
+**/.next
+**/dist
+**/coverage
+**/.turbo
+
+# Local env / secrets (use deploy/.env.docker on server)
+**/.env
+**/.env.local
+**/.env.*.local
+apps/backend/.env
+apps/frontend/.env.local
+apps/frontend/.env.production
+
+# Docs / IDE / tests not needed in image
+*.md
+!deploy/DOCKER.md
+.vscode
+.idea
+**/*.test.ts
+**/*.spec.ts
+apps/frontend/test-results
+apps/frontend/playwright-report
