@@ -10,6 +10,9 @@ node_modules
 **/coverage
 **/.turbo
 
+# Apps not needed for web docker images
+apps/mobile
+
 # Local env / secrets (use deploy/.env.docker on server)
 **/.env
 **/.env.local
