@@ -5,7 +5,7 @@ WORKDIR /app
 
 FROM base AS builder
 # Full workspace source first so pnpm links stay valid
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.json ./
 COPY apps/backend ./apps/backend
 COPY packages/config ./packages/config
 COPY packages/types ./packages/types
