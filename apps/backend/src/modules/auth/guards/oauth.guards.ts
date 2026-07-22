@@ -1,6 +1,6 @@
 import type { ExecutionContext } from "@nestjs/common";
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
-import type { ConfigService } from "@nestjs/config";
+import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
 
 import { resolveAuthEmailLocale } from "../email/auth-email.locale";

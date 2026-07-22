@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
-import type { ConfigService } from "@nestjs/config";
+import { ConfigService } from "@nestjs/config";
 import type { AuthUser } from "@vexira/types";
 import type { Request, Response } from "express";
 
-import type {
+import {
   ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
@@ -13,7 +13,7 @@ import type {
 } from "../dto";
 import { GitHubAuthGuard, GoogleAuthGuard } from "../guards/oauth.guards";
 import type { OAuthProfile } from "../interfaces";
-import type { AuthService } from "../service/auth.service";
+import { AuthService } from "../service/auth.service";
 
 import { Public } from "@/decorators/auth.decorators";
 import { User } from "@/decorators/user.decorator";

@@ -39,6 +39,13 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/backend/**/*.ts"],
+    rules: {
+      // Nest DI needs runtime class imports for constructor params / DTOs
+      "@typescript-eslint/consistent-type-imports": "off",
+    },
+  },
+  {
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
