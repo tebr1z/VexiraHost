@@ -17,7 +17,8 @@ RUN pnpm --filter @vexira/types build \
  && pnpm --filter @vexira/backend prisma:generate \
  && pnpm --filter @vexira/backend build
 
-# Fresh prod install in final image (avoids broken pnpm symlinks / deploy flags)
+# Fresh install in final image (valid pnpm links). Keep prisma CLI (devDep)
+# so we do NOT use `npx prisma` (that pulls Prisma 7 and breaks schema).
 FROM base AS runner
 ENV NODE_ENV=production
 RUN apk add --no-cache libc6-compat openssl
@@ -34,9 +35,10 @@ COPY --from=builder /app/packages/types/package.json ./packages/types/package.js
 COPY --from=builder /app/packages/config/dist ./packages/config/dist
 COPY --from=builder /app/packages/config/package.json ./packages/config/package.json
 
-RUN pnpm install --no-frozen-lockfile --filter @vexira/backend... --prod --ignore-scripts \
- && cd apps/backend && npx prisma generate --schema=./prisma/schema.prisma
+# No --prod: prisma CLI is a devDependency and must stay for generate/migrate
+RUN pnpm install --no-frozen-lockfile --filter @vexira/backend... --ignore-scripts \
+ && pnpm --filter @vexira/backend exec prisma generate
 
 WORKDIR /app/apps/backend
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]
