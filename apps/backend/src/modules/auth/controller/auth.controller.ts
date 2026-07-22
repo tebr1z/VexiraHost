@@ -1,21 +1,9 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-  Req,
-  Res,
-  UseGuards,
-} from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import type { ConfigService } from "@nestjs/config";
+import type { AuthUser } from "@vexira/types";
 import type { Request, Response } from "express";
 
-import { Public } from "@/decorators/auth.decorators";
-import { User } from "@/decorators/user.decorator";
-import type { AuthUser } from "@vexira/types";
-
-import {
+import type {
   ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
@@ -25,7 +13,10 @@ import {
 } from "../dto";
 import { GitHubAuthGuard, GoogleAuthGuard } from "../guards/oauth.guards";
 import type { OAuthProfile } from "../interfaces";
-import { AuthService } from "../service/auth.service";
+import type { AuthService } from "../service/auth.service";
+
+import { Public } from "@/decorators/auth.decorators";
+import { User } from "@/decorators/user.decorator";
 
 @Controller("auth")
 export class AuthController {
@@ -76,7 +67,9 @@ export class AuthController {
   @Public()
   @Get("verify-email")
   verifyEmailRedirect(@Query("token") token: string | undefined, @Res() res: Response) {
-    const appUrl = this.configService.get<string>("APP_URL", "http://localhost:3000").replace(/\/$/, "");
+    const appUrl = this.configService
+      .get<string>("APP_URL", "http://localhost:3000")
+      .replace(/\/$/, "");
     if (!token) {
       res.redirect(`${appUrl}/verify-email`);
       return;
@@ -117,15 +110,26 @@ export class AuthController {
   @Get("google/callback")
   @UseGuards(GoogleAuthGuard)
   async googleCallback(
-    @Req() req: Request & { user: OAuthProfile; query?: { state?: string } },
+    @Req() req: Request & { user: OAuthProfile; query?: { state?: string; error?: string } },
     @Res() res: Response,
   ) {
-    const session = await this.authService.loginWithOAuth(req.user, {
-      userAgent: req.headers["user-agent"],
-      ip: req.ip,
-      locale: typeof req.query?.state === "string" ? req.query.state : undefined,
-    });
-    res.redirect(this.authService.buildOAuthRedirectUrl(session, "google"));
+    const appUrl = this.configService
+      .get<string>("APP_URL", "http://localhost:3000")
+      .replace(/\/$/, "");
+    if (req.query?.error) {
+      res.redirect(`${appUrl}/login?oauthError=${encodeURIComponent(String(req.query.error))}`);
+      return;
+    }
+    try {
+      const session = await this.authService.loginWithOAuth(req.user, {
+        userAgent: req.headers["user-agent"],
+        ip: req.ip,
+        locale: typeof req.query?.state === "string" ? req.query.state : undefined,
+      });
+      res.redirect(this.authService.buildOAuthRedirectUrl(session, "google"));
+    } catch {
+      res.redirect(`${appUrl}/login?oauthError=google_failed`);
+    }
   }
 
   @Public()

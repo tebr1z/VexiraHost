@@ -1,12 +1,11 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 
-import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
-
 import { AuthController } from "./controller/auth.controller";
+import { GitHubAuthGuard, GoogleAuthGuard } from "./guards/oauth.guards";
 import { AuthRepository } from "./repository/auth.repository";
 import { AuthEmailService } from "./service/auth-email.service";
 import { AuthService } from "./service/auth.service";
@@ -15,9 +14,11 @@ import { GitHubStrategy } from "./strategies/github.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 
+import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
+
 @Module({
   imports: [
-    PassportModule.register({ defaultStrategy: "jwt" }),
+    PassportModule.register({ defaultStrategy: "jwt", session: false }),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -37,6 +38,8 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
     JwtStrategy,
     GoogleStrategy,
     GitHubStrategy,
+    GoogleAuthGuard,
+    GitHubAuthGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
   exports: [AuthService, AuthRepository, JwtModule],
