@@ -3,27 +3,26 @@ FROM node:20-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
-FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY apps/frontend/package.json ./apps/frontend/
-COPY packages/ui/package.json ./packages/ui/
-COPY packages/types/package.json ./packages/types/
-COPY packages/utils/package.json ./packages/utils/
-COPY packages/api-sdk/package.json ./packages/api-sdk/
-# husky prepare fails in Docker — skip lifecycle scripts
-RUN pnpm install --no-frozen-lockfile --filter @vexira/frontend... --ignore-scripts
-
 FROM base AS builder
 ARG NEXT_PUBLIC_APP_URL=https://vexirahost.com
 ARG NEXT_PUBLIC_API_URL=https://api.vexirahost.com/api/v1
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/frontend/node_modules ./apps/frontend/node_modules
-COPY --from=deps /app/packages ./packages
-COPY . .
-RUN pnpm --filter @vexira/frontend build
+
+# Full workspace source first so pnpm links stay valid
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/frontend ./apps/frontend
+COPY packages ./packages
+
+RUN pnpm install --no-frozen-lockfile --filter @vexira/frontend... --ignore-scripts
+
+# Workspace packages export dist/ — build them before Next
+RUN pnpm --filter @vexira/types build \
+ && pnpm --filter @vexira/utils build \
+ && pnpm --filter @vexira/ui build \
+ && pnpm --filter @vexira/api-sdk build \
+ && pnpm --filter @vexira/frontend build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
