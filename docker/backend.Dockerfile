@@ -8,7 +8,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/backend/package.json ./apps/backend/
 COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
-RUN pnpm install --frozen-lockfile --filter @vexira/backend...
+# husky prepare fails in Docker — skip lifecycle scripts
+RUN pnpm install --frozen-lockfile --filter @vexira/backend... --ignore-scripts
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
