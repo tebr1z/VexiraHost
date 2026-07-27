@@ -4,16 +4,19 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
+import { updateUserPreferences } from "@/features/auth/services/auth.service";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
-import { updateUserPreferences } from "@/features/auth/services/auth.service";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePricingStore, type AppCurrency } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
 const OPTIONS: AppCurrency[] = ["USD", "EUR", "AZN"];
 
-const CURRENCY_META: Record<AppCurrency, { symbol: string; nameKey: "currencyUsd" | "currencyEur" | "currencyAzn" }> = {
+const CURRENCY_META: Record<
+  AppCurrency,
+  { symbol: string; nameKey: "currencyUsd" | "currencyEur" | "currencyAzn" }
+> = {
   USD: { symbol: "$", nameKey: "currencyUsd" },
   EUR: { symbol: "€", nameKey: "currencyEur" },
   AZN: { symbol: "₼", nameKey: "currencyAzn" },
@@ -97,7 +100,13 @@ function useCurrencySwitcherState() {
   };
 }
 
-function CurrencySymbol({ code, className }: { code: AppCurrency; className?: string }): React.ReactElement {
+function CurrencySymbol({
+  code,
+  className,
+}: {
+  code: AppCurrency;
+  className?: string;
+}): React.ReactElement {
   return (
     <span
       className={cn(
@@ -118,7 +127,8 @@ export function CurrencySwitcher({
   className?: string;
   variant?: "dropdown" | "segmented";
 }): React.ReactElement {
-  const { t, activeCurrency, disabled, locked, saving, handleSelect, title } = useCurrencySwitcherState();
+  const { t, activeCurrency, disabled, locked, saving, handleSelect, title } =
+    useCurrencySwitcherState();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -140,7 +150,11 @@ export function CurrencySwitcher({
 
   if (variant === "segmented") {
     return (
-      <div className={cn("apple-segmented w-fit", className)} role="group" aria-label={t("currency")}>
+      <div
+        className={cn("apple-segmented w-fit", className)}
+        role="group"
+        aria-label={t("currency")}
+      >
         {OPTIONS.map((code) => {
           const active = activeCurrency === code;
           const optionDisabled = disabled || (locked && code !== "AZN");
@@ -185,7 +199,9 @@ export function CurrencySwitcher({
         )}
       >
         {locked ? (
-          <span className="material-symbols-outlined text-[16px] text-[var(--label-tertiary)]">lock</span>
+          <span className="material-symbols-outlined text-[16px] text-[var(--label-tertiary)]">
+            lock
+          </span>
         ) : (
           <span className="material-symbols-outlined text-[16px]">payments</span>
         )}
@@ -212,7 +228,7 @@ export function CurrencySwitcher({
             transition={{ duration: 0.15 }}
             role="listbox"
             aria-label={t("currency")}
-            className="absolute right-0 top-full z-50 mt-2 min-w-[12rem] overflow-hidden rounded-[14px] border-[0.5px] border-[var(--separator)] bg-[var(--bg-elevated)] p-1 shadow-apple-md"
+            className="shadow-apple-md absolute right-0 top-full z-[60] mt-2 min-w-[12rem] overflow-hidden rounded-[14px] border border-[var(--separator)] bg-[var(--bg-elevated)] p-1"
           >
             {OPTIONS.map((code) => {
               const active = code === activeCurrency;
@@ -235,10 +251,14 @@ export function CurrencySwitcher({
                     <CurrencySymbol code={code} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="font-semibold tracking-wide">{code}</span>
-                      <span className="text-xs text-[var(--label-tertiary)]">{t(meta.nameKey)}</span>
+                      <span className="text-xs text-[var(--label-tertiary)]">
+                        {t(meta.nameKey)}
+                      </span>
                     </span>
                     {active && (
-                      <span className="material-symbols-outlined text-[18px] text-[var(--accent)]">check</span>
+                      <span className="material-symbols-outlined text-[18px] text-[var(--accent)]">
+                        check
+                      </span>
                     )}
                   </button>
                 </li>

@@ -1,8 +1,13 @@
-import type { CartItem } from "@/stores/cart-store";
-import { resolveCheckoutPeriod } from "@/lib/cart-pricing";
-import { usePricingStore } from "@/stores/pricing-store";
+import {
+  chargeInvoice,
+  checkout,
+  createPaymentMethod,
+  listPaymentMethods,
+} from "../services/billing.service";
 
-import { chargeInvoice, checkout, createPaymentMethod, listPaymentMethods } from "../services/billing.service";
+import { resolveCheckoutPeriod } from "@/lib/cart-pricing";
+import type { CartItem } from "@/stores/cart-store";
+import { usePricingStore } from "@/stores/pricing-store";
 
 const DOMAIN_PATTERN =
   /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i;
@@ -74,17 +79,40 @@ export function validateBillingAddress(
 
 export async function performCheckout(
   items: CartItem[],
-  billingAddress: BillingAddressInput,
+  billingAddress: BillingAddressInput | null | undefined,
   billingAddressRequiredMessage: string,
+  options?: { requireBillingAddress?: boolean },
 ): Promise<{
   orderId: string;
   hasHosting: boolean;
   redirectUrl?: string;
 }> {
-  const normalizedBillingAddress = validateBillingAddress(
-    billingAddress,
-    billingAddressRequiredMessage,
-  );
+  const requireBilling = options?.requireBillingAddress !== false;
+
+  let normalizedBillingAddress: BillingAddressInput | null = null;
+  if (requireBilling) {
+    normalizedBillingAddress = validateBillingAddress(
+      billingAddress ?? {
+        fullName: "",
+        line1: "",
+        city: "",
+        region: "",
+        postalCode: "",
+        country: "",
+      },
+      billingAddressRequiredMessage,
+    );
+  } else if (billingAddress && isCompleteBillingAddress(billingAddress)) {
+    normalizedBillingAddress = {
+      fullName: billingAddress.fullName.trim(),
+      line1: billingAddress.line1.trim(),
+      city: billingAddress.city.trim(),
+      region: billingAddress.region.trim(),
+      postalCode: billingAddress.postalCode.trim(),
+      country: billingAddress.country.trim(),
+    };
+  }
+
   const pricing = usePricingStore.getState();
   const period = resolveCheckoutPeriod(items, pricing.period);
   const order = await checkout(
@@ -95,7 +123,7 @@ export async function performCheckout(
         ...(item.category === "HOSTING" && item.primaryDomain
           ? { primaryDomain: item.primaryDomain.trim().toLowerCase() }
           : {}),
-        billingAddress: normalizedBillingAddress,
+        ...(normalizedBillingAddress ? { billingAddress: normalizedBillingAddress } : {}),
       },
     })),
     { currency: pricing.currency, period },

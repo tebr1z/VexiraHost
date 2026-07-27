@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { useLocale, useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { LocaleFlag } from "@/components/i18n/locale-flag";
-import { locales, type AppLocale } from "@/i18n/routing";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { locales, type AppLocale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
 
 export function LanguageSwitcher({
@@ -53,7 +53,11 @@ export function LanguageSwitcher({
 
   if (variant === "panel") {
     return (
-      <div className={cn("grid grid-cols-2 gap-1.5", className)} role="listbox" aria-label={tCommon("language")}>
+      <div
+        className={cn("grid grid-cols-2 gap-1.5", className)}
+        role="listbox"
+        aria-label={tCommon("language")}
+      >
         {locales.map((code) => {
           const active = code === locale;
           return (
@@ -67,8 +71,8 @@ export function LanguageSwitcher({
               className={cn(
                 "flex items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm transition",
                 active
-                  ? "bg-[var(--fill)] font-medium text-[var(--label)]"
-                  : "text-[var(--label-secondary)] hover:bg-[var(--fill-secondary)]",
+                  ? "bg-[var(--bg-elevated)] font-medium text-[var(--label)] shadow-sm"
+                  : "bg-[var(--bg)] text-[var(--label-secondary)] hover:bg-[var(--bg-elevated)]",
               )}
             >
               <LocaleFlag locale={code} size={18} />
@@ -105,7 +109,7 @@ export function LanguageSwitcher({
             transition={{ duration: 0.15 }}
             role="listbox"
             aria-label={tCommon("language")}
-            className="absolute right-0 top-full z-50 mt-2 min-w-[11rem] overflow-hidden rounded-[14px] border-[0.5px] border-[var(--separator)] bg-[var(--bg-elevated)] p-1 shadow-apple-md"
+            className="shadow-apple-md absolute right-0 top-full z-[60] mt-2 min-w-[11rem] overflow-hidden rounded-[14px] border border-[var(--separator)] bg-[var(--bg-elevated)] p-1"
           >
             {locales.map((code) => {
               const active = code === locale;

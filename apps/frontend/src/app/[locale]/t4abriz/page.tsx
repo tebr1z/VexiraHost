@@ -1,39 +1,50 @@
 "use client";
 
-import { useRouter } from "@/i18n/navigation";
+import { notFound } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 
-import { AdminLoginForm } from "@/components/admin/admin-login-form";
 import { ADMIN_PANEL_PATH } from "@/components/admin/admin-nav-config";
+import { useAuthHydration } from "@/features/auth/hooks/use-auth";
+import { stashAuthNext } from "@/features/auth/lib/auth-redirect";
+import { useRouter } from "@/i18n/navigation";
+import { isStaffRole } from "@/lib/is-staff-role";
 import { useAuthStore } from "@/stores/auth-store";
-import {
-  isViewingAsImpersonatedUser,
-  useImpersonationStore,
-} from "@/stores/impersonation-store";
+import { isViewingAsImpersonatedUser, useImpersonationStore } from "@/stores/impersonation-store";
 
-export default function AdminLoginPage(): React.ReactElement {
+export default function AdminEntryPage(): React.ReactElement {
+  const t = useTranslations("admin.login");
   const router = useRouter();
+  const { isReady, isAuthenticated } = useAuthHydration();
   const user = useAuthStore((s) => s.user);
-  const hydrateToken = useAuthStore((s) => s.hydrateToken);
   const adminSession = useImpersonationStore((s) => s.adminSession);
 
   useEffect(() => {
-    hydrateToken();
-  }, [hydrateToken]);
+    if (!isReady) return;
 
-  useEffect(() => {
     if (isViewingAsImpersonatedUser(adminSession, user?.id)) {
       router.replace("/dashboard");
       return;
     }
-    if (user && (user.role === "admin" || user.role === "staff")) {
+
+    if (isAuthenticated && isStaffRole(user?.role)) {
       router.replace(ADMIN_PANEL_PATH);
+      return;
     }
-  }, [user, adminSession, router]);
+
+    if (!isAuthenticated) {
+      stashAuthNext(ADMIN_PANEL_PATH);
+      router.replace(`/login?next=${encodeURIComponent(ADMIN_PANEL_PATH)}`);
+    }
+  }, [isReady, isAuthenticated, user?.id, user?.role, adminSession, router]);
+
+  if (isReady && isAuthenticated && !isStaffRole(user?.role)) {
+    notFound();
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <AdminLoginForm />
+    <div className="text-on-surface-variant flex min-h-screen items-center justify-center px-4 py-12">
+      {t("checking")}
     </div>
   );
 }

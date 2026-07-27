@@ -1,20 +1,21 @@
 "use client";
 
-import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { asString, asStringArray, CmsSectionShell } from "@/components/cms/cms-section-shell";
 import { HostingPlanCard } from "@/components/hosting/hosting-plan-card";
+import { MaterialIcon } from "@/components/landing/material-icon";
 import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
 import { CurrencySwitcher } from "@/components/layout/currency-switcher";
-import { MaterialIcon } from "@/components/landing/material-icon";
-import { asString, asStringArray, CmsSectionShell } from "@/components/cms/cms-section-shell";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
 import { listCatalogProducts, type CatalogProduct } from "@/features/catalog";
 import type { PublicCmsSection } from "@/features/cms/types";
 import { listHostingPlans, type HostingPlan } from "@/features/hosting";
-import { cn } from "@/lib/cn";
+import { useRouter } from "@/i18n/navigation";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
+import { cn } from "@/lib/cn";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
@@ -23,6 +24,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
   const router = useRouter();
   const t = useTranslations("publicHosting");
   const addItem = useCartStore((s) => s.addItem);
+  const continueAfterAdd = useAddToCartNavigation();
   const currency = usePricingStore((s) => s.currency);
   const period = usePricingStore((s) => s.period);
   const [plans, setPlans] = useState<HostingPlan[]>([]);
@@ -64,7 +66,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
     if (product) {
       addItem(buildCartItemFromProduct(product));
       toast(t("addedToCart"), "success");
-      router.push("/cart");
+      continueAfterAdd();
       return;
     }
     router.push("/register");

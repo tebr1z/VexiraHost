@@ -1,8 +1,8 @@
 import type { AuthSession } from "@vexira/types";
 
-import { apiClient } from "@/services/api-client";
-
 import type { LoginFormValues, RegisterFormValues } from "../schemas/auth.schema";
+
+import { apiClient } from "@/services/api-client";
 
 export async function loginRequest(values: LoginFormValues, locale?: string): Promise<AuthSession> {
   const response = await apiClient.request<AuthSession>("/auth/login", {
@@ -78,13 +78,22 @@ export async function verifyEmailTokenRequest(token: string): Promise<AuthSessio
   return response.data as AuthSession;
 }
 
+export async function forgotPasswordRequest(email: string): Promise<void> {
+  await apiClient.request("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+  });
+}
+
 export async function resetPasswordRequest(input: {
   token: string;
   password: string;
-  confirmPassword: string;
 }): Promise<void> {
   await apiClient.request("/auth/reset-password", {
     method: "POST",
-    body: input,
+    body: {
+      token: input.token,
+      password: input.password,
+    },
   });
 }

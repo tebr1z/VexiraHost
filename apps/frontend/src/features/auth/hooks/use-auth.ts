@@ -24,7 +24,9 @@ export function useRequireAuth(redirectTo = "/login"): { isReady: boolean } {
 
   useEffect(() => {
     if (isReady && !isAuthenticated) {
-      window.location.href = redirectTo;
+      const next = `${window.location.pathname}${window.location.search}`;
+      const sep = redirectTo.includes("?") ? "&" : "?";
+      window.location.href = `${redirectTo}${sep}next=${encodeURIComponent(next)}`;
     }
   }, [isReady, isAuthenticated, redirectTo]);
 

@@ -14,7 +14,6 @@ export default function NotFoundPage(): React.ReactElement {
       actions={[
         { href: "/", label: t("home"), primary: true },
         { href: "/dashboard", label: t("dashboard") },
-        { href: "/t4abriz", label: t("admin") },
         { href: "/dashboard/tickets/new", label: t("support") },
       ]}
     />

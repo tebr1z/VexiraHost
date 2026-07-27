@@ -3,8 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
-import { apiClient } from "@/services/api-client";
+import { goAfterAuth } from "@/features/auth/lib/auth-redirect";
 import { saveLastGoogleAccount } from "@/lib/last-google-account";
+import { apiClient } from "@/services/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 
 function OAuthCallbackHandler(): React.ReactElement {
@@ -46,7 +47,7 @@ function OAuthCallbackHandler(): React.ReactElement {
           },
           { rememberMe: true },
         );
-        router.replace("/dashboard");
+        goAfterAuth((href) => router.replace(href));
       })
       .catch(() => setError("OAuth login failed. Please try again."));
   }, [params, router, setSession]);
@@ -58,7 +59,7 @@ function OAuthCallbackHandler(): React.ReactElement {
         <button
           type="button"
           onClick={() => router.push("/login")}
-          className="mt-4 text-secondary hover:underline"
+          className="text-secondary mt-4 hover:underline"
         >
           Back to login
         </button>

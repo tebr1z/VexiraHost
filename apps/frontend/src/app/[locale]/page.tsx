@@ -1,8 +1,8 @@
 import {
+  DataTransferSection,
   HeroSection,
   InfrastructureSection,
   PricingSection,
-  TestimonialsSection,
 } from "@/components/landing";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 
@@ -12,7 +12,7 @@ export default function HomePage(): React.ReactElement {
       <HeroSection />
       <PricingSection />
       <InfrastructureSection />
-      <TestimonialsSection />
+      <DataTransferSection />
     </MarketingShell>
   );
 }
