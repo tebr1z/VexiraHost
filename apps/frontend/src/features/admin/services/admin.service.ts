@@ -221,12 +221,19 @@ export async function updateAdminUserStatus(
 export async function creditAdminUserBalance(
   userId: string,
   input: { amount: number; currency?: string; note?: string },
-): Promise<{ balance: number; currency: string }> {
-  const res = await apiClient.request<{ balance: number; currency: string }>(
-    `/admin/users/${userId}/balance`,
-    { method: "POST", body: input },
-  );
-  return res.data as { balance: number; currency: string };
+): Promise<{ balance: number; currency: string; amount: number; referenceNumber: string }> {
+  const res = await apiClient.request<{
+    balance: number;
+    currency: string;
+    amount: number;
+    referenceNumber: string;
+  }>(`/admin/users/${userId}/balance`, { method: "POST", body: input });
+  return res.data as {
+    balance: number;
+    currency: string;
+    amount: number;
+    referenceNumber: string;
+  };
 }
 
 export async function fulfillAdminOrder(

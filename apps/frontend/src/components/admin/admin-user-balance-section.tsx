@@ -34,7 +34,12 @@ export function AdminUserBalanceSection({
       onUpdated({ accountBalance: result.balance, balanceCurrency: result.currency });
       setAmount("");
       setNote("");
-      toast(tp("credited"), "success");
+      toast(
+        result.referenceNumber
+          ? tp("creditedWithRef", { reference: result.referenceNumber })
+          : tp("credited"),
+        "success",
+      );
     } catch {
       toast(tp("creditFailed"), "error");
     } finally {

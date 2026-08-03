@@ -617,6 +617,13 @@
     "navbar": {
       "ariaLabel": "Panel menyusu"
     },
+    "notifications": {
+      "ariaLabel": "Bildirişlər",
+      "title": "Bildirişlər",
+      "empty": "Hələ bildiriş yoxdur",
+      "loading": "Yüklənir…",
+      "markAllRead": "Hamısını oxunmuş et"
+    },
     "home": {
       "title": "Panel",
       "welcome": "Xoş gəlmisiniz{firstName}. Hesabınızın qısa xülasəsi.",
@@ -1120,6 +1127,7 @@
           "credit": "Balans əlavə et",
           "crediting": "Əlavə edilir…",
           "credited": "Balans yeniləndi",
+          "creditedWithRef": "Balans yeniləndi · {reference}",
           "creditFailed": "Balans əlavə edilə bilmədi"
         },
         "domains": {

@@ -617,6 +617,13 @@
     "navbar": {
       "ariaLabel": "Меню панели"
     },
+    "notifications": {
+      "ariaLabel": "Уведомления",
+      "title": "Уведомления",
+      "empty": "Уведомлений пока нет",
+      "loading": "Загрузка…",
+      "markAllRead": "Отметить все прочитанными"
+    },
     "home": {
       "title": "Панель",
       "welcome": "Добро пожаловать{firstName}. Краткий обзор вашего аккаунта.",
@@ -1120,6 +1127,7 @@
           "credit": "Добавить баланс",
           "crediting": "Добавление…",
           "credited": "Баланс обновлён",
+          "creditedWithRef": "Баланс обновлён · {reference}",
           "creditFailed": "Не удалось добавить баланс"
         },
         "domains": {

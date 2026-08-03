@@ -629,6 +629,13 @@
     "navbar": {
       "ariaLabel": "Dashboard menu"
     },
+    "notifications": {
+      "ariaLabel": "Notifications",
+      "title": "Notifications",
+      "empty": "No notifications yet",
+      "loading": "Loading…",
+      "markAllRead": "Mark all read"
+    },
     "home": {
       "title": "Dashboard",
       "welcome": "Welcome{firstName}. Here’s a snapshot of your account.",
@@ -1132,6 +1139,7 @@
           "credit": "Add balance",
           "crediting": "Adding…",
           "credited": "Balance updated",
+          "creditedWithRef": "Balance updated · {reference}",
           "creditFailed": "Could not add balance"
         },
         "domains": {

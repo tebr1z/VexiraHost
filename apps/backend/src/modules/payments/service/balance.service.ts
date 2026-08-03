@@ -1,18 +1,39 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { BalanceTxnType, InvoiceStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BalanceTxnType,
+  InvoiceStatus,
+  NotificationType,
+  OrderStatus,
+  PaymentStatus,
+  Prisma,
+} from "@prisma/client";
+
+import { getBalanceCreditCopy, getBalancePaymentCopy } from "../email/balance-email.i18n";
+
+import { BalanceEmailService } from "./balance-email.service";
 
 import { PrismaService } from "@/database/database.module";
+import { resolveUserEmailLocale } from "@/modules/auth/email/auth-email.locale";
 import { DomainBillingService } from "@/modules/domains/service/domain-billing.service";
 import { HostingBillingService } from "@/modules/hosting/service/hosting-billing.service";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
+import { NotificationsService } from "@/modules/notifications/service/notifications.service";
+
+function generateBalanceReference(): string {
+  return `BAL-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+}
 
 @Injectable()
 export class BalanceService {
+  private readonly logger = new Logger(BalanceService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly orderFulfillmentService: OrderFulfillmentService,
     private readonly hostingBilling: HostingBillingService,
     private readonly domainBilling: DomainBillingService,
+    private readonly notificationsService: NotificationsService,
+    private readonly balanceEmailService: BalanceEmailService,
   ) {}
 
   async getBalance(userId: string) {
@@ -39,8 +60,10 @@ export class BalanceService {
     }
 
     const currency = (input.currency ?? "USD").toUpperCase();
+    const referenceNumber = generateBalanceReference();
+    const note = input.note?.trim() || null;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: input.userId } });
       if (!user) throw new NotFoundException("User not found");
 
@@ -53,6 +76,7 @@ export class BalanceService {
 
       const credit = new Prisma.Decimal(input.amount.toFixed(2));
       const next = new Prisma.Decimal(currentBalance.toFixed(2)).plus(credit);
+      const amount = Number(credit);
 
       const updated = await tx.user.update({
         where: { id: input.userId },
@@ -69,7 +93,8 @@ export class BalanceService {
           balanceAfter: next,
           currency,
           type: BalanceTxnType.ADMIN_CREDIT,
-          note: input.note?.trim() || null,
+          referenceNumber,
+          note,
           adminId: input.adminId,
         },
       });
@@ -77,8 +102,60 @@ export class BalanceService {
       return {
         balance: Number(updated.accountBalance),
         currency: updated.balanceCurrency,
+        amount,
+        referenceNumber,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        localeHistory: user.localeHistory,
+        note,
       };
     });
+
+    const locale = resolveUserEmailLocale({ localeHistory: result.localeHistory });
+    const copy = getBalanceCreditCopy(locale);
+    const amountLabel = `${result.amount.toFixed(2)} ${result.currency}`;
+
+    try {
+      await this.notificationsService.create({
+        userId: input.userId,
+        type: NotificationType.BALANCE_CREDIT,
+        title: copy.notificationTitle,
+        body: copy.notificationBody(amountLabel, result.referenceNumber),
+        reference: result.referenceNumber,
+        href: "/dashboard",
+        meta: {
+          amount: result.amount,
+          currency: result.currency,
+          balanceAfter: result.balance,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create balance credit notification: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    void this.balanceEmailService.sendBalanceCreditEmail({
+      to: result.email,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      localeHistory: result.localeHistory,
+      amount: result.amount,
+      currency: result.currency,
+      balanceAfter: result.balance,
+      referenceNumber: result.referenceNumber,
+      note: result.note,
+    });
+
+    return {
+      balance: result.balance,
+      currency: result.currency,
+      amount: result.amount,
+      referenceNumber: result.referenceNumber,
+    };
   }
 
   async payInvoiceWithBalance(userId: string, invoiceId: string, requestedAmount?: number) {
@@ -102,6 +179,8 @@ export class BalanceService {
     if (amountDue <= 0) {
       throw new BadRequestException("Invoice is already fully paid");
     }
+
+    const referenceNumber = generateBalanceReference();
 
     const payment = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
@@ -146,6 +225,7 @@ export class BalanceService {
           balanceAfter: next,
           currency,
           type: BalanceTxnType.INVOICE_PAYMENT,
+          referenceNumber,
           note: fullyPaid
             ? `Paid invoice ${invoice.invoiceNumber}`
             : `Partial payment for invoice ${invoice.invoiceNumber}`,
@@ -181,7 +261,14 @@ export class BalanceService {
         }
       }
 
-      return { created, fullyPaid, amount, paidAfter };
+      return {
+        created,
+        fullyPaid,
+        amount,
+        paidAfter,
+        localeHistory: user.localeHistory,
+        currency,
+      };
     });
 
     if (payment.fullyPaid) {
@@ -191,6 +278,33 @@ export class BalanceService {
         await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
         await this.domainBilling.activateAfterRenewalPayment(invoice.id);
       }
+    }
+
+    const locale = resolveUserEmailLocale({ localeHistory: payment.localeHistory });
+    const copy = getBalancePaymentCopy(locale);
+    const amountLabel = `${payment.amount.toFixed(2)} ${payment.currency}`;
+
+    try {
+      await this.notificationsService.create({
+        userId,
+        type: NotificationType.BALANCE_PAYMENT,
+        title: copy.notificationTitle,
+        body: copy.notificationBody(amountLabel, invoice.invoiceNumber),
+        reference: referenceNumber,
+        href: `/dashboard/invoices/${invoice.id}`,
+        meta: {
+          amount: payment.amount,
+          currency: payment.currency,
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to create balance payment notification: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
 
     const remaining = await this.getBalance(userId);
@@ -210,6 +324,7 @@ export class BalanceService {
       amountDue: amountDueAfter,
       remainingBalance: remaining.balance,
       balanceCurrency: remaining.currency,
+      referenceNumber,
     };
   }
 }

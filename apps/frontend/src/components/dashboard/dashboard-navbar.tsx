@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -89,6 +90,7 @@ export function DashboardNavbar({
             {tn("website")}
           </Link>
           <ThemeToggle className="!h-9 !w-9" />
+          <NotificationBell />
           <CurrencySwitcher />
           <LanguageSwitcher />
           <Link

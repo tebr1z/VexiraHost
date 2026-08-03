@@ -617,6 +617,13 @@
     "navbar": {
       "ariaLabel": "Panel menüsü"
     },
+    "notifications": {
+      "ariaLabel": "Bildirimler",
+      "title": "Bildirimler",
+      "empty": "Henüz bildirim yok",
+      "loading": "Yükleniyor…",
+      "markAllRead": "Tümünü okundu işaretle"
+    },
     "home": {
       "title": "Panel",
       "welcome": "Hoş geldin{firstName}. Hesabınızın kısa özeti.",
@@ -1120,6 +1127,7 @@
           "credit": "Bakiye ekle",
           "crediting": "Ekleniyor…",
           "credited": "Bakiye güncellendi",
+          "creditedWithRef": "Bakiye güncellendi · {reference}",
           "creditFailed": "Bakiye eklenemedi"
         },
         "domains": {

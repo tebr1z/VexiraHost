@@ -70,6 +70,7 @@ model User {
   assignedTickets         Ticket[]         @relation("AssignedTickets")
   promoRedemptions        PromoRedemption[]
   balanceTransactions     BalanceTransaction[]
+  notifications           Notification[]
 
   @@map("users")
 }
@@ -81,21 +82,48 @@ enum BalanceTxnType {
 }
 
 model BalanceTransaction {
-  id           String         @id @default(cuid())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount       Decimal        @db.Decimal(12, 2)
-  balanceAfter Decimal        @db.Decimal(12, 2)
-  currency     String
-  type         BalanceTxnType
-  note         String?
-  invoiceId    String?
-  adminId      String?
-  createdAt    DateTime       @default(now())
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Decimal        @db.Decimal(12, 2)
+  balanceAfter    Decimal        @db.Decimal(12, 2)
+  currency        String
+  type            BalanceTxnType
+  referenceNumber String?        @unique
+  note            String?
+  invoiceId       String?
+  adminId         String?
+  createdAt       DateTime       @default(now())
 
   @@index([userId])
   @@index([invoiceId])
   @@map("balance_transactions")
+}
+
+enum NotificationType {
+  BALANCE_CREDIT
+  BALANCE_PAYMENT
+  INVOICE
+  SERVICE
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  reference String?
+  href      String?
+  meta      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 enum CampaignStatus {
