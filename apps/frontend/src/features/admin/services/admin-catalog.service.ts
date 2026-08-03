@@ -64,6 +64,7 @@ export interface AdminProduct {
   name: string;
   description: string | null;
   category: string;
+  catalogCategoryId: string | null;
   hostingPlanSlug: string | null;
   price: number;
   currency: string;
@@ -72,6 +73,15 @@ export interface AdminProduct {
   sortOrder: number;
   orderItemCount: number;
   prices?: AdminProductPrice[];
+  deliveryMode?: "NONE" | "LICENSE_KEY" | "FILE" | "KEY_AND_FILE";
+  isFree?: boolean;
+  licenseKeys?: string | null;
+  downloadUrl?: string | null;
+  downloadFileName?: string | null;
+  promoText?: string | null;
+  activationGuideText?: string | null;
+  activationGuideImageUrl?: string | null;
+  activationGuideVideoUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -89,7 +99,14 @@ export async function getAdminHostingPlan(id: string): Promise<AdminHostingPlan>
 export async function createAdminHostingPlan(
   input: Omit<
     AdminHostingPlan,
-    "id" | "slug" | "accountCount" | "createdAt" | "updatedAt" | "server" | "currency" | "billingCycle"
+    | "id"
+    | "slug"
+    | "accountCount"
+    | "createdAt"
+    | "updatedAt"
+    | "server"
+    | "currency"
+    | "billingCycle"
   > & {
     serverId: string;
     currency?: string;

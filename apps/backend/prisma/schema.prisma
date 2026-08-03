@@ -39,6 +39,15 @@ model User {
   currencyLocked    Boolean    @default(false)
   /** Saved invoice/billing address — reused on checkout after first entry. */
   billingAddress    Json?
+  /** Marketing / campaign emails — default opted in at registration. */
+  marketingOptIn      Boolean   @default(true)
+  marketingOptInAt    DateTime?
+  unsubscribeToken    String?   @unique
+  /** Prepaid account credit used to pay invoices. */
+  accountBalance      Decimal    @default(0) @db.Decimal(12, 2)
+  balanceCurrency     String     @default("USD")
+  /** Last UI locales used for emails — newest first, max 3 (en/tr/ru/az). */
+  localeHistory       String[]   @default([])
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
@@ -47,6 +56,7 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   oauthAccounts           OAuthAccount[]
   domains                 Domain[]
+  domainChangeRequests    DomainChangeRequest[]
   servers                 Server[]
   hostingAccounts         HostingAccount[]
   addonServices           AddonService[]
@@ -58,8 +68,59 @@ model User {
   ticketMessages          TicketMessage[]
   ticketAttachments       TicketAttachment[]
   assignedTickets         Ticket[]         @relation("AssignedTickets")
+  promoRedemptions        PromoRedemption[]
+  balanceTransactions     BalanceTransaction[]
 
   @@map("users")
+}
+
+enum BalanceTxnType {
+  ADMIN_CREDIT
+  INVOICE_PAYMENT
+  ADJUSTMENT
+}
+
+model BalanceTransaction {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Decimal        @db.Decimal(12, 2)
+  balanceAfter Decimal        @db.Decimal(12, 2)
+  currency     String
+  type         BalanceTxnType
+  note         String?
+  invoiceId    String?
+  adminId      String?
+  createdAt    DateTime       @default(now())
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@map("balance_transactions")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  subject         String
+  previewText     String?
+  bodyHtml        String         @db.Text
+  bodyText        String?        @db.Text
+  status          CampaignStatus @default(DRAFT)
+  sentAt          DateTime?
+  recipientCount  Int            @default(0)
+  successCount    Int            @default(0)
+  failCount       Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+  @@map("campaigns")
 }
 
 model RefreshToken {
@@ -125,31 +186,73 @@ enum ProductCategory {
   BACKUP
 }
 
+enum DigitalDeliveryMode {
+  NONE
+  LICENSE_KEY
+  FILE
+  KEY_AND_FILE
+  MANUAL
+}
+
 enum BillingCycle {
   MONTHLY
   YEARLY
   ONE_TIME
 }
 
+model CatalogCategory {
+  id         String           @id @default(cuid())
+  slug       String           @unique
+  name       String
+  /** Localized labels: { "az": "...", "en": "...", "tr": "...", "ru": "..." } */
+  names      Json?
+  sortOrder  Int              @default(0)
+  isActive   Boolean          @default(true)
+  /** Fulfillment type inherited by products in this category */
+  systemType ProductCategory?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  products Product[]
+
+  @@index([isActive, sortOrder])
+  @@map("catalog_categories")
+}
+
 model Product {
-  id              String          @id @default(cuid())
-  slug            String          @unique
-  name            String
-  description     String?
-  category        ProductCategory
-  hostingPlanSlug String?
-  price           Decimal         @db.Decimal(10, 2)
-  currency        String          @default("USD")
-  billingCycle    BillingCycle
-  isActive        Boolean         @default(true)
-  sortOrder       Int             @default(0)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                String           @id @default(cuid())
+  slug              String           @unique
+  name              String
+  description       String?
+  category          ProductCategory
+  catalogCategoryId String?
+  catalogCategory   CatalogCategory? @relation(fields: [catalogCategoryId], references: [id], onDelete: SetNull)
+  hostingPlanSlug   String?
+  price             Decimal          @db.Decimal(10, 2)
+  currency          String           @default("USD")
+  billingCycle      BillingCycle
+  isActive          Boolean          @default(true)
+  sortOrder         Int              @default(0)
+  /** Digital delivery for LICENSE (and similar) products */
+  deliveryMode      DigitalDeliveryMode @default(NONE)
+  isFree            Boolean             @default(false)
+  /** One activation key per line; consumed on provision when pool mode */
+  licenseKeys       String?             @db.Text
+  downloadUrl       String?
+  downloadFileName  String?
+  /** App / product promo copy shown to customers */
+  promoText         String?             @db.Text
+  activationGuideText     String?       @db.Text
+  activationGuideImageUrl String?
+  activationGuideVideoUrl String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   orderItems   OrderItem[]
   invoiceItems InvoiceItem[]
   prices       ProductPrice[]
 
+  @@index([catalogCategoryId])
   @@map("products")
 }
 
@@ -188,6 +291,22 @@ enum DomainStatus {
   SUSPENDED
 }
 
+enum DomainManagementMode {
+  REGISTRAR
+  MANUAL
+}
+
+enum DomainChangeType {
+  DNS
+  NAMESERVER
+}
+
+enum DomainChangeStatus {
+  PENDING
+  APPLIED
+  DISMISSED
+}
+
 enum TransferStatus {
   INITIATED
   PENDING
@@ -206,24 +325,39 @@ enum DnsRecordType {
 }
 
 model Domain {
-  id           String       @id @default(cuid())
-  userId       String
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String       @unique
-  tld          String
-  status       DomainStatus @default(PENDING)
-  registrarRef String?
-  registeredAt DateTime?
-  expiresAt    DateTime?
-  autoRenew    Boolean      @default(true)
-  nameservers  String[]     @default([])
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String               @unique
+  tld             String
+  status          DomainStatus         @default(PENDING)
+  managementMode  DomainManagementMode @default(REGISTRAR)
+  /** Internal only — Natro, Hostinger, etc. Not shown to customers. */
+  registrarSource String?
+  adminNotes      String?
+  registrarRef    String?
+  registeredAt    DateTime?
+  expiresAt       DateTime?
+  autoRenew       Boolean              @default(true)
+  nameservers     String[]             @default([])
+  /** Glue records: [{ "host": "ns1.example.com", "ip": "1.2.3.4" }] */
+  nsGlueRecords   Json                 @default("[]")
+  billingAmount    Decimal?            @db.Decimal(10, 2)
+  billingCurrency  String              @default("USD")
+  graceEndsAt      DateTime?
+  renewalInvoiceId String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
-  dnsRecords DnsRecord[]
-  transfers  DomainTransfer[]
+  dnsRecords     DnsRecord[]
+  transfers      DomainTransfer[]
+  changeRequests DomainChangeRequest[]
+  invoices       Invoice[]
 
   @@index([userId])
+  @@index([managementMode])
+  @@index([expiresAt])
+  @@index([graceEndsAt])
   @@map("domains")
 }
 
@@ -258,6 +392,29 @@ model DomainTransfer {
   @@index([domainId])
   @@index([userId])
   @@map("domain_transfers")
+}
+
+model DomainChangeRequest {
+  id              String             @id @default(cuid())
+  domainId        String
+  domain          Domain             @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            DomainChangeType
+  status          DomainChangeStatus @default(PENDING)
+  previousData    Json
+  requestedData   Json
+  adminNotifiedAt DateTime?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([domainId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("domain_change_requests")
 }
 
 model TldPricing {
@@ -419,22 +576,75 @@ enum TicketRelatedServiceType {
   ADDON
 }
 
+enum PromoDiscountType {
+  PERCENT
+  FIXED
+}
+
+model PromoCode {
+  id                 String             @id @default(cuid())
+  code               String             @unique
+  type               PromoDiscountType
+  value              Decimal            @db.Decimal(10, 2)
+  currency           PriceCurrency?
+  maxDiscountAmount  Decimal?           @db.Decimal(10, 2)
+  minOrderAmount     Decimal?           @db.Decimal(10, 2)
+  startsAt           DateTime?
+  endsAt             DateTime?
+  maxRedemptions     Int?
+  maxPerUser         Int?
+  isActive           Boolean            @default(true)
+  appliesToAll       Boolean            @default(true)
+  productIds         String[]           @default([])
+  categories         ProductCategory[]  @default([])
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  redemptions PromoRedemption[]
+  orders      Order[]
+
+  @@index([isActive])
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id             String    @id @default(cuid())
+  promoCodeId    String
+  promoCode      PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId        String    @unique
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  discountAmount Decimal   @db.Decimal(10, 2)
+  createdAt      DateTime  @default(now())
+
+  @@index([promoCodeId])
+  @@index([userId])
+  @@map("promo_redemptions")
+}
+
 model Order {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status    OrderStatus @default(PENDING)
-  subtotal  Decimal     @db.Decimal(10, 2)
-  total     Decimal     @db.Decimal(10, 2)
-  currency  String      @default("USD")
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status          OrderStatus @default(PENDING)
+  subtotal        Decimal     @db.Decimal(10, 2)
+  discountAmount  Decimal     @default(0) @db.Decimal(10, 2)
+  total           Decimal     @db.Decimal(10, 2)
+  currency        String      @default("USD")
+  promoCodeId     String?
+  promoCodeRef    PromoCode?  @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  promoCode       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   items            OrderItem[]
   invoices         Invoice[]
   hostingAccounts  HostingAccount[]
+  promoRedemption  PromoRedemption?
 
   @@index([userId])
+  @@index([promoCodeId])
   @@map("orders")
 }
 
@@ -457,26 +667,32 @@ model OrderItem {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderId       String?
-  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  invoiceNumber String        @unique
-  status        InvoiceStatus @default(OPEN)
-  subtotal      Decimal       @db.Decimal(10, 2)
-  total         Decimal       @db.Decimal(10, 2)
-  currency      String        @default("USD")
-  dueDate       DateTime
-  paidAt        DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId          String?
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  hostingAccountId String?
+  hostingAccount   HostingAccount? @relation(fields: [hostingAccountId], references: [id], onDelete: SetNull)
+  domainId         String?
+  domain           Domain?        @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  invoiceNumber    String         @unique
+  status           InvoiceStatus  @default(OPEN)
+  subtotal         Decimal        @db.Decimal(10, 2)
+  total            Decimal        @db.Decimal(10, 2)
+  currency         String         @default("USD")
+  dueDate          DateTime
+  paidAt           DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   items    InvoiceItem[]
   payments Payment[]
 
   @@index([userId])
   @@index([orderId])
+  @@index([hostingAccountId])
+  @@index([domainId])
   @@map("invoices")
 }
 
@@ -630,6 +846,16 @@ enum HostingPanel {
   PLESK
 }
 
+enum HostingManagementMode {
+  AUTOMATED
+  MANUAL
+}
+
+enum ManualServiceCategory {
+  HOSTING
+  SERVER
+}
+
 model HostingServer {
   id             String       @id @default(cuid())
   name           String
@@ -695,23 +921,37 @@ model HostingAccount {
   primaryDomain    String         @unique
   username         String         @unique
   panel            HostingPanel
+  managementMode   HostingManagementMode @default(AUTOMATED)
+  serviceCategory  ManualServiceCategory?
   status           ServiceStatus  @default(PROVISIONING)
+  panelIp          String?
   panelUrl         String?
   panelUsername    String?
   panelPasswordEnc String?
   panelRef         String?
   panelSessionTokenEnc String?
   panelSessionExpiresAt DateTime?
+  expiresAt        DateTime?
+  billingAmount    Decimal?       @db.Decimal(10, 2)
+  billingCurrency  String         @default("USD")
+  graceEndsAt      DateTime?
+  renewalInvoiceId String?
   provisionStage   String?
   provisionError   String?
   provisionedAt    DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
+  invoices Invoice[]
+
   @@index([userId])
   @@index([planId])
   @@index([serverId])
   @@index([orderId])
+  @@index([managementMode])
+  @@index([serviceCategory])
+  @@index([expiresAt])
+  @@index([graceEndsAt])
   @@map("hosting_accounts")
 }
 

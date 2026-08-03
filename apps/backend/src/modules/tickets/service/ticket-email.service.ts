@@ -2,11 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { TicketStatus } from "@prisma/client";
 
+import { getTicketEmailCopy, truncateMessage } from "../email/ticket-email.i18n";
+
 import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
-import {
-  displayName,
-  resolveEmailLocaleFromUser,
-} from "@/modules/licenses/email/addon-email.i18n";
+import { displayName, resolveEmailLocaleFromUser } from "@/modules/licenses/email/addon-email.i18n";
 import { SmtpMailService, type MailContent } from "@/shared/email/smtp-mail.service";
 import {
   createBrandEmail,
@@ -16,13 +15,13 @@ import {
   primaryButton,
 } from "@/shared/email/transactional-template.util";
 
-import { getTicketEmailCopy, truncateMessage } from "../email/ticket-email.i18n";
-
 type TicketMailUser = {
   to: string;
   firstName?: string | null;
   lastName?: string | null;
   preferredCurrency?: string | null;
+  localeHistory?: string[] | null;
+  locale?: string | null;
 };
 
 @Injectable()
@@ -43,7 +42,9 @@ export class TicketEmailService {
       message: string;
     },
   ): Promise<void> {
-    const locale = resolveAuthEmailLocale(resolveEmailLocaleFromUser(input.preferredCurrency));
+    const locale = resolveAuthEmailLocale(
+      resolveEmailLocaleFromUser(input.preferredCurrency, input.localeHistory, input.locale),
+    );
     const copy = getTicketEmailCopy(locale);
     const c = copy.created;
     const name = displayName(input.firstName, input.lastName, input.to);
@@ -74,13 +75,18 @@ export class TicketEmailService {
     });
 
     content.subject = `Vexira Host • ${c.title} — ${input.subject}`;
-    content.text = this.buildText(c.title, c.subtitle(name, input.subject), [
-      `${c.ticketIdLabel}: ${input.ticketId}`,
-      `${c.subjectLabel}: ${input.subject}`,
-      `${c.statusLabel}: ${copy.statusLabel(input.status)}`,
-      `${c.messageLabel}: ${preview}`,
-      `${c.openButton}: ${ticketUrl}`,
-    ], c.footer);
+    content.text = this.buildText(
+      c.title,
+      c.subtitle(name, input.subject),
+      [
+        `${c.ticketIdLabel}: ${input.ticketId}`,
+        `${c.subjectLabel}: ${input.subject}`,
+        `${c.statusLabel}: ${copy.statusLabel(input.status)}`,
+        `${c.messageLabel}: ${preview}`,
+        `${c.openButton}: ${ticketUrl}`,
+      ],
+      c.footer,
+    );
 
     await this.safeSend(input.to, content);
   }
@@ -93,7 +99,9 @@ export class TicketEmailService {
       message: string;
     },
   ): Promise<void> {
-    const locale = resolveAuthEmailLocale(resolveEmailLocaleFromUser(input.preferredCurrency));
+    const locale = resolveAuthEmailLocale(
+      resolveEmailLocaleFromUser(input.preferredCurrency, input.localeHistory, input.locale),
+    );
     const copy = getTicketEmailCopy(locale);
     const c = copy.reply;
     const name = displayName(input.firstName, input.lastName, input.to);
@@ -122,12 +130,17 @@ export class TicketEmailService {
     });
 
     content.subject = `Vexira Host • ${c.title} — ${input.subject}`;
-    content.text = this.buildText(c.title, c.subtitle(name, input.subject), [
-      `${c.subjectLabel}: ${input.subject}`,
-      `${c.statusLabel}: ${copy.statusLabel(input.status)}`,
-      `${c.messageLabel}: ${preview}`,
-      `${c.openButton}: ${ticketUrl}`,
-    ], c.footer);
+    content.text = this.buildText(
+      c.title,
+      c.subtitle(name, input.subject),
+      [
+        `${c.subjectLabel}: ${input.subject}`,
+        `${c.statusLabel}: ${copy.statusLabel(input.status)}`,
+        `${c.messageLabel}: ${preview}`,
+        `${c.openButton}: ${ticketUrl}`,
+      ],
+      c.footer,
+    );
 
     await this.safeSend(input.to, content);
   }
@@ -142,7 +155,9 @@ export class TicketEmailService {
   ): Promise<void> {
     if (input.previousStatus === input.newStatus) return;
 
-    const locale = resolveAuthEmailLocale(resolveEmailLocaleFromUser(input.preferredCurrency));
+    const locale = resolveAuthEmailLocale(
+      resolveEmailLocaleFromUser(input.preferredCurrency, input.localeHistory, input.locale),
+    );
     const copy = getTicketEmailCopy(locale);
     const c = copy.statusChanged;
     const name = displayName(input.firstName, input.lastName, input.to);
@@ -174,12 +189,17 @@ export class TicketEmailService {
     });
 
     content.subject = `Vexira Host • ${c.title} — ${toLabel}`;
-    content.text = this.buildText(c.title, c.subtitle(name, input.subject), [
-      `${c.subjectLabel}: ${input.subject}`,
-      `${c.previousLabel}: ${fromLabel}`,
-      `${c.newLabel}: ${toLabel}`,
-      `${c.openButton}: ${ticketUrl}`,
-    ], c.footer);
+    content.text = this.buildText(
+      c.title,
+      c.subtitle(name, input.subject),
+      [
+        `${c.subjectLabel}: ${input.subject}`,
+        `${c.previousLabel}: ${fromLabel}`,
+        `${c.newLabel}: ${toLabel}`,
+        `${c.openButton}: ${ticketUrl}`,
+      ],
+      c.footer,
+    );
 
     await this.safeSend(input.to, content);
   }

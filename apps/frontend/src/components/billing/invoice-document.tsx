@@ -1,14 +1,14 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
 import { InvoicePaymentHistory } from "@/components/billing/invoice-payment-history";
-import { StatusBadge } from "@/components/ui";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { StatusBadge } from "@/components/ui";
 import type { InvoiceDetail } from "@/features/billing";
-import { formatDate, formatMoney } from "@/lib/i18n/format";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
+import { formatDate, formatMoney } from "@/lib/i18n/format";
 
 export function InvoiceDocument({
   invoice,
@@ -24,25 +24,40 @@ export function InvoiceDocument({
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.invoices");
 
+  const amountDue =
+    invoice.amountDue ??
+    (invoice.status === "PAID" || invoice.status === "VOID"
+      ? 0
+      : Math.max(0, invoice.total - (invoice.amountPaid ?? 0)));
+
   return (
-    <article className={cn("panel-card overflow-hidden rounded-lg", className)}>
-      <div className="border-b border-slate-200 bg-gradient-to-r from-[#0060df] to-[#004bb5] px-6 py-5 text-white sm:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+    <article
+      className={cn(
+        "overflow-hidden rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)]",
+        className,
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--separator)] px-5 py-5 sm:px-6">
+        <div className="flex items-start gap-3">
+          <BrandLogo href="/" variant="icon" />
           <div>
-            <BrandLogo href="/" variant="icon" tone="light" />
-            <p className="mt-2 text-sm text-white/80">{tp("companyTagline")}</p>
+            <p className="text-sm text-[var(--label-secondary)]">{tp("companyTagline")}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-[var(--label-secondary)]">
+              {tp("documentTitle")}
+            </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/70">{tp("documentTitle")}</p>
-            <p className="font-jakarta text-xl font-bold">{invoice.invoiceNumber}</p>
-            <div className="mt-2 flex justify-end">
-              <StatusBadge status={invoice.status} className="!border-white/30 !bg-white/15 !text-white" />
-            </div>
+        </div>
+        <div className="text-right">
+          <p className="font-jakarta text-xl font-bold text-[var(--label)]">
+            {invoice.invoiceNumber}
+          </p>
+          <div className="mt-2 flex justify-end">
+            <StatusBadge status={invoice.status} />
           </div>
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-slate-100 bg-slate-50/80 px-6 py-5 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
+      <div className="grid gap-4 border-b border-[var(--separator)] bg-[var(--fill-secondary)] px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <MetaItem label={tp("issuedOn")} value={formatDate(invoice.createdAt, locale)} />
         <MetaItem label={tp("dueDate")} value={formatDate(invoice.dueDate, locale)} />
         <MetaItem
@@ -53,7 +68,10 @@ export function InvoiceDocument({
           label={tp("linkedOrder")}
           value={
             invoice.order ? (
-              <Link href={`/dashboard/orders/${invoice.order.id}`} className="font-medium text-primary hover:underline">
+              <Link
+                href={`/dashboard/orders/${invoice.order.id}`}
+                className="font-medium text-[var(--accent)] hover:underline"
+              >
                 #{invoice.order.id.slice(-8)}
               </Link>
             ) : (
@@ -63,13 +81,13 @@ export function InvoiceDocument({
         />
       </div>
 
-      <div className="px-6 py-5 sm:px-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-on-surface-variant">
+      <div className="px-5 py-5 sm:px-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
           {tp("lineItems")}
         </h2>
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <div className="overflow-x-auto rounded-lg border border-[var(--separator)]">
           <table className="w-full min-w-[520px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+            <thead className="bg-[var(--fill-secondary)] text-xs font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
               <tr>
                 <th className="px-4 py-3">{tp("description")}</th>
                 <th className="px-4 py-3 text-center">{tp("qty")}</th>
@@ -77,15 +95,17 @@ export function InvoiceDocument({
                 <th className="px-4 py-3 text-right">{tc("total")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--separator)]">
               {invoice.items.map((item) => (
-                <tr key={item.id} className="bg-white">
-                  <td className="px-4 py-3 font-medium text-primary">{item.description}</td>
-                  <td className="px-4 py-3 text-center text-on-surface-variant">{item.quantity}</td>
-                  <td className="px-4 py-3 text-right text-on-surface-variant">
+                <tr key={item.id}>
+                  <td className="px-4 py-3 font-medium text-[var(--label)]">{item.description}</td>
+                  <td className="px-4 py-3 text-center text-[var(--label-secondary)]">
+                    {item.quantity}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[var(--label-secondary)]">
                     {formatMoney(item.unitPrice, invoice.currency, locale)}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium">
+                  <td className="px-4 py-3 text-right font-medium tabular-nums text-[var(--label)]">
                     {formatMoney(item.totalPrice, invoice.currency, locale)}
                   </td>
                 </tr>
@@ -96,13 +116,29 @@ export function InvoiceDocument({
 
         <div className="mt-5 flex justify-end">
           <dl className="w-full max-w-xs space-y-2 text-sm">
-            <div className="flex justify-between text-on-surface-variant">
+            <div className="flex justify-between text-[var(--label-secondary)]">
               <dt>{tc("subtotal")}</dt>
-              <dd>{formatMoney(invoice.subtotal, invoice.currency, locale)}</dd>
+              <dd className="tabular-nums">
+                {formatMoney(invoice.subtotal, invoice.currency, locale)}
+              </dd>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold text-primary">
+            <div className="flex justify-between text-[var(--label-secondary)]">
               <dt>{tc("total")}</dt>
-              <dd>{formatMoney(invoice.total, invoice.currency, locale)}</dd>
+              <dd className="tabular-nums">
+                {formatMoney(invoice.total, invoice.currency, locale)}
+              </dd>
+            </div>
+            {(invoice.amountPaid ?? 0) > 0 ? (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <dt>{tc("amountPaid")}</dt>
+                <dd className="tabular-nums">
+                  -{formatMoney(invoice.amountPaid ?? 0, invoice.currency, locale)}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between border-t border-[var(--separator)] pt-2 text-base font-bold text-[var(--label)]">
+              <dt>{tc("amountDue")}</dt>
+              <dd className="tabular-nums">{formatMoney(amountDue, invoice.currency, locale)}</dd>
             </div>
           </dl>
         </div>
@@ -117,7 +153,7 @@ export function InvoiceDocument({
       )}
 
       {actions && (
-        <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-5 sm:flex-row sm:px-8">
+        <div className="flex flex-col gap-3 border-t border-[var(--separator)] px-5 py-5 sm:flex-row sm:px-6">
           {actions}
         </div>
       )}
@@ -125,17 +161,13 @@ export function InvoiceDocument({
   );
 }
 
-function MetaItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}): React.ReactElement {
+function MetaItem({ label, value }: { label: string; value: React.ReactNode }): React.ReactElement {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">{label}</p>
-      <p className="mt-1 text-sm font-medium text-primary">{value}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-medium text-[var(--label)]">{value}</p>
     </div>
   );
 }

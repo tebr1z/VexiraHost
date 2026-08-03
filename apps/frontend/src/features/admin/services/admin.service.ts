@@ -1,4 +1,5 @@
 import type { AuthSession } from "@vexira/types";
+
 import { apiClient } from "@/services/api-client";
 
 export interface AdminDashboardStats {
@@ -48,6 +49,8 @@ export interface AdminUser extends AdminCustomer {
   billingPeriod: string | null;
   currencyChangedAt: string | null;
   currencyLocked: boolean;
+  accountBalance: number;
+  balanceCurrency: string;
   orderCount: number;
   ticketCount: number;
   invoiceCount: number;
@@ -72,10 +75,19 @@ export interface AdminOrderItem {
   id: string;
   productId: string;
   productName: string;
+  productCategory?: string | null;
+  deliveryMode?: string | null;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
   metadata: unknown;
+  licenseDelivery?: {
+    addonId: string;
+    status: string;
+    pendingManualDelivery: boolean;
+    licenseKey: string | null;
+    deliveredAt: string | null;
+  } | null;
 }
 
 export interface AdminOrder {
@@ -206,6 +218,17 @@ export async function updateAdminUserStatus(
   return res.data as AdminUser;
 }
 
+export async function creditAdminUserBalance(
+  userId: string,
+  input: { amount: number; currency?: string; note?: string },
+): Promise<{ balance: number; currency: string }> {
+  const res = await apiClient.request<{ balance: number; currency: string }>(
+    `/admin/users/${userId}/balance`,
+    { method: "POST", body: input },
+  );
+  return res.data as { balance: number; currency: string };
+}
+
 export async function fulfillAdminOrder(
   id: string,
   options?: { alreadyDeployed?: boolean },
@@ -216,6 +239,20 @@ export async function fulfillAdminOrder(
       alreadyDeployed: options?.alreadyDeployed === true,
     },
   });
+  return res.data as AdminOrderDetail;
+}
+
+export async function deliverAdminLicense(
+  orderId: string,
+  input: { orderItemId: string; licenseKey: string; downloadUrl?: string },
+): Promise<AdminOrderDetail> {
+  const res = await apiClient.request<AdminOrderDetail>(
+    `/admin/orders/${orderId}/deliver-license`,
+    {
+      method: "POST",
+      body: input,
+    },
+  );
   return res.data as AdminOrderDetail;
 }
 
@@ -238,9 +275,12 @@ export async function updateAdminTicketStatus(
   id: string,
   status: string,
 ): Promise<{ id: string; status: string }> {
-  const res = await apiClient.request<{ id: string; status: string }>(`/admin/tickets/${id}/status`, {
-    method: "PATCH",
-    body: { status },
-  });
+  const res = await apiClient.request<{ id: string; status: string }>(
+    `/admin/tickets/${id}/status`,
+    {
+      method: "PATCH",
+      body: { status },
+    },
+  );
   return res.data as { id: string; status: string };
 }

@@ -22,3 +22,15 @@ export interface PleskServerInfo {
   version: string | null;
   os: string | null;
 }
+
+export interface PleskServicePlan {
+  id: string | null;
+  name: string;
+  diskGb: number;
+  bandwidthGb: number;
+  maxDomains: number;
+  maxEmails: number;
+  maxDatabases: number;
+  unlimitedDisk: boolean;
+  unlimitedBandwidth: boolean;
+}

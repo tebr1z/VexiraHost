@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 
 import { ErrorShell } from "@/components/errors/error-shell";
 
@@ -25,8 +25,9 @@ export default function ErrorPage({
       onRetry={reset}
       errorDigest={error.digest ?? error.message}
       actions={[
-        { href: "/", label: t("home") },
+        { href: "/", label: t("home"), primary: true },
         { href: "/dashboard", label: t("dashboard") },
+        { href: "/dashboard/tickets/new", label: t("support") },
       ]}
     />
   );

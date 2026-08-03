@@ -24,7 +24,11 @@ export class AuthRepository {
     lastName?: string;
     preferredCurrency?: string;
     currencyLocked?: boolean;
+    marketingOptIn?: boolean;
+    unsubscribeToken?: string;
+    localeHistory?: string[];
   }): Promise<User> {
+    const marketingOptIn = data.marketingOptIn ?? true;
     return this.prisma.user.create({
       data: {
         email: data.email.toLowerCase(),
@@ -34,7 +38,18 @@ export class AuthRepository {
         preferredCurrency: data.preferredCurrency,
         currencyLocked: data.currencyLocked ?? false,
         currencyChangedAt: data.preferredCurrency ? new Date() : undefined,
+        marketingOptIn,
+        marketingOptInAt: marketingOptIn ? new Date() : null,
+        unsubscribeToken: data.unsubscribeToken,
+        localeHistory: data.localeHistory ?? [],
       },
+    });
+  }
+
+  updateLocaleHistory(userId: string, localeHistory: string[]): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { localeHistory },
     });
   }
 
@@ -229,7 +244,10 @@ export class AuthRepository {
     firstName?: string;
     lastName?: string;
     emailVerified: boolean;
+    marketingOptIn?: boolean;
+    unsubscribeToken?: string;
   }): Promise<User> {
+    const marketingOptIn = data.marketingOptIn ?? true;
     return this.prisma.user.create({
       data: {
         email: data.email.toLowerCase(),
@@ -237,6 +255,9 @@ export class AuthRepository {
         lastName: data.lastName,
         status: data.emailVerified ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION,
         emailVerifiedAt: data.emailVerified ? new Date() : null,
+        marketingOptIn,
+        marketingOptInAt: marketingOptIn ? new Date() : null,
+        unsubscribeToken: data.unsubscribeToken,
       },
     });
   }

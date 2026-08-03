@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { MaterialIcon } from "./material-icon";
@@ -20,8 +20,8 @@ import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
 export function PricingSection(): React.ReactElement {
+  const locale = useLocale();
   const t = useTranslations("pricing");
-  const tCat = useTranslations("dashboard.pages.products.categories");
   const addItem = useCartStore((s) => s.addItem);
   const continueAfterAdd = useAddToCartNavigation();
   const currency = usePricingStore((s) => s.currency);
@@ -34,14 +34,18 @@ export function PricingSection(): React.ReactElement {
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
-    listCatalogCategories()
+    setLoadingCategories(true);
+    listCatalogCategories(locale)
       .then((items) => {
         setCategories(items);
-        if (items[0]) setActiveCategory(items[0].id);
+        setActiveCategory((prev) => {
+          if (prev && items.some((c) => c.id === prev)) return prev;
+          return items[0]?.id ?? null;
+        });
       })
       .catch(() => setCategories([]))
       .finally(() => setLoadingCategories(false));
-  }, []);
+  }, [locale]);
 
   const loadProducts = useCallback(
     (category: string | null) => {
@@ -103,7 +107,7 @@ export function PricingSection(): React.ReactElement {
                   onClick={() => setActiveCategory(cat.id)}
                   className="apple-segmented-item"
                 >
-                  {tCat(cat.id as never)}
+                  {cat.name}
                 </button>
               ))}
             </div>

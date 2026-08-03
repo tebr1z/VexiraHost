@@ -40,4 +40,27 @@ export class CheckoutDto {
   @IsOptional()
   @IsIn([...SUPPORTED_PERIODS])
   period?: string;
+
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+}
+
+export class ValidatePromoDto {
+  @IsString()
+  code!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CheckoutItemDto)
+  items!: CheckoutItemDto[];
+
+  @IsOptional()
+  @IsIn([...SUPPORTED_CURRENCIES])
+  currency?: string;
+
+  @IsOptional()
+  @IsIn([...SUPPORTED_PERIODS])
+  period?: string;
 }

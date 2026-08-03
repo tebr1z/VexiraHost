@@ -68,6 +68,10 @@ export interface AuthUserProfile {
     postalCode: string;
     country: string;
   } | null;
+  accountBalance?: number;
+  balanceCurrency?: string;
+  preferredLocale?: string;
+  localeHistory?: string[];
 }
 
 export interface AuthSession {

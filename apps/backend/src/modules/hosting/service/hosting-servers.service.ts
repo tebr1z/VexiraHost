@@ -7,19 +7,33 @@ import {
 import type { HostingPanel, HostingServer, ServiceStatus } from "@prisma/client";
 import { HostingPanel as HostingPanelEnum } from "@prisma/client";
 
-import { decryptSecret, encryptSecret, maskSecret } from "@/utils/crypto.util";
-
-import {
-  normalizePanelHostnameForStorage,
-  resolvePanelEndpoint,
-} from "../utils/panel-endpoint.util";
-import { MockControlPanelProvider } from "../providers/mock-control-panel.provider";
-import { HostingServersRepository } from "../repository/hosting-servers.repository";
+import { listPleskServicePlans, type PleskServerCredentials } from "../clients/plesk-api.client";
 import type {
   MigrateHostingAccountsDto,
   UpdateHostingAccountStatusDto,
 } from "../dto/hosting-account-admin.dto";
+import { MockControlPanelProvider } from "../providers/mock-control-panel.provider";
+import { HostingServersRepository } from "../repository/hosting-servers.repository";
+import {
+  normalizePanelHostnameForStorage,
+  resolvePanelEndpoint,
+} from "../utils/panel-endpoint.util";
+
 import { HostingEmailService } from "./hosting-email.service";
+
+import { decryptSecret, encryptSecret, maskSecret } from "@/utils/crypto.util";
+import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
+
+function toPleskCredentials(server: HostingServer): PleskServerCredentials {
+  return {
+    hostname: server.hostname,
+    ipAddress: server.ipAddress,
+    panel: "PLESK",
+    whmUsername: server.whmUsername,
+    whmPasswordEnc: server.whmPasswordEnc,
+    apiTokenEnc: server.apiTokenEnc,
+  };
+}
 
 function mapServer(
   server: HostingServer & { _count?: { accounts: number } },
@@ -56,7 +70,13 @@ function mapAccount(account: {
   createdAt: Date;
   plan: { id: string; slug: string; name: string };
   user: { id: string; email: string; firstName: string | null; lastName: string | null };
-  server?: { id: string; name: string; ipAddress: string; panel?: HostingPanel; isActive?: boolean } | null;
+  server?: {
+    id: string;
+    name: string;
+    ipAddress: string;
+    panel?: HostingPanel;
+    isActive?: boolean;
+  } | null;
 }) {
   return {
     id: account.id,
@@ -99,7 +119,9 @@ export class HostingServersService {
   ) {}
 
   listServers() {
-    return this.hostingServersRepository.findAll().then((servers) => servers.map((s) => mapServer(s)));
+    return this.hostingServersRepository
+      .findAll()
+      .then((servers) => servers.map((s) => mapServer(s)));
   }
 
   async getServer(id: string) {
@@ -164,7 +186,8 @@ export class HostingServersService {
       panel: dto.panel,
       whmUsername: dto.whmUsername?.trim(),
       whmPasswordEnc: dto.whmPassword ? encryptSecret(dto.whmPassword) : undefined,
-      apiTokenEnc: dto.apiToken === null ? null : dto.apiToken ? encryptSecret(dto.apiToken) : undefined,
+      apiTokenEnc:
+        dto.apiToken === null ? null : dto.apiToken ? encryptSecret(dto.apiToken) : undefined,
       isDefault: dto.isDefault,
       isActive: dto.isActive,
       maxAccounts: dto.maxAccounts,
@@ -212,9 +235,9 @@ export class HostingServersService {
   }
 
   listAccounts() {
-    return this.hostingServersRepository.findAllAccounts().then((accounts) =>
-      accounts.map((account) => mapAccount(account)),
-    );
+    return this.hostingServersRepository
+      .findAllAccounts()
+      .then((accounts) => accounts.map((account) => mapAccount(account)));
   }
 
   async updateAccountStatus(id: string, dto: UpdateHostingAccountStatusDto) {
@@ -312,12 +335,107 @@ export class HostingServersService {
 
     const migrated = results.filter((r) => r.ok).length;
     if (migrated === 0) {
-      throw new BadRequestException(
-        results[0]?.error ?? "Could not migrate any selected accounts",
-      );
+      throw new BadRequestException(results[0]?.error ?? "Could not migrate any selected accounts");
     }
 
     return { migrated, failed: results.length - migrated, results };
+  }
+
+  async getRemotePleskPlans(serverId: string) {
+    const server = await this.requirePleskServer(serverId);
+    const remote = await listPleskServicePlans(toPleskCredentials(server));
+    return Promise.all(
+      remote.map(async (plan) => {
+        const local = await this.hostingServersRepository.findPlanByServerAndPleskName(
+          serverId,
+          plan.name,
+        );
+        return {
+          ...plan,
+          alreadySynced: Boolean(local),
+          localPlanId: local?.id ?? null,
+          localSlug: local?.slug ?? null,
+          localIsActive: local?.isActive ?? null,
+        };
+      }),
+    );
+  }
+
+  async syncPleskPlans(serverId: string) {
+    const server = await this.requirePleskServer(serverId);
+    const remote = await listPleskServicePlans(toPleskCredentials(server));
+    if (remote.length === 0) {
+      return {
+        created: 0,
+        updated: 0,
+        plans: [] as Array<{ id: string; slug: string; name: string; action: string }>,
+      };
+    }
+
+    const results: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      action: "created" | "updated";
+    }> = [];
+    let created = 0;
+    let updated = 0;
+
+    for (const remotePlan of remote) {
+      const existing = await this.hostingServersRepository.findPlanByServerAndPleskName(
+        serverId,
+        remotePlan.name,
+      );
+
+      if (existing) {
+        const plan = await this.hostingServersRepository.updateHostingPlanLimits(existing.id, {
+          name: remotePlan.name,
+          diskGb: remotePlan.diskGb,
+          bandwidthGb: remotePlan.bandwidthGb,
+          maxDomains: remotePlan.maxDomains,
+          maxEmails: remotePlan.maxEmails,
+          maxDatabases: remotePlan.maxDatabases,
+        });
+        updated += 1;
+        results.push({ id: plan.id, slug: plan.slug, name: plan.name, action: "updated" });
+        continue;
+      }
+
+      const baseSlug = `${slugify(remotePlan.name) || "plesk-plan"}-${slugify(server.name) || "server"}`;
+      const slug = await resolveUniqueSlug(baseSlug, (candidate) =>
+        this.hostingServersRepository.hostingPlanSlugExists(candidate),
+      );
+
+      const plan = await this.hostingServersRepository.createHostingPlan({
+        slug,
+        name: remotePlan.name,
+        description: `Synced from Plesk (${server.name})`,
+        panel: HostingPanelEnum.PLESK,
+        serverId: server.id,
+        diskGb: remotePlan.diskGb,
+        bandwidthGb: remotePlan.bandwidthGb,
+        maxDomains: remotePlan.maxDomains,
+        maxEmails: remotePlan.maxEmails,
+        maxDatabases: remotePlan.maxDatabases,
+        price: 0,
+        isActive: false,
+        sortOrder: created + updated,
+        pleskPlanName: remotePlan.name,
+      });
+      created += 1;
+      results.push({ id: plan.id, slug: plan.slug, name: plan.name, action: "created" });
+    }
+
+    return { created, updated, total: remote.length, plans: results };
+  }
+
+  private async requirePleskServer(serverId: string) {
+    const server = await this.hostingServersRepository.findById(serverId);
+    if (!server) throw new NotFoundException("Hosting server not found");
+    if (server.panel !== HostingPanelEnum.PLESK) {
+      throw new BadRequestException("Plan sync is only available for Plesk servers");
+    }
+    return server;
   }
 
   private async migrateSingleAccount(accountId: string, target: HostingServer) {

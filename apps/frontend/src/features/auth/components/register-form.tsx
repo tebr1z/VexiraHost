@@ -66,7 +66,7 @@ export function RegisterForm(): React.ReactElement {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { preferredCurrency: "USD", acceptedTerms: false },
+    defaultValues: { preferredCurrency: "USD", acceptedTerms: false, marketingOptIn: true },
   });
 
   const preferredCurrency = watch("preferredCurrency");
@@ -189,6 +189,15 @@ export function RegisterForm(): React.ReactElement {
           error={errors.confirmPassword?.message}
           {...register("confirmPassword")}
         />
+
+        <label className="text-on-surface-variant flex cursor-pointer items-start gap-2.5 rounded-2xl bg-[var(--bg-secondary)] px-3.5 py-3 text-sm">
+          <input
+            type="checkbox"
+            className="border-outline-variant mt-0.5 h-4 w-4 rounded"
+            {...register("marketingOptIn")}
+          />
+          <span>{t("marketingOptIn")}</span>
+        </label>
 
         <label className="text-on-surface-variant flex cursor-pointer items-start gap-2.5 rounded-2xl bg-[var(--bg-secondary)] px-3.5 py-3 text-sm">
           <input

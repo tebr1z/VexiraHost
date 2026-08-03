@@ -1,10 +1,10 @@
 ﻿import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-
-import { User } from "@/decorators/user.decorator";
 import type { AuthUser } from "@vexira/types";
 
 import { ProvisionAddonDto } from "../dto";
 import { LicensesService } from "../service/licenses.service";
+
+import { User } from "@/decorators/user.decorator";
 
 @Controller("licenses")
 export class LicensesController {
@@ -18,6 +18,11 @@ export class LicensesController {
   @Post("provision")
   provision(@Body() dto: ProvisionAddonDto, @User() user: AuthUser) {
     return this.licensesService.provision(user.id, dto);
+  }
+
+  @Post("claim-free/:productId")
+  claimFree(@Param("productId") productId: string, @User() user: AuthUser) {
+    return this.licensesService.claimFreeProduct(user.id, productId);
   }
 
   @Get(":id")

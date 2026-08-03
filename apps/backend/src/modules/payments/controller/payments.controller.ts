@@ -1,12 +1,12 @@
 ﻿import { Body, Controller, Get, Post, Query, Res } from "@nestjs/common";
-import type { Response } from "express";
-
-import { Public } from "@/decorators/auth.decorators";
-import { User } from "@/decorators/user.decorator";
 import type { AuthUser } from "@vexira/types";
+import type { Response } from "express";
 
 import { ChargePaymentDto, CreatePaymentMethodDto } from "../dto";
 import { PaymentsService } from "../service/payments.service";
+
+import { Public } from "@/decorators/auth.decorators";
+import { User } from "@/decorators/user.decorator";
 
 @Controller("payments")
 export class PaymentsController {
@@ -15,6 +15,11 @@ export class PaymentsController {
   @Get("methods")
   listMethods(@User() user: AuthUser) {
     return this.paymentsService.listMethods(user.id);
+  }
+
+  @Get("balance")
+  getBalance(@User() user: AuthUser) {
+    return this.paymentsService.getBalance(user.id);
   }
 
   @Post("methods")

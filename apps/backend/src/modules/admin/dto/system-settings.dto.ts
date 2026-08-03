@@ -51,4 +51,16 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
   maintenanceMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  googleClientId?: string;
+
+  @IsOptional()
+  @IsString()
+  googleClientSecret?: string;
+
+  @IsOptional()
+  @IsString()
+  googleCallbackUrl?: string;
 }

@@ -1,11 +1,10 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
-import { DataTable, PageHeader } from "@/components/ui";
 import { AdminUserActions } from "@/components/admin/admin-user-actions";
+import { DataTable, EditIconLink, PageHeader, StatusBadge, TableRowActions } from "@/components/ui";
 import { listAdminUsers, type AdminUser } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
 import { formatDate } from "@/lib/i18n/format";
@@ -57,7 +56,7 @@ export default function AdminUsersPage(): React.ReactElement | null {
         columns={[
           {
             key: "email",
-            header: "User",
+            header: tp("colUser"),
             sortable: true,
             render: (row) => {
               const u = row as unknown as AdminUser;
@@ -65,20 +64,46 @@ export default function AdminUsersPage(): React.ReactElement | null {
               return (
                 <div>
                   <p className="font-medium">{u.email}</p>
-                  {name && <p className="text-xs text-on-surface-variant">{name}</p>}
+                  {name && <p className="text-on-surface-variant text-xs">{name}</p>}
                 </div>
               );
             },
           },
-          { key: "orderCount", header: "Orders", sortable: true },
-          { key: "ticketCount", header: "Tickets", sortable: true },
+          {
+            key: "role",
+            header: tp("colRole"),
+            sortable: true,
+            render: (row) => {
+              const u = row as unknown as AdminUser;
+              return (
+                <span className="bg-surface-container-low rounded-full px-2.5 py-1 text-xs font-semibold capitalize">
+                  {u.role}
+                </span>
+              );
+            },
+          },
+          {
+            key: "status",
+            header: tu("table.status"),
+            render: (row) => <StatusBadge status={(row as unknown as AdminUser).status} />,
+          },
+          {
+            key: "orderCount",
+            header: tp("orders"),
+            sortable: true,
+          },
+          {
+            key: "ticketCount",
+            header: tp("tickets"),
+            sortable: true,
+          },
           {
             key: "preferredCurrency",
             header: tp("currency"),
             render: (row) => {
               const u = row as unknown as AdminUser;
               return (
-                <span className="text-sm text-on-surface-variant">
+                <span className="text-on-surface-variant text-sm">
                   {u.preferredCurrency ?? "—"}
                   {u.currencyLocked ? ` (${tp("locked")})` : ""}
                 </span>
@@ -94,20 +119,15 @@ export default function AdminUsersPage(): React.ReactElement | null {
           {
             key: "actions",
             header: tu("table.actions"),
-            render: (row) => (
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={`/t4abriz/panel/users/${(row as unknown as AdminUser).id}`}
-                  className="rounded-lg border border-outline-variant px-3 py-1.5 text-sm font-medium hover:bg-surface-container-low"
-                >
-                  {tu("view")}
-                </Link>
-                <AdminUserActions
-                  user={row as unknown as AdminUser}
-                  onUpdated={handleUserUpdated}
-                />
-              </div>
-            ),
+            render: (row) => {
+              const u = row as unknown as AdminUser;
+              return (
+                <TableRowActions>
+                  <EditIconLink href={`/t4abriz/panel/users/${u.id}`} label={tu("edit")} />
+                  <AdminUserActions user={u} onUpdated={handleUserUpdated} />
+                </TableRowActions>
+              );
+            },
           },
         ]}
       />

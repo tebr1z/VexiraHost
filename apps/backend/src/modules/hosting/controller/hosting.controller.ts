@@ -1,21 +1,15 @@
-﻿import { Body, Controller, Get, Param, Post, Query, Req, Res } from "@nestjs/common";
-
+import { Body, Controller, Get, Param, Post, Query, Req, Res } from "@nestjs/common";
 import { HostingPanel } from "@prisma/client";
-
+import type { AuthUser } from "@vexira/types";
 import type { Request, Response } from "express";
 
-import { Public } from "@/decorators/auth.decorators";
-
-import { User } from "@/decorators/user.decorator";
-
-import type { AuthUser } from "@vexira/types";
-
-import { getClientIp } from "@/utils/client-ip.util";
-
 import { ListHostingPlansQueryDto, PanelLoginDto, ProvisionHostingDto } from "../dto";
-
 import { HostingService } from "../service/hosting.service";
 import { PanelSessionService } from "../service/panel-session.service";
+
+import { Public } from "@/decorators/auth.decorators";
+import { User } from "@/decorators/user.decorator";
+import { getClientIp } from "@/utils/client-ip.util";
 
 @Controller("hosting")
 export class HostingController {
@@ -37,8 +31,12 @@ export class HostingController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const loginUrl = await this.panelSession.resolveOpenTicket(ticket, getClientIp(req));
-    res.redirect(302, loginUrl);
+    const result = await this.panelSession.resolveOpenTicket(ticket, getClientIp(req));
+    if (typeof result === "string") {
+      res.redirect(302, result);
+      return;
+    }
+    res.type("html").send(result.html);
   }
 
   @Get()
@@ -62,11 +60,7 @@ export class HostingController {
   }
 
   @Post(":id/panel-login")
-  panelLogin(
-    @Param("id") id: string,
-    @User() user: AuthUser,
-    @Body() dto: PanelLoginDto,
-  ) {
+  panelLogin(@Param("id") id: string, @User() user: AuthUser, @Body() dto: PanelLoginDto) {
     return this.hostingService.createPanelOpenUrl(id, user.id, dto.clientIp);
   }
 

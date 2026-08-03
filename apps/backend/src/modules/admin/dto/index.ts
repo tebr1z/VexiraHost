@@ -7,3 +7,9 @@ export { UpdateAdminUserRoleDto } from "./update-admin-user-role.dto";
 export { UpdateAdminUserStatusDto } from "./update-admin-user-status.dto";
 export { UpdateAdminUserDto } from "./update-admin-user.dto";
 export { FulfillOrderDto } from "./fulfill-order.dto";
+export { DeliverLicenseDto } from "./deliver-license.dto";
+export {
+  AssignManualDomainDto,
+  UpdateManualDomainDto,
+  AdminCreditBalanceDto,
+} from "./manual-domain.dto";

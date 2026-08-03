@@ -6,6 +6,8 @@ export interface Invoice {
   status: string;
   subtotal: number;
   total: number;
+  amountPaid?: number;
+  amountDue?: number;
   currency: string;
   dueDate: string;
   paidAt: string | null;
@@ -42,7 +44,7 @@ export async function getInvoice(id: string): Promise<InvoiceDetail> {
 
 export async function checkout(
   items: { productId: string; quantity: number; metadata?: Record<string, unknown> }[],
-  options?: { currency?: string; period?: string },
+  options?: { currency?: string; period?: string; promoCode?: string },
 ) {
   const res = await apiClient.request<{
     id: string;
@@ -53,24 +55,65 @@ export async function checkout(
       items,
       currency: options?.currency,
       period: options?.period,
+      promoCode: options?.promoCode,
     },
   });
   return res.data;
 }
 
-export async function chargeInvoice(invoiceId: string, methodId?: string) {
+export type PromoValidateResult = {
+  valid: boolean;
+  discountAmount: number;
+  code: string | null;
+  messageKey: string;
+  messageParams: Record<string, string | number>;
+};
+
+export async function validatePromoCode(input: {
+  code: string;
+  items: { productId: string; quantity: number }[];
+  currency?: string;
+  period?: string;
+}): Promise<PromoValidateResult> {
+  const res = await apiClient.request<PromoValidateResult>("/orders/promo/validate", {
+    method: "POST",
+    body: input,
+  });
+  return res.data as PromoValidateResult;
+}
+
+export async function chargeInvoice(
+  invoiceId: string,
+  options?: { methodId?: string; useBalance?: boolean; amount?: number },
+) {
   const res = await apiClient.request<{
     mode?: "completed" | "redirect";
     id: string;
     status: string;
+    amount?: number;
     redirectUrl?: string;
     orderId?: string | null;
     invoiceId?: string;
+    paidWithBalance?: boolean;
+    invoiceFullyPaid?: boolean;
+    amountDue?: number;
+    remainingBalance?: number;
+    balanceCurrency?: string;
   }>("/payments/charge", {
     method: "POST",
-    body: { invoiceId, methodId },
+    body: {
+      invoiceId,
+      methodId: options?.methodId,
+      useBalance: options?.useBalance,
+      amount: options?.amount,
+    },
   });
   return res.data;
+}
+
+export async function getAccountBalance(): Promise<{ balance: number; currency: string }> {
+  const res = await apiClient.request<{ balance: number; currency: string }>("/payments/balance");
+  return res.data as { balance: number; currency: string };
 }
 
 export async function createPaymentMethod() {

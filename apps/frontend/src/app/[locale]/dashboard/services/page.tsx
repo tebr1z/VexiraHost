@@ -3,24 +3,28 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { CopyableField } from "@/components/ui/copyable-field";
+import { ManualServiceCard } from "@/components/services/manual-service-card";
 import { EmptyState, LoadingSkeletonList, PageHeader, StatusBadge } from "@/components/ui";
-import { useRequireAuth } from "@/features/auth";
+import { CopyableField } from "@/components/ui/copyable-field";
 import { listAddons, provisionAddon, type AddonService, type AddonType } from "@/features/addons";
+import { useRequireAuth } from "@/features/auth";
+import { listHostingAccounts, type HostingAccount } from "@/features/hosting";
 import { formatDate } from "@/lib/i18n/format";
 
 const ADDON_TYPES: AddonType[] = ["LICENSE", "SSL", "EMAIL", "BACKUP"];
 
+function metaString(meta: Record<string, unknown> | null | undefined, key: string): string | null {
+  const value = meta?.[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 function getLicenseKey(service: AddonService): string | null {
-  const meta = service.metadata;
-  if (!meta) return service.identifier;
-  const key = meta.licenseKey;
-  return typeof key === "string" ? key : service.identifier;
+  if (service.type !== "LICENSE") return null;
+  return metaString(service.metadata, "licenseKey") ?? service.identifier;
 }
 
 function getDownloadUrl(service: AddonService): string | null {
-  const url = service.metadata?.downloadUrl;
-  return typeof url === "string" ? url : null;
+  return metaString(service.metadata, "downloadUrl");
 }
 
 export default function ServicesPage(): React.ReactElement | null {
@@ -29,6 +33,7 @@ export default function ServicesPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tp = useTranslations("dashboard.pages.services");
   const [services, setServices] = useState<AddonService[]>([]);
+  const [pleskServices, setPleskServices] = useState<HostingAccount[]>([]);
   const [type, setType] = useState<AddonType>("SSL");
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState("");
@@ -36,10 +41,15 @@ export default function ServicesPage(): React.ReactElement | null {
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () =>
-    listAddons()
-      .then(setServices)
+  const load = () => {
+    setListLoading(true);
+    return Promise.all([listAddons(), listHostingAccounts()])
+      .then(([addons, hosting]) => {
+        setServices(addons);
+        setPleskServices(hosting.filter((acc) => acc.managementMode === "MANUAL"));
+      })
       .finally(() => setListLoading(false));
+  };
 
   useEffect(() => {
     load();
@@ -82,13 +92,13 @@ export default function ServicesPage(): React.ReactElement | null {
 
       <form
         onSubmit={handleProvision}
-        className="card-3d grid gap-4 rounded-2xl border border-outline-variant/50 bg-surface p-6 sm:grid-cols-2"
+        className="card-3d border-outline-variant/50 bg-surface grid gap-4 rounded-2xl border p-6 sm:grid-cols-2"
       >
-        <h2 className="font-semibold text-primary sm:col-span-2">Activate new service</h2>
+        <h2 className="text-primary font-semibold sm:col-span-2">Activate new service</h2>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as AddonType)}
-          className="h-12 rounded-xl border border-outline-variant px-4 sm:col-span-2"
+          className="border-outline-variant h-12 rounded-xl border px-4 sm:col-span-2"
         >
           {ADDON_TYPES.map((value) => (
             <option key={value} value={value}>
@@ -101,43 +111,71 @@ export default function ServicesPage(): React.ReactElement | null {
           onChange={(e) => setName(e.target.value)}
           placeholder="Service name"
           required
-          className="h-12 rounded-xl border border-outline-variant px-4"
+          className="border-outline-variant h-12 rounded-xl border px-4"
         />
         <input
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           placeholder="Domain / email (optional)"
-          className="h-12 rounded-xl border border-outline-variant px-4"
+          className="border-outline-variant h-12 rounded-xl border px-4"
         />
-        {error && <p className="text-sm text-error sm:col-span-2">{error}</p>}
+        {error && <p className="text-error text-sm sm:col-span-2">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="h-12 rounded-xl bg-primary font-semibold text-on-primary sm:col-span-2 disabled:opacity-60"
+          className="bg-primary text-on-primary h-12 rounded-xl font-semibold disabled:opacity-60 sm:col-span-2"
         >
           {loading ? "Provisioning..." : "Activate service"}
         </button>
       </form>
 
+      {pleskServices.length > 0 && (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-primary text-lg font-semibold">{tp("pleskTitle")}</h2>
+            <p className="text-on-surface-variant text-sm">{tp("pleskDescription")}</p>
+          </div>
+          <div className="space-y-4">
+            {pleskServices.map((account) => (
+              <ManualServiceCard
+                key={account.id}
+                account={account}
+                locale={locale}
+                detailHref={
+                  account.serviceCategory === "SERVER"
+                    ? "/dashboard/servers"
+                    : `/dashboard/hosting/${account.id}`
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {listLoading ? (
         <LoadingSkeletonList rows={3} />
-      ) : services.length === 0 ? (
+      ) : services.length === 0 && pleskServices.length === 0 ? (
         <EmptyState title={tp("empty")} description={tp("emptyDesc")} />
       ) : (
         <ul className="space-y-4">
           {services.map((service) => {
-            const licenseKey = service.type === "LICENSE" ? getLicenseKey(service) : null;
+            const licenseKey = getLicenseKey(service);
             const downloadUrl = getDownloadUrl(service);
+            const downloadFileName = metaString(service.metadata, "downloadFileName");
+            const promoText = metaString(service.metadata, "promoText");
+            const guideText = metaString(service.metadata, "activationGuideText");
+            const guideImage = metaString(service.metadata, "activationGuideImageUrl");
+            const guideVideo = metaString(service.metadata, "activationGuideVideoUrl");
 
             return (
               <li
                 key={service.id}
-                className="rounded-2xl border border-outline-variant/50 bg-surface p-5 shadow-sm"
+                className="border-outline-variant/50 bg-surface rounded-2xl border p-5 shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-primary">{service.name}</p>
-                    <p className="mt-1 text-sm text-on-surface-variant">
+                    <p className="text-primary font-semibold">{service.name}</p>
+                    <p className="text-on-surface-variant mt-1 text-sm">
                       {tp(`categories.${service.type}`)}
                       {service.identifier ? ` · ${service.identifier}` : ""}
                     </p>
@@ -145,14 +183,22 @@ export default function ServicesPage(): React.ReactElement | null {
                   <StatusBadge status={service.status} />
                 </div>
 
-                {licenseKey && (
-                  <div className="mt-4 space-y-3">
-                    <CopyableField
-                      label={tp("licenseKey")}
-                      value={licenseKey}
-                      copyLabel={tp("copy")}
-                      copiedLabel={tp("copied")}
-                    />
+                {promoText && (
+                  <p className="text-on-surface-variant mt-3 whitespace-pre-wrap text-sm">
+                    {promoText}
+                  </p>
+                )}
+
+                {service.type === "LICENSE" && (
+                  <div className="mt-4 space-y-4">
+                    {licenseKey && (
+                      <CopyableField
+                        label={tp("licenseKey")}
+                        value={licenseKey}
+                        copyLabel={tp("copy")}
+                        copiedLabel={tp("copied")}
+                      />
+                    )}
                     {downloadUrl && (
                       <a
                         href={downloadUrl}
@@ -161,14 +207,52 @@ export default function ServicesPage(): React.ReactElement | null {
                         className="apple-btn apple-btn-primary inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold"
                       >
                         <span className="material-symbols-outlined text-base">download</span>
-                        {tp("download")}
+                        {downloadFileName
+                          ? `${tp("download")} · ${downloadFileName}`
+                          : tp("download")}
                       </a>
                     )}
+
+                    {(guideText || guideImage || guideVideo) && (
+                      <div className="border-outline-variant/50 bg-surface-container-low/50 rounded-xl border p-4">
+                        <p className="mb-2 text-sm font-semibold">{tp("howToActivate")}</p>
+                        {guideText && (
+                          <p className="text-on-surface-variant whitespace-pre-wrap text-sm">
+                            {guideText}
+                          </p>
+                        )}
+                        {guideImage && (
+                          <img
+                            src={guideImage}
+                            alt={tp("howToActivate")}
+                            className="mt-3 max-h-64 w-full rounded-lg object-contain"
+                          />
+                        )}
+                        {guideVideo && (
+                          <a
+                            href={guideVideo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-secondary mt-3 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                          >
+                            <span className="material-symbols-outlined text-base">play_circle</span>
+                            {tp("watchGuide")}
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {metaString(service.metadata, "pendingManualDelivery") === "true" ||
+                    service.metadata?.pendingManualDelivery === true ? (
+                      <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+                        {tp("awaitingActivation")}
+                      </p>
+                    ) : null}
                   </div>
                 )}
 
                 {service.expiresAt && (
-                  <p className="mt-3 text-sm text-on-surface-variant">
+                  <p className="text-on-surface-variant mt-3 text-sm">
                     {tp("expires")}: {formatDate(service.expiresAt, locale)}
                   </p>
                 )}

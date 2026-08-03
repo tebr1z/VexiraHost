@@ -1,18 +1,18 @@
-﻿import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from "@nestjs/common";
+﻿import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { InvoiceStatus } from "@prisma/client";
+import { InvoiceStatus, Prisma } from "@prisma/client";
 
 import type { ChargePaymentDto, CreatePaymentMethodDto } from "../dto";
-import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
-import { PrismaService } from "@/database/database.module";
 import { KapitalPaymentProvider } from "../providers/kapital-payment.provider";
 import { MockPaymentProvider } from "../providers/mock-payment.provider";
 import { PaymentsRepository } from "../repository/payments.repository";
+
+import { BalanceService } from "./balance.service";
+
+import { PrismaService } from "@/database/database.module";
+import { DomainBillingService } from "@/modules/domains/service/domain-billing.service";
+import { HostingBillingService } from "@/modules/hosting/service/hosting-billing.service";
+import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 
 const PAYMENT_PROVIDER_SETTING_KEY = "payment_provider";
 
@@ -49,6 +49,9 @@ export class PaymentsService {
     private readonly mockGateway: MockPaymentProvider,
     private readonly kapitalGateway: KapitalPaymentProvider,
     private readonly orderFulfillmentService: OrderFulfillmentService,
+    private readonly hostingBilling: HostingBillingService,
+    private readonly domainBilling: DomainBillingService,
+    private readonly balanceService: BalanceService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
@@ -98,6 +101,10 @@ export class PaymentsService {
       throw new BadRequestException("Invoice is not payable");
     }
 
+    if (dto.useBalance) {
+      return this.balanceService.payInvoiceWithBalance(userId, dto.invoiceId, dto.amount);
+    }
+
     if (dto.methodId) {
       const method = await this.paymentsRepository.findMethodByIdForUser(dto.methodId, userId);
       if (!method) {
@@ -105,14 +112,23 @@ export class PaymentsService {
       }
     }
 
-    const amount = Number(invoice.total);
+    const alreadyPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const amountDue = Math.max(0, Number((Number(invoice.total) - alreadyPaid).toFixed(2)));
+    if (amountDue <= 0) {
+      throw new BadRequestException("Invoice is already fully paid");
+    }
+
     const provider = await this.resolveProvider();
 
     if (provider === "kapital") {
-      return this.chargeViaKapital(userId, invoice, amount, dto.methodId);
+      return this.chargeViaKapital(userId, invoice, amountDue, dto.methodId);
     }
 
-    return this.chargeViaMock(userId, invoice, amount, dto.methodId);
+    return this.chargeViaMock(userId, invoice, amountDue, dto.methodId);
+  }
+
+  getBalance(userId: string) {
+    return this.balanceService.getBalance(userId);
   }
 
   private async chargeViaMock(
@@ -126,6 +142,8 @@ export class PaymentsService {
     amount: number,
     methodId?: string,
   ) {
+    const chargeAmount = new Prisma.Decimal(amount.toFixed(2));
+
     const result = await this.mockGateway.charge({
       amount,
       currency: invoice.currency,
@@ -138,7 +156,7 @@ export class PaymentsService {
         userId,
         invoiceId: invoice.id,
         methodId,
-        amount: invoice.total as never,
+        amount: chargeAmount,
         currency: invoice.currency,
         failureReason: result.failureReason ?? "Payment declined",
       });
@@ -154,13 +172,16 @@ export class PaymentsService {
       invoiceId: invoice.id,
       orderId: invoice.orderId,
       methodId,
-      amount: invoice.total as never,
+      amount: chargeAmount,
       currency: invoice.currency,
       gatewayRef: result.gatewayRef,
     });
 
     if (invoice.orderId) {
       await this.orderFulfillmentService.fulfillOrder(invoice.orderId);
+    } else {
+      await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
+      await this.domainBilling.activateAfterRenewalPayment(invoice.id);
     }
 
     return {
@@ -193,6 +214,8 @@ export class PaymentsService {
       throw new BadRequestException("Kapital Bank payment is not configured");
     }
 
+    const chargeAmount = new Prisma.Decimal(amount.toFixed(2));
+
     let created;
     try {
       created = await this.kapitalGateway.createPurchaseOrder({
@@ -206,7 +229,7 @@ export class PaymentsService {
         userId,
         invoiceId: invoice.id,
         methodId,
-        amount: invoice.total as never,
+        amount: chargeAmount,
         currency: invoice.currency,
         failureReason: message,
       });
@@ -218,7 +241,7 @@ export class PaymentsService {
       userId,
       invoiceId: invoice.id,
       methodId,
-      amount: invoice.total as never,
+      amount: chargeAmount,
       currency: invoice.currency,
       gatewayRef,
     });
@@ -302,9 +325,7 @@ export class PaymentsService {
       }
 
       if (
-        ["Cancelled", "Canceled", "Declined", "Expired", "Refused", "Rejected"].includes(
-          bankStatus,
-        )
+        ["Cancelled", "Canceled", "Declined", "Expired", "Refused", "Rejected"].includes(bankStatus)
       ) {
         await this.paymentsRepository.failPendingPayment(
           pending.id,
@@ -339,6 +360,9 @@ export class PaymentsService {
 
     if (pending.invoice.orderId) {
       await this.orderFulfillmentService.fulfillOrder(pending.invoice.orderId);
+    } else {
+      await this.hostingBilling.activateAfterRenewalPayment(pending.invoiceId);
+      await this.domainBilling.activateAfterRenewalPayment(pending.invoiceId);
     }
 
     return {

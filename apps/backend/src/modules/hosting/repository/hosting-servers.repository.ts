@@ -45,9 +45,7 @@ export class HostingServersRepository {
   }
 
   async resolveServerForPanel(panel: HostingPanel): Promise<HostingServer | null> {
-    return (
-      (await this.findDefaultForPanel(panel)) ?? (await this.findFirstActiveForPanel(panel))
-    );
+    return (await this.findDefaultForPanel(panel)) ?? (await this.findFirstActiveForPanel(panel));
   }
 
   create(data: {
@@ -208,6 +206,71 @@ export class HostingServersRepository {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
+    });
+  }
+
+  findPlanByServerAndPleskName(serverId: string, pleskPlanName: string) {
+    return this.prisma.hostingPlan.findFirst({
+      where: { serverId, pleskPlanName },
+    });
+  }
+
+  hostingPlanSlugExists(slug: string) {
+    return this.prisma.hostingPlan
+      .findUnique({ where: { slug }, select: { id: true } })
+      .then(Boolean);
+  }
+
+  createHostingPlan(data: {
+    slug: string;
+    name: string;
+    description?: string | null;
+    panel: HostingPanel;
+    serverId: string;
+    diskGb: number;
+    bandwidthGb: number;
+    maxDomains: number;
+    maxEmails: number;
+    maxDatabases: number;
+    price: number;
+    isActive?: boolean;
+    sortOrder?: number;
+    pleskPlanName: string;
+  }) {
+    return this.prisma.hostingPlan.create({
+      data: {
+        slug: data.slug,
+        name: data.name,
+        description: data.description ?? null,
+        panel: data.panel,
+        serverId: data.serverId,
+        diskGb: data.diskGb,
+        bandwidthGb: data.bandwidthGb,
+        maxDomains: data.maxDomains,
+        maxEmails: data.maxEmails,
+        maxDatabases: data.maxDatabases,
+        price: data.price,
+        isActive: data.isActive ?? false,
+        sortOrder: data.sortOrder ?? 0,
+        pleskPlanName: data.pleskPlanName,
+      },
+    });
+  }
+
+  updateHostingPlanLimits(
+    id: string,
+    data: {
+      name: string;
+      diskGb: number;
+      bandwidthGb: number;
+      maxDomains: number;
+      maxEmails: number;
+      maxDatabases: number;
+    },
+  ) {
+    return this.prisma.hostingPlan.update({
+      where: { id },
+      data,
     });
   }
 }

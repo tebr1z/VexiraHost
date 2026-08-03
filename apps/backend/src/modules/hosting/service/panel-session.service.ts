@@ -1,11 +1,14 @@
-import { Injectable, Logger, NotFoundException, OnModuleDestroy } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 
-import { encryptSecret } from "@/utils/crypto.util";
-import { isValidClientIp } from "@/utils/client-ip.util";
+import { Injectable, Logger, NotFoundException, OnModuleDestroy } from "@nestjs/common";
+import { HostingManagementMode } from "@prisma/client";
 
 import { MockControlPanelProvider } from "../providers/mock-control-panel.provider";
 import { HostingRepository } from "../repository/hosting.repository";
+import { buildPanelAutoLoginHtml } from "../utils/panel-auto-login.util";
+
+import { isValidClientIp } from "@/utils/client-ip.util";
+import { encryptSecret, decryptSecret } from "@/utils/crypto.util";
 
 const TICKET_TTL_MS = 2 * 60 * 1000;
 
@@ -45,7 +48,7 @@ export class PanelSessionService implements OnModuleDestroy {
     return ticket;
   }
 
-  async resolveOpenTicket(ticket: string, requestIp: string): Promise<string> {
+  async resolveOpenTicket(ticket: string, requestIp: string): Promise<string | { html: string }> {
     this.pruneTickets();
 
     const entry = this.tickets.get(ticket);
@@ -57,17 +60,24 @@ export class PanelSessionService implements OnModuleDestroy {
     this.tickets.delete(ticket);
 
     const clientIp = entry.clientIp ?? requestIp;
-    const result = await this.getOrCreateLoginUrl(entry.accountId, entry.userId, clientIp);
-    return result.loginUrl;
+    return this.getOrCreateLoginResult(entry.accountId, entry.userId, clientIp);
   }
 
-  async getOrCreateLoginUrl(
+  async getOrCreateLoginResult(
     accountId: string,
     userId: string,
     clientIp: string,
-  ): Promise<{ loginUrl: string; expiresAt: Date }> {
+  ): Promise<string | { html: string }> {
     const account = await this.hostingRepository.findByIdForUser(accountId, userId);
-    if (!account?.server) {
+    if (!account) {
+      throw new NotFoundException("Hosting account not found");
+    }
+
+    if (account.managementMode === HostingManagementMode.MANUAL && !account.server) {
+      return this.buildManualLoginResult(account);
+    }
+
+    if (!account.server) {
       throw new NotFoundException("Hosting account not found");
     }
 
@@ -98,10 +108,50 @@ export class PanelSessionService implements OnModuleDestroy {
       `Panel session created for account ${accountId} (login=${panelLogin}, clientIp=${clientIp})`,
     );
 
+    return session.loginUrl;
+  }
+
+  async getOrCreateLoginUrl(
+    accountId: string,
+    userId: string,
+    clientIp: string,
+  ): Promise<{ loginUrl: string; expiresAt: Date }> {
+    const result = await this.getOrCreateLoginResult(accountId, userId, clientIp);
+    if (typeof result !== "string") {
+      throw new NotFoundException("Manual panel login requires ticket flow");
+    }
+
     return {
-      loginUrl: session.loginUrl,
-      expiresAt: session.expiresAt,
+      loginUrl: result,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     };
+  }
+
+  private buildManualLoginResult(account: {
+    panel: string;
+    panelUrl: string | null;
+    panelIp: string | null;
+    panelUsername: string | null;
+    username: string;
+    panelPasswordEnc: string | null;
+  }): { html: string } {
+    const panelUrl = account.panelUrl?.trim();
+    if (!panelUrl) {
+      throw new NotFoundException("Panel URL is not configured for this service");
+    }
+
+    const login = (account.panelUsername ?? account.username).trim();
+    if (!login) {
+      throw new NotFoundException("Hosting account has no panel username");
+    }
+
+    if (!account.panelPasswordEnc) {
+      throw new NotFoundException("Panel password is not configured for this service");
+    }
+
+    const password = decryptSecret(account.panelPasswordEnc);
+    const panel = account.panel === "CPANEL" ? "CPANEL" : "PLESK";
+    return { html: buildPanelAutoLoginHtml(panel, panelUrl, login, password) };
   }
 
   private pruneTickets(): void {

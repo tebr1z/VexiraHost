@@ -10,7 +10,9 @@ export type AuthValidationMessages = {
   acceptTermsRequired: string;
 };
 
-export function createLoginSchema(messages: Pick<AuthValidationMessages, "emailRequired" | "passwordMin">) {
+export function createLoginSchema(
+  messages: Pick<AuthValidationMessages, "emailRequired" | "passwordMin">,
+) {
   return z.object({
     email: z.string().email(messages.emailRequired),
     password: z.string().min(8, messages.passwordMin),
@@ -28,6 +30,7 @@ export function createRegisterSchema(messages: AuthValidationMessages) {
       confirmPassword: z.string().min(8, messages.confirmPasswordRequired),
       preferredCurrency: z.enum(["USD", "EUR", "AZN"]).default("USD"),
       acceptedTerms: z.boolean().default(false),
+      marketingOptIn: z.boolean().default(true),
     })
     .refine((data) => data.password === data.confirmPassword, {
       message: messages.passwordsMismatch,

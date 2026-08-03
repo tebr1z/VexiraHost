@@ -1,4 +1,10 @@
-import { BillingCycle, PriceCurrency, PricePeriod, ProductCategory } from "@prisma/client";
+import {
+  BillingCycle,
+  DigitalDeliveryMode,
+  PriceCurrency,
+  PricePeriod,
+  ProductCategory,
+} from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   IsArray,
@@ -48,6 +54,10 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  catalogCategoryId?: string | null;
+
+  @IsOptional()
+  @IsString()
   hostingPlanSlug?: string;
 
   @IsNumber()
@@ -75,6 +85,42 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductPriceDto)
   prices?: ProductPriceDto[];
+
+  @IsOptional()
+  @IsEnum(DigitalDeliveryMode)
+  deliveryMode?: DigitalDeliveryMode;
+
+  @IsOptional()
+  @IsBoolean()
+  isFree?: boolean;
+
+  @IsOptional()
+  @IsString()
+  licenseKeys?: string | null;
+
+  @IsOptional()
+  @IsString()
+  downloadUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  downloadFileName?: string | null;
+
+  @IsOptional()
+  @IsString()
+  promoText?: string | null;
+
+  @IsOptional()
+  @IsString()
+  activationGuideText?: string | null;
+
+  @IsOptional()
+  @IsString()
+  activationGuideImageUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  activationGuideVideoUrl?: string | null;
 }
 
 export class UpdateProductDto {
@@ -90,6 +136,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsEnum(ProductCategory)
   category?: ProductCategory;
+
+  @IsOptional()
+  @IsString()
+  catalogCategoryId?: string | null;
 
   @IsOptional()
   @IsString()
@@ -121,4 +171,40 @@ export class UpdateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductPriceDto)
   prices?: ProductPriceDto[];
+
+  @IsOptional()
+  @IsEnum(DigitalDeliveryMode)
+  deliveryMode?: DigitalDeliveryMode;
+
+  @IsOptional()
+  @IsBoolean()
+  isFree?: boolean;
+
+  @IsOptional()
+  @IsString()
+  licenseKeys?: string | null;
+
+  @IsOptional()
+  @IsString()
+  downloadUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  downloadFileName?: string | null;
+
+  @IsOptional()
+  @IsString()
+  promoText?: string | null;
+
+  @IsOptional()
+  @IsString()
+  activationGuideText?: string | null;
+
+  @IsOptional()
+  @IsString()
+  activationGuideImageUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  activationGuideVideoUrl?: string | null;
 }

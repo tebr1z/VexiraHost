@@ -1,25 +1,34 @@
-import { Link } from "@/i18n/navigation";
-
 import { MaterialIcon } from "@/components/landing/material-icon";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 
-type Accent = "blue" | "green";
+type Accent = "blue" | "violet" | "cyan" | "amber" | "emerald";
 
-const ACCENT_STYLES: Record<
-  Accent,
-  { border: string; iconBg: string; iconText: string; ring: string }
-> = {
+const ACCENT_STYLES: Record<Accent, { border: string; iconBg: string; iconText: string }> = {
   blue: {
     border: "border-l-[var(--accent)]",
     iconBg: "bg-[var(--accent)]/10",
     iconText: "text-[var(--accent)]",
-    ring: "ring-[var(--accent)]/30",
   },
-  green: {
+  violet: {
+    border: "border-l-violet-500",
+    iconBg: "bg-violet-500/10",
+    iconText: "text-violet-600 dark:text-violet-400",
+  },
+  cyan: {
+    border: "border-l-cyan-500",
+    iconBg: "bg-cyan-500/10",
+    iconText: "text-cyan-600 dark:text-cyan-400",
+  },
+  amber: {
+    border: "border-l-amber-500",
+    iconBg: "bg-amber-500/10",
+    iconText: "text-amber-700 dark:text-amber-300",
+  },
+  emerald: {
     border: "border-l-emerald-500",
     iconBg: "bg-emerald-500/10",
     iconText: "text-emerald-600 dark:text-emerald-400",
-    ring: "ring-emerald-500/30",
   },
 };
 
@@ -29,14 +38,12 @@ export function DashboardOverviewStat({
   value,
   icon,
   accent = "blue",
-  active = false,
 }: {
   href: string;
   label: string;
   value: number | string;
   icon: string;
   accent?: Accent;
-  active?: boolean;
 }): React.ReactElement {
   const styles = ACCENT_STYLES[accent];
 
@@ -47,19 +54,18 @@ export function DashboardOverviewStat({
         "group flex items-center gap-4 rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 shadow-sm transition hover:shadow-md sm:p-5",
         "border-l-4",
         styles.border,
-        active && cn("ring-2", styles.ring),
       )}
     >
       <div
         className={cn(
-          "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
           styles.iconBg,
         )}
       >
         <MaterialIcon name={icon} className={cn("text-[26px]", styles.iconText)} />
       </div>
       <div className="min-w-0">
-        <p className="text-2xl font-bold tabular-nums text-[var(--label-primary)] sm:text-3xl">
+        <p className="truncate text-2xl font-bold tabular-nums text-[var(--label-primary)] sm:text-3xl">
           {value}
         </p>
         <p className="mt-0.5 text-sm font-medium text-[var(--label-secondary)]">{label}</p>

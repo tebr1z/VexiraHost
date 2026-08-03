@@ -1,10 +1,9 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
-import { PageHeader, StatusBadge } from "@/components/ui";
+import { EditIconLink, PageHeader, StatusBadge } from "@/components/ui";
 import {
   listHostingServerAccounts,
   listHostingServers,
@@ -13,6 +12,7 @@ import {
   type HostingServer,
 } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { Link } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
@@ -31,7 +31,9 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [accountsByServer, setAccountsByServer] = useState<Record<string, AdminHostingAccount[]>>({});
+  const [accountsByServer, setAccountsByServer] = useState<Record<string, AdminHostingAccount[]>>(
+    {},
+  );
   const [accountsLoadingId, setAccountsLoadingId] = useState<string | null>(null);
 
   const isAdmin = user?.role === "admin";
@@ -111,7 +113,7 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
         actions={
           <Link
             href="/t4abriz/panel/hosting/servers/new"
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary"
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold"
           >
             {tp("add")}
           </Link>
@@ -121,7 +123,7 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
       {loading ? (
         <p className="text-on-surface-variant">{tu("loading")}</p>
       ) : servers.length === 0 ? (
-        <div className="card-3d rounded-2xl px-4 py-8 text-center text-sm text-on-surface-variant">
+        <div className="card-3d text-on-surface-variant rounded-2xl px-4 py-8 text-center text-sm">
           {tp("empty")}
         </div>
       ) : (
@@ -131,24 +133,29 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
             const accounts = accountsByServer[server.id] ?? [];
 
             return (
-              <div key={server.id} className="card-3d overflow-hidden rounded-2xl border border-outline-variant/40">
+              <div
+                key={server.id}
+                className="card-3d border-outline-variant/40 overflow-hidden rounded-2xl border"
+              >
                 <div className="grid gap-4 p-5 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-jakarta text-lg font-semibold text-primary">{server.name}</h2>
+                      <h2 className="font-jakarta text-primary text-lg font-semibold">
+                        {server.name}
+                      </h2>
                       {server.isDefault && (
-                        <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs font-medium text-secondary">
+                        <span className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 text-xs font-medium">
                           {tp("defaultBadge")}
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-sm text-on-surface-variant">
+                    <p className="text-on-surface-variant mt-1 text-sm">
                       {server.hostname} · {server.ipAddress} · {server.panel}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                    <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-wide">
                       {tp("connection")}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -162,7 +169,7 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                         }}
                       />
                       {server.lastCheckedAt && (
-                        <span className="text-xs text-on-surface-variant">
+                        <span className="text-on-surface-variant text-xs">
                           {tp("lastChecked", { date: formatDate(server.lastCheckedAt, locale) })}
                         </span>
                       )}
@@ -170,12 +177,12 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                    <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-wide">
                       {tp("activeAccounts")}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <StatusBadge status={server.isActive ? "ACTIVE" : "SUSPENDED"} />
-                      <span className="text-sm text-on-surface">
+                      <span className="text-on-surface text-sm">
                         {server.activeAccountCount}
                         {server.maxAccounts ? ` / ${server.maxAccounts}` : ""} {tp("accountsLabel")}
                       </span>
@@ -187,47 +194,47 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                       type="button"
                       disabled={testingId === server.id}
                       onClick={() => handleTest(server)}
-                      className="h-9 rounded-xl border border-outline-variant px-4 text-sm font-semibold hover:bg-surface-container-low disabled:opacity-60"
+                      className="border-outline-variant hover:bg-surface-container-low h-9 rounded-xl border px-4 text-sm font-semibold disabled:opacity-60"
                     >
                       {testingId === server.id ? tf("testing") : tf("testConnection")}
                     </button>
                     <button
                       type="button"
                       onClick={() => toggleAccounts(server.id)}
-                      className="h-9 rounded-xl border border-outline-variant px-4 text-sm font-semibold hover:bg-surface-container-low"
+                      className="border-outline-variant hover:bg-surface-container-low h-9 rounded-xl border px-4 text-sm font-semibold"
                     >
                       {expanded ? tp("hideAccounts") : tp("showAccounts")}
                     </button>
-                    <Link
+                    <EditIconLink
                       href={`/t4abriz/panel/hosting/servers/${server.id}`}
-                      className="inline-flex h-9 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-on-primary"
-                    >
-                      {t("actions.edit")}
-                    </Link>
+                      label={tu("edit")}
+                    />
                   </div>
                 </div>
 
                 {expanded && (
-                  <div className="border-t border-outline-variant/40 bg-surface-container-lowest/60 p-5">
+                  <div className="border-outline-variant/40 bg-surface-container-lowest/60 border-t p-5">
                     <div className="mb-3 flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-semibold text-primary">{tp("activeAccountsList")}</h3>
+                      <h3 className="text-primary text-sm font-semibold">
+                        {tp("activeAccountsList")}
+                      </h3>
                       <Link
                         href="/t4abriz/panel/hosting/accounts"
-                        className="text-xs text-secondary hover:underline"
+                        className="text-secondary text-xs hover:underline"
                       >
                         {tp("allAccounts")}
                       </Link>
                     </div>
 
                     {accountsLoadingId === server.id ? (
-                      <p className="text-sm text-on-surface-variant">{tu("loading")}</p>
+                      <p className="text-on-surface-variant text-sm">{tu("loading")}</p>
                     ) : accounts.length === 0 ? (
-                      <p className="text-sm text-on-surface-variant">{tp("noActiveAccounts")}</p>
+                      <p className="text-on-surface-variant text-sm">{tp("noActiveAccounts")}</p>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="min-w-full text-sm">
                           <thead>
-                            <tr className="border-b border-outline-variant/30 text-left text-on-surface-variant">
+                            <tr className="border-outline-variant/30 text-on-surface-variant border-b text-left">
                               <th className="px-3 py-2 font-medium">{tp("domain")}</th>
                               <th className="px-3 py-2 font-medium">{tp("customer")}</th>
                               <th className="px-3 py-2 font-medium">{tp("plan")}</th>
@@ -237,10 +244,15 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                           </thead>
                           <tbody>
                             {accounts.map((account) => (
-                              <tr key={account.id} className="border-b border-outline-variant/20 last:border-0">
+                              <tr
+                                key={account.id}
+                                className="border-outline-variant/20 border-b last:border-0"
+                              >
                                 <td className="px-3 py-3">
                                   <p className="font-medium">{account.primaryDomain}</p>
-                                  <p className="text-xs text-on-surface-variant">{account.username}</p>
+                                  <p className="text-on-surface-variant text-xs">
+                                    {account.username}
+                                  </p>
                                 </td>
                                 <td className="px-3 py-3">{account.customer.email}</td>
                                 <td className="px-3 py-3">{account.plan.name}</td>
@@ -289,7 +301,7 @@ function ConnectionBadge({
 }): React.ReactElement {
   if (ok === true) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success-container px-2.5 py-1 text-xs font-medium text-success">
+      <span className="bg-success-container text-success inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium">
         <span className="material-symbols-outlined text-[14px]">check_circle</span>
         {labels.ok}
       </span>
@@ -298,7 +310,7 @@ function ConnectionBadge({
 
   if (ok === false && checkedAt) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-error-container px-2.5 py-1 text-xs font-medium text-error">
+      <span className="bg-error-container text-error inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium">
         <span className="material-symbols-outlined text-[14px]">error</span>
         {labels.failed}
       </span>
@@ -306,7 +318,7 @@ function ConnectionBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-high px-2.5 py-1 text-xs font-medium text-on-surface-variant">
+    <span className="bg-surface-container-high text-on-surface-variant inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium">
       <span className="material-symbols-outlined text-[14px]">help</span>
       {labels.unknown}
     </span>

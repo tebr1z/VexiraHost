@@ -1,16 +1,26 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { UserRole } from "@vexira/types";
 
 import { Roles } from "@/decorators/auth.decorators";
 import { RolesGuard } from "@/guards/roles.guard";
 import {
-  CreateHostingServerDto,
-  UpdateHostingServerDto,
-} from "@/modules/hosting/dto/hosting-server.dto";
-import {
   MigrateHostingAccountsDto,
   UpdateHostingAccountStatusDto,
 } from "@/modules/hosting/dto/hosting-account-admin.dto";
+import {
+  CreateHostingServerDto,
+  UpdateHostingServerDto,
+} from "@/modules/hosting/dto/hosting-server.dto";
 import { HostingServersService } from "@/modules/hosting/service/hosting-servers.service";
 
 @Controller("admin/hosting")
@@ -54,12 +64,21 @@ export class AdminHostingController {
     return this.hostingServersService.testServer(id);
   }
 
+  @Get("servers/:id/plesk-plans")
+  @Roles(UserRole.ADMIN)
+  listRemotePleskPlans(@Param("id") id: string) {
+    return this.hostingServersService.getRemotePleskPlans(id);
+  }
+
+  @Post("servers/:id/sync-plans")
+  @Roles(UserRole.ADMIN)
+  syncPleskPlans(@Param("id") id: string) {
+    return this.hostingServersService.syncPleskPlans(id);
+  }
+
   @Get("servers/:id/accounts")
   @Roles(UserRole.ADMIN, UserRole.STAFF)
-  listServerAccounts(
-    @Param("id") id: string,
-    @Query("activeOnly") activeOnly?: string,
-  ) {
+  listServerAccounts(@Param("id") id: string, @Query("activeOnly") activeOnly?: string) {
     return this.hostingServersService.listServerAccounts(id, activeOnly !== "false");
   }
 
@@ -71,10 +90,7 @@ export class AdminHostingController {
 
   @Patch("accounts/:id/status")
   @Roles(UserRole.ADMIN)
-  updateAccountStatus(
-    @Param("id") id: string,
-    @Body() dto: UpdateHostingAccountStatusDto,
-  ) {
+  updateAccountStatus(@Param("id") id: string, @Body() dto: UpdateHostingAccountStatusDto) {
     return this.hostingServersService.updateAccountStatus(id, dto);
   }
 

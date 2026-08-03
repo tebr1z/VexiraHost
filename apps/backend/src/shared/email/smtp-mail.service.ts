@@ -1,11 +1,19 @@
+import { TLSSocket, connect as tlsConnect } from "node:tls";
+
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { TLSSocket, connect as tlsConnect } from "node:tls";
 
 export interface MailContent {
   subject: string;
   text: string;
   html: string;
+}
+
+export interface SendMailOptions {
+  /** Extra RFC headers (e.g. List-Unsubscribe for campaigns). */
+  headers?: Record<string, string>;
+  fromName?: string;
+  mailerTag?: string;
 }
 
 interface SmtpConfig {
@@ -22,7 +30,7 @@ export class SmtpMailService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async send(to: string, content: MailContent): Promise<void> {
+  async send(to: string, content: MailContent, options?: SendMailOptions): Promise<void> {
     const cfg = this.getConfig();
     if (!cfg) {
       this.logger.warn("SMTP config missing. Email not sent.");
@@ -43,14 +51,20 @@ export class SmtpMailService {
       const boundary = `vexira_${Date.now().toString(16)}`;
       const date = new Date().toUTCString();
       const messageId = `<${Date.now()}.${Math.random().toString(16).slice(2)}@vexirahost.com>`;
+      const fromName = options?.fromName ?? "Vexira Host";
+      const mailerTag = options?.mailerTag ?? "Vexira Host Transactional";
+      const extraHeaders = Object.entries(options?.headers ?? {})
+        .map(([key, value]) => `${key}: ${value}\r\n`)
+        .join("");
       const body =
-        `From: Vexira Host <${cfg.from}>\r\n` +
+        `From: ${fromName} <${cfg.from}>\r\n` +
         `To: <${to}>\r\n` +
         `Subject: ${content.subject}\r\n` +
         `Date: ${date}\r\n` +
         `Message-ID: ${messageId}\r\n` +
         `MIME-Version: 1.0\r\n` +
-        `X-Mailer: Vexira Host Transactional\r\n` +
+        `X-Mailer: ${mailerTag}\r\n` +
+        extraHeaders +
         `Content-Type: multipart/alternative; boundary="${boundary}"\r\n` +
         `\r\n` +
         `--${boundary}\r\n` +
@@ -89,9 +103,8 @@ export class SmtpMailService {
 
   private connect(cfg: SmtpConfig): Promise<TLSSocket> {
     return new Promise((resolve, reject) => {
-      const socket = tlsConnect(
-        { host: cfg.host, port: cfg.port, servername: cfg.host },
-        () => resolve(socket),
+      const socket = tlsConnect({ host: cfg.host, port: cfg.port, servername: cfg.host }, () =>
+        resolve(socket),
       );
       socket.on("error", reject);
     });

@@ -4,11 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Decimal } from "@prisma/client/runtime/library";
 import { HostingPanel, ProductCategory } from "@prisma/client";
-import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
-
-import { mapProductPrices } from "@/shared/pricing/product-price.util";
+import { Decimal } from "@prisma/client/runtime/library";
 
 import type {
   CreateHostingPlanDto,
@@ -19,6 +16,9 @@ import type {
   UpdateServerPlanDto,
 } from "../dto";
 import { AdminCatalogRepository } from "../repository/admin-catalog.repository";
+
+import { mapProductPrices } from "@/shared/pricing/product-price.util";
+import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
 function mapHostingPlan(plan: {
   id: string;
@@ -130,12 +130,22 @@ function mapProduct(product: {
   name: string;
   description: string | null;
   category: string;
+  catalogCategoryId?: string | null;
   hostingPlanSlug: string | null;
   price: Decimal;
   currency: string;
   billingCycle: string;
   isActive: boolean;
   sortOrder: number;
+  deliveryMode?: string;
+  isFree?: boolean;
+  licenseKeys?: string | null;
+  downloadUrl?: string | null;
+  downloadFileName?: string | null;
+  promoText?: string | null;
+  activationGuideText?: string | null;
+  activationGuideImageUrl?: string | null;
+  activationGuideVideoUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
   _count?: { orderItems: number };
@@ -152,16 +162,52 @@ function mapProduct(product: {
     name: product.name,
     description: product.description,
     category: product.category,
+    catalogCategoryId: product.catalogCategoryId ?? null,
     hostingPlanSlug: product.hostingPlanSlug,
     price: Number(product.price),
     currency: product.currency,
     billingCycle: product.billingCycle,
     isActive: product.isActive,
     sortOrder: product.sortOrder,
+    deliveryMode: product.deliveryMode ?? "NONE",
+    isFree: product.isFree ?? false,
+    licenseKeys: product.licenseKeys ?? null,
+    downloadUrl: product.downloadUrl ?? null,
+    downloadFileName: product.downloadFileName ?? null,
+    promoText: product.promoText ?? null,
+    activationGuideText: product.activationGuideText ?? null,
+    activationGuideImageUrl: product.activationGuideImageUrl ?? null,
+    activationGuideVideoUrl: product.activationGuideVideoUrl ?? null,
     orderItemCount: product._count?.orderItems ?? 0,
     prices: product.prices ? mapProductPrices(product.prices as never) : [],
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
+  };
+}
+
+function digitalFieldsFromDto(dto: {
+  deliveryMode?: string;
+  isFree?: boolean;
+  licenseKeys?: string | null;
+  downloadUrl?: string | null;
+  downloadFileName?: string | null;
+  promoText?: string | null;
+  activationGuideText?: string | null;
+  activationGuideImageUrl?: string | null;
+  activationGuideVideoUrl?: string | null;
+  category?: string;
+}) {
+  const isLicenseLike = dto.category === "LICENSE";
+  return {
+    deliveryMode: isLicenseLike ? (dto.deliveryMode ?? "NONE") : "NONE",
+    isFree: isLicenseLike ? Boolean(dto.isFree) : false,
+    licenseKeys: isLicenseLike ? dto.licenseKeys?.trim() || null : null,
+    downloadUrl: isLicenseLike ? dto.downloadUrl?.trim() || null : null,
+    downloadFileName: isLicenseLike ? dto.downloadFileName?.trim() || null : null,
+    promoText: isLicenseLike ? dto.promoText?.trim() || null : null,
+    activationGuideText: isLicenseLike ? dto.activationGuideText?.trim() || null : null,
+    activationGuideImageUrl: isLicenseLike ? dto.activationGuideImageUrl?.trim() || null : null,
+    activationGuideVideoUrl: isLicenseLike ? dto.activationGuideVideoUrl?.trim() || null : null,
   };
 }
 
@@ -238,7 +284,7 @@ export class AdminCatalogService {
     }
     await this.assertHostingServer(nextServerId, nextPanel);
 
-    const plan = await this.catalogRepository.updateHostingPlan(id, {
+    await this.catalogRepository.updateHostingPlan(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.panel !== undefined ? { panel: dto.panel } : {}),
@@ -364,18 +410,32 @@ export class AdminCatalogService {
       }
     }
 
+    const digital = digitalFieldsFromDto({ ...dto, category: dto.category });
+
     const product = await this.catalogRepository.createProduct({
       slug,
       name: dto.name.trim(),
       description: dto.description?.trim() || null,
       category: dto.category,
+      ...(dto.catalogCategoryId
+        ? { catalogCategory: { connect: { id: dto.catalogCategoryId } } }
+        : {}),
       hostingPlanSlug:
-        dto.category === ProductCategory.HOSTING ? dto.hostingPlanSlug?.trim() ?? null : null,
-      price: new Decimal(dto.price),
+        dto.category === ProductCategory.HOSTING ? (dto.hostingPlanSlug?.trim() ?? null) : null,
+      price: new Decimal(dto.isFree ? 0 : dto.price),
       currency: dto.currency ?? "USD",
-      billingCycle: dto.billingCycle ?? "MONTHLY",
+      billingCycle: dto.isFree ? "ONE_TIME" : (dto.billingCycle ?? "MONTHLY"),
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
+      deliveryMode: digital.deliveryMode as never,
+      isFree: digital.isFree,
+      licenseKeys: digital.licenseKeys,
+      downloadUrl: digital.downloadUrl,
+      downloadFileName: digital.downloadFileName,
+      promoText: digital.promoText,
+      activationGuideText: digital.activationGuideText,
+      activationGuideImageUrl: digital.activationGuideImageUrl,
+      activationGuideVideoUrl: digital.activationGuideVideoUrl,
     });
 
     if (dto.prices?.length) {
@@ -408,21 +468,83 @@ export class AdminCatalogService {
       }
     }
 
+    const nextCategory = category;
+    const digitalPatch =
+      dto.deliveryMode !== undefined ||
+      dto.isFree !== undefined ||
+      dto.licenseKeys !== undefined ||
+      dto.downloadUrl !== undefined ||
+      dto.downloadFileName !== undefined ||
+      dto.promoText !== undefined ||
+      dto.activationGuideText !== undefined ||
+      dto.activationGuideImageUrl !== undefined ||
+      dto.activationGuideVideoUrl !== undefined ||
+      dto.category !== undefined
+        ? digitalFieldsFromDto({
+            category: nextCategory,
+            deliveryMode: dto.deliveryMode ?? current.deliveryMode,
+            isFree: dto.isFree ?? current.isFree,
+            licenseKeys: dto.licenseKeys !== undefined ? dto.licenseKeys : current.licenseKeys,
+            downloadUrl: dto.downloadUrl !== undefined ? dto.downloadUrl : current.downloadUrl,
+            downloadFileName:
+              dto.downloadFileName !== undefined ? dto.downloadFileName : current.downloadFileName,
+            promoText: dto.promoText !== undefined ? dto.promoText : current.promoText,
+            activationGuideText:
+              dto.activationGuideText !== undefined
+                ? dto.activationGuideText
+                : current.activationGuideText,
+            activationGuideImageUrl:
+              dto.activationGuideImageUrl !== undefined
+                ? dto.activationGuideImageUrl
+                : current.activationGuideImageUrl,
+            activationGuideVideoUrl:
+              dto.activationGuideVideoUrl !== undefined
+                ? dto.activationGuideVideoUrl
+                : current.activationGuideVideoUrl,
+          })
+        : null;
+
     const product = await this.catalogRepository.updateProduct(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.category !== undefined ? { category: dto.category } : {}),
+      ...(dto.catalogCategoryId !== undefined
+        ? dto.catalogCategoryId
+          ? { catalogCategory: { connect: { id: dto.catalogCategoryId } } }
+          : { catalogCategory: { disconnect: true } }
+        : {}),
       ...(dto.hostingPlanSlug !== undefined || dto.category !== undefined
         ? {
-            hostingPlanSlug:
-              category === ProductCategory.HOSTING ? hostingPlanSlug : null,
+            hostingPlanSlug: category === ProductCategory.HOSTING ? hostingPlanSlug : null,
           }
         : {}),
-      ...(dto.price !== undefined ? { price: new Decimal(dto.price) } : {}),
+      ...(dto.price !== undefined
+        ? { price: new Decimal(dto.isFree || current.isFree ? 0 : dto.price) }
+        : {}),
       ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
-      ...(dto.billingCycle !== undefined ? { billingCycle: dto.billingCycle } : {}),
+      ...(dto.billingCycle !== undefined || dto.isFree !== undefined
+        ? {
+            billingCycle:
+              (dto.isFree ?? current.isFree)
+                ? "ONE_TIME"
+                : (dto.billingCycle ?? current.billingCycle),
+          }
+        : {}),
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+      ...(digitalPatch
+        ? {
+            deliveryMode: digitalPatch.deliveryMode as never,
+            isFree: digitalPatch.isFree,
+            licenseKeys: digitalPatch.licenseKeys,
+            downloadUrl: digitalPatch.downloadUrl,
+            downloadFileName: digitalPatch.downloadFileName,
+            promoText: digitalPatch.promoText,
+            activationGuideText: digitalPatch.activationGuideText,
+            activationGuideImageUrl: digitalPatch.activationGuideImageUrl,
+            activationGuideVideoUrl: digitalPatch.activationGuideVideoUrl,
+          }
+        : {}),
     });
 
     if (dto.prices) {

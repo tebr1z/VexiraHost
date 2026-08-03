@@ -1,4 +1,6 @@
-﻿import {
+﻿import { randomUUID } from "node:crypto";
+
+import {
   BadRequestException,
   ForbiddenException,
   Inject,
@@ -7,13 +9,13 @@
 } from "@nestjs/common";
 import { TicketPriority, TicketRelatedServiceType, TicketStatus } from "@prisma/client";
 import { UserRole } from "@vexira/types";
-import { randomUUID } from "node:crypto";
-
-import { STORAGE_PROVIDER, type StorageProvider } from "@/shared/storage/storage.interface";
 
 import type { CreateTicketDto, ReplyTicketDto } from "../dto";
 import { TicketsRepository } from "../repository/tickets.repository";
+
 import { TicketEmailService } from "./ticket-email.service";
+
+import { STORAGE_PROVIDER, type StorageProvider } from "@/shared/storage/storage.interface";
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -256,6 +258,7 @@ export class TicketsService {
         firstName: ticket.user.firstName,
         lastName: ticket.user.lastName,
         preferredCurrency: ticket.user.preferredCurrency,
+        localeHistory: ticket.user.localeHistory,
         ticketId: ticket.id,
         subject: ticket.subject,
         status: ticket.status,
@@ -277,7 +280,11 @@ export class TicketsService {
       throw new BadRequestException("Selected service was not found on your account");
     }
 
-    if (type === TicketRelatedServiceType.HOSTING && "plan" in service && "primaryDomain" in service) {
+    if (
+      type === TicketRelatedServiceType.HOSTING &&
+      "plan" in service &&
+      "primaryDomain" in service
+    ) {
       return `${service.plan.name} — ${service.primaryDomain}`;
     }
     if (type === TicketRelatedServiceType.SERVER && "displayName" in service) {
@@ -317,6 +324,7 @@ export class TicketsService {
           firstName: ticket.user.firstName,
           lastName: ticket.user.lastName,
           preferredCurrency: ticket.user.preferredCurrency,
+          localeHistory: ticket.user.localeHistory,
           ticketId: ticket.id,
           subject: ticket.subject,
           status,
@@ -361,6 +369,7 @@ export class TicketsService {
         firstName: updated.user.firstName,
         lastName: updated.user.lastName,
         preferredCurrency: updated.user.preferredCurrency,
+        localeHistory: updated.user.localeHistory,
         ticketId: updated.id,
         subject: updated.subject,
         previousStatus,

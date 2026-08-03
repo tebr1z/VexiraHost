@@ -81,7 +81,7 @@ export async function performCheckout(
   items: CartItem[],
   billingAddress: BillingAddressInput | null | undefined,
   billingAddressRequiredMessage: string,
-  options?: { requireBillingAddress?: boolean },
+  options?: { requireBillingAddress?: boolean; promoCode?: string | null },
 ): Promise<{
   orderId: string;
   hasHosting: boolean;
@@ -126,7 +126,11 @@ export async function performCheckout(
         ...(normalizedBillingAddress ? { billingAddress: normalizedBillingAddress } : {}),
       },
     })),
-    { currency: pricing.currency, period },
+    {
+      currency: pricing.currency,
+      period,
+      promoCode: options?.promoCode?.trim() || undefined,
+    },
   );
 
   if (!order?.invoice?.id) {
@@ -139,7 +143,7 @@ export async function performCheckout(
     methods = await listPaymentMethods();
   }
 
-  const payment = await chargeInvoice(order.invoice.id, methods[0]?.id);
+  const payment = await chargeInvoice(order.invoice.id, { methodId: methods[0]?.id });
 
   if (payment?.mode === "redirect" && payment.redirectUrl) {
     return {

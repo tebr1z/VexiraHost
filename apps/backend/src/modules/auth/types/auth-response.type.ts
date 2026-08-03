@@ -22,6 +22,10 @@ export interface AuthUserResponse {
     postalCode: string;
     country: string;
   } | null;
+  accountBalance?: number;
+  balanceCurrency?: string;
+  preferredLocale?: string;
+  localeHistory?: string[];
 }
 
 export interface AuthTokensResponse {

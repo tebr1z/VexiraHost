@@ -1,6 +1,5 @@
 "use client";
 
-import { Link, useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -9,6 +8,7 @@ import { ProductForm, pricesFromAdmin, toProductPayload } from "@/components/adm
 import { PageHeader } from "@/components/ui";
 import { getAdminProduct, updateAdminProduct, type AdminProduct } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { Link, useRouter } from "@/i18n/navigation";
 import { toast } from "@/stores/toast-store";
 
 export default function EditProductPage(): React.ReactElement | null {
@@ -23,7 +23,9 @@ export default function EditProductPage(): React.ReactElement | null {
   const [product, setProduct] = useState<AdminProduct | null>(null);
 
   useEffect(() => {
-    getAdminProduct(id).then(setProduct).catch(() => undefined);
+    getAdminProduct(id)
+      .then(setProduct)
+      .catch(() => undefined);
   }, [id]);
 
   if (!product) return <p className="text-on-surface-variant">{tu("loading")}</p>;
@@ -45,11 +47,21 @@ export default function EditProductPage(): React.ReactElement | null {
           name: product.name,
           description: product.description ?? "",
           category: product.category,
+          catalogCategoryId: product.catalogCategoryId ?? "",
           hostingPlanSlug: product.hostingPlanSlug ?? "",
           price: String(product.price),
           isActive: product.isActive,
           sortOrder: String(product.sortOrder),
           prices: pricesFromAdmin(product.prices, product.price),
+          deliveryMode: product.deliveryMode ?? "LICENSE_KEY",
+          isFree: product.isFree ?? false,
+          licenseKeys: product.licenseKeys ?? "",
+          downloadUrl: product.downloadUrl ?? "",
+          downloadFileName: product.downloadFileName ?? "",
+          promoText: product.promoText ?? "",
+          activationGuideText: product.activationGuideText ?? "",
+          activationGuideImageUrl: product.activationGuideImageUrl ?? "",
+          activationGuideVideoUrl: product.activationGuideVideoUrl ?? "",
         }}
         onSubmit={async (values) => {
           await updateAdminProduct(id, toProductPayload(values));
@@ -57,7 +69,7 @@ export default function EditProductPage(): React.ReactElement | null {
           router.push("/t4abriz/panel/products");
         }}
       />
-      <Link href="/t4abriz/panel/products" className="text-sm text-secondary hover:underline">
+      <Link href="/t4abriz/panel/products" className="text-secondary text-sm hover:underline">
         ← {ta("actions.back")}
       </Link>
     </div>

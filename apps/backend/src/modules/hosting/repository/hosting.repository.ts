@@ -1,5 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import type { HostingPanel, ServiceStatus } from "@prisma/client";
+import type {
+  HostingManagementMode,
+  HostingPanel,
+  ManualServiceCategory,
+  ServiceStatus,
+} from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
 
@@ -85,12 +90,18 @@ export class HostingRepository {
     primaryDomain: string;
     username: string;
     panel: HostingPanel;
+    managementMode?: HostingManagementMode;
+    serviceCategory?: ManualServiceCategory;
     status: ServiceStatus;
+    panelIp?: string;
     panelUrl?: string;
     panelUsername?: string;
     panelPasswordEnc?: string;
     panelRef?: string;
     provisionedAt?: Date;
+    expiresAt?: Date;
+    billingAmount?: number;
+    billingCurrency?: string;
     provisionStage?: string | null;
     provisionError?: string | null;
   }) {
@@ -106,6 +117,8 @@ export class HostingRepository {
       panelUsername?: string;
       panelPasswordEnc?: string;
       panelRef?: string;
+      panelIp?: string;
+      expiresAt?: Date;
       provisionedAt?: Date;
       panelSessionTokenEnc?: string | null;
       panelSessionExpiresAt?: Date | null;

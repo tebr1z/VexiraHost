@@ -8,6 +8,7 @@ import {
   getAdminSystemStatus,
   updateAdminSystemSettings,
   type AdminKapitalSettings,
+  type AdminGoogleOAuthSettings,
   type AdminSystemStatus,
   type KapitalEnvironment,
   type KapitalPreset,
@@ -42,12 +43,20 @@ export default function AdminSystemPage(): React.ReactElement | null {
     configured: false,
     source: "preset",
   });
-  const [kapitalPresets, setKapitalPresets] = useState<
-    Record<KapitalEnvironment, KapitalPreset> | null
-  >(null);
+  const [kapitalPresets, setKapitalPresets] = useState<Record<
+    KapitalEnvironment,
+    KapitalPreset
+  > | null>(null);
   const [maintenance, setMaintenance] = useState({
     enabled: false,
     message: "",
+  });
+  const [googleOAuth, setGoogleOAuth] = useState<AdminGoogleOAuthSettings>({
+    clientId: "",
+    clientSecret: "",
+    callbackUrl: "",
+    configured: false,
+    source: "env",
   });
 
   useEffect(() => {
@@ -58,6 +67,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
         setKapital(data.kapital);
         setKapitalPresets(data.kapitalPresets);
         setMaintenance(data.maintenance);
+        setGoogleOAuth(data.googleOAuth);
       });
     }
   }, [isAdmin]);
@@ -89,12 +99,19 @@ export default function AdminSystemPage(): React.ReactElement | null {
         payload.kapitalPassword = kapital.password;
       }
 
+      payload.googleClientId = googleOAuth.clientId.trim();
+      payload.googleCallbackUrl = googleOAuth.callbackUrl.trim();
+      if (googleOAuth.clientSecret.trim()) {
+        payload.googleClientSecret = googleOAuth.clientSecret;
+      }
+
       const updated = await updateAdminSystemSettings(payload);
       setStatus(updated);
       setProviders(updated.providers);
       setKapital(updated.kapital);
       setKapitalPresets(updated.kapitalPresets);
       setMaintenance(updated.maintenance);
+      setGoogleOAuth(updated.googleOAuth);
       toast(tp("saved"), "success");
     } catch {
       toast(tp("saveFailed"), "error");
@@ -118,8 +135,8 @@ export default function AdminSystemPage(): React.ReactElement | null {
       />
 
       <section className="card-3d rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-on-surface">{tp("queue")}</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("queue")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">
           {tp("environment")}: {status.nodeEnv}
         </p>
         <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -132,22 +149,22 @@ export default function AdminSystemPage(): React.ReactElement | null {
       </section>
 
       <section className="card-3d rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-on-surface">{tp("maintenance.title")}</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">{tp("maintenance.description")}</p>
+        <h2 className="text-on-surface text-lg font-semibold">{tp("maintenance.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("maintenance.description")}</p>
         <div className="mt-4 space-y-4">
-          <label className="flex items-center gap-3 text-sm font-medium text-on-surface">
+          <label className="text-on-surface flex items-center gap-3 text-sm font-medium">
             <input
               type="checkbox"
               checked={maintenance.enabled}
               onChange={(e) =>
                 setMaintenance((current) => ({ ...current, enabled: e.target.checked }))
               }
-              className="h-4 w-4 rounded border-outline-variant"
+              className="border-outline-variant h-4 w-4 rounded"
             />
             {tp("maintenance.enabled")}
           </label>
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-on-surface">{tp("maintenance.message")}</span>
+            <span className="text-on-surface text-sm font-medium">{tp("maintenance.message")}</span>
             <textarea
               value={maintenance.message}
               onChange={(e) =>
@@ -155,17 +172,89 @@ export default function AdminSystemPage(): React.ReactElement | null {
               }
               rows={3}
               placeholder={tp("maintenance.messagePlaceholder")}
-              className="w-full max-w-xl rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5 text-sm"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
             />
-            <span className="text-xs text-on-surface-variant">{tp("maintenance.messageHint")}</span>
+            <span className="text-on-surface-variant text-xs">{tp("maintenance.messageHint")}</span>
           </label>
-          <p className="text-xs text-on-surface-variant">{tp("maintenance.adminNote")}</p>
+          <p className="text-on-surface-variant text-xs">{tp("maintenance.adminNote")}</p>
         </div>
       </section>
 
       <section className="card-3d rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-on-surface">{tp("providers")}</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">{status.note}</p>
+        <h2 className="text-on-surface text-lg font-semibold">{tp("googleOAuth.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("googleOAuth.description")}</p>
+        <div className="mt-4 space-y-4">
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("googleOAuth.clientId")}
+            </span>
+            <input
+              type="text"
+              value={googleOAuth.clientId}
+              onChange={(e) =>
+                setGoogleOAuth((current) => ({ ...current, clientId: e.target.value }))
+              }
+              placeholder="123456789-abc.apps.googleusercontent.com"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("googleOAuth.clientSecret")}
+            </span>
+            <input
+              type="password"
+              value={googleOAuth.clientSecret}
+              onChange={(e) =>
+                setGoogleOAuth((current) => ({ ...current, clientSecret: e.target.value }))
+              }
+              placeholder="••••••••"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="new-password"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("googleOAuth.callbackUrl")}
+            </span>
+            <input
+              type="url"
+              value={googleOAuth.callbackUrl}
+              onChange={(e) =>
+                setGoogleOAuth((current) => ({ ...current, callbackUrl: e.target.value }))
+              }
+              placeholder="http://localhost:4000/api/v1/auth/google/callback"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+            <span className="text-on-surface-variant text-xs">
+              {tp("googleOAuth.callbackHint")}
+            </span>
+          </label>
+
+          <p className="text-on-surface-variant text-xs">
+            {tp("googleOAuth.source")}: {tp(`googleOAuth.sourceOptions.${googleOAuth.source}`)}
+            {googleOAuth.configured
+              ? ` · ${tp("googleOAuth.configured")}`
+              : ` · ${tp("googleOAuth.notConfigured")}`}
+          </p>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? tp("saving") : tp("save")}
+          </button>
+        </div>
+      </section>
+
+      <section className="card-3d rounded-2xl p-6">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("providers")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{status.note}</p>
         <form
           className="mt-4 space-y-4"
           onSubmit={async (e) => {
@@ -198,18 +287,20 @@ export default function AdminSystemPage(): React.ReactElement | null {
           />
 
           {providers.paymentProvider === "kapital" && (
-            <div className="space-y-4 rounded-2xl border border-outline-variant/40 bg-surface-container-low/40 p-4">
+            <div className="border-outline-variant/40 bg-surface-container-low/40 space-y-4 rounded-2xl border p-4">
               <div>
-                <h3 className="text-base font-semibold text-on-surface">{tp("kapital.title")}</h3>
-                <p className="mt-1 text-sm text-on-surface-variant">{tp("kapital.description")}</p>
+                <h3 className="text-on-surface text-base font-semibold">{tp("kapital.title")}</h3>
+                <p className="text-on-surface-variant mt-1 text-sm">{tp("kapital.description")}</p>
               </div>
 
               <label className="block space-y-1">
-                <span className="text-sm font-medium text-on-surface">{tp("kapital.environment")}</span>
+                <span className="text-on-surface text-sm font-medium">
+                  {tp("kapital.environment")}
+                </span>
                 <select
                   value={kapital.environment}
                   onChange={(e) => applyKapitalPreset(e.target.value as KapitalEnvironment)}
-                  className="w-full max-w-md rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5"
+                  className="border-outline-variant/40 bg-surface w-full max-w-md rounded-xl border px-4 py-2.5"
                 >
                   {KAPITAL_ENVIRONMENT_KEYS.map((key) => (
                     <option key={key} value={key}>
@@ -220,35 +311,47 @@ export default function AdminSystemPage(): React.ReactElement | null {
               </label>
 
               <label className="block space-y-1">
-                <span className="text-sm font-medium text-on-surface">{tp("kapital.username")}</span>
+                <span className="text-on-surface text-sm font-medium">
+                  {tp("kapital.username")}
+                </span>
                 <input
                   type="text"
                   value={kapital.username}
-                  onChange={(e) => setKapital((current) => ({ ...current, username: e.target.value }))}
-                  placeholder={kapitalPresets?.[kapital.environment]?.username ?? "TerminalSys/kapital"}
-                  className="w-full max-w-md rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5 font-mono text-sm"
+                  onChange={(e) =>
+                    setKapital((current) => ({ ...current, username: e.target.value }))
+                  }
+                  placeholder={
+                    kapitalPresets?.[kapital.environment]?.username ?? "TerminalSys/kapital"
+                  }
+                  className="border-outline-variant/40 bg-surface w-full max-w-md rounded-xl border px-4 py-2.5 font-mono text-sm"
                   autoComplete="off"
                 />
               </label>
 
               <label className="block space-y-1">
-                <span className="text-sm font-medium text-on-surface">{tp("kapital.password")}</span>
+                <span className="text-on-surface text-sm font-medium">
+                  {tp("kapital.password")}
+                </span>
                 <input
                   type="password"
                   value={kapital.password}
-                  onChange={(e) => setKapital((current) => ({ ...current, password: e.target.value }))}
+                  onChange={(e) =>
+                    setKapital((current) => ({ ...current, password: e.target.value }))
+                  }
                   placeholder="••••••••"
-                  className="w-full max-w-md rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5 font-mono text-sm"
+                  className="border-outline-variant/40 bg-surface w-full max-w-md rounded-xl border px-4 py-2.5 font-mono text-sm"
                   autoComplete="new-password"
                 />
               </label>
 
-              <p className="text-xs text-on-surface-variant">
+              <p className="text-on-surface-variant text-xs">
                 {tp("kapital.baseUrl")}: <span className="font-mono">{kapital.baseUrl}</span>
               </p>
-              <p className="text-xs text-on-surface-variant">
+              <p className="text-on-surface-variant text-xs">
                 {tp("kapital.source")}: {tp(`kapital.sourceOptions.${kapital.source}`)}
-                {kapital.configured ? ` · ${tp("kapital.configured")}` : ` · ${tp("kapital.notConfigured")}`}
+                {kapital.configured
+                  ? ` · ${tp("kapital.configured")}`
+                  : ` · ${tp("kapital.notConfigured")}`}
               </p>
             </div>
           )}
@@ -274,7 +377,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary disabled:opacity-60"
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
           >
             {saving ? tp("saving") : tp("save")}
           </button>
@@ -287,8 +390,8 @@ export default function AdminSystemPage(): React.ReactElement | null {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="card-3d stat-3d rounded-xl px-4 py-3">
-      <dt className="text-xs uppercase tracking-wide text-on-surface-variant">{label}</dt>
-      <dd className="mt-1 text-lg font-semibold text-on-surface">{value}</dd>
+      <dt className="text-on-surface-variant text-xs uppercase tracking-wide">{label}</dt>
+      <dd className="text-on-surface mt-1 text-lg font-semibold">{value}</dd>
     </div>
   );
 }
@@ -313,7 +416,7 @@ function ProviderSelect({
   const selectValue = options.includes(value) ? value : options[0];
   return (
     <label className="block space-y-1">
-      <span className="text-sm font-medium text-on-surface">
+      <span className="text-on-surface text-sm font-medium">
         {label}{" "}
         <span className="text-on-surface-variant">
           ({envDefaultLabel}: {envDefault})
@@ -322,7 +425,7 @@ function ProviderSelect({
       <select
         value={selectValue}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full max-w-md rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5"
+        className="border-outline-variant/40 bg-surface w-full max-w-md rounded-xl border px-4 py-2.5"
       >
         {options.map((key) => (
           <option key={key} value={key}>

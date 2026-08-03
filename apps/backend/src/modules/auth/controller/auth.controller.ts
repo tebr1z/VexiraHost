@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { AuthUser } from "@vexira/types";
 import type { Request, Response } from "express";
@@ -9,6 +9,7 @@ import {
   RefreshTokenDto,
   RegisterDto,
   ResetPasswordDto,
+  UpdateLocaleDto,
   VerifyEmailDto,
 } from "../dto";
 import { GitHubAuthGuard, GoogleAuthGuard } from "../guards/oauth.guards";
@@ -97,6 +98,11 @@ export class AuthController {
   @Get("linked-providers")
   linkedProviders(@User() user: AuthUser) {
     return this.authService.getLinkedProviders(user.id);
+  }
+
+  @Patch("locale")
+  updateLocale(@User() user: AuthUser, @Body() dto: UpdateLocaleDto) {
+    return this.authService.recordPreferredLocale(user.id, dto.locale);
   }
 
   @Public()

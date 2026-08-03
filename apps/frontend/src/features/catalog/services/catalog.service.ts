@@ -1,6 +1,6 @@
-import { apiClient } from "@/services/api-client";
-
 import type { CatalogCategory, CatalogProduct } from "../types";
+
+import { apiClient } from "@/services/api-client";
 
 export async function listCatalogProducts(options?: {
   category?: string;
@@ -16,8 +16,11 @@ export async function listCatalogProducts(options?: {
   return res.data ?? [];
 }
 
-export async function listCatalogCategories(): Promise<CatalogCategory[]> {
-  const res = await apiClient.request<CatalogCategory[]>("/catalog/categories");
+export async function listCatalogCategories(locale?: string): Promise<CatalogCategory[]> {
+  const params = new URLSearchParams();
+  if (locale) params.set("locale", locale);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await apiClient.request<CatalogCategory[]>(`/catalog/categories${query}`);
   return res.data ?? [];
 }
 

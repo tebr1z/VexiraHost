@@ -30,3 +30,10 @@ export async function provisionAddon(input: {
   });
   return res.data as AddonService;
 }
+
+export async function claimFreeAddon(productId: string): Promise<AddonService> {
+  const res = await apiClient.request<AddonService>(`/licenses/claim-free/${productId}`, {
+    method: "POST",
+  });
+  return res.data as AddonService;
+}

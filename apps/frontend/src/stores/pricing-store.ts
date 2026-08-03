@@ -42,7 +42,7 @@ export const usePricingStore = create<PricingState>()(
       currencyLocked: false,
       hydrated: false,
       setCurrency: (currency) => {
-        if (get().currencyLocked || get().countryCode === "AZ") {
+        if (get().currencyLocked) {
           set({ currency: "AZN" });
           return;
         }
@@ -50,18 +50,26 @@ export const usePricingStore = create<PricingState>()(
       },
       setPeriod: (period) => set({ period }),
       setFromGeo: ({ currency, countryCode }) => {
+        // Geo only drives guests. Authenticated prefs come from setFromUser.
+        if (get().currencyLocked) {
+          set({ countryCode, currency: "AZN" });
+          return;
+        }
         const locked = countryCode === "AZ";
         set({
           currency: locked ? "AZN" : currency,
           countryCode,
-          currencyLocked: locked || get().currencyLocked,
+          currencyLocked: locked,
         });
       },
       setFromUser: ({ preferredCurrency, billingPeriod, currencyLocked }) => {
+        const locked = Boolean(currencyLocked);
         set({
-          currency: parseCurrency(preferredCurrency),
+          currency: locked ? "AZN" : parseCurrency(preferredCurrency),
           period: parsePeriod(billingPeriod),
-          currencyLocked: Boolean(currencyLocked),
+          currencyLocked: locked,
+          // Profile wins over stale geo lock in localStorage.
+          countryCode: locked ? "AZ" : get().countryCode === "AZ" ? null : get().countryCode,
         });
       },
       setHydrated: (value) => set({ hydrated: value }),

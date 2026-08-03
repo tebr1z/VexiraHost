@@ -1,16 +1,17 @@
-import { BadRequestException } from "@nestjs/common";
 import * as https from "node:https";
 
-import { decryptSecret } from "@/utils/crypto.util";
+import { BadRequestException } from "@nestjs/common";
 
+import type { PleskServerInfo, PleskServicePlan, PleskWebspaceInfo } from "../types/plesk.types";
 import {
   buildPleskSessionLoginUrl,
   resolvePanelEndpoint,
   type PanelEndpoint,
 } from "../utils/panel-endpoint.util";
-import type { PleskServerInfo, PleskWebspaceInfo } from "../types/plesk.types";
 import {
+  extractAllXmlBlocks,
   extractHostingProperty,
+  extractLimitValue,
   extractWebspaceResultBlock,
   extractXmlBlock,
   extractXmlError,
@@ -21,6 +22,8 @@ import {
   parseXmlInt,
   sumDiskUsage,
 } from "../utils/plesk-xml.util";
+
+import { decryptSecret } from "@/utils/crypto.util";
 
 export const PLESK_SESSION_TTL_MS = 4 * 60 * 1000;
 
@@ -145,9 +148,7 @@ export async function createPleskUserSession(
 ): Promise<{ sessionId: string; loginUrl: string; expiresAt: Date; endpoint: PanelEndpoint }> {
   const endpoint = resolvePanelEndpoint(server);
   const userIpB64 = encodeUserIp(clientIp);
-  const sourceServerB64 = sourceOrigin
-    ? Buffer.from(sourceOrigin, "utf8").toString("base64")
-    : "";
+  const sourceServerB64 = sourceOrigin ? Buffer.from(sourceOrigin, "utf8").toString("base64") : "";
 
   const packetBody = `  <server>
     <create_session>
@@ -213,9 +214,7 @@ export async function provisionPleskAccount(
     throw new BadRequestException(`Plesk customer error: ${customerError}`);
   }
 
-  const planNode = input.planName
-    ? `<plan-name>${escapeXml(input.planName)}</plan-name>`
-    : "";
+  const planNode = input.planName ? `<plan-name>${escapeXml(input.planName)}</plan-name>` : "";
 
   const webspaceBody = `  <webspace>
     <add>
@@ -291,14 +290,16 @@ function parseWebspaceInfo(body: string): PleskWebspaceInfo {
 
   const diskUsage = parseDiskUsageBlock(diskUsageBlock);
   const realSize = parseXmlInt(extractXmlTag(genInfo ?? "", "real_size"));
-  const diskUsedBytes = realSize ?? (Object.keys(diskUsage).length > 0 ? sumDiskUsage(diskUsage) : null);
+  const diskUsedBytes =
+    realSize ?? (Object.keys(diskUsage).length > 0 ? sumDiskUsage(diskUsage) : null);
 
   return {
     subscriptionId: extractXmlTag(result, "id"),
     domain: extractXmlTag(genInfo ?? "", "name"),
     status: parsePleskStatus(extractXmlTag(genInfo ?? "", "status")),
     ownerId: extractXmlTag(genInfo ?? "", "owner-id"),
-    ipAddress: extractXmlTag(genInfo ?? "", "ip_address") ?? extractXmlTag(hostingBlock ?? "", "ip_address"),
+    ipAddress:
+      extractXmlTag(genInfo ?? "", "ip_address") ?? extractXmlTag(hostingBlock ?? "", "ip_address"),
     diskUsedBytes,
     diskLimitBytes: parseXmlInt(extractXmlTag(limits ?? "", "disk_space")),
     trafficUsedBytes: parseXmlInt(extractXmlTag(statBlock ?? "", "traffic")),
@@ -402,8 +403,9 @@ export async function getPleskServerInfo(server: PleskServerCredentials): Promis
     throw new BadRequestException(`Plesk server get error: ${apiError}`);
   }
 
-  const genInfo = extractXmlBlock(extractXmlBlock(response.body, "get") ?? "", "gen_info")
-    ?? extractXmlBlock(response.body, "gen_info");
+  const genInfo =
+    extractXmlBlock(extractXmlBlock(response.body, "get") ?? "", "gen_info") ??
+    extractXmlBlock(response.body, "gen_info");
 
   return {
     serverName: extractXmlTag(genInfo ?? "", "server_name"),
@@ -412,7 +414,89 @@ export async function getPleskServerInfo(server: PleskServerCredentials): Promis
   };
 }
 
-export async function testPleskApiAuth(server: PleskServerCredentials): Promise<{ ok: boolean; message: string }> {
+const BYTES_PER_GB = 1024 ** 3;
+const UNLIMITED_GB = 9999;
+const UNLIMITED_COUNT = 999;
+
+function bytesToGb(bytes: number | null): { gb: number; unlimited: boolean } {
+  if (bytes == null || bytes < 0) return { gb: UNLIMITED_GB, unlimited: true };
+  return { gb: Math.max(1, Math.round(bytes / BYTES_PER_GB)), unlimited: false };
+}
+
+function countOrUnlimited(value: number | null): number {
+  if (value == null || value < 0) return UNLIMITED_COUNT;
+  return value;
+}
+
+function parseServicePlanResult(result: string): PleskServicePlan | null {
+  const name = extractXmlTag(result, "name");
+  if (!name) return null;
+
+  const limits = extractXmlBlock(result, "limits");
+  const diskBytes = parseXmlInt(extractLimitValue(limits, "disk_space"));
+  const trafficBytes = parseXmlInt(extractLimitValue(limits, "max_traffic"));
+  const disk = bytesToGb(diskBytes);
+  const bandwidth = bytesToGb(trafficBytes);
+
+  // max_dom = domains; max_subdom often used as addon domains in older packs
+  const maxDomains = countOrUnlimited(
+    parseXmlInt(extractLimitValue(limits, "max_dom")) ??
+      parseXmlInt(extractLimitValue(limits, "max_subdom")),
+  );
+  const maxEmails = countOrUnlimited(parseXmlInt(extractLimitValue(limits, "max_box")));
+  const maxDatabases = countOrUnlimited(parseXmlInt(extractLimitValue(limits, "max_db")));
+
+  return {
+    id: extractXmlTag(result, "id"),
+    name,
+    diskGb: disk.gb,
+    bandwidthGb: bandwidth.gb,
+    maxDomains,
+    maxEmails,
+    maxDatabases,
+    unlimitedDisk: disk.unlimited,
+    unlimitedBandwidth: bandwidth.unlimited,
+  };
+}
+
+/**
+ * Plesk XML API: service-plan/get (all owner plans).
+ * @see https://docs.plesk.com/en-US/obsidian/api-rpc/about-xml-api/reference/managing-service-plans/retrieving-the-list-of-service-plans.33882/
+ */
+export async function listPleskServicePlans(
+  server: PleskServerCredentials,
+): Promise<PleskServicePlan[]> {
+  const endpoint = resolvePanelEndpoint(server);
+  const packetBody = `  <service-plan>
+    <get>
+      <filter/>
+      <owner-all/>
+    </get>
+  </service-plan>`;
+
+  const response = await pleskXmlRequest(server, endpoint, packetBody);
+  const apiError = extractXmlError(response.body);
+  if (apiError) {
+    throw new BadRequestException(`Plesk service-plan get error: ${apiError}`);
+  }
+
+  const getBlock = extractXmlBlock(response.body, "get") ?? response.body;
+  const results = extractAllXmlBlocks(getBlock, "result");
+  const plans: PleskServicePlan[] = [];
+
+  for (const result of results) {
+    const status = extractXmlTag(result, "status");
+    if (status && status.toLowerCase() === "error") continue;
+    const plan = parseServicePlanResult(result);
+    if (plan) plans.push(plan);
+  }
+
+  return plans;
+}
+
+export async function testPleskApiAuth(
+  server: PleskServerCredentials,
+): Promise<{ ok: boolean; message: string }> {
   const endpoint = resolvePanelEndpoint(server);
   const packetBody = `  <server>
     <get>

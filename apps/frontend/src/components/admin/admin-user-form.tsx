@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { AdminUser, UpdateAdminUserInput } from "@/features/admin";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const ROLES = ["customer", "staff", "admin"] as const;
 const STATUSES = ["PENDING_VERIFICATION", "ACTIVE", "SUSPENDED"] as const;
@@ -24,6 +25,7 @@ export function AdminUserForm({
   const tf = useTranslations("admin.forms");
   const tu = useTranslations("admin.users");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState({
     email: user.email,
     firstName: user.firstName ?? "",
@@ -37,9 +39,25 @@ export function AdminUserForm({
     password: "",
   });
 
+  useEffect(() => {
+    setValues({
+      email: user.email,
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
+      role: user.role,
+      status: user.status,
+      preferredCurrency: user.preferredCurrency ?? "USD",
+      billingPeriod: user.billingPeriod ?? "MONTHLY",
+      currencyLocked: user.currencyLocked,
+      emailVerified: user.emailVerified,
+      password: "",
+    });
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       const payload: UpdateAdminUserInput = {
         email: values.email.trim(),
@@ -56,6 +74,8 @@ export function AdminUserForm({
         payload.password = values.password.trim();
       }
       await onSubmit(payload);
+    } catch (err) {
+      setError(getApiErrorMessage(err, tf("saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -71,7 +91,7 @@ export function AdminUserForm({
             type="email"
             value={values.email}
             onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))}
-            className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm"
+            className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm"
           />
         </label>
         <label className="block">
@@ -79,7 +99,7 @@ export function AdminUserForm({
           <input
             value={values.firstName}
             onChange={(e) => setValues((v) => ({ ...v, firstName: e.target.value }))}
-            className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm"
+            className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm"
           />
         </label>
         <label className="block">
@@ -87,7 +107,7 @@ export function AdminUserForm({
           <input
             value={values.lastName}
             onChange={(e) => setValues((v) => ({ ...v, lastName: e.target.value }))}
-            className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm"
+            className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm"
           />
         </label>
       </section>
@@ -99,7 +119,7 @@ export function AdminUserForm({
             value={values.role}
             disabled={isSelf}
             onChange={(e) => setValues((v) => ({ ...v, role: e.target.value }))}
-            className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm capitalize disabled:opacity-60"
+            className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm capitalize disabled:opacity-60"
           >
             {ROLES.map((role) => (
               <option key={role} value={role}>
@@ -114,7 +134,7 @@ export function AdminUserForm({
             value={values.status}
             disabled={isSelf}
             onChange={(e) => setValues((v) => ({ ...v, status: e.target.value }))}
-            className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm disabled:opacity-60"
+            className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm disabled:opacity-60"
           >
             {STATUSES.map((status) => (
               <option key={status} value={status}>
@@ -128,14 +148,14 @@ export function AdminUserForm({
             type="checkbox"
             checked={values.emailVerified}
             onChange={(e) => setValues((v) => ({ ...v, emailVerified: e.target.checked }))}
-            className="h-4 w-4 rounded border-outline-variant"
+            className="border-outline-variant h-4 w-4 rounded"
           />
           <span className="text-sm">{tf("emailVerified")}</span>
         </label>
       </section>
 
-      <section className="border-t border-outline-variant/50 pt-6">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-on-surface-variant">
+      <section className="border-outline-variant/50 border-t pt-6">
+        <h3 className="text-on-surface-variant mb-4 text-sm font-semibold uppercase tracking-wide">
           {tf("billingPreferences")}
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -144,7 +164,7 @@ export function AdminUserForm({
             <select
               value={values.preferredCurrency}
               onChange={(e) => setValues((v) => ({ ...v, preferredCurrency: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm"
             >
               {CURRENCIES.map((currency) => (
                 <option key={currency} value={currency}>
@@ -158,7 +178,7 @@ export function AdminUserForm({
             <select
               value={values.billingPeriod}
               onChange={(e) => setValues((v) => ({ ...v, billingPeriod: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm"
             >
               {PERIODS.map((period) => (
                 <option key={period} value={period}>
@@ -172,14 +192,14 @@ export function AdminUserForm({
               type="checkbox"
               checked={values.currencyLocked}
               onChange={(e) => setValues((v) => ({ ...v, currencyLocked: e.target.checked }))}
-              className="h-4 w-4 rounded border-outline-variant"
+              className="border-outline-variant h-4 w-4 rounded"
             />
             <span className="text-sm">{tf("currencyLocked")}</span>
           </label>
         </div>
       </section>
 
-      <section className="border-t border-outline-variant/50 pt-6">
+      <section className="border-outline-variant/50 border-t pt-6">
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">{tf("newPassword")}</span>
           <input
@@ -188,21 +208,23 @@ export function AdminUserForm({
             value={values.password}
             onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
             placeholder={tf("newPasswordHint")}
-            className="h-11 w-full rounded-xl border border-outline-variant px-3 text-sm"
+            className="border-outline-variant h-11 w-full rounded-xl border px-3 text-sm"
           />
         </label>
       </section>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-outline-variant/50 pt-6">
+      {error ? <p className="text-error text-sm">{error}</p> : null}
+
+      <div className="border-outline-variant/50 flex flex-wrap items-center gap-3 border-t pt-6">
         <button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary disabled:opacity-60"
+          className="bg-primary text-on-primary rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
         >
           {saving ? tf("saving") : submitLabel}
         </button>
         {user.currencyChangedAt && (
-          <p className="text-xs text-on-surface-variant">
+          <p className="text-on-surface-variant text-xs">
             {tf("currencyChangedAt", {
               date: new Date(user.currencyChangedAt).toLocaleString(),
             })}

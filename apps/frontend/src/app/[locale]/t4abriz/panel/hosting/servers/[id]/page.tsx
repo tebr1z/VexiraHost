@@ -1,6 +1,5 @@
 "use client";
 
-import { Link, useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -14,11 +13,13 @@ import { PageHeader } from "@/components/ui";
 import {
   deleteHostingServer,
   getHostingServer,
+  syncPleskPlansFromServer,
   testHostingServer,
   updateHostingServer,
   type HostingServer,
 } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
@@ -30,12 +31,14 @@ export default function EditHostingServerPage(): React.ReactElement | null {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
   const ta = useTranslations("admin");
+  const tp = useTranslations("admin.pages.hostingPlans");
   const tf = useTranslations("admin.forms");
   const tt = useTranslations("admin.toasts");
   const tc = useTranslations("dashboard.common");
   const tu = useTranslations("ui");
   const [server, setServer] = useState<HostingServer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (!isAdmin || !params.id) return;
@@ -75,6 +78,31 @@ export default function EditHostingServerPage(): React.ReactElement | null {
           { label: ta("nav.hostingServers"), href: "/t4abriz/panel/hosting/servers" },
           { label: server.name },
         ]}
+        actions={
+          server.panel === "PLESK" ? (
+            <button
+              type="button"
+              disabled={syncing}
+              onClick={async () => {
+                setSyncing(true);
+                try {
+                  const result = await syncPleskPlansFromServer(server.id);
+                  toast(
+                    tp("syncSuccess", { created: result.created, updated: result.updated }),
+                    "success",
+                  );
+                } catch (err) {
+                  toast(getApiErrorMessage(err, tp("syncFailed")), "error");
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              className="border-outline-variant inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold disabled:opacity-50"
+            >
+              {syncing ? tp("syncing") : tp("syncFromPlesk")}
+            </button>
+          ) : undefined
+        }
       />
 
       <HostingServerForm
@@ -125,7 +153,7 @@ export default function EditHostingServerPage(): React.ReactElement | null {
             toast(getApiErrorMessage(err, tt("cannotDeleteServer")), "error");
           }
         }}
-        className="text-sm text-error hover:underline disabled:cursor-not-allowed disabled:text-on-surface-variant disabled:no-underline"
+        className="text-error disabled:text-on-surface-variant text-sm hover:underline disabled:cursor-not-allowed disabled:no-underline"
       >
         {tf("deleteServer")}
       </button>

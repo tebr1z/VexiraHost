@@ -4,15 +4,23 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { HostingAccount, HostingPlan, HostingPanel, HostingServer, ServiceStatus } from "@prisma/client";
+import type {
+  HostingAccount,
+  HostingPlan,
+  HostingPanel,
+  HostingServer,
+  ServiceStatus,
+} from "@prisma/client";
+import { HostingManagementMode as HostingManagementModeEnum } from "@prisma/client";
 
 import type { ProvisionHostingDto } from "../dto";
+import { HostingRepository } from "../repository/hosting.repository";
 import type { PleskWebspaceInfo } from "../types/plesk.types";
 import { PROVISION_STAGES } from "../types/provision-stage";
+
 import { HostingProvisionRunner } from "./hosting-provision.runner";
 import { PanelSessionService } from "./panel-session.service";
 import { PleskPanelService } from "./plesk-panel.service";
-import { HostingRepository } from "../repository/hosting.repository";
 
 function mapPlan(plan: HostingPlan) {
   return {
@@ -52,10 +60,18 @@ function mapAccount(
     primaryDomain: account.primaryDomain,
     username: account.username,
     panel: account.panel,
+    managementMode: account.managementMode,
+    serviceCategory: account.serviceCategory,
     status: account.status,
+    panelIp: account.panelIp,
     panelUrl: account.panelUrl,
     panelUsername: account.panelUsername,
     panelRef: account.panelRef,
+    expiresAt: account.expiresAt,
+    billingAmount: account.billingAmount != null ? Number(account.billingAmount) : null,
+    billingCurrency: account.billingCurrency,
+    graceEndsAt: account.graceEndsAt,
+    renewalInvoiceId: account.renewalInvoiceId,
     server: mapServer(account.server),
     orderId: account.orderId,
     provisionedAt: account.provisionedAt,
@@ -185,7 +201,7 @@ export class HostingService {
       if (retry) throw new ConflictException("Could not allocate a unique username");
     }
 
-    let account = await this.hostingRepository.createAccount({
+    const account = await this.hostingRepository.createAccount({
       userId,
       planId: plan.id,
       serverId: server.id,
@@ -228,7 +244,10 @@ export class HostingService {
     if (account.status !== "ACTIVE") {
       throw new BadRequestException("Hosting account is not active yet");
     }
-    if (!account.server) {
+
+    const isManualExternal =
+      account.managementMode === HostingManagementModeEnum.MANUAL && !account.server;
+    if (!account.server && !isManualExternal) {
       throw new BadRequestException("Hosting server is not linked to this account");
     }
 
@@ -246,7 +265,10 @@ export class HostingService {
     if (account.status !== "ACTIVE") {
       throw new BadRequestException("Hosting account is not active yet");
     }
-    if (!account.server) {
+
+    const isManualExternal =
+      account.managementMode === HostingManagementModeEnum.MANUAL && !account.server;
+    if (!account.server && !isManualExternal) {
       throw new BadRequestException("Hosting server is not linked to this account");
     }
 

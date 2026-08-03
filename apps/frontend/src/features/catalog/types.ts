@@ -12,6 +12,7 @@ export interface CatalogProduct {
   name: string;
   description: string | null;
   category: string;
+  catalogCategoryId?: string | null;
   hostingPlanSlug?: string | null;
   price: number;
   originalPrice?: number;
@@ -22,9 +23,16 @@ export interface CatalogProduct {
   period?: string;
   yearlySavingsPercent?: number | null;
   prices?: CatalogProductPrice[];
+  isFree?: boolean;
+  deliveryMode?: string;
+  downloadFileName?: string | null;
+  promoText?: string | null;
 }
 
 export interface CatalogCategory {
   id: string;
+  slug: string;
+  name: string;
+  systemType: string | null;
   productCount: number;
 }

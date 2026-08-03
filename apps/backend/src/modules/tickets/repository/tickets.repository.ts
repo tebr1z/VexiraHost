@@ -1,5 +1,6 @@
 ﻿import { Injectable } from "@nestjs/common";
 import type { TicketPriority, TicketRelatedServiceType, TicketStatus } from "@prisma/client";
+
 import { PrismaService } from "@/database/database.module";
 
 @Injectable()
@@ -53,6 +54,7 @@ export class TicketsRepository {
             firstName: true,
             lastName: true,
             preferredCurrency: true,
+            localeHistory: true,
           },
         },
       },
@@ -93,6 +95,7 @@ export class TicketsRepository {
             firstName: true,
             lastName: true,
             preferredCurrency: true,
+            localeHistory: true,
           },
         },
       },
@@ -122,11 +125,7 @@ export class TicketsRepository {
     ]);
   }
 
-  findRelatedServiceForUser(
-    userId: string,
-    type: TicketRelatedServiceType,
-    id: string,
-  ) {
+  findRelatedServiceForUser(userId: string, type: TicketRelatedServiceType, id: string) {
     switch (type) {
       case "HOSTING":
         return this.prisma.hostingAccount.findFirst({
@@ -216,6 +215,7 @@ export class TicketsRepository {
             firstName: true,
             lastName: true,
             preferredCurrency: true,
+            localeHistory: true,
           },
         },
       },

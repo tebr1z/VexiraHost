@@ -107,7 +107,50 @@ export async function testHostingServer(
     lastCheckedAt: string;
     lastConnectionOk: boolean;
   }>(`/admin/hosting/servers/${id}/test`, { method: "POST" });
-  return res.data as { ok: boolean; message: string; lastCheckedAt: string; lastConnectionOk: boolean };
+  return res.data as {
+    ok: boolean;
+    message: string;
+    lastCheckedAt: string;
+    lastConnectionOk: boolean;
+  };
+}
+
+export interface PleskRemotePlan {
+  id: string | null;
+  name: string;
+  diskGb: number;
+  bandwidthGb: number;
+  maxDomains: number;
+  maxEmails: number;
+  maxDatabases: number;
+  unlimitedDisk: boolean;
+  unlimitedBandwidth: boolean;
+  alreadySynced: boolean;
+  localPlanId: string | null;
+  localSlug: string | null;
+  localIsActive: boolean | null;
+}
+
+export interface SyncPleskPlansResult {
+  created: number;
+  updated: number;
+  total: number;
+  plans: Array<{ id: string; slug: string; name: string; action: "created" | "updated" }>;
+}
+
+export async function listRemotePleskPlans(serverId: string): Promise<PleskRemotePlan[]> {
+  const res = await apiClient.request<PleskRemotePlan[]>(
+    `/admin/hosting/servers/${serverId}/plesk-plans`,
+  );
+  return res.data ?? [];
+}
+
+export async function syncPleskPlansFromServer(serverId: string): Promise<SyncPleskPlansResult> {
+  const res = await apiClient.request<SyncPleskPlansResult>(
+    `/admin/hosting/servers/${serverId}/sync-plans`,
+    { method: "POST" },
+  );
+  return res.data as SyncPleskPlansResult;
 }
 
 export async function listHostingServerAccounts(

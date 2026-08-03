@@ -33,6 +33,29 @@ export function extractXmlBlock(body: string, tag: string): string | null {
   return match?.[1] ?? null;
 }
 
+export function extractAllXmlBlocks(body: string, tag: string): string[] {
+  const regex = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "gi");
+  const blocks: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(body)) !== null) {
+    if (match[1] != null) blocks.push(match[1]);
+  }
+  return blocks;
+}
+
+/** Plesk `<limits><limit><name>…</name><value>…</value></limit>` entries. */
+export function extractLimitValue(limitsBlock: string | null, name: string): string | null {
+  if (!limitsBlock) return null;
+  const limitBlocks = limitsBlock.match(/<limit>[\s\S]*?<\/limit>/gi) ?? [];
+  for (const block of limitBlocks) {
+    if (extractXmlTag(block, "name") === name) {
+      return extractXmlTag(block, "value");
+    }
+  }
+  // Older / flat limit tags (e.g. webspace get)
+  return extractXmlTag(limitsBlock, name);
+}
+
 export function parseXmlInt(value: string | null | undefined): number | null {
   if (value == null || value === "" || value === "-1") return null;
   const parsed = Number.parseInt(value, 10);

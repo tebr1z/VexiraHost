@@ -23,6 +23,14 @@ export interface AdminMaintenanceSettings {
   message: string;
 }
 
+export interface AdminGoogleOAuthSettings {
+  clientId: string;
+  clientSecret: string;
+  callbackUrl: string;
+  configured: boolean;
+  source: "database" | "env";
+}
+
 export interface AdminSystemStatus {
   nodeEnv: string;
   queue: {
@@ -46,6 +54,7 @@ export interface AdminSystemStatus {
   };
   kapital: AdminKapitalSettings;
   kapitalPresets: Record<KapitalEnvironment, KapitalPreset>;
+  googleOAuth: AdminGoogleOAuthSettings;
   maintenance: AdminMaintenanceSettings;
   note: string;
 }
@@ -60,6 +69,9 @@ export interface UpdateSystemSettingsInput {
   kapitalPassword?: string;
   maintenanceEnabled?: boolean;
   maintenanceMessage?: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleCallbackUrl?: string;
 }
 
 export async function getAdminSystemStatus(): Promise<AdminSystemStatus> {

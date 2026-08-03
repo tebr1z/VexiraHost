@@ -1,15 +1,4 @@
-﻿import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Put,
-  Query,
-} from "@nestjs/common";
-
-import { Public } from "@/decorators/auth.decorators";
-import { User } from "@/decorators/user.decorator";
+import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 
 import {
@@ -18,8 +7,13 @@ import {
   SearchDomainsQueryDto,
   TransferDomainDto,
   UpdateDnsRecordsDto,
+  UpdateNameserversDto,
+  UpdateNsGlueDto,
 } from "../dto";
 import { DomainsService } from "../service/domains.service";
+
+import { Public } from "@/decorators/auth.decorators";
+import { User } from "@/decorators/user.decorator";
 
 @Controller("domains")
 export class DomainsController {
@@ -52,11 +46,7 @@ export class DomainsController {
   }
 
   @Post(":id/transfer")
-  retryTransfer(
-    @Param("id") id: string,
-    @Body() dto: TransferDomainDto,
-    @User() user: AuthUser,
-  ) {
+  retryTransfer(@Param("id") id: string, @Body() dto: TransferDomainDto, @User() user: AuthUser) {
     return this.domainsService.retryTransfer(id, dto.authCode, user.id);
   }
 
@@ -66,11 +56,21 @@ export class DomainsController {
   }
 
   @Put(":id/dns")
-  updateDns(
+  updateDns(@Param("id") id: string, @Body() dto: UpdateDnsRecordsDto, @User() user: AuthUser) {
+    return this.domainsService.updateDnsRecords(id, user.id, dto);
+  }
+
+  @Put(":id/nameservers")
+  updateNameservers(
     @Param("id") id: string,
-    @Body() dto: UpdateDnsRecordsDto,
+    @Body() dto: UpdateNameserversDto,
     @User() user: AuthUser,
   ) {
-    return this.domainsService.updateDnsRecords(id, user.id, dto);
+    return this.domainsService.updateNameservers(id, user.id, dto);
+  }
+
+  @Put(":id/ns-glue")
+  updateNsGlue(@Param("id") id: string, @Body() dto: UpdateNsGlueDto, @User() user: AuthUser) {
+    return this.domainsService.updateNsGlue(id, user.id, dto);
   }
 }

@@ -5,9 +5,11 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { LocaleFlag } from "@/components/i18n/locale-flag";
+import { recordPreferredLocale } from "@/features/auth";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { locales, type AppLocale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
+import { useAuthStore } from "@/stores/auth-store";
 
 export function LanguageSwitcher({
   className = "",
@@ -24,6 +26,7 @@ export function LanguageSwitcher({
   const locale = useLocale() as AppLocale;
   const router = useRouter();
   const pathname = usePathname();
+  const isAuthenticated = useAuthStore((s) => Boolean(s.accessToken && s.user));
 
   useEffect(() => {
     if (!open) return;
@@ -41,9 +44,19 @@ export function LanguageSwitcher({
     };
   }, [open]);
 
+  // Soft sync current UI locale for logged-in users (max 3 kept server-side).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void recordPreferredLocale(locale);
+  }, [isAuthenticated, locale]);
+
   const selectLocale = (next: AppLocale) => {
     setOpen(false);
     if (next === locale) return;
+
+    if (isAuthenticated) {
+      void recordPreferredLocale(next);
+    }
 
     startTransition(() => {
       router.replace(pathname, { locale: next });

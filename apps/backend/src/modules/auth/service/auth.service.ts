@@ -10,31 +10,23 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { UserStatus, type User } from "@prisma/client";
-import * as bcrypt from "bcryptjs";
-
 import type { AuthUser } from "@vexira/types";
 import { UserRole } from "@vexira/types";
+import * as bcrypt from "bcryptjs";
 
-import { generateSecureToken } from "@/utils/crypto.util";
-import { mapPrismaRoleToApp } from "@/utils/role.util";
-
-import type {
-  ForgotPasswordDto,
-  LoginDto,
-  RegisterDto,
-  ResetPasswordDto,
-} from "../dto";
+import type { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from "../dto";
+import { resolveAuthEmailLocale, mergeLocaleHistory } from "../email/auth-email.locale";
 import { AuthRepository } from "../repository/auth.repository";
 import type { AuthResponse, AuthUserResponse } from "../types";
-import { resolveAuthEmailLocale } from "../email/auth-email.locale";
+
 import { AuthEmailService } from "./auth-email.service";
 import { LoginAttemptService } from "./login-attempt.service";
-import { resolveRegisterCurrency } from "@/shared/pricing/user-currency.util";
-import {
-  canChangeCurrency,
-  nextCurrencyChangeAt,
-} from "@/shared/pricing/user-currency.util";
+
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
+import { resolveRegisterCurrency } from "@/shared/pricing/user-currency.util";
+import { canChangeCurrency, nextCurrencyChangeAt } from "@/shared/pricing/user-currency.util";
+import { generateSecureToken } from "@/utils/crypto.util";
+import { mapPrismaRoleToApp } from "@/utils/role.util";
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TOKEN_DAYS_REMEMBER = 7;
@@ -54,7 +46,10 @@ export class AuthService {
     private readonly loginAttemptService: LoginAttemptService,
   ) {}
 
-  async register(dto: RegisterDto, meta?: { userAgent?: string; ip?: string }): Promise<AuthResponse> {
+  async register(
+    dto: RegisterDto,
+    meta?: { userAgent?: string; ip?: string },
+  ): Promise<AuthResponse> {
     const existing = await this.authRepository.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException("An account with this email already exists");
@@ -65,6 +60,7 @@ export class AuthService {
       preferredCurrency: dto.preferredCurrency,
       countryCode: dto.countryCode,
     });
+    const locale = resolveAuthEmailLocale(dto.locale);
     const user = await this.authRepository.createUser({
       email: dto.email,
       passwordHash,
@@ -72,6 +68,9 @@ export class AuthService {
       lastName: dto.lastName,
       preferredCurrency: currencyPrefs.currency,
       currencyLocked: currencyPrefs.locked,
+      marketingOptIn: dto.marketingOptIn ?? true,
+      unsubscribeToken: generateSecureToken(24),
+      localeHistory: mergeLocaleHistory([], locale),
     });
 
     const verifyToken = generateSecureToken();
@@ -82,7 +81,6 @@ export class AuthService {
     );
 
     this.logger.log(`Email verification token for ${user.email}: ${verifyToken}`);
-    const locale = resolveAuthEmailLocale(dto.locale);
     try {
       await Promise.all([
         this.authEmailService.sendWelcomeEmail(user.email, locale, user.firstName, user.lastName),
@@ -127,10 +125,53 @@ export class AuthService {
     }
 
     this.loginAttemptService.clear(user.email);
-    return this.buildAuthResponse(user, meta, { rememberMe: dto.rememberMe ?? false });
+    const withLocale = await this.recordLocaleQuietly(user.id, user.localeHistory, dto.locale);
+    return this.buildAuthResponse(withLocale ?? user, meta, {
+      rememberMe: dto.rememberMe ?? false,
+    });
   }
 
-  async refresh(refreshToken: string, meta?: { userAgent?: string; ip?: string }): Promise<AuthResponse> {
+  async recordPreferredLocale(userId: string, locale?: string | null) {
+    const user = await this.authRepository.findById(userId);
+    if (!user) {
+      return { preferredLocale: "en" as const, localeHistory: [] as string[] };
+    }
+    const updated = await this.recordLocaleQuietly(user.id, user.localeHistory, locale);
+    const history = updated?.localeHistory ?? user.localeHistory ?? [];
+    return {
+      preferredLocale: resolveAuthEmailLocale(history[0]),
+      localeHistory: history.slice(0, 3),
+    };
+  }
+
+  private async recordLocaleQuietly(
+    userId: string,
+    current: string[] | null | undefined,
+    locale?: string | null,
+  ) {
+    try {
+      const next = mergeLocaleHistory(current, locale);
+      const same =
+        next.length === (current?.length ?? 0) &&
+        next.every((value, index) => value === current?.[index]);
+      if (same) {
+        return null;
+      }
+      return await this.authRepository.updateLocaleHistory(userId, next);
+    } catch (error) {
+      this.logger.warn(
+        `Could not update locale history for ${userId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  async refresh(
+    refreshToken: string,
+    meta?: { userAgent?: string; ip?: string },
+  ): Promise<AuthResponse> {
     const record = await this.authRepository.findRefreshToken(refreshToken);
     if (!record) {
       throw new UnauthorizedException("Invalid or expired refresh token");
@@ -187,7 +228,11 @@ export class AuthService {
     );
 
     try {
-      await this.authEmailService.sendVerificationEmail(user.email, verifyToken);
+      await this.authEmailService.sendVerificationEmail(
+        user.email,
+        verifyToken,
+        resolveAuthEmailLocale(user.localeHistory?.[0]),
+      );
     } catch (err) {
       this.logger.error(`Failed to resend verification email to ${user.email}: ${String(err)}`);
     }
@@ -210,7 +255,11 @@ export class AuthService {
 
     this.logger.log(`Password reset token for ${user.email}: ${resetToken}`);
     try {
-      await this.authEmailService.sendPasswordResetEmail(user.email, resetToken);
+      await this.authEmailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        resolveAuthEmailLocale(user.localeHistory?.[0]),
+      );
     } catch (err) {
       this.logger.error(`Failed to send reset email to ${user.email}: ${String(err)}`);
     }
@@ -246,7 +295,12 @@ export class AuthService {
       if (existingOAuth.user.status === UserStatus.SUSPENDED) {
         throw new UnauthorizedException("Account is suspended");
       }
-      return this.buildAuthResponse(existingOAuth.user, meta);
+      const withLocale = await this.recordLocaleQuietly(
+        existingOAuth.user.id,
+        existingOAuth.user.localeHistory,
+        meta?.locale,
+      );
+      return this.buildAuthResponse(withLocale ?? existingOAuth.user, meta);
     }
 
     const existingUser = await this.authRepository.findByEmail(profile.email);
@@ -288,6 +342,8 @@ export class AuthService {
         firstName: profile.firstName,
         lastName: profile.lastName,
         emailVerified: profile.emailVerified,
+        marketingOptIn: true,
+        unsubscribeToken: generateSecureToken(24),
       });
       await this.authRepository.createOAuthAccount(user.id, profile.provider, profile.providerId);
       isNewGoogleAccount = true;
@@ -315,7 +371,8 @@ export class AuthService {
       }
     }
 
-    return this.buildAuthResponse(user, meta);
+    const withLocale = await this.recordLocaleQuietly(user.id, user.localeHistory, meta?.locale);
+    return this.buildAuthResponse(withLocale ?? user, meta);
   }
 
   async getLinkedProviders(userId: string) {
@@ -391,6 +448,10 @@ export class AuthService {
       canChangeCurrency: allowed,
       nextCurrencyChangeAt: allowed ? null : (nextChange?.toISOString() ?? null),
       billingAddress: normalizeBillingAddress(user.billingAddress),
+      accountBalance: Number(user.accountBalance ?? 0),
+      balanceCurrency: user.balanceCurrency ?? "USD",
+      preferredLocale: resolveAuthEmailLocale(user.localeHistory?.[0]),
+      localeHistory: (user.localeHistory ?? []).slice(0, 3),
     };
   }
 

@@ -1,10 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ProductCategory } from "@prisma/client";
 
+import { HostingService } from "./hosting.service";
+
 import { PrismaService } from "@/database/database.module";
 import { LicensesService } from "@/modules/licenses/service/licenses.service";
-
-import { HostingService } from "./hosting.service";
 
 interface OrderItemMetadata {
   primaryDomain?: string;
@@ -101,6 +101,7 @@ export class OrderFulfillmentService {
         firstName: string | null;
         lastName: string | null;
         preferredCurrency: string | null;
+        localeHistory?: string[];
       };
     },
     item: {
@@ -122,10 +123,12 @@ export class OrderFulfillmentService {
         firstName: order.user.firstName,
         lastName: order.user.lastName,
         preferredCurrency: order.user.preferredCurrency,
+        localeHistory: order.user.localeHistory,
         productCategory: item.product.category,
         productName: item.product.name,
         productSlug: item.product.slug,
         orderId: order.id,
+        orderItemId: item.id,
         identifier: metadata.primaryDomain,
       });
     } catch (error) {

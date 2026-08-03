@@ -49,12 +49,23 @@ function mapInvoice(invoice: {
     createdAt: Date;
   }[];
 }) {
+  const total = Number(invoice.total);
+  const amountPaid = (invoice.payments ?? [])
+    .filter((payment) => payment.status === "COMPLETED")
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const amountDue =
+    invoice.status === "PAID" || invoice.status === "VOID"
+      ? 0
+      : Math.max(0, Number((total - amountPaid).toFixed(2)));
+
   return {
     id: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
     subtotal: Number(invoice.subtotal),
-    total: Number(invoice.total),
+    total,
+    amountPaid: Number(amountPaid.toFixed(2)),
+    amountDue,
     currency: invoice.currency,
     dueDate: invoice.dueDate,
     paidAt: invoice.paidAt,

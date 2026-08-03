@@ -6,19 +6,25 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { OrderStatus } from "@prisma/client";
+import { InvoiceStatus } from "@prisma/client";
 import type { AuthUser } from "@vexira/types";
 import bcrypt from "bcryptjs";
 
+import type {
+  DeliverLicenseDto,
+  UpdateAdminUserDto,
+  UpdateAdminUserRoleDto,
+  UpdateAdminUserStatusDto,
+} from "../dto";
+import { AdminRepository } from "../repository/admin.repository";
+import { AdminPaymentsRepository } from "../service/admin-system.service";
+
 import { AuthService } from "@/modules/auth/service/auth.service";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
+import { LicensesService } from "@/modules/licenses/service/licenses.service";
 import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { mapAppRoleToPrisma, mapPrismaRoleToApp } from "@/utils/role.util";
-
-import type { UpdateAdminUserDto, UpdateAdminUserRoleDto, UpdateAdminUserStatusDto } from "../dto";
-import { AdminRepository } from "../repository/admin.repository";
-import { AdminPaymentsRepository } from "../service/admin-system.service";
-import { InvoiceStatus } from "@prisma/client";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -30,11 +36,14 @@ function mapOrderItem(item: {
   unitPrice: { toNumber?: () => number } | number;
   totalPrice: { toNumber?: () => number } | number;
   metadata?: unknown;
+  product?: { category?: string; deliveryMode?: string } | null;
 }) {
   return {
     id: item.id,
     productId: item.productId,
     productName: item.productName,
+    productCategory: item.product?.category ?? null,
+    deliveryMode: item.product?.deliveryMode ?? null,
     quantity: item.quantity,
     unitPrice: Number(item.unitPrice),
     totalPrice: Number(item.totalPrice),
@@ -68,6 +77,8 @@ function mapAdminUser(user: {
   billingPeriod: string | null;
   currencyChangedAt: Date | null;
   currencyLocked: boolean;
+  accountBalance?: { toString(): string } | null;
+  balanceCurrency?: string | null;
   createdAt: Date;
   updatedAt: Date;
   _count: { orders: number; tickets: number; invoices: number };
@@ -84,6 +95,8 @@ function mapAdminUser(user: {
     billingPeriod: user.billingPeriod,
     currencyChangedAt: user.currencyChangedAt?.toISOString() ?? null,
     currencyLocked: user.currencyLocked,
+    accountBalance: Number(user.accountBalance ?? 0),
+    balanceCurrency: user.balanceCurrency ?? "USD",
     orderCount: user._count.orders,
     ticketCount: user._count.tickets,
     invoiceCount: user._count.invoices,
@@ -114,6 +127,7 @@ export class AdminService {
     private readonly adminRepository: AdminRepository,
     private readonly adminPaymentsRepository: AdminPaymentsRepository,
     private readonly orderFulfillmentService: OrderFulfillmentService,
+    private readonly licensesService: LicensesService,
     private readonly paymentsRepository: PaymentsRepository,
     private readonly authService: AuthService,
   ) {}
@@ -195,8 +209,14 @@ export class AdminService {
     if (dto.lastName !== undefined) data.lastName = dto.lastName.trim() || null;
     if (dto.role !== undefined) data.role = mapAppRoleToPrisma(dto.role);
     if (dto.status !== undefined) data.status = dto.status;
+
     if (dto.preferredCurrency !== undefined) {
-      data.preferredCurrency = parseCurrency(dto.preferredCurrency);
+      const nextCurrency = parseCurrency(dto.preferredCurrency);
+      data.preferredCurrency = nextCurrency;
+      if (nextCurrency !== user.preferredCurrency) {
+        // Admin override resets the customer 30-day change cooldown.
+        data.currencyChangedAt = new Date();
+      }
     }
     if (dto.billingPeriod !== undefined) {
       data.billingPeriod = parsePeriod(dto.billingPeriod);
@@ -272,6 +292,15 @@ export class AdminService {
     const order = await this.adminRepository.findOrderById(id);
     if (!order) throw new NotFoundException("Order not found");
 
+    const licenseServices = await this.licensesService.listForOrder(id);
+    const licenseByItem = new Map(
+      licenseServices.map((service) => {
+        const meta = (service.metadata ?? {}) as Record<string, unknown>;
+        const itemId = typeof meta.orderItemId === "string" ? meta.orderItemId : null;
+        return [itemId ?? service.id, service] as const;
+      }),
+    );
+
     return {
       id: order.id,
       status: order.status,
@@ -279,7 +308,34 @@ export class AdminService {
       total: Number(order.total),
       currency: order.currency,
       customer: mapCustomer(order.user),
-      items: order.items.map(mapOrderItem),
+      items: order.items.map((item) => {
+        const mapped = mapOrderItem(item);
+        const meta = (item.metadata ?? {}) as Record<string, unknown>;
+        const linked =
+          licenseByItem.get(item.id) ??
+          licenseServices.find((service) => {
+            const serviceMeta = (service.metadata ?? {}) as Record<string, unknown>;
+            return serviceMeta.orderId === order.id && service.name === item.productName;
+          });
+        const linkedMeta = (linked?.metadata ?? {}) as Record<string, unknown>;
+        return {
+          ...mapped,
+          licenseDelivery: linked
+            ? {
+                addonId: linked.id,
+                status: linked.status,
+                pendingManualDelivery: Boolean(linkedMeta.pendingManualDelivery),
+                licenseKey:
+                  typeof linkedMeta.licenseKey === "string"
+                    ? linkedMeta.licenseKey
+                    : linked.identifier,
+                deliveredAt:
+                  typeof linkedMeta.deliveredAt === "string" ? linkedMeta.deliveredAt : null,
+              }
+            : null,
+          productCategory: mapped.productCategory ?? (meta.category as string | undefined) ?? null,
+        };
+      }),
       invoices: order.invoices.map((invoice) => ({
         id: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
@@ -292,6 +348,42 @@ export class AdminService {
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
+  }
+
+  async deliverLicense(orderId: string, dto: DeliverLicenseDto) {
+    const order = await this.adminRepository.findOrderById(orderId);
+    if (!order) throw new NotFoundException("Order not found");
+
+    const item = order.items.find((row) => row.id === dto.orderItemId);
+    if (!item) throw new NotFoundException("Order item not found");
+
+    const category = item.product?.category;
+    if (category !== "LICENSE") {
+      throw new BadRequestException("Only LICENSE order items can receive an activation code");
+    }
+
+    if (item.product?.deliveryMode === "MANUAL" && item.product.slug) {
+      await this.licensesService.ensurePendingManualLicense({
+        userId: order.user.id,
+        productSlug: item.product.slug,
+        orderId,
+        orderItemId: dto.orderItemId,
+      });
+    }
+
+    await this.licensesService.deliverManualLicense({
+      orderId,
+      orderItemId: dto.orderItemId,
+      licenseKey: dto.licenseKey,
+      downloadUrl: dto.downloadUrl,
+      userEmail: order.user.email,
+      firstName: order.user.firstName,
+      lastName: order.user.lastName,
+      preferredCurrency: order.user.preferredCurrency,
+      localeHistory: order.user.localeHistory,
+    });
+
+    return this.getOrder(orderId);
   }
 
   async fulfillOrder(id: string, options?: { alreadyDeployed?: boolean }) {

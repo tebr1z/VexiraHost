@@ -1,21 +1,48 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import type { Request } from "express";
 import { Strategy, VerifyCallback } from "passport-google-oauth20";
 
 import type { OAuthProfile } from "../interfaces";
+import { OauthConfigService } from "../service/oauth-config.service";
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
-  constructor(configService: ConfigService) {
+  constructor(
+    private readonly oauthConfigService: OauthConfigService,
+    configService: ConfigService,
+  ) {
     super({
-      clientID: configService.get<string>("oauth.google.clientId") || "not-configured",
-      clientSecret: configService.get<string>("oauth.google.clientSecret") || "not-configured",
+      clientID: "not-configured",
+      clientSecret: "not-configured",
       callbackURL:
         configService.get<string>("oauth.google.callbackUrl") ??
         "http://localhost:4000/api/v1/auth/google/callback",
       scope: ["email", "profile"],
     });
+  }
+
+  async authenticate(req: Request, options?: Record<string, unknown>): Promise<void> {
+    try {
+      const config = await this.oauthConfigService.resolveGoogle();
+      if (!config.clientId || !config.clientSecret) {
+        this.fail("Google OAuth is not configured", 401);
+        return;
+      }
+
+      const strategy = this as unknown as {
+        _oauth2: { _clientId: string; _clientSecret: string };
+        _callbackURL: string;
+      };
+      strategy._oauth2._clientId = config.clientId;
+      strategy._oauth2._clientSecret = config.clientSecret;
+      strategy._callbackURL = config.callbackUrl;
+
+      Strategy.prototype.authenticate.call(this, req, options);
+    } catch (err) {
+      this.error(err as Error);
+    }
   }
 
   validate(

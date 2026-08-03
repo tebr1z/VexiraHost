@@ -3,15 +3,16 @@ import { ConfigService } from "@nestjs/config";
 import type { PaymentStatus } from "@prisma/client";
 import type { Queue } from "bullmq";
 
-import { PrismaService } from "@/database/database.module";
-import { DEFAULT_QUEUE } from "@/queue/queue.module";
-
 import type { UpdateSystemSettingsDto } from "../dto/system-settings.dto";
+
+import { PrismaService } from "@/database/database.module";
+import { OauthConfigService } from "@/modules/auth/service/oauth-config.service";
 import {
   KapitalConfigService,
   KAPITAL_PRESETS,
   type KapitalEnvironment,
 } from "@/modules/payments/service/kapital-config.service";
+import { DEFAULT_QUEUE } from "@/queue/queue.module";
 
 const SETTING_KEYS = {
   registrarProvider: "registrar_provider",
@@ -49,6 +50,7 @@ export class AdminSystemService {
     private readonly configService: ConfigService,
     private readonly systemRepository: AdminSystemRepository,
     private readonly kapitalConfigService: KapitalConfigService,
+    private readonly oauthConfigService: OauthConfigService,
     @Inject(DEFAULT_QUEUE) private readonly queue: Queue | null,
   ) {}
 
@@ -125,8 +127,9 @@ export class AdminSystemService {
       envDefaults,
       kapital: await this.kapitalConfigService.getAdminSettings(),
       kapitalPresets: KAPITAL_PRESETS,
+      googleOAuth: await this.oauthConfigService.getGoogleAdminSettings(),
       maintenance: await this.resolveMaintenance(),
-      note: "Provider and Kapital credentials are stored in the database and override server .env defaults.",
+      note: "Provider, Kapital, and Google OAuth credentials stored in the database override server .env defaults.",
     };
   }
 
@@ -167,6 +170,18 @@ export class AdminSystemService {
         SETTING_KEYS.maintenanceMessage,
         dto.maintenanceMessage.trim(),
       );
+    }
+
+    if (
+      dto.googleClientId !== undefined ||
+      dto.googleClientSecret !== undefined ||
+      dto.googleCallbackUrl !== undefined
+    ) {
+      await this.oauthConfigService.saveGoogleAdminSettings({
+        clientId: dto.googleClientId,
+        clientSecret: dto.googleClientSecret,
+        callbackUrl: dto.googleCallbackUrl,
+      });
     }
 
     return this.getSystemStatus();

@@ -1,11 +1,13 @@
+import { randomBytes } from "crypto";
+
 import { Injectable } from "@nestjs/common";
 import { AddonServiceType, ServiceStatus } from "@prisma/client";
-import { randomBytes } from "crypto";
 
 import type {
   AddonProvisionInput,
   AddonProvisionResult,
   AddonProvider,
+  ProductDeliveryConfig,
 } from "../interfaces/addon-provider.interface";
 
 function hashSeed(input: string): number {
@@ -37,34 +39,84 @@ function addMonths(date: Date, months: number): Date {
   return next;
 }
 
+function parseKeyPool(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(/\r?\n|,/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function takeLicenseKey(delivery?: ProductDeliveryConfig | null): {
+  key: string | null;
+  remaining: string | null;
+} {
+  const pool = parseKeyPool(delivery?.licenseKeys);
+  if (pool.length === 0) return { key: null, remaining: null };
+  const [first, ...rest] = pool;
+  return {
+    key: first,
+    remaining: rest.length ? rest.join("\n") : "",
+  };
+}
+
+function resolveDownloadUrl(
+  delivery: ProductDeliveryConfig | null | undefined,
+  productSlug: string | undefined,
+  baseUrl: string,
+): string | null {
+  const mode = delivery?.deliveryMode ?? "NONE";
+  if (mode !== "FILE" && mode !== "KEY_AND_FILE") {
+    if (delivery?.downloadUrl) return delivery.downloadUrl;
+    return null;
+  }
+  if (delivery?.downloadUrl) return delivery.downloadUrl;
+  if (productSlug) return `${baseUrl}/downloads/${productSlug}`;
+  return `${baseUrl}/dashboard/services`;
+}
+
 @Injectable()
 export class MockAddonProvider implements AddonProvider {
   async provision(input: AddonProvisionInput, appUrl?: string): Promise<AddonProvisionResult> {
     const seed = hashSeed(`${input.type}:${input.name}:${input.identifier ?? ""}`);
     const now = new Date();
     const baseUrl = (appUrl ?? "http://localhost:3000").replace(/\/$/, "");
-    const downloadUrl = input.productSlug
-      ? `${baseUrl}/downloads/${input.productSlug}`
-      : `${baseUrl}/dashboard/services`;
+    const delivery = input.delivery ?? null;
 
     switch (input.type) {
       case AddonServiceType.LICENSE: {
-        const segment = randomBytes(4).toString("hex").toUpperCase();
-        const licenseKey = `VXR-${segment}-${String(100000 + (seed % 900000))}`;
+        const mode = delivery?.deliveryMode ?? "NONE";
+        const { key: pooledKey, remaining } = takeLicenseKey(delivery);
+        const generated = `VXR-${randomBytes(4).toString("hex").toUpperCase()}-${String(100000 + (seed % 900000))}`;
+        const wantsKey = mode === "LICENSE_KEY" || mode === "KEY_AND_FILE" || mode === "NONE";
+        const licenseKey = wantsKey ? pooledKey || generated : null;
+        const downloadUrl = resolveDownloadUrl(delivery, input.productSlug, baseUrl);
+
         return {
-          identifier: licenseKey,
+          identifier: licenseKey ?? input.productSlug ?? input.name,
           status: ServiceStatus.ACTIVE,
           metadata: {
-            licenseKey,
+            ...(licenseKey ? { licenseKey } : {}),
+            ...(downloadUrl ? { downloadUrl } : {}),
+            ...(delivery?.downloadFileName ? { downloadFileName: delivery.downloadFileName } : {}),
             seats: 1 + (seed % 4),
             product: input.name,
-            downloadUrl,
+            productId: input.productId ?? null,
+            productSlug: input.productSlug ?? null,
+            deliveryMode: mode,
+            isFree: delivery?.isFree ?? false,
+            promoText: delivery?.promoText ?? null,
+            activationGuideText: delivery?.activationGuideText ?? null,
+            activationGuideImageUrl: delivery?.activationGuideImageUrl ?? null,
+            activationGuideVideoUrl: delivery?.activationGuideVideoUrl ?? null,
           },
-          expiresAt: addYears(now, 1),
+          expiresAt: delivery?.isFree ? null : addYears(now, 1),
+          remainingLicenseKeys: pooledKey ? remaining : undefined,
         };
       }
       case AddonServiceType.SSL: {
-        const domain = input.identifier?.trim().toLowerCase() || `${slugify(input.name)}.example.com`;
+        const domain =
+          input.identifier?.trim().toLowerCase() || `${slugify(input.name)}.example.com`;
         const certId = `ssl-cert-${String(10000 + (seed % 90000))}`;
         return {
           identifier: certId,

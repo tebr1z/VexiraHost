@@ -1,20 +1,22 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import {
-  EmptyState,
-  LoadingSkeletonList,
-  PageHeader,
-  StatusBadge,
-} from "@/components/ui";
+import { HostingAccountCard } from "@/components/hosting/hosting-account-card";
+import { EmptyState, LoadingSkeletonList, PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import { listHostingAccounts, type HostingAccount } from "@/features/hosting";
+import { Link } from "@/i18n/navigation";
+
+function isHostingVisible(acc: HostingAccount): boolean {
+  if (acc.managementMode !== "MANUAL") return true;
+  return acc.serviceCategory !== "SERVER";
+}
 
 export default function HostingPage(): React.ReactElement | null {
   useRequireAuth();
+  const locale = useLocale();
   const t = useTranslations("dashboard");
   const tp = useTranslations("dashboard.pages.hosting");
   const [accounts, setAccounts] = useState<HostingAccount[]>([]);
@@ -22,7 +24,7 @@ export default function HostingPage(): React.ReactElement | null {
 
   useEffect(() => {
     listHostingAccounts()
-      .then(setAccounts)
+      .then((rows) => setAccounts(rows.filter(isHostingVisible)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -38,7 +40,7 @@ export default function HostingPage(): React.ReactElement | null {
         actions={
           <Link
             href="/dashboard/hosting/new"
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary"
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold"
           >
             {tp("emptyAction")}
           </Link>
@@ -56,22 +58,7 @@ export default function HostingPage(): React.ReactElement | null {
       ) : (
         <div className="space-y-4">
           {accounts.map((acc) => (
-            <Link
-              key={acc.id}
-              href={`/dashboard/hosting/${acc.id}`}
-              className="card-3d card-3d-hover block rounded-2xl border border-outline-variant/50 bg-surface p-5 transition hover:border-secondary/40"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-primary">{acc.primaryDomain}</p>
-                  <p className="text-sm text-on-surface-variant">
-                    {acc.plan.name} · {acc.panel}
-                    {acc.server ? ` · ${acc.server.name}` : ""}
-                  </p>
-                </div>
-                <StatusBadge status={acc.status} />
-              </div>
-            </Link>
+            <HostingAccountCard key={acc.id} account={acc} locale={locale} />
           ))}
         </div>
       )}

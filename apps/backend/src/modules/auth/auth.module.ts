@@ -10,6 +10,7 @@ import { AuthRepository } from "./repository/auth.repository";
 import { AuthEmailService } from "./service/auth-email.service";
 import { AuthService } from "./service/auth.service";
 import { LoginAttemptService } from "./service/login-attempt.service";
+import { OauthConfigService } from "./service/oauth-config.service";
 import { GitHubStrategy } from "./strategies/github.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import { JwtStrategy } from "./strategies/jwt.strategy";
@@ -34,6 +35,7 @@ import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
     AuthService,
     AuthEmailService,
     LoginAttemptService,
+    OauthConfigService,
     AuthRepository,
     JwtStrategy,
     GoogleStrategy,
@@ -42,6 +44,6 @@ import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
     GitHubAuthGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
-  exports: [AuthService, AuthRepository, JwtModule],
+  exports: [AuthService, AuthRepository, JwtModule, OauthConfigService],
 })
 export class AuthModule {}

@@ -48,10 +48,18 @@ export interface HostingAccount {
   primaryDomain: string;
   username: string;
   panel: string;
+  managementMode?: string;
+  serviceCategory?: "HOSTING" | "SERVER" | null;
   status: string;
+  panelIp: string | null;
   panelUrl: string | null;
   panelUsername: string | null;
   panelRef: string | null;
+  expiresAt: string | null;
+  billingAmount?: number | null;
+  billingCurrency?: string | null;
+  graceEndsAt?: string | null;
+  renewalInvoiceId?: string | null;
   server: HostingServerSummary | null;
   orderId: string | null;
   provisionedAt: string | null;

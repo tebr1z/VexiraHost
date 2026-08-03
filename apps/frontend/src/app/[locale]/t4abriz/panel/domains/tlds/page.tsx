@@ -1,12 +1,19 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { DataTable, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import {
+  DataTable,
+  EditIconLink,
+  EmptyState,
+  PageHeader,
+  StatusBadge,
+  TableRowActions,
+} from "@/components/ui";
 import { deleteAdminTld, listAdminTlds, type AdminTldPricing } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
@@ -44,7 +51,7 @@ export default function AdminTldsPage(): React.ReactElement | null {
         actions={
           <Link
             href="/t4abriz/panel/domains/tlds/new"
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary"
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold"
           >
             {tp("add")}
           </Link>
@@ -62,36 +69,34 @@ export default function AdminTldsPage(): React.ReactElement | null {
             sortable: true,
             render: (row) => {
               const tld = row as unknown as AdminTldPricing;
-              return (
-                <Link
-                  href={`/t4abriz/panel/domains/tlds/${tld.id}`}
-                  className="font-medium text-secondary hover:underline"
-                >
-                  .{tld.tld}
-                </Link>
-              );
+              return <span className="text-on-surface font-mono font-medium">.{tld.tld}</span>;
             },
           },
           {
             key: "registerPrice",
             header: "Register",
-            render: (row) => formatMoney((row as unknown as AdminTldPricing).registerPrice, "USD", locale),
+            render: (row) =>
+              formatMoney((row as unknown as AdminTldPricing).registerPrice, "USD", locale),
           },
           {
             key: "renewPrice",
             header: "Renew",
-            render: (row) => formatMoney((row as unknown as AdminTldPricing).renewPrice, "USD", locale),
+            render: (row) =>
+              formatMoney((row as unknown as AdminTldPricing).renewPrice, "USD", locale),
           },
           {
             key: "transferPrice",
             header: "Transfer",
-            render: (row) => formatMoney((row as unknown as AdminTldPricing).transferPrice, "USD", locale),
+            render: (row) =>
+              formatMoney((row as unknown as AdminTldPricing).transferPrice, "USD", locale),
           },
           {
             key: "isActive",
             header: tu("table.status"),
             render: (row) => (
-              <StatusBadge status={(row as unknown as AdminTldPricing).isActive ? "ACTIVE" : "SUSPENDED"} />
+              <StatusBadge
+                status={(row as unknown as AdminTldPricing).isActive ? "ACTIVE" : "SUSPENDED"}
+              />
             ),
           },
           {
@@ -100,29 +105,36 @@ export default function AdminTldsPage(): React.ReactElement | null {
             render: (row) => {
               const tld = row as unknown as AdminTldPricing;
               return (
-                <button
-                  type="button"
-                  className="text-sm text-error hover:underline"
-                  onClick={async () => {
-                    if (!confirm(`${t("actions.delete")} .${tld.tld}?`)) return;
-                    try {
-                      await deleteAdminTld(tld.id);
-                      toast("TLD deleted", "success");
-                      load();
-                    } catch {
-                      toast("Could not delete TLD", "error");
-                    }
-                  }}
-                >
-                  {t("actions.delete")}
-                </button>
+                <TableRowActions>
+                  <EditIconLink href={`/t4abriz/panel/domains/tlds/${tld.id}`} label={tu("edit")} />
+                  <button
+                    type="button"
+                    className="text-error text-sm hover:underline"
+                    onClick={async () => {
+                      if (!confirm(`${t("actions.delete")} .${tld.tld}?`)) return;
+                      try {
+                        await deleteAdminTld(tld.id);
+                        toast("TLD deleted", "success");
+                        load();
+                      } catch {
+                        toast("Could not delete TLD", "error");
+                      }
+                    }}
+                  >
+                    {t("actions.delete")}
+                  </button>
+                </TableRowActions>
               );
             },
           },
         ]}
       />
       {!loading && tlds.length === 0 && (
-        <EmptyState title={tp("empty")} actionLabel={tp("add")} actionHref="/t4abriz/panel/domains/tlds/new" />
+        <EmptyState
+          title={tp("empty")}
+          actionLabel={tp("add")}
+          actionHref="/t4abriz/panel/domains/tlds/new"
+        />
       )}
     </div>
   );

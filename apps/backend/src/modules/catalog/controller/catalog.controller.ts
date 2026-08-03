@@ -1,9 +1,8 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ProductCategory } from "@prisma/client";
-
-import { Public } from "@/decorators/auth.decorators";
 
 import { CatalogService } from "../service/catalog.service";
+
+import { Public } from "@/decorators/auth.decorators";
 
 @Controller("catalog")
 export class CatalogController {
@@ -11,14 +10,14 @@ export class CatalogController {
 
   @Public()
   @Get("categories")
-  listCategories() {
-    return this.catalogService.listCategories();
+  listCategories(@Query("locale") locale?: string) {
+    return this.catalogService.listCategories(locale);
   }
 
   @Public()
   @Get("products")
   listProducts(
-    @Query("category") category?: ProductCategory,
+    @Query("category") category?: string,
     @Query("currency") currency?: string,
     @Query("period") period?: string,
   ) {

@@ -35,14 +35,20 @@ function useCurrencySwitcherState() {
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const [saving, setSaving] = useState(false);
 
-  const locked = Boolean(currencyLocked || countryCode === "AZ" || user?.currencyLocked);
+  const locked = Boolean(
+    user ? user.currencyLocked || currencyLocked : currencyLocked || countryCode === "AZ",
+  );
   const activeCurrency: AppCurrency = locked ? "AZN" : currency;
   const canChange = user ? Boolean(user.canChangeCurrency) : true;
   const disabled = locked || saving || (Boolean(user) && !canChange);
 
   const handleSelect = async (next: AppCurrency) => {
     if (locked) {
-      setCurrency("AZN");
+      setFromUser({
+        preferredCurrency: "AZN",
+        billingPeriod: usePricingStore.getState().period,
+        currencyLocked: true,
+      });
       return;
     }
 

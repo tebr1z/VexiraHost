@@ -20,7 +20,12 @@ export async function registerRequest(
   const { confirmPassword: _, acceptedTerms: __, ...payload } = values;
   const response = await apiClient.request<AuthSession>("/auth/register", {
     method: "POST",
-    body: { ...payload, locale, countryCode: countryCode ?? undefined },
+    body: {
+      ...payload,
+      marketingOptIn: values.marketingOptIn ?? true,
+      locale,
+      countryCode: countryCode ?? undefined,
+    },
   });
   return response.data as AuthSession;
 }
@@ -35,6 +40,17 @@ export async function logoutRequest(refreshToken: string): Promise<void> {
 export async function fetchProfile(): Promise<AuthSession["user"]> {
   const response = await apiClient.request<AuthSession["user"]>("/users/me");
   return response.data as AuthSession["user"];
+}
+
+export async function recordPreferredLocale(locale: string): Promise<void> {
+  try {
+    await apiClient.request("/auth/locale", {
+      method: "PATCH",
+      body: { locale },
+    });
+  } catch {
+    // Never block UI language switching on locale sync failures.
+  }
 }
 
 export async function updateUserPreferences(input: {

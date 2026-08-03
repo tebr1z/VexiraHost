@@ -27,6 +27,8 @@ const STATUS_STYLES: Record<string, string> = {
   STOPPED: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
   TRANSFER_PENDING: "bg-amber-100 text-amber-800 border-amber-200",
   DRAFT: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
+  SENT: "bg-green-100 text-green-800 border-green-200",
+  SENDING: "bg-blue-100 text-blue-800 border-blue-200",
   VOID: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
   OVERDUE: "bg-red-100 text-red-800 border-red-200",
 };
@@ -40,7 +42,9 @@ export function StatusBadge({
 }): React.ReactElement {
   const t = useTranslations("ui.status");
   const key = status.toUpperCase();
-  const style = STATUS_STYLES[key] ?? "bg-surface-container-low text-on-surface-variant border-outline-variant/40";
+  const style =
+    STATUS_STYLES[key] ??
+    "bg-surface-container-low text-on-surface-variant border-outline-variant/40";
   const label = isKnownStatus(key) ? t(key) : status.replace(/_/g, " ").toLowerCase();
 
   return (

@@ -14,6 +14,7 @@ import {
   syncHostingPanelInfo,
   type HostingAccount,
 } from "@/features/hosting";
+import { Link } from "@/i18n/navigation";
 import { formatDate } from "@/lib/i18n/format";
 import { toast } from "@/stores/toast-store";
 
@@ -41,6 +42,7 @@ export default function HostingDetailPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.hosting");
+  const ts = useTranslations("dashboard.pages.services");
   const [account, setAccount] = useState<HostingAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [panelLoading, setPanelLoading] = useState(false);
@@ -160,19 +162,23 @@ export default function HostingDetailPage(): React.ReactElement | null {
         actions={
           account.status === "ACTIVE" ? (
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={syncLoading}
-                onClick={handleSyncPlesk}
-                className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-primary disabled:opacity-60"
-              >
-                {syncLoading ? tp("pleskSyncing") : tp("pleskSync")}
-              </button>
+              {account.panel === "PLESK" &&
+                account.server &&
+                account.managementMode !== "MANUAL" && (
+                  <button
+                    type="button"
+                    disabled={syncLoading}
+                    onClick={handleSyncPlesk}
+                    className="text-primary inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium disabled:opacity-60"
+                  >
+                    {syncLoading ? tp("pleskSyncing") : tp("pleskSync")}
+                  </button>
+                )}
               <button
                 type="button"
                 disabled={panelLoading}
                 onClick={handlePanelLogin}
-                className="inline-flex h-10 items-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary disabled:opacity-60"
+                className="bg-primary text-on-primary inline-flex h-10 items-center rounded-md px-5 text-sm font-semibold disabled:opacity-60"
               >
                 {panelLoading ? tc("opening") : tc("panelLogin")}
               </button>
@@ -182,7 +188,7 @@ export default function HostingDetailPage(): React.ReactElement | null {
               type="button"
               disabled={retryLoading}
               onClick={handleRetry}
-              className="inline-flex h-10 items-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary disabled:opacity-60"
+              className="bg-primary text-on-primary inline-flex h-10 items-center rounded-md px-5 text-sm font-semibold disabled:opacity-60"
             >
               {retryLoading ? tprov("retrying") : tprov("retry")}
             </button>
@@ -198,63 +204,102 @@ export default function HostingDetailPage(): React.ReactElement | null {
         />
       )}
 
+      {account.status === "SUSPENDED" && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4">
+          <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+            {tc("suspendedTitle")}
+          </p>
+          <p className="mt-1 text-sm text-amber-900/90 dark:text-amber-50/90">
+            {tc("suspendedBody")}
+          </p>
+          {account.graceEndsAt && (
+            <p className="mt-2 text-xs font-medium text-amber-950 dark:text-amber-100">
+              {tc("graceUntil")}: {formatDate(account.graceEndsAt, locale)}
+            </p>
+          )}
+          <Link
+            href={
+              account.renewalInvoiceId
+                ? `/dashboard/invoices/${account.renewalInvoiceId}`
+                : "/dashboard/invoices"
+            }
+            className="mt-3 inline-flex h-9 items-center rounded-lg bg-amber-700 px-3 text-sm font-semibold text-white"
+          >
+            {tc("payInvoice")}
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <InfoCard label={tc("status")}>
           <StatusBadge status={account.status} />
           {account.status === "PROVISIONING" && (
-            <p className="mt-2 text-xs text-on-surface-variant">{tc("autoRefreshing")}</p>
+            <p className="text-on-surface-variant mt-2 text-xs">{tc("autoRefreshing")}</p>
           )}
         </InfoCard>
         <InfoCard label={tc("username")}>{account.panelUsername ?? account.username}</InfoCard>
         <InfoCard label={tc("panel")}>{account.panel}</InfoCard>
-        <InfoCard label={tc("server")}>{account.server?.name ?? account.server?.ipAddress ?? "—"}</InfoCard>
+        <InfoCard label={tc("server")}>
+          {account.server?.name ?? account.server?.ipAddress ?? "—"}
+        </InfoCard>
         <InfoCard label={tc("created")}>{formatDate(account.createdAt, locale)}</InfoCard>
         <InfoCard label={tc("provisionedAt")}>
           {account.provisionedAt ? formatDate(account.provisionedAt, locale) : "—"}
         </InfoCard>
+        {account.expiresAt && (
+          <InfoCard label={ts("expires")}>{formatDate(account.expiresAt, locale)}</InfoCard>
+        )}
       </div>
 
-      {account.panel === "PLESK" && account.status === "ACTIVE" && (
-        <section className="panel-card rounded-lg p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-jakarta text-lg font-semibold text-primary">{tp("pleskTitle")}</h2>
-            {pleskStatusLabel && (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-primary">
-                {pleskStatusLabel}
-              </span>
-            )}
-          </div>
-
-          {plesk ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <InfoCard label={tp("pleskSubscriptionId")}>{plesk.subscriptionId ?? "—"}</InfoCard>
-              <InfoCard label={tp("pleskIp")}>{plesk.ipAddress ?? "—"}</InfoCard>
-              <InfoCard label={tp("pleskDisk")}>
-                {formatUsage(plesk.diskUsedBytes, plesk.diskLimitBytes, locale)}
-              </InfoCard>
-              <InfoCard label={tp("pleskTraffic")}>
-                {formatUsage(plesk.trafficUsedBytes, plesk.trafficLimitBytes, locale)}
-              </InfoCard>
-              <InfoCard label={tp("pleskLimits")}>
-                {plesk.maxDomains ?? "—"} dom · {plesk.maxMailboxes ?? "—"} mail · {plesk.maxDatabases ?? "—"} db
-              </InfoCard>
-              <InfoCard label={tp("pleskFtpLogin")}>{plesk.ftpLogin ?? account.panelUsername ?? "—"}</InfoCard>
-              <InfoCard label={tp("pleskHostingType")}>{plesk.hostingType ?? "—"}</InfoCard>
+      {account.panel === "PLESK" &&
+        account.status === "ACTIVE" &&
+        account.server &&
+        account.managementMode !== "MANUAL" && (
+          <section className="panel-card rounded-lg p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-jakarta text-primary text-lg font-semibold">
+                {tp("pleskTitle")}
+              </h2>
+              {pleskStatusLabel && (
+                <span className="text-primary rounded-full bg-slate-100 px-3 py-1 text-xs font-medium">
+                  {pleskStatusLabel}
+                </span>
+              )}
             </div>
-          ) : (
-            <p className="text-sm text-on-surface-variant">{tp("pleskUnavailable")}</p>
-          )}
-        </section>
-      )}
+
+            {plesk ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoCard label={tp("pleskSubscriptionId")}>{plesk.subscriptionId ?? "—"}</InfoCard>
+                <InfoCard label={tp("pleskIp")}>{plesk.ipAddress ?? "—"}</InfoCard>
+                <InfoCard label={tp("pleskDisk")}>
+                  {formatUsage(plesk.diskUsedBytes, plesk.diskLimitBytes, locale)}
+                </InfoCard>
+                <InfoCard label={tp("pleskTraffic")}>
+                  {formatUsage(plesk.trafficUsedBytes, plesk.trafficLimitBytes, locale)}
+                </InfoCard>
+                <InfoCard label={tp("pleskLimits")}>
+                  {plesk.maxDomains ?? "—"} dom · {plesk.maxMailboxes ?? "—"} mail ·{" "}
+                  {plesk.maxDatabases ?? "—"} db
+                </InfoCard>
+                <InfoCard label={tp("pleskFtpLogin")}>
+                  {plesk.ftpLogin ?? account.panelUsername ?? "—"}
+                </InfoCard>
+                <InfoCard label={tp("pleskHostingType")}>{plesk.hostingType ?? "—"}</InfoCard>
+              </div>
+            ) : (
+              <p className="text-on-surface-variant text-sm">{tp("pleskUnavailable")}</p>
+            )}
+          </section>
+        )}
 
       {account.panelUrl && account.status === "ACTIVE" && (
         <div className="panel-card rounded-lg p-5">
-          <p className="text-sm text-on-surface-variant">{tc("directPanelUrl")}</p>
+          <p className="text-on-surface-variant text-sm">{tc("directPanelUrl")}</p>
           <a
             href={account.panelUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-1 break-all text-primary hover:underline"
+            className="text-primary mt-1 break-all hover:underline"
           >
             {account.panelUrl}
           </a>
@@ -267,8 +312,8 @@ export default function HostingDetailPage(): React.ReactElement | null {
 function InfoCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-transparent">
-      <p className="text-xs font-medium uppercase tracking-wide text-on-surface-variant">{label}</p>
-      <div className="mt-1 text-sm font-medium text-primary">{children}</div>
+      <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wide">{label}</p>
+      <div className="text-primary mt-1 text-sm font-medium">{children}</div>
     </div>
   );
 }

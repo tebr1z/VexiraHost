@@ -13,6 +13,10 @@ export class BillingRepository {
       include: {
         items: { orderBy: { createdAt: "asc" } },
         order: { select: { id: true, status: true } },
+        payments: {
+          where: { status: "COMPLETED" },
+          select: { id: true, status: true, amount: true, gatewayRef: true, createdAt: true },
+        },
       },
     });
   }

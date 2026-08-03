@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 
 import { StatusBadge } from "@/components/ui";
-import { formatDateTime, formatMoney } from "@/lib/i18n/format";
 import { cn } from "@/lib/cn";
+import { formatDateTime, formatMoney } from "@/lib/i18n/format";
 
 const DEFAULT_VISIBLE = 5;
 
@@ -55,13 +55,13 @@ export function InvoicePaymentHistory({
   if (sorted.length === 0) return null;
 
   return (
-    <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-4 sm:px-8">
+    <div className="border-t border-[var(--separator)] bg-[var(--fill-secondary)] px-5 py-4 sm:px-6">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-on-surface-variant">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
             {tp("paymentHistory")}
           </h2>
-          <p className="mt-0.5 text-xs text-on-surface-variant">
+          <p className="mt-0.5 text-xs text-[var(--label-secondary)]">
             {tp("paymentHistorySummary", {
               total: counts.total,
               failed: counts.failed,
@@ -74,7 +74,7 @@ export function InvoicePaymentHistory({
           <button
             type="button"
             onClick={() => setExpanded((value) => !value)}
-            className="text-xs font-medium text-primary hover:underline"
+            className="text-xs font-medium text-[var(--accent)] hover:underline"
           >
             {expanded
               ? tp("paymentHistoryShowLess")
@@ -85,28 +85,28 @@ export function InvoicePaymentHistory({
 
       <div
         className={cn(
-          "overflow-hidden rounded-lg border border-slate-200 bg-white",
+          "overflow-hidden rounded-lg border border-[var(--separator)] bg-[var(--bg-elevated)]",
           !expanded && hasMore && "max-h-[220px]",
         )}
       >
         <table className="w-full text-left text-xs sm:text-sm">
-          <thead className="sticky top-0 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">
+          <thead className="sticky top-0 bg-[var(--fill-secondary)] text-[11px] font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
             <tr>
               <th className="px-3 py-2 sm:px-4">{tp("paymentHistoryDate")}</th>
               <th className="px-3 py-2 sm:px-4">{tp("paymentHistoryStatus")}</th>
               <th className="px-3 py-2 text-right sm:px-4">{tp("paymentHistoryAmount")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[var(--separator)]">
             {visible.map((payment) => (
-              <tr key={payment.id} className="hover:bg-slate-50/80">
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums text-on-surface-variant sm:px-4">
+              <tr key={payment.id} className="hover:bg-[var(--fill-secondary)]">
+                <td className="whitespace-nowrap px-3 py-2 tabular-nums text-[var(--label-secondary)] sm:px-4">
                   {formatDateTime(payment.createdAt, locale)}
                 </td>
                 <td className="px-3 py-2 sm:px-4">
                   <StatusBadge status={payment.status} className="!px-2 !py-0.5 !text-[11px]" />
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums sm:px-4">
+                <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-[var(--label)] sm:px-4">
                   {formatMoney(payment.amount, currency, locale)}
                 </td>
               </tr>
@@ -116,7 +116,7 @@ export function InvoicePaymentHistory({
       </div>
 
       {!expanded && hasMore && (
-        <p className="mt-2 text-center text-[11px] text-on-surface-variant">
+        <p className="mt-2 text-center text-[11px] text-[var(--label-secondary)]">
           {tp("paymentHistoryHidden", { count: sorted.length - DEFAULT_VISIBLE })}
         </p>
       )}

@@ -1,12 +1,12 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { DataTable, PageHeader, StatusBadge } from "@/components/ui";
+import { DataTable, EditIconLink, PageHeader, StatusBadge, TableRowActions } from "@/components/ui";
 import { deleteAdminProduct, listAdminProducts, type AdminProduct } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
@@ -21,13 +21,17 @@ export default function AdminProductsPage(): React.ReactElement | null {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => listAdminProducts().then(setProducts).finally(() => setLoading(false));
+  const load = () =>
+    listAdminProducts()
+      .then(setProducts)
+      .finally(() => setLoading(false));
 
   useEffect(() => {
     if (isAdmin) load();
   }, [isAdmin]);
 
-  if (!isAdmin) return <p className="text-on-surface-variant">Only administrators can manage products.</p>;
+  if (!isAdmin)
+    return <p className="text-on-surface-variant">Only administrators can manage products.</p>;
 
   return (
     <div className="space-y-6">
@@ -41,7 +45,7 @@ export default function AdminProductsPage(): React.ReactElement | null {
         actions={
           <Link
             href="/t4abriz/panel/products/new"
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary"
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold"
           >
             {tp("add")}
           </Link>
@@ -59,18 +63,14 @@ export default function AdminProductsPage(): React.ReactElement | null {
             sortable: true,
             render: (row) => {
               const p = row as unknown as AdminProduct;
-              return (
-                <Link href={`/t4abriz/panel/products/${p.id}`} className="font-medium text-secondary hover:underline">
-                  {p.name}
-                </Link>
-              );
+              return <span className="text-on-surface font-medium">{p.name}</span>;
             },
           },
           {
             key: "slug",
             header: "Slug",
             render: (row) => (
-              <span className="font-mono text-xs text-on-surface-variant">
+              <span className="text-on-surface-variant font-mono text-xs">
                 {(row as unknown as AdminProduct).slug}
               </span>
             ),
@@ -90,7 +90,9 @@ export default function AdminProductsPage(): React.ReactElement | null {
             key: "isActive",
             header: tu("table.status"),
             render: (row) => (
-              <StatusBadge status={(row as unknown as AdminProduct).isActive ? "ACTIVE" : "SUSPENDED"} />
+              <StatusBadge
+                status={(row as unknown as AdminProduct).isActive ? "ACTIVE" : "SUSPENDED"}
+              />
             ),
           },
           {
@@ -99,22 +101,25 @@ export default function AdminProductsPage(): React.ReactElement | null {
             render: (row) => {
               const p = row as unknown as AdminProduct;
               return (
-                <button
-                  type="button"
-                  className="text-sm text-error hover:underline"
-                  onClick={async () => {
-                    if (!confirm(`${t("actions.delete")} ${p.name}?`)) return;
-                    try {
-                      await deleteAdminProduct(p.id);
-                      toast("Product deleted", "success");
-                      load();
-                    } catch {
-                      toast("Cannot delete product with orders", "error");
-                    }
-                  }}
-                >
-                  {t("actions.delete")}
-                </button>
+                <TableRowActions>
+                  <EditIconLink href={`/t4abriz/panel/products/${p.id}`} label={tu("edit")} />
+                  <button
+                    type="button"
+                    className="text-error text-sm hover:underline"
+                    onClick={async () => {
+                      if (!confirm(`${t("actions.delete")} ${p.name}?`)) return;
+                      try {
+                        await deleteAdminProduct(p.id);
+                        toast("Product deleted", "success");
+                        load();
+                      } catch {
+                        toast("Cannot delete product with orders", "error");
+                      }
+                    }}
+                  >
+                    {t("actions.delete")}
+                  </button>
+                </TableRowActions>
               );
             },
           },

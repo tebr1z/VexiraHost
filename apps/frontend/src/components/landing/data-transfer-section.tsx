@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { MaterialIcon } from "./material-icon";
 
@@ -12,23 +12,88 @@ const NODES = [
   { id: "storage", icon: "database", labelKey: "nodeStorage" as const },
 ];
 
+const METRICS_KEY = "vexira-data-transfer-metrics";
+const DEFAULT_MBPS = 842;
+const DEFAULT_PACKETS = 128_400;
+
+type LiveMetrics = { mbps: number; packets: number; updatedAt: number };
+
+function readMetrics(): LiveMetrics | null {
+  try {
+    const raw = sessionStorage.getItem(METRICS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<LiveMetrics>;
+    if (
+      typeof parsed.mbps !== "number" ||
+      typeof parsed.packets !== "number" ||
+      typeof parsed.updatedAt !== "number"
+    ) {
+      return null;
+    }
+    return { mbps: parsed.mbps, packets: parsed.packets, updatedAt: parsed.updatedAt };
+  } catch {
+    return null;
+  }
+}
+
+function writeMetrics(metrics: LiveMetrics): void {
+  try {
+    sessionStorage.setItem(METRICS_KEY, JSON.stringify(metrics));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+/** Catch up packets that would have accrued while the tab was closed. */
+function catchUpPackets(saved: LiveMetrics, now = Date.now()): LiveMetrics {
+  const elapsedMs = Math.max(0, now - saved.updatedAt);
+  const ticks = Math.min(Math.floor(elapsedMs / 900), 8_000);
+  const gained = ticks * 300;
+  return {
+    mbps: Math.round(Math.min(1240, Math.max(620, saved.mbps))),
+    packets: saved.packets + gained,
+    updatedAt: now,
+  };
+}
+
 export function DataTransferSection(): React.ReactElement {
   const t = useTranslations("dataTransfer");
-  const [mbps, setMbps] = useState(842);
-  const [packets, setPackets] = useState(128_400);
+  const [mbps, setMbps] = useState(DEFAULT_MBPS);
+  const [packets, setPackets] = useState(DEFAULT_PACKETS);
+  const metricsRef = useRef<LiveMetrics>({
+    mbps: DEFAULT_MBPS,
+    packets: DEFAULT_PACKETS,
+    updatedAt: 0,
+  });
 
   useEffect(() => {
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const saved = readMetrics();
+    const initial = saved
+      ? catchUpPackets(saved)
+      : { mbps: DEFAULT_MBPS, packets: DEFAULT_PACKETS, updatedAt: Date.now() };
+    metricsRef.current = initial;
+    setMbps(initial.mbps);
+    setPackets(initial.packets);
+    writeMetrics(initial);
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
 
     const id = window.setInterval(() => {
-      setMbps((v) => {
-        const next = v + (Math.random() * 40 - 16);
-        return Math.round(Math.min(1240, Math.max(620, next)));
-      });
-      setPackets((v) => v + Math.floor(180 + Math.random() * 420));
+      const prev = metricsRef.current;
+      const nextMbps = Math.round(
+        Math.min(1240, Math.max(620, prev.mbps + (Math.random() * 40 - 16))),
+      );
+      const nextPackets = prev.packets + Math.floor(180 + Math.random() * 420);
+      const next: LiveMetrics = {
+        mbps: nextMbps,
+        packets: nextPackets,
+        updatedAt: Date.now(),
+      };
+      metricsRef.current = next;
+      writeMetrics(next);
+      setMbps(nextMbps);
+      setPackets(nextPackets);
     }, 900);
 
     return () => window.clearInterval(id);
@@ -122,7 +187,7 @@ export function DataTransferSection(): React.ReactElement {
               </div>
               <div className="rounded-2xl bg-[var(--bg-secondary)] px-4 py-4 text-center">
                 <p className="data-transfer-metric text-2xl font-semibold tracking-tight text-[var(--label)] sm:text-3xl">
-                  {packets.toLocaleString()}
+                  {packets.toLocaleString("en-US")}
                 </p>
                 <p className="mt-1 text-xs text-[var(--label-tertiary)]">{t("metricPackets")}</p>
               </div>

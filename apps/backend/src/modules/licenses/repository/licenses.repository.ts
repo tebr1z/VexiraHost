@@ -45,4 +45,63 @@ export class LicensesRepository {
   ) {
     return this.prisma.addonService.update({ where: { id }, data });
   }
+
+  findProductBySlug(slug: string) {
+    return this.prisma.product.findUnique({ where: { slug } });
+  }
+
+  findProductById(id: string) {
+    return this.prisma.product.findUnique({ where: { id } });
+  }
+
+  updateProductLicenseKeys(productId: string, licenseKeys: string | null) {
+    return this.prisma.product.update({
+      where: { id: productId },
+      data: { licenseKeys },
+    });
+  }
+
+  findUserFreeClaim(userId: string, productName: string) {
+    return this.prisma.addonService.findFirst({
+      where: {
+        userId,
+        type: "LICENSE",
+        name: productName,
+        status: { in: ["ACTIVE", "PROVISIONING"] },
+      },
+    });
+  }
+
+  findByOrderId(orderId: string) {
+    return this.prisma.addonService.findMany({
+      where: {
+        metadata: {
+          path: ["orderId"],
+          equals: orderId,
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  findByOrderItem(orderId: string, orderItemId?: string) {
+    if (orderItemId) {
+      return this.prisma.addonService.findFirst({
+        where: {
+          AND: [
+            { metadata: { path: ["orderId"], equals: orderId } },
+            { metadata: { path: ["orderItemId"], equals: orderItemId } },
+          ],
+        },
+      });
+    }
+    return this.prisma.addonService.findFirst({
+      where: {
+        metadata: {
+          path: ["orderId"],
+          equals: orderId,
+        },
+      },
+    });
+  }
 }

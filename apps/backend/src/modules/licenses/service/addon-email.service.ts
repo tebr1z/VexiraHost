@@ -1,16 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
-import {
-  createBrandEmail,
-  infoRow,
-  infoTable,
-  licenseKeyBlock,
-  primaryButton,
-} from "@/shared/email/transactional-template.util";
-import { SmtpMailService } from "@/shared/email/smtp-mail.service";
-
 import {
   displayName,
   formatEmailDate,
@@ -18,6 +8,16 @@ import {
   getSslEmailCopy,
   resolveEmailLocaleFromUser,
 } from "../email/addon-email.i18n";
+
+import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
+import { SmtpMailService } from "@/shared/email/smtp-mail.service";
+import {
+  createBrandEmail,
+  infoRow,
+  infoTable,
+  licenseKeyBlock,
+  primaryButton,
+} from "@/shared/email/transactional-template.util";
 
 @Injectable()
 export class AddonEmailService {
@@ -32,20 +32,21 @@ export class AddonEmailService {
     lastName?: string | null;
     preferredCurrency?: string | null;
     locale?: string | null;
+    localeHistory?: string[] | null;
     productName: string;
     licenseKey: string;
     downloadUrl: string;
     orderId: string;
     expiresAt?: Date | null;
   }): Promise<void> {
-    const locale = resolveAuthEmailLocale(input.locale ?? resolveEmailLocaleFromUser(input.preferredCurrency));
+    const locale = resolveAuthEmailLocale(
+      input.locale ?? resolveEmailLocaleFromUser(input.preferredCurrency, input.localeHistory),
+    );
     const copy = getLicenseEmailCopy(locale);
     const name = displayName(input.firstName, input.lastName, input.to);
     const appUrl = this.appUrl();
     const dashboardUrl = `${appUrl}/dashboard/services`;
-    const expiry = input.expiresAt
-      ? formatEmailDate(input.expiresAt, locale)
-      : copy.noExpiry;
+    const expiry = input.expiresAt ? formatEmailDate(input.expiresAt, locale) : copy.noExpiry;
 
     const bodyHtml = [
       licenseKeyBlock(copy.licenseKeyLabel, input.licenseKey, copy.copyHint),
@@ -89,12 +90,15 @@ export class AddonEmailService {
     lastName?: string | null;
     preferredCurrency?: string | null;
     locale?: string | null;
+    localeHistory?: string[] | null;
     productName: string;
     domain: string;
     certId: string;
     orderId: string;
   }): Promise<void> {
-    const locale = resolveAuthEmailLocale(input.locale ?? resolveEmailLocaleFromUser(input.preferredCurrency));
+    const locale = resolveAuthEmailLocale(
+      input.locale ?? resolveEmailLocaleFromUser(input.preferredCurrency, input.localeHistory),
+    );
     const copy = getSslEmailCopy(locale);
     const name = displayName(input.firstName, input.lastName, input.to);
     const appUrl = this.appUrl();

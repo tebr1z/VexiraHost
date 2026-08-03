@@ -1,10 +1,5 @@
 ﻿import { Injectable } from "@nestjs/common";
-import {
-  InvoiceStatus,
-  OrderStatus,
-  PaymentStatus,
-  type PaymentMethodType,
-} from "@prisma/client";
+import { InvoiceStatus, OrderStatus, PaymentStatus, type PaymentMethodType } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
@@ -51,7 +46,13 @@ export class PaymentsRepository {
   findInvoiceForUser(invoiceId: string, userId: string) {
     return this.prisma.invoice.findFirst({
       where: { id: invoiceId, userId },
-      include: { order: true },
+      include: {
+        order: true,
+        payments: {
+          where: { status: PaymentStatus.COMPLETED },
+          select: { amount: true },
+        },
+      },
     });
   }
 
@@ -108,11 +109,7 @@ export class PaymentsRepository {
     });
   }
 
-  completePendingPayment(data: {
-    paymentId: string;
-    invoiceId: string;
-    orderId?: string | null;
-  }) {
+  completePendingPayment(data: { paymentId: string; invoiceId: string; orderId?: string | null }) {
     return this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.update({
         where: { id: data.paymentId },

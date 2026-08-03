@@ -39,7 +39,7 @@ export function DashboardNavbar({
     : null;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--separator)] bg-[var(--bg-elevated)]/90 backdrop-blur-md">
+    <header className="bg-[var(--bg-elevated)]/90 sticky top-0 z-30 border-b border-[var(--separator)] backdrop-blur-md">
       <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           {!hideSidebarToggle && (
@@ -52,7 +52,7 @@ export function DashboardNavbar({
               <span className="material-symbols-outlined">menu</span>
             </button>
           )}
-          <BrandLogo href="/dashboard" className="hidden sm:flex" />
+          <BrandLogo href="/dashboard" className="lg:hidden" />
           <nav className="hidden items-center gap-1 md:flex" aria-label={t("ariaLabel")}>
             {QUICK_LINKS.map((link) => {
               const active = link.exact
@@ -97,7 +97,7 @@ export function DashboardNavbar({
           >
             {th("cart")}
             {cartCount > 0 && (
-              <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs text-on-primary">
+              <span className="bg-primary text-on-primary ml-1.5 rounded-full px-1.5 py-0.5 text-xs">
                 {cartCount}
               </span>
             )}

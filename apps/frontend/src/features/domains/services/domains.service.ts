@@ -18,8 +18,23 @@ export interface UserDomain {
   expiresAt: string | null;
   autoRenew: boolean;
   nameservers: string[];
+  nsGlueRecords: Array<{ host: string; ip: string }>;
+  billingAmount?: number | null;
+  billingCurrency?: string;
+  graceEndsAt?: string | null;
+  renewalInvoiceId?: string | null;
   dnsRecordCount: number;
   createdAt: string;
+}
+
+export interface NsGlueEntry {
+  host: string;
+  ip: string;
+}
+
+export interface UpdateNsGlueInput {
+  entries: NsGlueEntry[];
+  nameservers: string[];
 }
 
 export interface DnsRecord {
@@ -60,6 +75,39 @@ export async function initiateTransfer(
     { method: "POST", body: { domainName, authCode } },
   );
   return res.data as { domain: UserDomain; transferStatus: string };
+}
+
+export async function getDomain(domainId: string): Promise<UserDomain> {
+  const res = await apiClient.request<UserDomain>(`/domains/${domainId}`);
+  return res.data as UserDomain;
+}
+
+export async function updateNsGlue(
+  domainId: string,
+  input: UpdateNsGlueInput,
+): Promise<{ nsGlueRecords: NsGlueEntry[]; nameservers: string[] }> {
+  const res = await apiClient.request<{ nsGlueRecords: NsGlueEntry[]; nameservers: string[] }>(
+    `/domains/${domainId}/ns-glue`,
+    {
+      method: "PUT",
+      body: input,
+    },
+  );
+  return res.data as { nsGlueRecords: NsGlueEntry[]; nameservers: string[] };
+}
+
+export async function updateNameservers(
+  domainId: string,
+  nameservers: string[],
+): Promise<{ nameservers: string[] }> {
+  const res = await apiClient.request<{ nameservers: string[] }>(
+    `/domains/${domainId}/nameservers`,
+    {
+      method: "PUT",
+      body: { nameservers },
+    },
+  );
+  return res.data as { nameservers: string[] };
 }
 
 export async function getDnsRecords(domainId: string): Promise<DnsRecord[]> {

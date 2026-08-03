@@ -1,4 +1,5 @@
 import type { AuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
+import { resolveUserEmailLocale } from "@/modules/auth/email/auth-email.locale";
 
 export interface LicenseEmailCopy {
   brandTagline: string;
@@ -55,7 +56,8 @@ const LICENSE: Record<AuthEmailLocale, LicenseEmailCopy> = {
     productLabel: "Ürün",
     expiresLabel: "Geçerlilik",
     dashboardButton: "Müşteri paneline git",
-    footer: "Lisansınızı istediğiniz zaman panelinizde Hizmetler bölümünden de görüntüleyebilirsiniz.",
+    footer:
+      "Lisansınızı istediğiniz zaman panelinizde Hizmetler bölümünden de görüntüleyebilirsiniz.",
     noExpiry: "Süresiz",
   },
   ru: {
@@ -144,12 +146,16 @@ export function displayName(
   return full || email.split("@")[0] || email;
 }
 
-export function resolveEmailLocaleFromUser(preferredCurrency?: string | null): AuthEmailLocale {
-  if (preferredCurrency === "AZN") return "az";
-  return "en";
+export function resolveEmailLocaleFromUser(
+  _preferredCurrency?: string | null,
+  localeHistory?: string[] | null,
+  locale?: string | null,
+): AuthEmailLocale {
+  return resolveUserEmailLocale({ locale, localeHistory });
 }
 
 export function formatEmailDate(date: Date, locale: AuthEmailLocale): string {
-  const tag = locale === "az" ? "az-AZ" : locale === "tr" ? "tr-TR" : locale === "ru" ? "ru-RU" : "en-US";
+  const tag =
+    locale === "az" ? "az-AZ" : locale === "tr" ? "tr-TR" : locale === "ru" ? "ru-RU" : "en-US";
   return new Intl.DateTimeFormat(tag, { dateStyle: "long" }).format(date);
 }

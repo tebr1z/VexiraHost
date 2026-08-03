@@ -4,20 +4,22 @@ import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
 
 import { resolveAuthEmailLocale } from "../email/auth-email.locale";
+import { OauthConfigService } from "../service/oauth-config.service";
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard("google") {
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly oauthConfigService: OauthConfigService) {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
-    if (!this.configService.get<string>("oauth.google.clientId")) {
+  async canActivate(context: ExecutionContext) {
+    const config = await this.oauthConfigService.resolveGoogle();
+    if (!config.clientId || !config.clientSecret) {
       throw new ServiceUnavailableException(
-        "Google OAuth is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env",
+        "Google OAuth is not configured. Set Client ID and Client Secret in Admin → System.",
       );
     }
-    return super.canActivate(context);
+    return super.canActivate(context) as boolean | Promise<boolean>;
   }
 
   getAuthenticateOptions(context: ExecutionContext) {

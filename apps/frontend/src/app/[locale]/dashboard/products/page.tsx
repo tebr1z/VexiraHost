@@ -1,15 +1,18 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { EmptyState, LoadingSkeletonList, PageHeader } from "@/components/ui";
+import { claimFreeAddon } from "@/features/addons";
 import { useRequireAuth } from "@/features/auth";
 import { listCatalogProducts, type CatalogProduct } from "@/features/catalog";
-import { formatMoney } from "@/lib/i18n/format";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
+import { formatMoney } from "@/lib/i18n/format";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
@@ -28,12 +31,14 @@ const CATEGORY_ORDER = [
 
 export default function DashboardProductsPage(): React.ReactElement | null {
   useRequireAuth();
+  const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("dashboard");
   const tp = useTranslations("dashboard.pages.products");
   const th = useTranslations("dashboard.home");
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("ALL");
   const addItem = useCartStore((s) => s.addItem);
   const cartCount = useCartStore((s) => s.items.length);
@@ -62,6 +67,19 @@ export default function DashboardProductsPage(): React.ReactElement | null {
     toast(tp("addedToCart"), "success");
   };
 
+  const handleClaimFree = async (product: CatalogProduct) => {
+    setClaimingId(product.id);
+    try {
+      await claimFreeAddon(product.id);
+      toast(tp("freeClaimed"), "success");
+      router.push("/dashboard/services");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("freeClaimFailed")), "error");
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -74,7 +92,7 @@ export default function DashboardProductsPage(): React.ReactElement | null {
         actions={
           <Link
             href="/dashboard/cart"
-            className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-primary hover:border-primary/30"
+            className="text-primary hover:border-primary/30 inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium"
           >
             {t("nav.cart")} ({cartCount})
           </Link>
@@ -92,7 +110,7 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                 "rounded-full px-4 py-1.5 text-sm font-medium transition",
                 category === cat
                   ? "bg-primary text-on-primary"
-                  : "border border-slate-200 bg-white text-on-surface-variant hover:border-primary/30",
+                  : "text-on-surface-variant hover:border-primary/30 border border-slate-200 bg-white",
               )}
             >
               {cat === "ALL" ? tp("allCategories") : tp(`categories.${cat}`)}
@@ -110,27 +128,47 @@ export default function DashboardProductsPage(): React.ReactElement | null {
           {filtered.map((product) => (
             <article key={product.id} className="panel-card flex flex-col rounded-lg p-5">
               <div className="mb-3 flex items-start justify-between gap-2">
-                <h3 className="font-jakarta text-lg font-semibold text-primary">{product.name}</h3>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-on-surface-variant">
+                <h3 className="font-jakarta text-primary text-lg font-semibold">{product.name}</h3>
+                <span className="text-on-surface-variant shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium">
                   {tp(`categories.${product.category}`)}
                 </span>
               </div>
               {product.description && (
-                <p className="flex-1 text-sm leading-relaxed text-on-surface-variant">{product.description}</p>
+                <p className="text-on-surface-variant flex-1 text-sm leading-relaxed">
+                  {product.description}
+                </p>
               )}
-              <p className="mt-4 font-jakarta text-xl font-bold text-primary">
-                {formatMoney(product.price, product.currency, locale)}
-                <span className="ml-1 text-sm font-normal text-on-surface-variant">
-                  / {product.billingCycle.toLowerCase()}
-                </span>
+              {product.promoText && (
+                <p className="text-on-surface-variant mt-2 text-sm">{product.promoText}</p>
+              )}
+              <p className="font-jakarta text-primary mt-4 text-xl font-bold">
+                {product.isFree
+                  ? tp("free")
+                  : `${formatMoney(product.price, product.currency, locale)}`}
+                {!product.isFree && (
+                  <span className="text-on-surface-variant ml-1 text-sm font-normal">
+                    / {product.billingCycle.toLowerCase()}
+                  </span>
+                )}
               </p>
-              <button
-                type="button"
-                onClick={() => handleAddToCart(product)}
-                className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-on-primary hover:bg-primary-dark"
-              >
-                {th("addToCart")}
-              </button>
+              {product.isFree ? (
+                <button
+                  type="button"
+                  disabled={claimingId === product.id}
+                  onClick={() => void handleClaimFree(product)}
+                  className="bg-primary text-on-primary hover:bg-primary-dark mt-4 inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-semibold disabled:opacity-60"
+                >
+                  {claimingId === product.id ? tp("claiming") : tp("getFree")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleAddToCart(product)}
+                  className="bg-primary text-on-primary hover:bg-primary-dark mt-4 inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-semibold"
+                >
+                  {th("addToCart")}
+                </button>
+              )}
             </article>
           ))}
         </div>

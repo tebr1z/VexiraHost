@@ -3,20 +3,26 @@
 import { useTranslations } from "next-intl";
 
 import { MaterialIcon } from "./material-icon";
+import { projectLonLat, WorldLandmass } from "./world-landmass";
 
-/** Approximate PoP positions on a 1000×460 world projection */
-const POPS = [
-  { id: "nyc", cx: 248, cy: 168, ping: "12ms" },
-  { id: "fra", cx: 512, cy: 142, ping: "8ms" },
-  { id: "ams", cx: 498, cy: 128, ping: "9ms" },
-  { id: "ist", cx: 575, cy: 168, ping: "11ms" },
-  { id: "dxb", cx: 628, cy: 210, ping: "14ms" },
-  { id: "sgp", cx: 760, cy: 268, ping: "18ms" },
-  { id: "tyo", cx: 842, cy: 168, ping: "22ms" },
-  { id: "syd", cx: 880, cy: 340, ping: "28ms" },
-  { id: "sao", cx: 320, cy: 310, ping: "24ms" },
-  { id: "lax", cx: 148, cy: 190, ping: "16ms" },
+/** Real city lat/lon → projected onto the equirectangular land map */
+const POP_LOCS = [
+  { id: "nyc", lon: -74.0, lat: 40.7, ping: "12ms" },
+  { id: "fra", lon: 8.7, lat: 50.1, ping: "8ms" },
+  { id: "ams", lon: 4.9, lat: 52.4, ping: "9ms" },
+  { id: "ist", lon: 29.0, lat: 41.0, ping: "11ms" },
+  { id: "dxb", lon: 55.3, lat: 25.2, ping: "14ms" },
+  { id: "sgp", lon: 103.8, lat: 1.3, ping: "18ms" },
+  { id: "tyo", lon: 139.7, lat: 35.7, ping: "22ms" },
+  { id: "syd", lon: 151.2, lat: -33.9, ping: "28ms" },
+  { id: "sao", lon: -46.6, lat: -23.5, ping: "24ms" },
+  { id: "lax", lon: -118.2, lat: 34.0, ping: "16ms" },
 ] as const;
+
+const POPS = POP_LOCS.map((pop) => {
+  const { x, y } = projectLonLat(pop.lon, pop.lat);
+  return { ...pop, cx: x, cy: y };
+});
 
 const ROUTES: Array<[number, number]> = [
   [0, 1],
@@ -51,24 +57,14 @@ export function InfrastructureSection(): React.ReactElement {
 
           <div className="relative z-[1] px-3 pb-4 pt-6 sm:px-6 sm:pb-6 sm:pt-8">
             <div
-              className="relative mx-auto aspect-[1000/460] w-full max-w-4xl"
+              className="relative mx-auto aspect-[2/1] w-full max-w-4xl"
               role="img"
               aria-label={t("mapAlt")}
             >
-              <svg viewBox="0 0 1000 460" className="h-full w-full" fill="none">
-                {/* Soft landmass silhouettes */}
-                <g className="infra-land" opacity="0.35">
-                  <ellipse cx="220" cy="180" rx="120" ry="70" />
-                  <ellipse cx="300" cy="300" rx="70" ry="90" />
-                  <ellipse cx="520" cy="150" rx="90" ry="55" />
-                  <ellipse cx="580" cy="210" rx="55" ry="40" />
-                  <ellipse cx="720" cy="200" rx="100" ry="70" />
-                  <ellipse cx="800" cy="280" rx="50" ry="35" />
-                  <ellipse cx="860" cy="340" rx="55" ry="30" />
-                  <ellipse cx="480" cy="320" rx="70" ry="45" />
-                </g>
+              <svg viewBox="0 0 1000 500" className="h-full w-full" fill="none">
+                <rect width="1000" height="500" className="infra-ocean" />
+                <WorldLandmass />
 
-                {/* Route arcs */}
                 {ROUTES.map(([a, b], i) => {
                   const from = POPS[a]!;
                   const to = POPS[b]!;
@@ -93,7 +89,6 @@ export function InfrastructureSection(): React.ReactElement {
                   );
                 })}
 
-                {/* PoP nodes — avoid SVG <title>: it hydrates as HTML <title> and mismatches */}
                 {POPS.map((pop, i) => (
                   <g key={pop.id} aria-label={`${pop.id.toUpperCase()} ${pop.ping}`}>
                     <circle

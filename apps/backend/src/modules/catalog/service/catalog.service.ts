@@ -1,13 +1,16 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { ProductCategory } from "@prisma/client";
 
-import {
-  mapProductPrices,
-  resolveProductPrice,
-} from "@/shared/pricing/product-price.util";
-import { yearlySavingsPercent } from "@/shared/pricing/currency.util";
-
 import { CatalogRepository } from "../repository/catalog.repository";
+
+import { yearlySavingsPercent } from "@/shared/pricing/currency.util";
+import { mapProductPrices, resolveProductPrice } from "@/shared/pricing/product-price.util";
+
+function localizeName(name: string, names: unknown, locale?: string): string {
+  if (!locale || !names || typeof names !== "object") return name;
+  const map = names as Record<string, string>;
+  return map[locale] || map.en || name;
+}
 
 function mapProduct(
   product: {
@@ -16,10 +19,16 @@ function mapProduct(
     name: string;
     description: string | null;
     category: ProductCategory;
+    catalogCategoryId?: string | null;
     hostingPlanSlug: string | null;
     price: { toString(): string } | number;
     currency: string;
     billingCycle: string;
+    isFree?: boolean;
+    deliveryMode?: string;
+    downloadUrl?: string | null;
+    downloadFileName?: string | null;
+    promoText?: string | null;
     prices: Array<{
       currency: string;
       period: string;
@@ -30,15 +39,15 @@ function mapProduct(
   currency?: string,
   period?: string,
 ) {
-  const resolved = resolveProductPrice(
-    product.prices as never,
-    currency,
-    period,
-  );
+  const resolved = resolveProductPrice(product.prices as never, currency, period);
   const allPrices = mapProductPrices(product.prices as never);
 
-  const monthly = allPrices.find((p) => p.currency === (resolved?.currency ?? "USD") && p.period === "MONTHLY");
-  const yearly = allPrices.find((p) => p.currency === (resolved?.currency ?? "USD") && p.period === "YEARLY");
+  const monthly = allPrices.find(
+    (p) => p.currency === (resolved?.currency ?? "USD") && p.period === "MONTHLY",
+  );
+  const yearly = allPrices.find(
+    (p) => p.currency === (resolved?.currency ?? "USD") && p.period === "YEARLY",
+  );
 
   return {
     id: product.id,
@@ -46,15 +55,22 @@ function mapProduct(
     name: product.name,
     description: product.description,
     category: product.category,
+    catalogCategoryId: product.catalogCategoryId ?? null,
     hostingPlanSlug: product.hostingPlanSlug,
-    price: resolved?.salePrice ?? Number(product.price),
-    originalPrice: resolved?.originalPrice ?? Number(product.price),
+    price: product.isFree ? 0 : (resolved?.salePrice ?? Number(product.price)),
+    originalPrice: product.isFree ? 0 : (resolved?.originalPrice ?? Number(product.price)),
     currency: resolved?.currency ?? product.currency,
-    billingCycle: resolved?.period ?? product.billingCycle,
-    discountPercent: resolved?.discountPercent ?? 0,
+    billingCycle: product.isFree ? "ONE_TIME" : (resolved?.period ?? product.billingCycle),
+    discountPercent: product.isFree ? 0 : (resolved?.discountPercent ?? 0),
     yearlySavingsPercent:
-      monthly && yearly ? yearlySavingsPercent(monthly.salePrice, yearly.salePrice) : 0,
+      product.isFree || !monthly || !yearly
+        ? 0
+        : yearlySavingsPercent(monthly.salePrice, yearly.salePrice),
     prices: allPrices,
+    isFree: product.isFree ?? false,
+    deliveryMode: product.deliveryMode ?? "NONE",
+    downloadFileName: product.downloadFileName ?? null,
+    promoText: product.promoText ?? null,
   };
 }
 
@@ -62,9 +78,28 @@ function mapProduct(
 export class CatalogService {
   constructor(private readonly catalogRepository: CatalogRepository) {}
 
-  async listProducts(category?: ProductCategory, currency?: string, period?: string) {
+  async listProducts(categorySlugOrId?: string, currency?: string, period?: string) {
+    let catalogCategoryId: string | undefined;
+    let legacyCategory: ProductCategory | undefined;
+
+    if (categorySlugOrId) {
+      const cat = await this.catalogRepository.findCatalogCategoryBySlugOrId(categorySlugOrId);
+      if (cat) {
+        catalogCategoryId = cat.id;
+      } else if (
+        ["HOSTING", "VPS", "DEDICATED", "DOMAIN", "SSL", "EMAIL", "LICENSE", "BACKUP"].includes(
+          categorySlugOrId,
+        )
+      ) {
+        legacyCategory = categorySlugOrId as ProductCategory;
+      }
+    }
+
     const [products, sellablePlans] = await Promise.all([
-      this.catalogRepository.findActiveProducts(category),
+      this.catalogRepository.findActiveProducts({
+        category: legacyCategory,
+        catalogCategoryId,
+      }),
       this.catalogRepository.findSellableHostingPlanSlugs(),
     ]);
     const sellableSlugs = new Set(sellablePlans.map((p) => p.slug));
@@ -77,30 +112,27 @@ export class CatalogService {
       .map((p) => mapProduct(p, currency, period));
   }
 
-  listCategories() {
-    const order: ProductCategory[] = [
-      "HOSTING",
-      "VPS",
-      "DEDICATED",
-      "DOMAIN",
-      "SSL",
-      "EMAIL",
-      "LICENSE",
-      "BACKUP",
-    ];
+  async listCategories(locale?: string) {
+    const [categories, products] = await Promise.all([
+      this.catalogRepository.findActiveCatalogCategories(),
+      this.listProducts(),
+    ]);
 
-    return this.listProducts().then((products) => {
-      const counts = new Map<ProductCategory, number>();
-      for (const product of products) {
-        counts.set(product.category, (counts.get(product.category) ?? 0) + 1);
-      }
-      return order
-        .filter((category) => (counts.get(category) ?? 0) > 0)
-        .map((category) => ({
-          id: category,
-          productCount: counts.get(category) ?? 0,
-        }));
-    });
+    const counts = new Map<string, number>();
+    for (const product of products) {
+      if (!product.catalogCategoryId) continue;
+      counts.set(product.catalogCategoryId, (counts.get(product.catalogCategoryId) ?? 0) + 1);
+    }
+
+    return categories
+      .map((cat) => ({
+        id: cat.id,
+        slug: cat.slug,
+        name: localizeName(cat.name, cat.names, locale),
+        systemType: cat.systemType ?? null,
+        productCount: counts.get(cat.id) ?? 0,
+      }))
+      .filter((cat) => cat.productCount > 0);
   }
 
   async getProduct(slug: string, currency?: string, period?: string) {

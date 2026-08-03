@@ -98,10 +98,7 @@ export class AdminRepository {
     });
   }
 
-  updateUser(
-    id: string,
-    data: Parameters<typeof this.prisma.user.update>[0]["data"],
-  ) {
+  updateUser(id: string, data: Parameters<typeof this.prisma.user.update>[0]["data"]) {
     return this.prisma.user.update({
       where: { id },
       data,
@@ -163,8 +160,29 @@ export class AdminRepository {
     return this.prisma.order.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, email: true, firstName: true, lastName: true } },
-        items: { orderBy: { createdAt: "asc" } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            preferredCurrency: true,
+            localeHistory: true,
+          },
+        },
+        items: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            product: {
+              select: {
+                id: true,
+                category: true,
+                deliveryMode: true,
+                slug: true,
+              },
+            },
+          },
+        },
         invoices: { orderBy: { createdAt: "desc" } },
         hostingAccounts: {
           select: {

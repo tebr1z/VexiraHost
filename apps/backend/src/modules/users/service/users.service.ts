@@ -5,17 +5,18 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
+import type { UpdateBillingAddressDto, UpdateUserPreferencesDto } from "../dto";
+
+import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
-import { mapPrismaRoleToApp } from "@/utils/role.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import {
   canChangeCurrency,
   CURRENCY_CHANGE_COOLDOWN_DAYS,
   nextCurrencyChangeAt,
 } from "@/shared/pricing/user-currency.util";
-
-import type { UpdateBillingAddressDto, UpdateUserPreferencesDto } from "../dto";
+import { mapPrismaRoleToApp } from "@/utils/role.util";
 
 @Injectable()
 export class UsersService {
@@ -118,6 +119,9 @@ export class UsersService {
     billingPeriod: string | null;
     currencyLocked: boolean;
     currencyChangedAt: Date | null;
+    localeHistory?: string[];
+    accountBalance?: { toString(): string } | null;
+    balanceCurrency?: string | null;
     billingAddress?: unknown;
     createdAt: Date;
   }) {
@@ -142,6 +146,10 @@ export class UsersService {
       canChangeCurrency: allowed,
       nextCurrencyChangeAt: allowed ? null : (nextChange?.toISOString() ?? null),
       billingAddress: normalizeBillingAddress(user.billingAddress),
+      accountBalance: Number(user.accountBalance ?? 0),
+      balanceCurrency: user.balanceCurrency ?? "USD",
+      preferredLocale: resolveAuthEmailLocale(user.localeHistory?.[0]),
+      localeHistory: (user.localeHistory ?? []).slice(0, 3),
       createdAt: user.createdAt,
     };
   }

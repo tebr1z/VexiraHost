@@ -7,13 +7,30 @@ import { PrismaService } from "@/database/database.module";
 export class CatalogRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findActiveProducts(category?: ProductCategory) {
+  findActiveCatalogCategories() {
+    return this.prisma.catalogCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    });
+  }
+
+  findCatalogCategoryBySlugOrId(slugOrId: string) {
+    return this.prisma.catalogCategory.findFirst({
+      where: {
+        OR: [{ id: slugOrId }, { slug: slugOrId }],
+        isActive: true,
+      },
+    });
+  }
+
+  findActiveProducts(opts?: { category?: ProductCategory; catalogCategoryId?: string }) {
     return this.prisma.product.findMany({
       where: {
         isActive: true,
-        ...(category ? { category } : {}),
+        ...(opts?.category ? { category: opts.category } : {}),
+        ...(opts?.catalogCategoryId ? { catalogCategoryId: opts.catalogCategoryId } : {}),
       },
-      include: { prices: true },
+      include: { prices: true, catalogCategory: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
   }
@@ -32,22 +49,7 @@ export class CatalogRepository {
   findBySlug(slug: string) {
     return this.prisma.product.findUnique({
       where: { slug, isActive: true },
-      include: { prices: true },
+      include: { prices: true, catalogCategory: true },
     });
-  }
-
-  findActiveCategories(): Promise<{ category: ProductCategory; productCount: number }[]> {
-    return this.prisma.product
-      .groupBy({
-        by: ["category"],
-        where: { isActive: true },
-        _count: { id: true },
-      })
-      .then((groups) =>
-        groups.map((group) => ({
-          category: group.category,
-          productCount: group._count.id,
-        })),
-      );
   }
 }

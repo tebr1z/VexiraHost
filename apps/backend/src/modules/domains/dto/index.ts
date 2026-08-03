@@ -1,4 +1,5 @@
-﻿import { Type } from "class-transformer";
+import { DnsRecordType } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
@@ -12,7 +13,6 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { DnsRecordType } from "@prisma/client";
 
 export class SearchDomainsQueryDto {
   @IsString()
@@ -74,4 +74,34 @@ export class UpdateDnsRecordsDto {
   @ValidateNested({ each: true })
   @Type(() => DnsRecordDto)
   records!: DnsRecordDto[];
+}
+
+export class UpdateNameserversDto {
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  nameservers!: string[];
+}
+
+export class NsGlueEntryDto {
+  @IsString()
+  @MinLength(1)
+  host!: string;
+
+  @IsOptional()
+  @IsString()
+  ip?: string;
+}
+
+export class UpdateNsGlueDto {
+  @IsArray()
+  @ArrayMinSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => NsGlueEntryDto)
+  entries!: NsGlueEntryDto[];
+
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  nameservers!: string[];
 }

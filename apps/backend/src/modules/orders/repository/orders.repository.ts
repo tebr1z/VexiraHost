@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { OrderStatus, Prisma } from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
+import { normalizePromoCode } from "@/shared/pricing/promo.util";
 
 const orderInclude = {
   items: {
@@ -22,6 +23,20 @@ export class OrdersRepository {
       where: { id: { in: ids }, isActive: true },
       include: { prices: true },
     });
+  }
+
+  findPromoByCode(code: string) {
+    return this.prisma.promoCode.findUnique({
+      where: { code: normalizePromoCode(code) },
+    });
+  }
+
+  countPromoRedemptions(promoCodeId: string) {
+    return this.prisma.promoRedemption.count({ where: { promoCodeId } });
+  }
+
+  countUserPromoRedemptions(promoCodeId: string, userId: string) {
+    return this.prisma.promoRedemption.count({ where: { promoCodeId, userId } });
   }
 
   findByUserId(userId: string) {
@@ -58,8 +73,11 @@ export class OrdersRepository {
   createCheckout(data: {
     userId: string;
     subtotal: Prisma.Decimal;
+    discountAmount: Prisma.Decimal;
     total: Prisma.Decimal;
     currency: string;
+    promoCodeId?: string | null;
+    promoCode?: string | null;
     items: {
       productId: string;
       quantity: number;
@@ -76,12 +94,26 @@ export class OrdersRepository {
         data: {
           userId: data.userId,
           subtotal: data.subtotal,
+          discountAmount: data.discountAmount,
           total: data.total,
           currency: data.currency,
+          promoCodeId: data.promoCodeId ?? null,
+          promoCode: data.promoCode ?? null,
           items: { create: data.items },
         },
         include: { items: true },
       });
+
+      if (data.promoCodeId && data.discountAmount.gt(0)) {
+        await tx.promoRedemption.create({
+          data: {
+            promoCodeId: data.promoCodeId,
+            userId: data.userId,
+            orderId: order.id,
+            discountAmount: data.discountAmount,
+          },
+        });
+      }
 
       const invoice = await tx.invoice.create({
         data: {

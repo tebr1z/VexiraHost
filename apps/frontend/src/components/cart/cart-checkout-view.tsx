@@ -16,10 +16,15 @@ import {
   validateCartDomains,
   type BillingAddressInput,
 } from "@/features/billing/lib/perform-checkout";
+import { validatePromoCode } from "@/features/billing/services/billing.service";
 import { getCatalogProduct } from "@/features/catalog";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { getYearlyOfferFromProduct, isMonthlyBilling } from "@/lib/cart-pricing";
+import {
+  getYearlyOfferFromProduct,
+  isMonthlyBilling,
+  resolveCheckoutPeriod,
+} from "@/lib/cart-pricing";
 import { formatMoney } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
@@ -73,9 +78,34 @@ export function CartCheckoutView({
   const [billingAddress, setBillingAddress] = useState<BillingAddressInput>(EMPTY_BILLING);
   const [editingBilling, setEditingBilling] = useState(false);
   const [skipBillingAddress, setSkipBillingAddress] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discountAmount: number;
+    messageKey: string;
+    messageParams: Record<string, string | number>;
+  } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoProgress, setPromoProgress] = useState<{
+    code: string;
+    progressPercent: number;
+    remainingAmount: number;
+    minOrderAmount: number;
+    potentialDiscount: number;
+    currency: string;
+  } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const pricingCurrency = usePricingStore((s) => s.currency);
+  const pricingPeriod = usePricingStore((s) => s.period);
   const hasSavedBilling = isCompleteBillingAddress(user?.billingAddress ?? null);
   const showBillingForm = !skipBillingAddress && (!hasSavedBilling || editingBilling);
   const showBillingSection = isAuthenticated;
+
+  useEffect(() => {
+    setAppliedPromo(null);
+    setPromoError(null);
+    setPromoProgress(null);
+  }, [items.map((i) => `${i.productId}:${i.quantity}:${i.price}`).join("|"), pricingCurrency]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -224,7 +254,10 @@ export function CartCheckoutView({
         items,
         skipBillingAddress ? null : billingAddress,
         t("billingAddressRequired"),
-        { requireBillingAddress: isAuthenticated && !skipBillingAddress },
+        {
+          requireBillingAddress: isAuthenticated && !skipBillingAddress,
+          promoCode: appliedPromo?.code ?? null,
+        },
       );
 
       try {
@@ -345,11 +378,170 @@ export function CartCheckoutView({
         ))}
       </ul>
 
-      <div className="bg-surface-container-low flex items-center justify-between rounded-2xl p-4">
-        <span className="font-semibold">{t("total")}</span>
-        <span className="text-xl font-bold">
-          {formatMoney(total(), items[0]?.currency ?? "USD", locale)}
-        </span>
+      <div className="border-outline-variant/40 bg-surface space-y-3 rounded-2xl border p-4">
+        <p className="text-primary text-sm font-semibold">{t("promoTitle")}</p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={promoInput}
+            onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+            placeholder={t("promoPlaceholder")}
+            disabled={Boolean(appliedPromo)}
+            className="border-outline-variant bg-surface-container-lowest h-11 flex-1 rounded-xl border px-4 text-sm uppercase tracking-wide disabled:opacity-60"
+          />
+          {appliedPromo ? (
+            <button
+              type="button"
+              onClick={() => {
+                setAppliedPromo(null);
+                setPromoError(null);
+                setPromoProgress(null);
+                setPromoInput("");
+              }}
+              className="border-outline-variant inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold"
+            >
+              {t("promoRemove")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={promoLoading || !promoInput.trim()}
+              onClick={async () => {
+                setPromoLoading(true);
+                setPromoError(null);
+                setPromoProgress(null);
+                try {
+                  const period = resolveCheckoutPeriod(items, pricingPeriod);
+                  const result = await validatePromoCode({
+                    code: promoInput.trim(),
+                    items: items.map((item) => ({
+                      productId: item.productId,
+                      quantity: item.quantity,
+                    })),
+                    currency: pricingCurrency,
+                    period,
+                  });
+                  if (!result.valid) {
+                    setAppliedPromo(null);
+                    if (result.messageKey === "min_order") {
+                      const currency = String(result.messageParams.currency ?? pricingCurrency);
+                      setPromoProgress({
+                        code: String(result.messageParams.code ?? promoInput.trim().toUpperCase()),
+                        progressPercent: Number(result.messageParams.progressPercent ?? 0),
+                        remainingAmount: Number(result.messageParams.remainingAmount ?? 0),
+                        minOrderAmount: Number(result.messageParams.minOrderAmount ?? 0),
+                        potentialDiscount: Number(result.messageParams.potentialDiscount ?? 0),
+                        currency,
+                      });
+                      setPromoError(null);
+                    } else {
+                      setPromoProgress(null);
+                      setPromoError(
+                        promoMessageFromKey(t, result.messageKey, result.messageParams, locale),
+                      );
+                    }
+                    return;
+                  }
+                  setAppliedPromo({
+                    code: result.code ?? promoInput.trim().toUpperCase(),
+                    discountAmount: result.discountAmount,
+                    messageKey: result.messageKey,
+                    messageParams: result.messageParams,
+                  });
+                  setPromoError(null);
+                  setPromoProgress(null);
+                } catch {
+                  setPromoError(t("promoValidateFailed"));
+                } finally {
+                  setPromoLoading(false);
+                }
+              }}
+              className="bg-primary text-on-primary inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+            >
+              {t("promoApply")}
+            </button>
+          )}
+        </div>
+        {promoError ? <p className="text-error text-sm">{promoError}</p> : null}
+        {promoProgress ? (
+          <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-medium text-amber-950 dark:text-amber-100">
+                {t("promoMinOrderProgress", {
+                  remaining: formatMoney(
+                    promoProgress.remainingAmount,
+                    promoProgress.currency,
+                    locale,
+                  ),
+                  discount: formatMoney(
+                    promoProgress.potentialDiscount,
+                    promoProgress.currency,
+                    locale,
+                  ),
+                })}
+              </span>
+              <span className="shrink-0 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                {promoProgress.progressPercent}%
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-amber-500/20">
+              <div
+                className="h-full rounded-full bg-amber-500 transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, promoProgress.progressPercent))}%` }}
+              />
+            </div>
+            <p className="text-xs text-amber-900/80 dark:text-amber-100/80">
+              {t("promoMinOrderHint", {
+                current: formatMoney(
+                  Math.max(0, promoProgress.minOrderAmount - promoProgress.remainingAmount),
+                  promoProgress.currency,
+                  locale,
+                ),
+                min: formatMoney(promoProgress.minOrderAmount, promoProgress.currency, locale),
+              })}
+            </p>
+          </div>
+        ) : null}
+        {appliedPromo ? (
+          <p className="text-sm font-medium text-[var(--success)]">
+            {t("promoAppliedAmount", {
+              code: appliedPromo.code,
+              discount: formatMoney(
+                appliedPromo.discountAmount,
+                items[0]?.currency ?? pricingCurrency,
+                locale,
+              ),
+            })}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="bg-surface-container-low space-y-2 rounded-2xl p-4">
+        {appliedPromo ? (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-on-surface-variant">{t("promoSubtotal")}</span>
+              <span>{formatMoney(total(), items[0]?.currency ?? "USD", locale)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-[var(--success)]">
+              <span>
+                {t("promoDiscount")} ({appliedPromo.code})
+              </span>
+              <span>
+                −{formatMoney(appliedPromo.discountAmount, items[0]?.currency ?? "USD", locale)}
+              </span>
+            </div>
+          </>
+        ) : null}
+        <div className="flex items-center justify-between">
+          <span className="font-semibold">{t("total")}</span>
+          <span className="text-xl font-bold">
+            {formatMoney(
+              Math.max(0, total() - (appliedPromo?.discountAmount ?? 0)),
+              items[0]?.currency ?? "USD",
+              locale,
+            )}
+          </span>
+        </div>
       </div>
 
       {quickAccount && !isAuthenticated ? (
@@ -608,4 +800,53 @@ export function CartCheckoutView({
       </button>
     </div>
   );
+}
+
+type TranslateCart = (key: string, values?: Record<string, string | number>) => string;
+
+function formatPromoDate(iso: string | number | undefined, locale: string): string {
+  if (!iso) return "";
+  const d = new Date(String(iso));
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(d);
+}
+
+function promoMessageFromKey(
+  t: TranslateCart,
+  key: string,
+  params: Record<string, string | number>,
+  locale: string,
+): string {
+  const currency = String(params.currency ?? params.cartCurrency ?? "USD");
+  switch (key) {
+    case "not_found":
+      return t("promoNotFound");
+    case "inactive":
+      return t("promoInactive");
+    case "not_started":
+      return t("promoNotStarted", { date: formatPromoDate(params.startsAt, locale) });
+    case "expired":
+      return t("promoExpired");
+    case "currency_mismatch":
+      return t("promoCurrencyMismatch", {
+        currency: String(params.currency ?? ""),
+        cartCurrency: String(params.cartCurrency ?? ""),
+      });
+    case "min_order":
+      return t("promoMinOrder", {
+        amount: formatMoney(Number(params.minOrderAmount ?? 0), currency, locale),
+      });
+    case "not_applicable":
+      return t("promoNotApplicable");
+    case "limit_total":
+      return t("promoLimitTotal");
+    case "limit_user":
+      return t("promoLimitUser");
+    default:
+      return t("promoValidateFailed");
+  }
 }
