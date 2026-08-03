@@ -238,6 +238,7 @@ export function CartCheckoutView({
             confirmPassword,
             preferredCurrency: currency,
             acceptedTerms: true,
+            marketingOptIn: true,
           },
           locale,
           countryCode,
