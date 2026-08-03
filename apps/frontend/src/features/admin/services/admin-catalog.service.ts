@@ -73,7 +73,7 @@ export interface AdminProduct {
   sortOrder: number;
   orderItemCount: number;
   prices?: AdminProductPrice[];
-  deliveryMode?: "NONE" | "LICENSE_KEY" | "FILE" | "KEY_AND_FILE";
+  deliveryMode?: "NONE" | "LICENSE_KEY" | "FILE" | "KEY_AND_FILE" | "MANUAL";
   isFree?: boolean;
   licenseKeys?: string | null;
   downloadUrl?: string | null;
