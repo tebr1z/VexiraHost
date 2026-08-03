@@ -1154,6 +1154,8 @@
           "nameserverLabel": "NS{index}",
           "addNameserver": "Nameserver əlavə et",
           "nameserversMin": "Ən azı iki nameserver daxil edin",
+          "ipAddress": "IP ünvanı",
+          "ipHint": "@ və www bu IP-yə yönləndirilir (məs. 192.168.1.1).",
           "glueHostsMin": "Ən azı iki ana host qeydi daxil edin",
           "ipInvalidFormat": "IP ünvanı düzgün formatda deyil. IPv4 və ya IPv6 daxil edin.",
           "assign": "Domain təyin et",
