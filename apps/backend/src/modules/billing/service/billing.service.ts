@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Decimal } from "@prisma/client/runtime/library";
 
 import { BillingRepository } from "../repository/billing.repository";

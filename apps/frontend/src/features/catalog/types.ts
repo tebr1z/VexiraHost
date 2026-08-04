@@ -22,6 +22,8 @@ export interface CatalogProduct {
   billingCycle: string;
   period?: string;
   yearlySavingsPercent?: number | null;
+  availableCurrencies?: string[];
+  yearlyAvailable?: boolean;
   prices?: CatalogProductPrice[];
   isFree?: boolean;
   deliveryMode?: string;

@@ -16,6 +16,14 @@ const REGION_LABELS: Record<string, string> = {
   "sin-01": "Singapore (SIN-01)",
 };
 
+function initialExpiry(cycle: ServerPlan["billingCycle"]): Date | null {
+  if (cycle === "ONE_TIME") return null;
+  const date = new Date();
+  if (cycle === "YEARLY") date.setFullYear(date.getFullYear() + 1);
+  else date.setMonth(date.getMonth() + 1);
+  return date;
+}
+
 function mapPlan(plan: ServerPlan) {
   return {
     id: plan.id,
@@ -51,6 +59,7 @@ function mapServer(server: Server & { plan: ServerPlan }) {
     proxmoxVmId: server.proxmoxVmId,
     proxmoxNode: server.proxmoxNode,
     provisionedAt: server.provisionedAt,
+    expiresAt: server.expiresAt,
     createdAt: server.createdAt,
     plan: mapPlan(server.plan),
   };
@@ -109,6 +118,7 @@ export class ServersService {
       ramGb: plan.ramGb,
       diskGb: plan.diskGb,
       status: "PROVISIONING" as ServerStatus,
+      expiresAt: initialExpiry(plan.billingCycle),
     });
 
     try {
@@ -171,9 +181,7 @@ export class ServersService {
         success: false,
         message: error instanceof Error ? error.message : "Power action failed",
       });
-      throw new BadRequestException(
-        error instanceof Error ? error.message : "Power action failed",
-      );
+      throw new BadRequestException(error instanceof Error ? error.message : "Power action failed");
     }
   }
 

@@ -39,8 +39,14 @@ export class CatalogRepository {
     return this.prisma.hostingPlan.findMany({
       where: {
         isActive: true,
-        serverId: { not: null },
-        server: { isActive: true },
+        OR: [
+          { server: { isActive: true } },
+          {
+            planServers: {
+              some: { isActive: true, server: { isActive: true } },
+            },
+          },
+        ],
       },
       select: { slug: true },
     });

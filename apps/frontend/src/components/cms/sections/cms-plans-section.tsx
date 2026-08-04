@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { asString, asStringArray, CmsSectionShell } from "@/components/cms/cms-section-shell";
 import { HostingPlanCard } from "@/components/hosting/hosting-plan-card";
-import { MaterialIcon } from "@/components/landing/material-icon";
+import { PlansSectionIntro } from "@/components/hosting/plans-section-intro";
 import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
 import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -32,7 +32,9 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
   const [loading, setLoading] = useState(true);
   const c = section.content;
   const guarantees = asStringArray(c.guarantees);
-  const columns = section.design.columns ?? 4;
+  const title = asString(c.title) || t("plansTitle");
+  const subtitle = asString(c.subtitle) || t("plansSubtitle");
+  const eyebrow = asString(c.eyebrow) || t("plansEyebrow");
 
   useEffect(() => {
     setLoading(true);
@@ -75,35 +77,26 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
   return (
     <CmsSectionShell design={section.design} className="apple-grouped" id="hosting-plans">
       <div className="mx-auto w-full max-w-[1400px] px-3 sm:px-4 lg:px-5">
-        <div className="mb-8 text-center sm:mb-10">
-          <h2 className="apple-section-title">{asString(c.title)}</h2>
-          {guarantees.length > 0 && (
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[var(--label-secondary)]">
-              {guarantees.map((item) => (
-                <span key={item} className="inline-flex items-center gap-1.5">
-                  <MaterialIcon name="verified" className="text-[16px] text-[var(--accent)]" />
-                  {item}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mb-8 flex flex-col items-center gap-4 sm:mb-10">
-          <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
-          <CurrencySwitcher variant="segmented" />
-        </div>
+        <PlansSectionIntro
+          eyebrow={eyebrow}
+          title={title}
+          subtitle={subtitle}
+          guarantees={
+            guarantees.length > 0 ? guarantees : [t("guarantee1"), t("guarantee2"), t("guarantee3")]
+          }
+          controls={
+            <>
+              <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+              <CurrencySwitcher variant="segmented" />
+            </>
+          }
+        />
 
         {loading ? (
-          <div
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-            style={{ gridTemplateColumns: undefined }}
-          >
-            <div className={cn("grid gap-3 sm:gap-4", `xl:grid-cols-${Math.min(columns, 4)}`)}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <LoadingSkeleton key={i} className="h-[28rem] rounded-2xl" />
-              ))}
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <LoadingSkeleton key={i} className="h-[28rem] rounded-2xl" />
+            ))}
           </div>
         ) : plans.length === 0 ? (
           <p className="text-center text-[var(--label-secondary)]">

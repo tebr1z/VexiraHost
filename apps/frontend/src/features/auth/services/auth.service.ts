@@ -80,6 +80,17 @@ export async function updateBillingAddress(input: {
   return response.data as AuthSession["user"];
 }
 
+export async function updatePhone(input: {
+  phone: string | null;
+  whatsappNotificationsEnabled: boolean;
+}): Promise<AuthSession["user"]> {
+  const response = await apiClient.request<AuthSession["user"]>("/users/me/phone", {
+    method: "PATCH",
+    body: input,
+  });
+  return response.data as AuthSession["user"];
+}
+
 export async function resendVerificationRequest(): Promise<void> {
   await apiClient.request("/auth/resend-verification", {
     method: "POST",

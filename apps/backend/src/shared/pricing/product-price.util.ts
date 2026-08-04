@@ -22,53 +22,80 @@ export function resolveProductPrice(
   currencyInput?: string | null,
   periodInput?: string | null,
 ): ResolvedProductPrice | null {
+  if (!prices.length) return null;
+
   const currency = parseCurrency(currencyInput);
   const period = parsePeriod(periodInput);
 
-  const exact = prices.find((p) => p.currency === currency && p.period === period);
-  if (exact) {
-    const originalPrice = Number(exact.originalPrice);
-    const salePrice = Number(exact.salePrice);
+  const pick = (
+    row: ProductPrice,
+    resolvedCurrency: SupportedCurrency,
+    resolvedPeriod: SupportedPeriod,
+  ) => {
+    const originalPrice = Number(row.originalPrice);
+    const salePrice = Number(row.salePrice);
     return {
-      currency,
-      period,
+      currency: resolvedCurrency,
+      period: resolvedPeriod,
       originalPrice,
       salePrice,
       discountPercent: discountPercent(originalPrice, salePrice),
     };
-  }
+  };
+
+  const exact = prices.find((p) => p.currency === currency && p.period === period);
+  if (exact) return pick(exact, currency, period);
 
   const sameCurrencyMonthly = prices.find(
     (p) => p.currency === currency && p.period === PricePeriod.MONTHLY,
   );
-  if (sameCurrencyMonthly) {
-    const originalPrice = Number(sameCurrencyMonthly.originalPrice);
-    const salePrice = Number(sameCurrencyMonthly.salePrice);
-    return {
+  if (sameCurrencyMonthly) return pick(sameCurrencyMonthly, currency, "MONTHLY");
+
+  const sameCurrencyAny = prices.find((p) => p.currency === currency);
+  if (sameCurrencyAny) {
+    return pick(
+      sameCurrencyAny,
       currency,
-      period: "MONTHLY",
-      originalPrice,
-      salePrice,
-      discountPercent: discountPercent(originalPrice, salePrice),
-    };
+      sameCurrencyAny.period === PricePeriod.YEARLY ? "YEARLY" : "MONTHLY",
+    );
+  }
+
+  const requestedPeriodAny = prices.find((p) => p.period === period);
+  if (requestedPeriodAny) {
+    return pick(requestedPeriodAny, requestedPeriodAny.currency as SupportedCurrency, period);
   }
 
   const usdMonthly = prices.find(
     (p) => p.currency === PriceCurrency.USD && p.period === PricePeriod.MONTHLY,
   );
-  if (usdMonthly) {
-    const originalPrice = Number(usdMonthly.originalPrice);
-    const salePrice = Number(usdMonthly.salePrice);
-    return {
-      currency: "USD",
-      period: "MONTHLY",
-      originalPrice,
-      salePrice,
-      discountPercent: discountPercent(originalPrice, salePrice),
-    };
+  if (usdMonthly) return pick(usdMonthly, "USD", "MONTHLY");
+
+  const anyMonthly = prices.find((p) => p.period === PricePeriod.MONTHLY);
+  if (anyMonthly) {
+    return pick(anyMonthly, anyMonthly.currency as SupportedCurrency, "MONTHLY");
   }
 
-  return null;
+  const first = prices[0];
+  return pick(
+    first,
+    first.currency as SupportedCurrency,
+    first.period === PricePeriod.YEARLY ? "YEARLY" : "MONTHLY",
+  );
+}
+
+export function availableCurrenciesFromPrices(
+  prices: Array<{ currency: string }>,
+): SupportedCurrency[] {
+  const set = new Set<SupportedCurrency>();
+  for (const row of prices) {
+    const currency = parseCurrency(row.currency);
+    set.add(currency);
+  }
+  return (["USD", "EUR", "AZN"] as SupportedCurrency[]).filter((c) => set.has(c));
+}
+
+export function hasYearlyPricing(prices: Array<{ period: string }>): boolean {
+  return prices.some((p) => p.period === "YEARLY" || p.period === PricePeriod.YEARLY);
 }
 
 export function mapProductPrices(prices: ProductPrice[]) {

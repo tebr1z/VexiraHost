@@ -1,21 +1,23 @@
-﻿import {
+import {
   Body,
   Controller,
   Get,
   Param,
   Post,
+  Req,
   Res,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import type { Response } from "express";
-
-import { User } from "@/decorators/user.decorator";
 import type { AuthUser } from "@vexira/types";
+import type { Request, Response } from "express";
 
 import { CreateTicketDto, ReplyTicketDto } from "../dto";
 import { TicketsService } from "../service/tickets.service";
+
+import { User } from "@/decorators/user.decorator";
+import { getClientIp } from "@/utils/client-ip.util";
 
 @Controller("tickets")
 export class TicketsController {
@@ -48,8 +50,8 @@ export class TicketsController {
   }
 
   @Post()
-  create(@Body() dto: CreateTicketDto, @User() user: AuthUser) {
-    return this.ticketsService.create(user.id, dto);
+  create(@Body() dto: CreateTicketDto, @User() user: AuthUser, @Req() req: Request) {
+    return this.ticketsService.create(user.id, dto, getClientIp(req));
   }
 
   @Get(":id")
@@ -58,11 +60,7 @@ export class TicketsController {
   }
 
   @Post(":id/reply")
-  reply(
-    @Param("id") id: string,
-    @Body() dto: ReplyTicketDto,
-    @User() user: AuthUser,
-  ) {
+  reply(@Param("id") id: string, @Body() dto: ReplyTicketDto, @User() user: AuthUser) {
     return this.ticketsService.reply(id, user.id, user.role, dto);
   }
 

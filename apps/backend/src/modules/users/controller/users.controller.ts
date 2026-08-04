@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Patch } from "@nestjs/common";
-
-import { User } from "@/decorators/user.decorator";
 import type { AuthUser } from "@vexira/types";
 
-import { UpdateBillingAddressDto, UpdateUserPreferencesDto } from "../dto";
+import { UpdateBillingAddressDto, UpdatePhoneDto, UpdateUserPreferencesDto } from "../dto";
 import { UsersService } from "../service/users.service";
+
+import { User } from "@/decorators/user.decorator";
 
 @Controller("users")
 export class UsersController {
@@ -23,5 +23,10 @@ export class UsersController {
   @Patch("me/billing-address")
   updateBillingAddress(@User() user: AuthUser, @Body() dto: UpdateBillingAddressDto) {
     return this.usersService.updateBillingAddress(user.id, dto);
+  }
+
+  @Patch("me/phone")
+  updatePhone(@User() user: AuthUser, @Body() dto: UpdatePhoneDto) {
+    return this.usersService.updatePhone(user.id, dto);
   }
 }

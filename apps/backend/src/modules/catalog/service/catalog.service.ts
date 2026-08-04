@@ -4,7 +4,12 @@ import type { ProductCategory } from "@prisma/client";
 import { CatalogRepository } from "../repository/catalog.repository";
 
 import { yearlySavingsPercent } from "@/shared/pricing/currency.util";
-import { mapProductPrices, resolveProductPrice } from "@/shared/pricing/product-price.util";
+import {
+  availableCurrenciesFromPrices,
+  hasYearlyPricing,
+  mapProductPrices,
+  resolveProductPrice,
+} from "@/shared/pricing/product-price.util";
 
 function localizeName(name: string, names: unknown, locale?: string): string {
   if (!locale || !names || typeof names !== "object") return name;
@@ -48,6 +53,8 @@ function mapProduct(
   const yearly = allPrices.find(
     (p) => p.currency === (resolved?.currency ?? "USD") && p.period === "YEARLY",
   );
+  const availableCurrencies = availableCurrenciesFromPrices(allPrices);
+  const yearlyAvailable = hasYearlyPricing(allPrices);
 
   return {
     id: product.id,
@@ -66,6 +73,8 @@ function mapProduct(
       product.isFree || !monthly || !yearly
         ? 0
         : yearlySavingsPercent(monthly.salePrice, yearly.salePrice),
+    availableCurrencies,
+    yearlyAvailable,
     prices: allPrices,
     isFree: product.isFree ?? false,
     deliveryMode: product.deliveryMode ?? "NONE",

@@ -1,4 +1,4 @@
-﻿import { Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { TicketPriority, TicketRelatedServiceType, TicketStatus } from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
@@ -55,6 +55,8 @@ export class TicketsRepository {
             lastName: true,
             preferredCurrency: true,
             localeHistory: true,
+            lastLoginIp: true,
+            lastLoginAt: true,
           },
         },
       },
@@ -69,6 +71,7 @@ export class TicketsRepository {
     relatedServiceType?: TicketRelatedServiceType;
     relatedServiceId?: string;
     relatedServiceLabel?: string;
+    clientIp?: string | null;
   }) {
     return this.prisma.ticket.create({
       data: {
@@ -78,6 +81,7 @@ export class TicketsRepository {
         relatedServiceType: data.relatedServiceType,
         relatedServiceId: data.relatedServiceId,
         relatedServiceLabel: data.relatedServiceLabel,
+        clientIp: data.clientIp ?? null,
         messages: {
           create: {
             userId: data.userId,
@@ -96,6 +100,8 @@ export class TicketsRepository {
             lastName: true,
             preferredCurrency: true,
             localeHistory: true,
+            lastLoginIp: true,
+            lastLoginAt: true,
           },
         },
       },

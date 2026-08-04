@@ -53,11 +53,22 @@ export class ServersRepository {
     ipv4?: string;
     status: ServerStatus;
     provisionedAt?: Date;
+    expiresAt?: Date | null;
   }) {
     return this.prisma.server.create({ data });
   }
 
-  updateServer(id: string, data: { status?: ServerStatus; ipv4?: string; proxmoxVmId?: string; proxmoxNode?: string; provisionedAt?: Date }) {
+  updateServer(
+    id: string,
+    data: {
+      status?: ServerStatus;
+      ipv4?: string;
+      proxmoxVmId?: string;
+      proxmoxNode?: string;
+      provisionedAt?: Date;
+      expiresAt?: Date | null;
+    },
+  ) {
     return this.prisma.server.update({ where: { id }, data });
   }
 

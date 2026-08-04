@@ -11,7 +11,33 @@ export class AdminCatalogRepository {
     return this.prisma.hostingPlan.findMany({
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       include: {
-        server: { select: { id: true, name: true, ipAddress: true, panel: true, isActive: true } },
+        server: {
+          select: {
+            id: true,
+            name: true,
+            ipAddress: true,
+            panel: true,
+            isActive: true,
+            maxAccounts: true,
+            accountCount: true,
+          },
+        },
+        planServers: {
+          orderBy: { priority: "asc" },
+          include: {
+            server: {
+              select: {
+                id: true,
+                name: true,
+                ipAddress: true,
+                panel: true,
+                isActive: true,
+                maxAccounts: true,
+                accountCount: true,
+              },
+            },
+          },
+        },
         _count: { select: { accounts: true } },
       },
     });
@@ -21,7 +47,33 @@ export class AdminCatalogRepository {
     return this.prisma.hostingPlan.findUnique({
       where: { id },
       include: {
-        server: { select: { id: true, name: true, ipAddress: true, panel: true, isActive: true } },
+        server: {
+          select: {
+            id: true,
+            name: true,
+            ipAddress: true,
+            panel: true,
+            isActive: true,
+            maxAccounts: true,
+            accountCount: true,
+          },
+        },
+        planServers: {
+          orderBy: { priority: "asc" },
+          include: {
+            server: {
+              select: {
+                id: true,
+                name: true,
+                ipAddress: true,
+                panel: true,
+                isActive: true,
+                maxAccounts: true,
+                accountCount: true,
+              },
+            },
+          },
+        },
         _count: { select: { accounts: true } },
       },
     });
@@ -37,6 +89,19 @@ export class AdminCatalogRepository {
 
   updateHostingPlan(id: string, data: Prisma.HostingPlanUpdateInput) {
     return this.prisma.hostingPlan.update({ where: { id }, data });
+  }
+
+  async replacePlanServers(planId: string, serverIds: string[]) {
+    await this.prisma.hostingPlanServer.deleteMany({ where: { planId } });
+    if (serverIds.length === 0) return;
+    await this.prisma.hostingPlanServer.createMany({
+      data: serverIds.map((serverId, index) => ({
+        planId,
+        serverId,
+        priority: index,
+        isActive: true,
+      })),
+    });
   }
 
   deleteHostingPlan(id: string) {

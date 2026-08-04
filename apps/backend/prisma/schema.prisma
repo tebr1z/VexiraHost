@@ -25,31 +25,49 @@ enum OAuthProvider {
 }
 
 model User {
-  id              String     @id @default(cuid())
-  email           String     @unique
-  passwordHash    String?
-  firstName       String?
-  lastName        String?
-  role            UserRole   @default(CUSTOMER)
-  status          UserStatus @default(PENDING_VERIFICATION)
-  emailVerifiedAt DateTime?
-  preferredCurrency String?
-  billingPeriod     String?
-  currencyChangedAt DateTime?
-  currencyLocked    Boolean    @default(false)
-  /** Saved invoice/billing address — reused on checkout after first entry. */
-  billingAddress    Json?
-  /** Marketing / campaign emails — default opted in at registration. */
-  marketingOptIn      Boolean   @default(true)
-  marketingOptInAt    DateTime?
-  unsubscribeToken    String?   @unique
-  /** Prepaid account credit used to pay invoices. */
-  accountBalance      Decimal    @default(0) @db.Decimal(12, 2)
-  balanceCurrency     String     @default("USD")
-  /** Last UI locales used for emails — newest first, max 3 (en/tr/ru/az). */
-  localeHistory       String[]   @default([])
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id                           String     @id @default(cuid())
+  email                        String     @unique
+  passwordHash                 String?
+  firstName                    String?
+  lastName                     String?
+  role                         UserRole   @default(CUSTOMER)
+  status                       UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt              DateTime?
+  preferredCurrency            String?
+  billingPeriod                String?
+  currencyChangedAt            DateTime?
+  currencyLocked               Boolean    @default(false)
+  /**
+   * Saved invoice/billing address — reused on checkout after first entry.
+   */
+  billingAddress               Json?
+  /**
+   * Marketing / campaign emails — default opted in at registration.
+   */
+  marketingOptIn               Boolean    @default(true)
+  marketingOptInAt             DateTime?
+  unsubscribeToken             String?    @unique
+  /**
+   * Prepaid account credit used to pay invoices.
+   */
+  accountBalance               Decimal    @default(0) @db.Decimal(12, 2)
+  balanceCurrency              String     @default("USD")
+  /**
+   * Last UI locales used for emails — newest first, max 3 (en/tr/ru/az).
+   */
+  localeHistory                String[]   @default([])
+  /**
+   * E.164-compatible contact number used for WhatsApp service notifications.
+   */
+  phone                        String?
+  whatsappNotificationsEnabled Boolean    @default(true)
+  /**
+   * Client (exit) IP from the most recent successful login.
+   */
+  lastLoginIp                  String?
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime   @default(now())
+  updatedAt                    DateTime   @updatedAt
 
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
@@ -67,10 +85,13 @@ model User {
   tickets                 Ticket[]
   ticketMessages          TicketMessage[]
   ticketAttachments       TicketAttachment[]
-  assignedTickets         Ticket[]         @relation("AssignedTickets")
+  assignedTickets         Ticket[]                 @relation("AssignedTickets")
   promoRedemptions        PromoRedemption[]
   balanceTransactions     BalanceTransaction[]
   notifications           Notification[]
+  whatsappApiAccess       WhatsappApiAccess?
+  whatsappApiKeys         WhatsappApiKey[]
+  whatsappApiUsages       WhatsappApiUsage[]
 
   @@map("users")
 }
@@ -134,18 +155,18 @@ enum CampaignStatus {
 }
 
 model Campaign {
-  id              String         @id @default(cuid())
-  subject         String
-  previewText     String?
-  bodyHtml        String         @db.Text
-  bodyText        String?        @db.Text
-  status          CampaignStatus @default(DRAFT)
-  sentAt          DateTime?
-  recipientCount  Int            @default(0)
-  successCount    Int            @default(0)
-  failCount       Int            @default(0)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  subject        String
+  previewText    String?
+  bodyHtml       String         @db.Text
+  bodyText       String?        @db.Text
+  status         CampaignStatus @default(DRAFT)
+  sentAt         DateTime?
+  recipientCount Int            @default(0)
+  successCount   Int            @default(0)
+  failCount      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([status])
   @@map("campaigns")
@@ -232,11 +253,15 @@ model CatalogCategory {
   id         String           @id @default(cuid())
   slug       String           @unique
   name       String
-  /** Localized labels: { "az": "...", "en": "...", "tr": "...", "ru": "..." } */
+  /**
+   * Localized labels: { "az": "...", "en": "...", "tr": "...", "ru": "..." }
+   */
   names      Json?
   sortOrder  Int              @default(0)
   isActive   Boolean          @default(true)
-  /** Fulfillment type inherited by products in this category */
+  /**
+   * Fulfillment type inherited by products in this category
+   */
   systemType ProductCategory?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
@@ -248,33 +273,39 @@ model CatalogCategory {
 }
 
 model Product {
-  id                String           @id @default(cuid())
-  slug              String           @unique
-  name              String
-  description       String?
-  category          ProductCategory
-  catalogCategoryId String?
-  catalogCategory   CatalogCategory? @relation(fields: [catalogCategoryId], references: [id], onDelete: SetNull)
-  hostingPlanSlug   String?
-  price             Decimal          @db.Decimal(10, 2)
-  currency          String           @default("USD")
-  billingCycle      BillingCycle
-  isActive          Boolean          @default(true)
-  sortOrder         Int              @default(0)
-  /** Digital delivery for LICENSE (and similar) products */
-  deliveryMode      DigitalDeliveryMode @default(NONE)
-  isFree            Boolean             @default(false)
-  /** One activation key per line; consumed on provision when pool mode */
-  licenseKeys       String?             @db.Text
-  downloadUrl       String?
-  downloadFileName  String?
-  /** App / product promo copy shown to customers */
-  promoText         String?             @db.Text
-  activationGuideText     String?       @db.Text
+  id                      String              @id @default(cuid())
+  slug                    String              @unique
+  name                    String
+  description             String?
+  category                ProductCategory
+  catalogCategoryId       String?
+  catalogCategory         CatalogCategory?    @relation(fields: [catalogCategoryId], references: [id], onDelete: SetNull)
+  hostingPlanSlug         String?
+  price                   Decimal             @db.Decimal(10, 2)
+  currency                String              @default("USD")
+  billingCycle            BillingCycle
+  isActive                Boolean             @default(true)
+  sortOrder               Int                 @default(0)
+  /**
+   * Digital delivery for LICENSE (and similar) products
+   */
+  deliveryMode            DigitalDeliveryMode @default(NONE)
+  isFree                  Boolean             @default(false)
+  /**
+   * One activation key per line; consumed on provision when pool mode
+   */
+  licenseKeys             String?             @db.Text
+  downloadUrl             String?
+  downloadFileName        String?
+  /**
+   * App / product promo copy shown to customers
+   */
+  promoText               String?             @db.Text
+  activationGuideText     String?             @db.Text
   activationGuideImageUrl String?
   activationGuideVideoUrl String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
   orderItems   OrderItem[]
   invoiceItems InvoiceItem[]
@@ -353,29 +384,33 @@ enum DnsRecordType {
 }
 
 model Domain {
-  id              String               @id @default(cuid())
-  userId          String
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name            String               @unique
-  tld             String
-  status          DomainStatus         @default(PENDING)
-  managementMode  DomainManagementMode @default(REGISTRAR)
-  /** Internal only — Natro, Hostinger, etc. Not shown to customers. */
-  registrarSource String?
-  adminNotes      String?
-  registrarRef    String?
-  registeredAt    DateTime?
-  expiresAt       DateTime?
-  autoRenew       Boolean              @default(true)
-  nameservers     String[]             @default([])
-  /** Glue records: [{ "host": "ns1.example.com", "ip": "1.2.3.4" }] */
-  nsGlueRecords   Json                 @default("[]")
-  billingAmount    Decimal?            @db.Decimal(10, 2)
-  billingCurrency  String              @default("USD")
+  id               String               @id @default(cuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String               @unique
+  tld              String
+  status           DomainStatus         @default(PENDING)
+  managementMode   DomainManagementMode @default(REGISTRAR)
+  /**
+   * Internal only — Natro, Hostinger, etc. Not shown to customers.
+   */
+  registrarSource  String?
+  adminNotes       String?
+  registrarRef     String?
+  registeredAt     DateTime?
+  expiresAt        DateTime?
+  autoRenew        Boolean              @default(true)
+  nameservers      String[]             @default([])
+  /**
+   * Glue records: [{ "host": "ns1.example.com", "ip": "1.2.3.4" }]
+   */
+  nsGlueRecords    Json                 @default("[]")
+  billingAmount    Decimal?             @db.Decimal(10, 2)
+  billingCurrency  String               @default("USD")
   graceEndsAt      DateTime?
   renewalInvoiceId String?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   dnsRecords     DnsRecord[]
   transfers      DomainTransfer[]
@@ -489,23 +524,23 @@ enum ServerPowerAction {
 }
 
 model ServerPlan {
-  id           String       @id @default(cuid())
-  slug         String       @unique
-  name         String
-  description  String?
-  type         ServerType
-  cpuCores     Int
-  ramGb        Int
-  diskGb       Int
-  bandwidthGbps Decimal     @default(1.0) @db.Decimal(4, 2)
-  price        Decimal      @db.Decimal(10, 2)
-  currency     String       @default("USD")
-  billingCycle BillingCycle @default(MONTHLY)
-  regions      String[]     @default(["fra-01", "nyc-01", "sin-01"])
-  isActive     Boolean      @default(true)
-  sortOrder    Int          @default(0)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  name          String
+  description   String?
+  type          ServerType
+  cpuCores      Int
+  ramGb         Int
+  diskGb        Int
+  bandwidthGbps Decimal      @default(1.0) @db.Decimal(4, 2)
+  price         Decimal      @db.Decimal(10, 2)
+  currency      String       @default("USD")
+  billingCycle  BillingCycle @default(MONTHLY)
+  regions       String[]     @default(["fra-01", "nyc-01", "sin-01"])
+  isActive      Boolean      @default(true)
+  sortOrder     Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   servers Server[]
 
@@ -513,31 +548,33 @@ model ServerPlan {
 }
 
 model Server {
-  id           String       @id @default(cuid())
-  userId       String
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId       String
-  plan         ServerPlan   @relation(fields: [planId], references: [id])
-  hostname     String       @unique
-  displayName  String
-  type         ServerType
-  status       ServerStatus @default(PROVISIONING)
-  region       String
-  ipv4         String?
-  osTemplate   String       @default("ubuntu-22.04")
-  proxmoxVmId  String?
-  proxmoxNode  String?
-  cpuCores     Int
-  ramGb        Int
-  diskGb       Int
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId        String
+  plan          ServerPlan   @relation(fields: [planId], references: [id])
+  hostname      String       @unique
+  displayName   String
+  type          ServerType
+  status        ServerStatus @default(PROVISIONING)
+  region        String
+  ipv4          String?
+  osTemplate    String       @default("ubuntu-22.04")
+  proxmoxVmId   String?
+  proxmoxNode   String?
+  cpuCores      Int
+  ramGb         Int
+  diskGb        Int
   provisionedAt DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  expiresAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   powerLogs ServerPowerLog[]
 
   @@index([userId])
   @@index([planId])
+  @@index([expiresAt])
   @@map("servers")
 }
 
@@ -610,23 +647,23 @@ enum PromoDiscountType {
 }
 
 model PromoCode {
-  id                 String             @id @default(cuid())
-  code               String             @unique
-  type               PromoDiscountType
-  value              Decimal            @db.Decimal(10, 2)
-  currency           PriceCurrency?
-  maxDiscountAmount  Decimal?           @db.Decimal(10, 2)
-  minOrderAmount     Decimal?           @db.Decimal(10, 2)
-  startsAt           DateTime?
-  endsAt             DateTime?
-  maxRedemptions     Int?
-  maxPerUser         Int?
-  isActive           Boolean            @default(true)
-  appliesToAll       Boolean            @default(true)
-  productIds         String[]           @default([])
-  categories         ProductCategory[]  @default([])
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                String            @id @default(cuid())
+  code              String            @unique
+  type              PromoDiscountType
+  value             Decimal           @db.Decimal(10, 2)
+  currency          PriceCurrency?
+  maxDiscountAmount Decimal?          @db.Decimal(10, 2)
+  minOrderAmount    Decimal?          @db.Decimal(10, 2)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  maxRedemptions    Int?
+  maxPerUser        Int?
+  isActive          Boolean           @default(true)
+  appliesToAll      Boolean           @default(true)
+  productIds        String[]          @default([])
+  categories        ProductCategory[] @default([])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   redemptions PromoRedemption[]
   orders      Order[]
@@ -652,24 +689,24 @@ model PromoRedemption {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status          OrderStatus @default(PENDING)
-  subtotal        Decimal     @db.Decimal(10, 2)
-  discountAmount  Decimal     @default(0) @db.Decimal(10, 2)
-  total           Decimal     @db.Decimal(10, 2)
-  currency        String      @default("USD")
-  promoCodeId     String?
-  promoCodeRef    PromoCode?  @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
-  promoCode       String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         OrderStatus @default(PENDING)
+  subtotal       Decimal     @db.Decimal(10, 2)
+  discountAmount Decimal     @default(0) @db.Decimal(10, 2)
+  total          Decimal     @db.Decimal(10, 2)
+  currency       String      @default("USD")
+  promoCodeId    String?
+  promoCodeRef   PromoCode?  @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  promoCode      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  items            OrderItem[]
-  invoices         Invoice[]
-  hostingAccounts  HostingAccount[]
-  promoRedemption  PromoRedemption?
+  items           OrderItem[]
+  invoices        Invoice[]
+  hostingAccounts HostingAccount[]
+  promoRedemption PromoRedemption?
 
   @@index([userId])
   @@index([promoCodeId])
@@ -695,24 +732,28 @@ model OrderItem {
 }
 
 model Invoice {
-  id               String         @id @default(cuid())
+  id               String          @id @default(cuid())
   userId           String
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   orderId          String?
-  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order            Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
   hostingAccountId String?
   hostingAccount   HostingAccount? @relation(fields: [hostingAccountId], references: [id], onDelete: SetNull)
   domainId         String?
-  domain           Domain?        @relation(fields: [domainId], references: [id], onDelete: SetNull)
-  invoiceNumber    String         @unique
-  status           InvoiceStatus  @default(OPEN)
-  subtotal         Decimal        @db.Decimal(10, 2)
-  total            Decimal        @db.Decimal(10, 2)
-  currency         String         @default("USD")
+  domain           Domain?         @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  invoiceNumber    String          @unique
+  status           InvoiceStatus   @default(OPEN)
+  subtotal         Decimal         @db.Decimal(10, 2)
+  total            Decimal         @db.Decimal(10, 2)
+  currency         String          @default("USD")
   dueDate          DateTime
+  /**
+   * Idempotency marker for the one-day WhatsApp due reminder.
+   */
+  reminder1dSentAt DateTime?
   paidAt           DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   items    InvoiceItem[]
   payments Payment[]
@@ -721,6 +762,7 @@ model Invoice {
   @@index([orderId])
   @@index([hostingAccountId])
   @@index([domainId])
+  @@index([status, dueDate])
   @@map("invoices")
 }
 
@@ -782,21 +824,25 @@ model Payment {
 }
 
 model Ticket {
-  id           String         @id @default(cuid())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject      String
-  status       TicketStatus   @default(OPEN)
-  priority     TicketPriority @default(MEDIUM)
+  id                  String                    @id @default(cuid())
+  userId              String
+  user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject             String
+  status              TicketStatus              @default(OPEN)
+  priority            TicketPriority            @default(MEDIUM)
   relatedServiceType  TicketRelatedServiceType?
   relatedServiceId    String?
   relatedServiceLabel String?
-  assignedToId String?
-  assignedTo   User?          @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  /**
+   * Client IP captured when the ticket was created.
+   */
+  clientIp            String?
+  assignedToId        String?
+  assignedTo          User?                     @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
 
-  messages TicketMessage[]
+  messages    TicketMessage[]
   attachments TicketAttachment[]
 
   @@index([userId])
@@ -885,90 +931,124 @@ enum ManualServiceCategory {
 }
 
 model HostingServer {
-  id             String       @id @default(cuid())
-  name           String
-  hostname       String
-  ipAddress      String
-  panel          HostingPanel
-  whmUsername    String
-  whmPasswordEnc String
-  apiTokenEnc    String?
-  isDefault      Boolean      @default(false)
-  isActive       Boolean      @default(true)
-  maxAccounts    Int?
-  accountCount      Int          @default(0)
-  lastCheckedAt     DateTime?
-  lastConnectionOk  Boolean?
-  createdAt         DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id               String       @id @default(cuid())
+  name             String
+  hostname         String
+  ipAddress        String
+  panel            HostingPanel
+  whmUsername      String
+  whmPasswordEnc   String
+  apiTokenEnc      String?
+  isDefault        Boolean      @default(false)
+  isActive         Boolean      @default(true)
+  maxAccounts      Int?
+  accountCount     Int          @default(0)
+  lastCheckedAt    DateTime?
+  lastConnectionOk Boolean?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  accounts HostingAccount[]
-  plans    HostingPlan[]
+  accounts  HostingAccount[]
+  plans     HostingPlan[]
+  planLinks HostingPlanServer[]
 
   @@map("hosting_servers")
 }
 
-model HostingPlan {
-  id           String       @id @default(cuid())
-  slug         String       @unique
-  name         String
-  description  String?
-  panel        HostingPanel
-  diskGb       Int
-  bandwidthGb  Int
-  maxDomains   Int
-  maxEmails    Int
-  maxDatabases Int
-  price        Decimal      @db.Decimal(10, 2)
-  currency     String       @default("USD")
-  billingCycle BillingCycle @default(MONTHLY)
-  isActive     Boolean      @default(true)
-  sortOrder    Int          @default(0)
-  serverId     String?
-  pleskPlanName String?
-  server       HostingServer? @relation(fields: [serverId], references: [id], onDelete: Restrict)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+enum HostingDistributionMode {
+  FAILOVER
+  BALANCED
+}
 
-  accounts HostingAccount[]
+model HostingPlan {
+  id               String                  @id @default(cuid())
+  slug             String                  @unique
+  name             String
+  description      String?
+  panel            HostingPanel
+  diskGb           Int
+  bandwidthGb      Int
+  maxDomains       Int
+  maxEmails        Int
+  maxDatabases     Int
+  price            Decimal                 @db.Decimal(10, 2)
+  currency         String                  @default("USD")
+  billingCycle     BillingCycle            @default(MONTHLY)
+  isActive         Boolean                 @default(true)
+  sortOrder        Int                     @default(0)
+  /**
+   * Primary / legacy single-server link (kept in sync with first planServers row).
+   */
+  serverId         String?
+  pleskPlanName    String?
+  /**
+   * FAILOVER = fill servers in priority order; BALANCED = prefer least-loaded.
+   */
+  distributionMode HostingDistributionMode @default(FAILOVER)
+  server           HostingServer?          @relation(fields: [serverId], references: [id], onDelete: Restrict)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  accounts    HostingAccount[]
+  planServers HostingPlanServer[]
 
   @@index([serverId])
   @@map("hosting_plans")
 }
 
+model HostingPlanServer {
+  id        String        @id @default(cuid())
+  planId    String
+  plan      HostingPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  serverId  String
+  server    HostingServer @relation(fields: [serverId], references: [id], onDelete: Restrict)
+  /**
+   * Lower = earlier for FAILOVER mode.
+   */
+  priority  Int           @default(0)
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([planId, serverId])
+  @@index([planId, priority])
+  @@index([serverId])
+  @@map("hosting_plan_servers")
+}
+
 model HostingAccount {
-  id               String         @id @default(cuid())
-  userId           String
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId           String
-  plan             HostingPlan    @relation(fields: [planId], references: [id])
-  serverId         String?
-  server           HostingServer? @relation(fields: [serverId], references: [id], onDelete: SetNull)
-  orderId          String?
-  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  primaryDomain    String         @unique
-  username         String         @unique
-  panel            HostingPanel
-  managementMode   HostingManagementMode @default(AUTOMATED)
-  serviceCategory  ManualServiceCategory?
-  status           ServiceStatus  @default(PROVISIONING)
-  panelIp          String?
-  panelUrl         String?
-  panelUsername    String?
-  panelPasswordEnc String?
-  panelRef         String?
-  panelSessionTokenEnc String?
+  id                    String                 @id @default(cuid())
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                String
+  plan                  HostingPlan            @relation(fields: [planId], references: [id])
+  serverId              String?
+  server                HostingServer?         @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  orderId               String?
+  order                 Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  primaryDomain         String                 @unique
+  username              String                 @unique
+  panel                 HostingPanel
+  managementMode        HostingManagementMode  @default(AUTOMATED)
+  serviceCategory       ManualServiceCategory?
+  status                ServiceStatus          @default(PROVISIONING)
+  panelIp               String?
+  panelUrl              String?
+  panelUsername         String?
+  panelPasswordEnc      String?
+  panelRef              String?
+  panelSessionTokenEnc  String?
   panelSessionExpiresAt DateTime?
-  expiresAt        DateTime?
-  billingAmount    Decimal?       @db.Decimal(10, 2)
-  billingCurrency  String         @default("USD")
-  graceEndsAt      DateTime?
-  renewalInvoiceId String?
-  provisionStage   String?
-  provisionError   String?
-  provisionedAt    DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  expiresAt             DateTime?
+  billingAmount         Decimal?               @db.Decimal(10, 2)
+  billingCurrency       String                 @default("USD")
+  graceEndsAt           DateTime?
+  renewalInvoiceId      String?
+  provisionStage        String?
+  provisionError        String?
+  provisionedAt         DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
   invoices Invoice[]
 
@@ -1053,4 +1133,107 @@ model CmsPageSection {
   @@unique([pageId, key])
   @@index([pageId])
   @@map("cms_page_sections")
+}
+
+enum WhatsappSessionStatus {
+  DISCONNECTED
+  QR_READY
+  CONNECTING
+  CONNECTED
+}
+
+enum WhatsappMessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/**
+ * Singleton row (id = "default") for the company WhatsApp linked-device session.
+ */
+model WhatsappSession {
+  id              String                @id @default("default")
+  status          WhatsappSessionStatus @default(DISCONNECTED)
+  phoneNumber     String?
+  displayName     String?
+  lastQrAt        DateTime?
+  lastConnectedAt DateTime?
+  lastError       String?
+  updatedAt       DateTime              @updatedAt
+  createdAt       DateTime              @default(now())
+
+  @@map("whatsapp_sessions")
+}
+
+model WhatsappMessageLog {
+  id        String                @id @default(cuid())
+  toPhone   String
+  userId    String?
+  apiKeyId  String?
+  apiKey    WhatsappApiKey?       @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  body      String
+  status    WhatsappMessageStatus @default(PENDING)
+  error     String?
+  createdAt DateTime              @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([apiKeyId])
+  @@map("whatsapp_message_logs")
+}
+
+/**
+ * Admin-managed entitlement for use of the shared WhatsApp gateway.
+ */
+model WhatsappApiAccess {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isEnabled    Boolean  @default(false)
+  monthlyLimit Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("whatsapp_api_access")
+}
+
+/**
+ * Plaintext keys are shown once; only their SHA-256 hashes are persisted.
+ */
+model WhatsappApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  keyPrefix  String
+  keyHash    String    @unique
+  lastFour   String
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  messageLogs WhatsappMessageLog[]
+
+  @@index([userId, isActive])
+  @@map("whatsapp_api_keys")
+}
+
+/**
+ * Atomic monthly usage counter; one row per customer and UTC month.
+ */
+model WhatsappApiUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodStart DateTime @db.Date
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, periodStart])
+  @@index([periodStart])
+  @@map("whatsapp_api_usage")
 }

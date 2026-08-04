@@ -448,6 +448,8 @@ export class AuthService {
       canChangeCurrency: allowed,
       nextCurrencyChangeAt: allowed ? null : (nextChange?.toISOString() ?? null),
       billingAddress: normalizeBillingAddress(user.billingAddress),
+      phone: user.phone ?? null,
+      whatsappNotificationsEnabled: user.whatsappNotificationsEnabled,
       accountBalance: Number(user.accountBalance ?? 0),
       balanceCurrency: user.balanceCurrency ?? "USD",
       preferredLocale: resolveAuthEmailLocale(user.localeHistory?.[0]),
@@ -464,16 +466,25 @@ export class AuthService {
     const accessExpiresIn = this.configService.get<string>("jwt.accessExpiresIn", "15m");
     const rememberMe = options?.rememberMe ?? false;
 
+    let sessionUser = user;
+    if (meta?.ip?.trim()) {
+      try {
+        sessionUser = await this.authRepository.updateLastLogin(user.id, meta.ip.trim());
+      } catch (err) {
+        this.logger.warn(`Failed to persist lastLoginIp for ${user.id}: ${String(err)}`);
+      }
+    }
+
     const accessToken = await this.jwtService.signAsync({
-      sub: user.id,
-      email: user.email,
-      role: mapPrismaRoleToApp(user.role),
+      sub: sessionUser.id,
+      email: sessionUser.email,
+      role: mapPrismaRoleToApp(sessionUser.role),
       permissions,
     });
 
     const refreshToken = generateSecureToken(48);
     await this.authRepository.createRefreshToken({
-      userId: user.id,
+      userId: sessionUser.id,
       token: refreshToken,
       expiresAt: rememberMe
         ? this.addDays(new Date(), REFRESH_TOKEN_DAYS_REMEMBER)
@@ -483,7 +494,7 @@ export class AuthService {
     });
 
     return {
-      user: this.mapUser(user),
+      user: this.mapUser(sessionUser),
       tokens: {
         accessToken,
         refreshToken,

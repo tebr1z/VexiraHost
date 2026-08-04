@@ -17,8 +17,14 @@ export class HostingRepository {
       where: {
         isActive: true,
         ...(panel ? { panel } : {}),
-        serverId: { not: null },
-        server: { isActive: true },
+        OR: [
+          { server: { isActive: true } },
+          {
+            planServers: {
+              some: { isActive: true, server: { isActive: true } },
+            },
+          },
+        ],
       },
       orderBy: { sortOrder: "asc" },
     });
@@ -29,10 +35,23 @@ export class HostingRepository {
       where: {
         slug,
         isActive: true,
-        serverId: { not: null },
-        server: { isActive: true },
+        OR: [
+          { server: { isActive: true } },
+          {
+            planServers: {
+              some: { isActive: true, server: { isActive: true } },
+            },
+          },
+        ],
       },
-      include: { server: true },
+      include: {
+        server: true,
+        planServers: {
+          where: { isActive: true },
+          orderBy: { priority: "asc" },
+          include: { server: true },
+        },
+      },
     });
   }
 
@@ -40,7 +59,14 @@ export class HostingRepository {
   findPlanBySlugAny(slug: string) {
     return this.prisma.hostingPlan.findFirst({
       where: { slug, isActive: true },
-      include: { server: true },
+      include: {
+        server: true,
+        planServers: {
+          where: { isActive: true },
+          orderBy: { priority: "asc" },
+          include: { server: true },
+        },
+      },
     });
   }
 
@@ -48,8 +74,14 @@ export class HostingRepository {
     return this.prisma.hostingPlan.findMany({
       where: {
         isActive: true,
-        serverId: { not: null },
-        server: { isActive: true },
+        OR: [
+          { server: { isActive: true } },
+          {
+            planServers: {
+              some: { isActive: true, server: { isActive: true } },
+            },
+          },
+        ],
       },
       select: { slug: true },
     });

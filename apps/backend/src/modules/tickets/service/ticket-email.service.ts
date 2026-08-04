@@ -15,6 +15,8 @@ import {
   primaryButton,
 } from "@/shared/email/transactional-template.util";
 
+const DEFAULT_ADMIN_NOTIFY_EMAIL = "hasimovtabriz@gmail.com";
+
 type TicketMailUser = {
   to: string;
   firstName?: string | null;
@@ -32,6 +34,14 @@ export class TicketEmailService {
     private readonly configService: ConfigService,
     private readonly smtpMailService: SmtpMailService,
   ) {}
+
+  private adminNotifyEmail(): string {
+    return (
+      process.env.TICKET_ADMIN_NOTIFY_EMAIL?.trim() ||
+      this.configService.get<string>("TICKET_ADMIN_NOTIFY_EMAIL") ||
+      DEFAULT_ADMIN_NOTIFY_EMAIL
+    );
+  }
 
   async sendTicketCreatedEmail(
     input: TicketMailUser & {
@@ -89,6 +99,65 @@ export class TicketEmailService {
     );
 
     await this.safeSend(input.to, content);
+  }
+
+  async sendTicketCreatedAdminNotification(input: {
+    ticketId: string;
+    subject: string;
+    priority: string;
+    message: string;
+    customerEmail: string;
+    customerName: string;
+    clientIp?: string | null;
+    lastLoginIp?: string | null;
+  }): Promise<void> {
+    const to = this.adminNotifyEmail();
+    const appUrl = this.appUrl();
+    const ticketUrl = `${appUrl}/t4abriz/panel/tickets/${input.ticketId}`;
+    const preview = truncateMessage(input.message);
+    const ticketIp = input.clientIp?.trim() || "—";
+    const loginIp = input.lastLoginIp?.trim() || "—";
+
+    const bodyHtml = [
+      noticeBlock(
+        "Yeni destek bildirimi",
+        `${input.customerName} (${input.customerEmail}) yeni bir destek bileti oluşturdu.`,
+        "warning",
+      ),
+      infoTable(
+        infoRow("Bilet ID", input.ticketId.slice(0, 10).toUpperCase()) +
+          infoRow("Müşteri", `${input.customerName} (${input.customerEmail})`) +
+          infoRow("Konu", input.subject) +
+          infoRow("Öncelik", input.priority) +
+          infoRow("Bilet IP (çıkış)", ticketIp) +
+          infoRow("Son giriş IP", loginIp),
+      ),
+      noticeBlock("Mesaj", preview, "info"),
+      primaryButton("Bileti aç", ticketUrl),
+    ].join("");
+
+    const content = createBrandEmail({
+      brand: "Vexira Host",
+      tagline: "Destek bildirimi",
+      appUrl: ticketUrl,
+      title: "Yeni destek bileti",
+      subtitle: `${input.customerEmail} — ${input.subject}`,
+      bodyHtml,
+      footer: "Yeni müşteri destek bileti oluşturulduğunda bu e-posta gönderilir.",
+    });
+
+    content.subject = `Vexira Host • Yeni destek — ${input.customerEmail} (${ticketIp})`;
+    content.text = [
+      "Yeni destek bileti",
+      `Müşteri: ${input.customerName} (${input.customerEmail})`,
+      `Konu: ${input.subject}`,
+      `Bilet IP: ${ticketIp}`,
+      `Son giriş IP: ${loginIp}`,
+      `Mesaj: ${preview}`,
+      `Admin: ${ticketUrl}`,
+    ].join("\n");
+
+    await this.safeSend(to, content);
   }
 
   async sendTicketReplyEmail(

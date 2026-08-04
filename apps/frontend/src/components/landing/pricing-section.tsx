@@ -3,9 +3,9 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
-import { MaterialIcon } from "./material-icon";
 import { PricingCard } from "./pricing-card";
 
+import { PlansSectionIntro } from "@/components/hosting/plans-section-intro";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
 import {
@@ -78,41 +78,31 @@ export function PricingSection(): React.ReactElement {
   return (
     <section className="apple-grouped py-20 sm:py-28" id="pricing">
       <div className="max-w-container-max mx-auto px-5 md:px-8">
-        <div className="mb-12 text-center">
-          <h2 className="apple-section-title">{t("title")}</h2>
-          <p className="apple-section-subtitle mx-auto mt-4">{t("subtitle")}</p>
-        </div>
-
-        <div className="mb-10 flex flex-wrap items-center justify-center gap-5 text-sm text-[var(--label-secondary)]">
-          {[t("guarantee1"), t("guarantee2"), t("guarantee3")].map((item) => (
-            <span key={item} className="inline-flex items-center gap-1.5">
-              <MaterialIcon name="verified" className="text-[16px] text-[var(--accent)]" />
-              {item}
-            </span>
-          ))}
-        </div>
-
-        {loadingCategories ? (
-          <div className="mb-10 flex justify-center">
-            <LoadingSkeleton className="h-9 w-72 rounded-[9px]" />
-          </div>
-        ) : categories.length > 0 ? (
-          <div className="mb-12 flex justify-center overflow-x-auto pb-1">
-            <div className="apple-segmented">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  data-active={cat.id === activeCategory}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className="apple-segmented-item"
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <PlansSectionIntro
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          subtitle={t("subtitle")}
+          guarantees={[t("guarantee1"), t("guarantee2"), t("guarantee3")]}
+          controls={
+            loadingCategories ? (
+              <LoadingSkeleton className="h-9 w-72 rounded-[9px]" />
+            ) : categories.length > 0 ? (
+              <div className="apple-segmented max-w-full overflow-x-auto">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    data-active={cat.id === activeCategory}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className="apple-segmented-item"
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            ) : null
+          }
+        />
 
         {loadingProducts ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">

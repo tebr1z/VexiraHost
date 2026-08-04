@@ -56,6 +56,7 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     HostingRepository,
     HostingBillingService,
     HostingEmailService,
+    HostingExpiryJobService,
   ],
 })
 export class HostingModule {}

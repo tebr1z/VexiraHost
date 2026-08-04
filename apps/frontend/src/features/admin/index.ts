@@ -10,3 +10,4 @@ export * from "./services/admin-payments.service";
 export * from "./services/admin-system.service";
 export * from "./services/admin-navigation.service";
 export * from "./services/admin-campaigns.service";
+export * from "./services/admin-whatsapp.service";

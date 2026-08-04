@@ -1,14 +1,19 @@
 "use client";
 
-import { Link, useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { HostingPlanForm, toHostingPlanPayload } from "@/components/admin/hosting-plan-form";
 import { PageHeader } from "@/components/ui";
-import { deleteAdminHostingPlan, getAdminHostingPlan, updateAdminHostingPlan, type AdminHostingPlan } from "@/features/admin";
+import {
+  deleteAdminHostingPlan,
+  getAdminHostingPlan,
+  updateAdminHostingPlan,
+  type AdminHostingPlan,
+} from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { Link, useRouter } from "@/i18n/navigation";
 import { toast } from "@/stores/toast-store";
 
 export default function EditHostingPlanPage(): React.ReactElement | null {
@@ -23,7 +28,9 @@ export default function EditHostingPlanPage(): React.ReactElement | null {
   const [plan, setPlan] = useState<AdminHostingPlan | null>(null);
 
   useEffect(() => {
-    getAdminHostingPlan(id).then(setPlan).catch(() => undefined);
+    getAdminHostingPlan(id)
+      .then(setPlan)
+      .catch(() => undefined);
   }, [id]);
 
   if (!plan) return <p className="text-on-surface-variant">{tu("loading")}</p>;
@@ -45,7 +52,12 @@ export default function EditHostingPlanPage(): React.ReactElement | null {
           name: plan.name,
           description: plan.description ?? "",
           panel: plan.panel,
-          serverId: plan.serverId ?? "",
+          serverIds: plan.servers?.length
+            ? plan.servers.map((s) => s.id)
+            : plan.serverId
+              ? [plan.serverId]
+              : [],
+          distributionMode: plan.distributionMode ?? "FAILOVER",
           diskGb: String(plan.diskGb),
           bandwidthGb: String(plan.bandwidthGb),
           maxDomains: String(plan.maxDomains),
@@ -64,7 +76,7 @@ export default function EditHostingPlanPage(): React.ReactElement | null {
       />
       <button
         type="button"
-        className="text-sm text-error hover:underline"
+        className="text-error text-sm hover:underline"
         onClick={async () => {
           if (!confirm(tf("deletePlanConfirm"))) return;
           try {
@@ -78,7 +90,10 @@ export default function EditHostingPlanPage(): React.ReactElement | null {
       >
         {tf("deletePlan")}
       </button>
-      <Link href="/t4abriz/panel/hosting/plans" className="block text-sm text-secondary hover:underline">
+      <Link
+        href="/t4abriz/panel/hosting/plans"
+        className="text-secondary block text-sm hover:underline"
+      >
         {tf("backToPlans")}
       </Link>
     </div>

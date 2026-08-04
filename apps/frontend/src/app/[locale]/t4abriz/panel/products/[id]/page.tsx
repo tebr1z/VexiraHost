@@ -4,7 +4,12 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { ProductForm, pricesFromAdmin, toProductPayload } from "@/components/admin/product-form";
+import {
+  ProductForm,
+  pricesFromAdmin,
+  pricingOptionsFromAdmin,
+  toProductPayload,
+} from "@/components/admin/product-form";
 import { PageHeader } from "@/components/ui";
 import { getAdminProduct, updateAdminProduct, type AdminProduct } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
@@ -52,6 +57,7 @@ export default function EditProductPage(): React.ReactElement | null {
           price: String(product.price),
           isActive: product.isActive,
           sortOrder: String(product.sortOrder),
+          ...pricingOptionsFromAdmin(product.prices),
           prices: pricesFromAdmin(product.prices, product.price),
           deliveryMode: product.deliveryMode ?? "LICENSE_KEY",
           isFree: product.isFree ?? false,

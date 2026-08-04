@@ -1,4 +1,4 @@
-﻿import { Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InvoiceStatus, OrderStatus, PaymentStatus, type PaymentMethodType } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 

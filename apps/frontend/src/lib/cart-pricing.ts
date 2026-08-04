@@ -9,6 +9,9 @@ export function getYearlyOfferFromProduct(product: CatalogProduct): {
   yearlyPrice?: number;
   yearlySavingsPercent?: number;
 } {
+  if (product.yearlyAvailable === false) {
+    return {};
+  }
   if (!isMonthlyBilling(product.billingCycle)) {
     return {};
   }

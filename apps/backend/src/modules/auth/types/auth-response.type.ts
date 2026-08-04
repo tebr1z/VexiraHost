@@ -22,6 +22,8 @@ export interface AuthUserResponse {
     postalCode: string;
     country: string;
   } | null;
+  phone?: string | null;
+  whatsappNotificationsEnabled?: boolean;
   accountBalance?: number;
   balanceCurrency?: string;
   preferredLocale?: string;

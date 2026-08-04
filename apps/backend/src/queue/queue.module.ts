@@ -1,10 +1,11 @@
-import Redis from "ioredis";
 import { Global, Logger, Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
+import Redis from "ioredis";
 
 export const QUEUE_CONNECTION = "QUEUE_CONNECTION";
 export const DEFAULT_QUEUE = "DEFAULT_QUEUE";
+export const LIFECYCLE_QUEUE = "LIFECYCLE_QUEUE";
 
 const logger = new Logger("QueueModule");
 let redisUnavailableLogged = false;
@@ -50,7 +51,10 @@ async function probeRedis(url: string): Promise<boolean> {
   }
 }
 
-async function createOptionalQueue(configService: ConfigService): Promise<Queue | null> {
+async function createOptionalQueue(
+  configService: ConfigService,
+  queueName = "vexira-default",
+): Promise<Queue | null> {
   const enabled = configService.get<string>("REDIS_ENABLED") !== "false";
   if (!enabled) {
     logRedisUnavailable("Redis disabled (REDIS_ENABLED=false) — background queue is off.");
@@ -62,7 +66,9 @@ async function createOptionalQueue(configService: ConfigService): Promise<Queue 
 
   if (!available) {
     if (process.env.NODE_ENV === "development") {
-      logRedisUnavailable("Redis unavailable — queue disabled until Redis is running on port 6379.");
+      logRedisUnavailable(
+        "Redis unavailable — queue disabled until Redis is running on port 6379.",
+      );
       return null;
     }
 
@@ -70,7 +76,7 @@ async function createOptionalQueue(configService: ConfigService): Promise<Queue 
     throw new Error("Redis connection failed");
   }
 
-  const queue = new Queue("vexira-default", { connection: buildConnection(url) });
+  const queue = new Queue(queueName, { connection: buildConnection(url) });
   queue.on("error", (error) => {
     logger.debug(`Queue error: ${error.message}`);
   });
@@ -95,8 +101,14 @@ async function createOptionalQueue(configService: ConfigService): Promise<Queue 
       useFactory: async (configService: ConfigService): Promise<Queue | null> =>
         createOptionalQueue(configService),
     },
+    {
+      provide: LIFECYCLE_QUEUE,
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService): Promise<Queue | null> =>
+        createOptionalQueue(configService, "vexira-lifecycle"),
+    },
   ],
-  exports: [QUEUE_CONNECTION, DEFAULT_QUEUE],
+  exports: [QUEUE_CONNECTION, DEFAULT_QUEUE, LIFECYCLE_QUEUE],
 })
 export class QueueModule {}
 

@@ -1,14 +1,13 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { TicketMessageThread } from "@/components/tickets/ticket-message-thread";
 import { PageHeader, StatusBadge } from "@/components/ui";
-import { useRequireAuth } from "@/features/auth";
 import { updateAdminTicketStatus } from "@/features/admin/services/admin.service";
+import { useRequireAuth } from "@/features/auth";
 import {
   downloadTicketAttachment,
   getTicket,
@@ -17,6 +16,7 @@ import {
   type TicketAttachment,
   type TicketDetail,
 } from "@/features/tickets";
+import { Link } from "@/i18n/navigation";
 import { isKnownStatus } from "@/lib/i18n/status";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -131,11 +131,14 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
         <StatusBadge status={ticket.status} />
-        <span className="rounded-full bg-surface-container-low px-3 py-1 text-sm capitalize text-on-surface-variant">
+        <span className="bg-surface-container-low text-on-surface-variant rounded-full px-3 py-1 text-sm capitalize">
           {tc("priorityLabel", { priority: ticket.priority.toLowerCase() })}
         </span>
         <div className="ml-auto flex flex-col items-end gap-1">
-          <label htmlFor="ticket-status" className="text-xs font-medium text-[var(--label-secondary)]">
+          <label
+            htmlFor="ticket-status"
+            className="text-xs font-medium text-[var(--label-secondary)]"
+          >
             {tat("changeStatus")}
           </label>
           <select
@@ -151,21 +154,41 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
               </option>
             ))}
           </select>
-          {statusError && <p className="text-xs text-error">{statusError}</p>}
+          {statusError && <p className="text-error text-xs">{statusError}</p>}
         </div>
       </div>
 
       {ticket.relatedService?.label && (
         <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-4 py-3">
           <p className="text-xs font-medium text-[var(--label-tertiary)]">{tp("relatedService")}</p>
-          <p className="mt-1 text-sm font-medium text-[var(--label-primary)]">{ticket.relatedService.label}</p>
+          <p className="mt-1 text-sm font-medium text-[var(--label-primary)]">
+            {ticket.relatedService.label}
+          </p>
         </div>
       )}
 
+      <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-4 py-3">
+        <p className="text-xs font-medium text-[var(--label-tertiary)]">{tat("clientIpInfo")}</p>
+        <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-[var(--label-tertiary)]">{tat("ticketClientIp")}</dt>
+            <dd className="font-mono font-medium text-[var(--label-primary)]">
+              {ticket.clientIp || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[var(--label-tertiary)]">{tat("lastLoginIp")}</dt>
+            <dd className="font-mono font-medium text-[var(--label-primary)]">
+              {requester?.lastLoginIp || "—"}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       <TicketMessageThread messages={ticket.messages} locale={locale} viewer="admin" />
 
-      <section className="rounded-2xl border border-outline-variant/50 bg-surface p-5">
-        <h2 className="mb-3 font-semibold text-primary">{tp("attachments")}</h2>
+      <section className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+        <h2 className="text-primary mb-3 font-semibold">{tp("attachments")}</h2>
         {(ticket.attachments?.length ?? 0) > 0 && (
           <ul className="mb-3 space-y-2">
             {ticket.attachments!.map((attachment) => (
@@ -182,7 +205,7 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
             ))}
           </ul>
         )}
-        <p className="mb-3 text-xs text-on-surface-variant">{tp("maxFileSize")}</p>
+        <p className="text-on-surface-variant mb-3 text-xs">{tp("maxFileSize")}</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -198,26 +221,29 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
           type="button"
           disabled={uploading}
           onClick={() => fileInputRef.current?.click()}
-          className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          className="border-outline-variant rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-60"
         >
           {uploading ? tp("uploading") : tp("uploadAttachment")}
         </button>
-        {uploadError && <p className="mt-2 text-sm text-error">{uploadError}</p>}
+        {uploadError && <p className="text-error mt-2 text-sm">{uploadError}</p>}
       </section>
 
-      <form onSubmit={handleReply} className="space-y-3 rounded-2xl border border-outline-variant/50 bg-surface p-5">
-        <h2 className="font-semibold text-primary">{tc("staffReply")}</h2>
+      <form
+        onSubmit={handleReply}
+        className="border-outline-variant/50 bg-surface space-y-3 rounded-2xl border p-5"
+      >
+        <h2 className="text-primary font-semibold">{tc("staffReply")}</h2>
         <textarea
           value={reply}
           onChange={(e) => setReply(e.target.value)}
           rows={4}
           placeholder={tc("staffReplyPlaceholder")}
-          className="w-full rounded-xl border border-outline-variant px-4 py-3"
+          className="border-outline-variant w-full rounded-xl border px-4 py-3"
         />
         <button
           type="submit"
           disabled={sending}
-          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary disabled:opacity-60"
+          className="bg-primary text-on-primary rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
         >
           {sending ? tc("sending") : tc("sendReply")}
         </button>

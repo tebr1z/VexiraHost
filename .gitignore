@@ -52,3 +52,6 @@ docker/data/
 # Misc
 *.pem
 .cache/
+
+# WhatsApp Baileys linked-device auth (do not commit)
+apps/backend/.whatsapp-auth/

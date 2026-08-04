@@ -182,6 +182,13 @@ export const ADMIN_PANEL_NAV_GROUPS: AdminNavGroup[] = [
         matchPrefix: "/t4abriz/panel/system",
         adminOnly: true,
       },
+      {
+        href: "/t4abriz/panel/whatsapp",
+        labelKey: "whatsapp",
+        icon: "chat",
+        matchPrefix: "/t4abriz/panel/whatsapp",
+        adminOnly: true,
+      },
     ],
   },
 ];

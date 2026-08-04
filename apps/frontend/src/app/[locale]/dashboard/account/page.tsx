@@ -3,12 +3,13 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { LoadingSkeleton, PageHeader } from "@/components/ui";
 import { CurrencySwitcher } from "@/components/layout/currency-switcher";
+import { LoadingSkeleton, PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import {
   fetchProfile,
   updateBillingAddress,
+  updatePhone,
 } from "@/features/auth/services/auth.service";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePricingStore } from "@/stores/pricing-store";
@@ -38,6 +39,9 @@ export default function AccountPage(): React.ReactElement | null {
   const [linked, setLinked] = useState<{ provider: string; createdAt: string }[]>([]);
   const [billingForm, setBillingForm] = useState(EMPTY_BILLING);
   const [billingSaving, setBillingSaving] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const tcCart = useTranslations("cart");
 
   useEffect(() => {
@@ -53,7 +57,9 @@ export default function AccountPage(): React.ReactElement | null {
     if (user?.billingAddress) {
       setBillingForm(user.billingAddress);
     }
-  }, [user?.billingAddress]);
+    setPhone(user?.phone ?? "");
+    setWhatsappEnabled(user?.whatsappNotificationsEnabled ?? true);
+  }, [user?.billingAddress, user?.phone, user?.whatsappNotificationsEnabled]);
 
   useEffect(() => {
     if (user) {
@@ -68,6 +74,8 @@ export default function AccountPage(): React.ReactElement | null {
           if (profile.billingAddress) {
             setBillingForm(profile.billingAddress);
           }
+          setPhone(profile.phone ?? "");
+          setWhatsappEnabled(profile.whatsappNotificationsEnabled ?? true);
           setFromUser({
             preferredCurrency: profile.preferredCurrency,
             billingPeriod: profile.billingPeriod,
@@ -93,6 +101,27 @@ export default function AccountPage(): React.ReactElement | null {
       toast(tp("billingSaveFailed"), "error");
     } finally {
       setBillingSaving(false);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    setPhoneSaving(true);
+    try {
+      const profile = await updatePhone({
+        phone: phone.trim() || null,
+        whatsappNotificationsEnabled: whatsappEnabled,
+      });
+      if (accessToken && refreshToken) {
+        setSession({
+          user: profile,
+          tokens: { accessToken, refreshToken, expiresIn: "15m" },
+        });
+      }
+      toast(tp("phoneSaved"), "success");
+    } catch {
+      toast(tp("phoneSaveFailed"), "error");
+    } finally {
+      setPhoneSaving(false);
     }
   };
   if (!user) {
@@ -135,33 +164,61 @@ export default function AccountPage(): React.ReactElement | null {
 
       <section className="panel-card rounded-lg p-6">
         <h2 className="font-jakarta text-xl font-semibold">{tp("currency")}</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">{tp("currencyDesc")}</p>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("currencyDesc")}</p>
         <div className="mt-4">
           <CurrencySwitcher variant="segmented" />
         </div>
         {user.currencyLocked ? (
-          <p className="mt-2 text-xs text-on-surface-variant">{tPricing("azLocked")}</p>
+          <p className="text-on-surface-variant mt-2 text-xs">{tPricing("azLocked")}</p>
         ) : !user.canChangeCurrency && user.nextCurrencyChangeAt ? (
-          <p className="mt-2 text-xs text-on-surface-variant">
+          <p className="text-on-surface-variant mt-2 text-xs">
             {tp("nextChangeAt", {
               date: new Date(user.nextCurrencyChangeAt).toLocaleDateString(locale),
             })}
           </p>
         ) : (
-          <p className="mt-2 text-xs text-on-surface-variant">{tp("currencyCooldownHint")}</p>
+          <p className="text-on-surface-variant mt-2 text-xs">{tp("currencyCooldownHint")}</p>
         )}
       </section>
 
       <section className="panel-card rounded-lg p-6">
+        <h2 className="font-jakarta text-xl font-semibold">{tp("phoneTitle")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("phoneDescription")}</p>
+        <input
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          placeholder="+994501234567"
+          className="border-outline-variant mt-4 h-11 w-full rounded-xl border px-4 text-sm"
+        />
+        <label className="mt-3 flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={whatsappEnabled}
+            onChange={(event) => setWhatsappEnabled(event.target.checked)}
+            className="mt-1"
+          />
+          <span>{tp("whatsappReminders")}</span>
+        </label>
+        <button
+          type="button"
+          disabled={phoneSaving}
+          onClick={() => void handleSavePhone()}
+          className="bg-primary text-on-primary mt-4 h-10 rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+        >
+          {phoneSaving ? tp("saving") : tp("savePhone")}
+        </button>
+      </section>
+
+      <section className="panel-card rounded-lg p-6">
         <h2 className="font-jakarta text-xl font-semibold">{tp("billingAddress")}</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">{tp("billingAddressDesc")}</p>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("billingAddressDesc")}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium">{tcCart("billingFullName")}</label>
             <input
               value={billingForm.fullName}
               onChange={(e) => setBillingForm((p) => ({ ...p, fullName: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-4 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
@@ -169,7 +226,7 @@ export default function AccountPage(): React.ReactElement | null {
             <input
               value={billingForm.line1}
               onChange={(e) => setBillingForm((p) => ({ ...p, line1: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-4 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
             />
           </div>
           <div>
@@ -177,7 +234,7 @@ export default function AccountPage(): React.ReactElement | null {
             <input
               value={billingForm.city}
               onChange={(e) => setBillingForm((p) => ({ ...p, city: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-4 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
             />
           </div>
           <div>
@@ -185,7 +242,7 @@ export default function AccountPage(): React.ReactElement | null {
             <input
               value={billingForm.region}
               onChange={(e) => setBillingForm((p) => ({ ...p, region: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-4 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
             />
           </div>
           <div>
@@ -193,7 +250,7 @@ export default function AccountPage(): React.ReactElement | null {
             <input
               value={billingForm.postalCode}
               onChange={(e) => setBillingForm((p) => ({ ...p, postalCode: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-4 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
             />
           </div>
           <div>
@@ -201,7 +258,7 @@ export default function AccountPage(): React.ReactElement | null {
             <input
               value={billingForm.country}
               onChange={(e) => setBillingForm((p) => ({ ...p, country: e.target.value }))}
-              className="h-11 w-full rounded-xl border border-outline-variant px-4 text-sm"
+              className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
             />
           </div>
         </div>
@@ -209,7 +266,7 @@ export default function AccountPage(): React.ReactElement | null {
           type="button"
           disabled={billingSaving}
           onClick={handleSaveBilling}
-          className="mt-4 inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary disabled:opacity-60"
+          className="bg-primary text-on-primary mt-4 inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
         >
           {billingSaving ? tp("billingSaving") : tp("billingSave")}
         </button>
@@ -236,24 +293,24 @@ export default function AccountPage(): React.ReactElement | null {
       <section className="panel-card rounded-lg p-6">
         <h2 className="font-jakarta text-xl font-semibold">{tp("security")}</h2>
         <div className="mt-4 space-y-4">
-          <div className="rounded-xl border border-outline-variant/40 bg-surface-container-low p-4">
+          <div className="border-outline-variant/40 bg-surface-container-low rounded-xl border p-4">
             <h3 className="font-semibold">{tp("twoFactor")}</h3>
-            <p className="mt-1 text-sm text-on-surface-variant">{tp("twoFactorDesc")}</p>
+            <p className="text-on-surface-variant mt-1 text-sm">{tp("twoFactorDesc")}</p>
             <button
               type="button"
               disabled
-              className="mt-3 rounded-lg border border-outline-variant px-4 py-2 text-sm font-medium opacity-60"
+              className="border-outline-variant mt-3 rounded-lg border px-4 py-2 text-sm font-medium opacity-60"
             >
               {tp("comingSoon")}
             </button>
           </div>
-          <div className="rounded-xl border border-outline-variant/40 bg-surface-container-low p-4">
+          <div className="border-outline-variant/40 bg-surface-container-low rounded-xl border p-4">
             <h3 className="font-semibold">{tp("apiKeys")}</h3>
-            <p className="mt-1 text-sm text-on-surface-variant">{tp("apiKeysDesc")}</p>
+            <p className="text-on-surface-variant mt-1 text-sm">{tp("apiKeysDesc")}</p>
             <button
               type="button"
               disabled
-              className="mt-3 rounded-lg border border-outline-variant px-4 py-2 text-sm font-medium opacity-60"
+              className="border-outline-variant mt-3 rounded-lg border px-4 py-2 text-sm font-medium opacity-60"
             >
               {tp("comingSoon")}
             </button>
@@ -266,7 +323,7 @@ export default function AccountPage(): React.ReactElement | null {
         <button
           type="button"
           onClick={() => clearSession()}
-          className="mt-4 rounded-xl border border-error/30 px-5 py-2.5 text-sm font-semibold text-error hover:bg-error-container"
+          className="border-error/30 text-error hover:bg-error-container mt-4 rounded-xl border px-5 py-2.5 text-sm font-semibold"
         >
           {t("header.signOut")}
         </button>

@@ -253,6 +253,9 @@ export class HostingServersRepository {
         isActive: data.isActive ?? false,
         sortOrder: data.sortOrder ?? 0,
         pleskPlanName: data.pleskPlanName,
+        planServers: {
+          create: [{ serverId: data.serverId, priority: 0, isActive: true }],
+        },
       },
     });
   }

@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import {
   BadRequestException,
@@ -107,6 +107,7 @@ function mapTicketDetail(ticket: {
   relatedServiceType?: string | null;
   relatedServiceId?: string | null;
   relatedServiceLabel?: string | null;
+  clientIp?: string | null;
   createdAt: Date;
   updatedAt: Date;
   messages: {
@@ -133,6 +134,8 @@ function mapTicketDetail(ticket: {
     email: string;
     firstName: string | null;
     lastName: string | null;
+    lastLoginIp?: string | null;
+    lastLoginAt?: Date | null;
   };
 }) {
   return {
@@ -140,6 +143,7 @@ function mapTicketDetail(ticket: {
     subject: ticket.subject,
     status: ticket.status,
     priority: ticket.priority,
+    clientIp: ticket.clientIp ?? null,
     relatedService: ticket.relatedServiceType
       ? {
           type: ticket.relatedServiceType,
@@ -153,6 +157,8 @@ function mapTicketDetail(ticket: {
           email: ticket.user.email,
           firstName: ticket.user.firstName,
           lastName: ticket.user.lastName,
+          lastLoginIp: ticket.user.lastLoginIp ?? null,
+          lastLoginAt: ticket.user.lastLoginAt?.toISOString() ?? null,
         }
       : undefined,
     messages: ticket.messages.map(mapMessage),
@@ -223,7 +229,7 @@ export class TicketsService {
     ];
   }
 
-  async create(userId: string, dto: CreateTicketDto) {
+  async create(userId: string, dto: CreateTicketDto, clientIp?: string) {
     let relatedServiceType: TicketRelatedServiceType | undefined;
     let relatedServiceId: string | undefined;
     let relatedServiceLabel: string | undefined;
@@ -250,6 +256,7 @@ export class TicketsService {
       relatedServiceType,
       relatedServiceId,
       relatedServiceLabel,
+      clientIp: clientIp?.trim() || null,
     });
 
     if (ticket.user) {
@@ -264,6 +271,19 @@ export class TicketsService {
         status: ticket.status,
         priority: ticket.priority,
         message: dto.message.trim(),
+      });
+
+      void this.ticketEmailService.sendTicketCreatedAdminNotification({
+        ticketId: ticket.id,
+        subject: ticket.subject,
+        priority: ticket.priority,
+        message: dto.message.trim(),
+        customerEmail: ticket.user.email,
+        customerName:
+          [ticket.user.firstName, ticket.user.lastName].filter(Boolean).join(" ").trim() ||
+          ticket.user.email,
+        clientIp: ticket.clientIp,
+        lastLoginIp: ticket.user.lastLoginIp,
       });
     }
 

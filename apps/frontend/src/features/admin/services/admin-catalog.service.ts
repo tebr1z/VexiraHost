@@ -1,5 +1,17 @@
 import { apiClient } from "@/services/api-client";
 
+export interface AdminHostingPlanServer {
+  id: string;
+  name: string;
+  ipAddress: string;
+  panel: "CPANEL" | "PLESK";
+  isActive: boolean;
+  maxAccounts: number | null;
+  accountCount: number;
+  priority: number;
+  salesFull: boolean;
+}
+
 export interface AdminHostingPlan {
   id: string;
   slug: string;
@@ -7,6 +19,7 @@ export interface AdminHostingPlan {
   description: string | null;
   panel: "CPANEL" | "PLESK";
   serverId: string | null;
+  distributionMode?: "FAILOVER" | "BALANCED";
   server: {
     id: string;
     name: string;
@@ -14,6 +27,7 @@ export interface AdminHostingPlan {
     panel: "CPANEL" | "PLESK";
     isActive: boolean;
   } | null;
+  servers?: AdminHostingPlanServer[];
   diskGb: number;
   bandwidthGb: number;
   maxDomains: number;
@@ -105,10 +119,12 @@ export async function createAdminHostingPlan(
     | "createdAt"
     | "updatedAt"
     | "server"
+    | "servers"
     | "currency"
     | "billingCycle"
   > & {
     serverId: string;
+    serverIds: string[];
     currency?: string;
     billingCycle?: string;
   },
@@ -123,7 +139,10 @@ export async function createAdminHostingPlan(
 export async function updateAdminHostingPlan(
   id: string,
   input: Partial<
-    Omit<AdminHostingPlan, "id" | "slug" | "accountCount" | "createdAt" | "updatedAt" | "server">
+    Omit<
+      AdminHostingPlan,
+      "id" | "slug" | "accountCount" | "createdAt" | "updatedAt" | "server" | "servers"
+    > & { serverIds?: string[] }
   >,
 ): Promise<AdminHostingPlan> {
   const res = await apiClient.request<AdminHostingPlan>(`/admin/hosting/plans/${id}`, {

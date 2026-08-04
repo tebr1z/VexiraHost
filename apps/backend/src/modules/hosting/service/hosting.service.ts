@@ -22,6 +22,11 @@ import { HostingProvisionRunner } from "./hosting-provision.runner";
 import { PanelSessionService } from "./panel-session.service";
 import { PleskPanelService } from "./plesk-panel.service";
 
+import {
+  collectPlanServerCandidates,
+  selectHostingServerForPlan,
+} from "@/modules/hosting/utils/server-selection.util";
+
 function mapPlan(plan: HostingPlan) {
   return {
     id: plan.id,
@@ -169,21 +174,24 @@ export class HostingService {
     const plan = await this.hostingRepository.findPlanBySlugAny(dto.planSlug);
     if (!plan) throw new NotFoundException("Hosting plan not found");
 
-    const server = plan.server;
-    if (!server) {
+    const candidates = collectPlanServerCandidates(plan);
+    if (candidates.length === 0) {
       throw new BadRequestException(
         "This hosting plan is not linked to a server. Ask an administrator to configure it.",
       );
     }
-    if (!server.isActive) {
-      throw new BadRequestException("The hosting server for this plan is not active");
-    }
-    if (server.panel !== plan.panel) {
-      throw new BadRequestException("Hosting plan and server panel mismatch");
-    }
 
-    if (server.maxAccounts != null && server.accountCount >= server.maxAccounts) {
-      throw new BadRequestException("Hosting server capacity reached");
+    let server;
+    try {
+      server = selectHostingServerForPlan({
+        panel: plan.panel,
+        distributionMode: plan.distributionMode,
+        candidates,
+      });
+    } catch {
+      throw new BadRequestException(
+        "All hosting servers for this plan have reached their sales limit. Try again later or contact support.",
+      );
     }
 
     const primaryDomain = dto.primaryDomain.trim().toLowerCase();

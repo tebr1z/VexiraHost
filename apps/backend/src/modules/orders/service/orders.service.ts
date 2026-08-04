@@ -5,6 +5,8 @@ import { Decimal } from "@prisma/client/runtime/library";
 import type { CheckoutDto, ValidatePromoDto } from "../dto";
 import { OrdersRepository } from "../repository/orders.repository";
 
+import { OrderEmailService } from "./order-email.service";
+
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
@@ -149,6 +151,7 @@ export class OrdersService {
   constructor(
     private readonly ordersRepository: OrdersRepository,
     private readonly authRepository: AuthRepository,
+    private readonly orderEmailService: OrderEmailService,
   ) {}
 
   private async buildLineItems(userId: string | null, dto: CheckoutDto | ValidatePromoDto) {
@@ -296,6 +299,28 @@ export class OrdersService {
     if (addressFromItems) {
       await this.authRepository.updateBillingAddress(userId, addressFromItems);
     }
+
+    const user = await this.authRepository.findById(userId);
+    const customerName =
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+      user?.email ||
+      "Customer";
+
+    void this.orderEmailService.sendOrderCreatedNotification({
+      orderId: order.id,
+      customerEmail: user?.email ?? "unknown",
+      customerName,
+      currency: order.currency,
+      subtotal: Number(order.subtotal),
+      discountAmount: Number(order.discountAmount ?? 0),
+      total: Number(order.total),
+      promoCode: order.promoCode,
+      items: order.items.map((item) => ({
+        productName: item.productName,
+        quantity: item.quantity,
+        totalPrice: Number(item.totalPrice),
+      })),
+    });
 
     return mapOrder(order);
   }

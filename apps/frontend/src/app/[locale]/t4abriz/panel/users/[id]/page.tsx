@@ -9,6 +9,7 @@ import { AdminUserBalanceSection } from "@/components/admin/admin-user-balance-s
 import { AdminUserDomainsSection } from "@/components/admin/admin-user-domains-section";
 import { AdminUserForm } from "@/components/admin/admin-user-form";
 import { AdminUserHostingSection } from "@/components/admin/admin-user-hosting-section";
+import { AdminUserWhatsappApiSection } from "@/components/admin/admin-user-whatsapp-api-section";
 import { PageHeader } from "@/components/ui";
 import { getAdminUser, updateAdminUser, type AdminUser } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
@@ -19,7 +20,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
-type UserTab = "profile" | "domains" | "hosting";
+type UserTab = "profile" | "domains" | "hosting" | "whatsappApi";
 
 export default function AdminUserEditPage(): React.ReactElement | null {
   useRequireAuth();
@@ -59,6 +60,7 @@ export default function AdminUserEditPage(): React.ReactElement | null {
     { id: "profile", label: tp("tabs.profile") },
     { id: "domains", label: tp("tabs.domains") },
     { id: "hosting", label: tp("tabs.hosting") },
+    { id: "whatsappApi", label: tp("tabs.whatsappApi") },
   ];
 
   return (
@@ -162,6 +164,7 @@ export default function AdminUserEditPage(): React.ReactElement | null {
 
         {tab === "domains" && <AdminUserDomainsSection userId={user.id} />}
         {tab === "hosting" && <AdminUserHostingSection userId={user.id} />}
+        {tab === "whatsappApi" && <AdminUserWhatsappApiSection userId={user.id} />}
       </div>
     </div>
   );

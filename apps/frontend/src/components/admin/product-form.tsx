@@ -27,6 +27,8 @@ export interface ProductFormValues {
   price: string;
   isActive: boolean;
   sortOrder: string;
+  enabledCurrencies: Currency[];
+  yearlyEnabled: boolean;
   prices: Record<string, { originalPrice: string; salePrice: string }>;
   deliveryMode: DeliveryMode;
   isFree: boolean;
@@ -57,22 +59,28 @@ function priceKey(currency: Currency, period: Period) {
   return `${currency}:${period}`;
 }
 
-function defaultPrices(usdMonthly = "12"): ProductFormValues["prices"] {
+function defaultPrices(
+  usdMonthly = "12",
+  enabledCurrencies: Currency[] = CURRENCIES,
+  yearlyEnabled = true,
+): ProductFormValues["prices"] {
   const usd = Number(usdMonthly) || 0;
   const eur = Math.round(usd * 0.92 * 100) / 100;
   const azn = Math.round(usd * 1.7 * 100) / 100;
   const values: ProductFormValues["prices"] = {};
   const map: Record<Currency, number> = { USD: usd, EUR: eur, AZN: azn };
-  for (const currency of CURRENCIES) {
+  for (const currency of enabledCurrencies) {
     const monthly = map[currency];
     values[priceKey(currency, "MONTHLY")] = {
       originalPrice: String(monthly),
       salePrice: String(monthly),
     };
-    values[priceKey(currency, "YEARLY")] = {
-      originalPrice: String(Math.round(monthly * 12 * 100) / 100),
-      salePrice: String(Math.round(monthly * 10 * 100) / 100),
-    };
+    if (yearlyEnabled) {
+      values[priceKey(currency, "YEARLY")] = {
+        originalPrice: String(Math.round(monthly * 12 * 100) / 100),
+        salePrice: String(Math.round(monthly * 10 * 100) / 100),
+      };
+    }
   }
   return values;
 }
@@ -86,6 +94,8 @@ const DEFAULT: ProductFormValues = {
   price: "12",
   isActive: true,
   sortOrder: "0",
+  enabledCurrencies: [...CURRENCIES],
+  yearlyEnabled: true,
   prices: defaultPrices("12"),
   deliveryMode: "MANUAL",
   isFree: false,
@@ -98,11 +108,28 @@ const DEFAULT: ProductFormValues = {
   activationGuideVideoUrl: "",
 };
 
+export function pricingOptionsFromAdmin(list?: AdminProductPrice[]): {
+  enabledCurrencies: Currency[];
+  yearlyEnabled: boolean;
+} {
+  if (!list?.length) {
+    return { enabledCurrencies: [...CURRENCIES], yearlyEnabled: true };
+  }
+  const enabledCurrencies = CURRENCIES.filter((currency) =>
+    list.some((row) => row.currency === currency),
+  );
+  return {
+    enabledCurrencies: enabledCurrencies.length > 0 ? enabledCurrencies : ["USD"],
+    yearlyEnabled: list.some((row) => row.period === "YEARLY"),
+  };
+}
+
 export function pricesFromAdmin(
   list?: AdminProductPrice[],
   fallbackUsd = 12,
 ): ProductFormValues["prices"] {
-  const base = defaultPrices(String(fallbackUsd));
+  const options = pricingOptionsFromAdmin(list);
+  const base = defaultPrices(String(fallbackUsd), options.enabledCurrencies, options.yearlyEnabled);
   for (const row of list ?? []) {
     base[priceKey(row.currency, row.period)] = {
       originalPrice: String(row.originalPrice),
@@ -113,9 +140,13 @@ export function pricesFromAdmin(
 }
 
 export function toProductPayload(values: ProductFormValues) {
+  const enabled =
+    values.enabledCurrencies.length > 0 ? values.enabledCurrencies : (["USD"] as Currency[]);
+  const periods: Period[] = values.yearlyEnabled ? ["MONTHLY", "YEARLY"] : ["MONTHLY"];
   const prices: AdminProductPrice[] = [];
-  for (const currency of CURRENCIES) {
-    for (const period of PERIODS) {
+
+  for (const currency of enabled) {
+    for (const period of periods) {
       const cell = values.prices[priceKey(currency, period)];
       prices.push({
         currency,
@@ -127,6 +158,9 @@ export function toProductPayload(values: ProductFormValues) {
   }
 
   const isLicense = values.category === "LICENSE";
+  const primary = enabled.includes("USD")
+    ? values.prices[priceKey("USD", "MONTHLY")]
+    : values.prices[priceKey(enabled[0], "MONTHLY")];
 
   return {
     name: values.name.trim(),
@@ -134,8 +168,8 @@ export function toProductPayload(values: ProductFormValues) {
     category: values.category,
     catalogCategoryId: values.catalogCategoryId || null,
     hostingPlanSlug: values.category === "HOSTING" ? values.hostingPlanSlug || null : null,
-    price: values.isFree && isLicense ? 0 : Number(values.price),
-    currency: "USD",
+    price: values.isFree && isLicense ? 0 : Number(primary?.salePrice || values.price || 0),
+    currency: enabled.includes("USD") ? "USD" : enabled[0],
     billingCycle: values.isFree && isLicense ? "ONE_TIME" : "MONTHLY",
     isActive: values.isActive,
     sortOrder: Number(values.sortOrder) || 0,
@@ -168,6 +202,8 @@ export function ProductForm({
   const [values, setValues] = useState<ProductFormValues>({
     ...DEFAULT,
     ...initialValues,
+    enabledCurrencies: initialValues?.enabledCurrencies ?? DEFAULT.enabledCurrencies,
+    yearlyEnabled: initialValues?.yearlyEnabled ?? DEFAULT.yearlyEnabled,
     prices: initialValues?.prices ?? DEFAULT.prices,
   });
   const [plans, setPlans] = useState<AdminHostingPlan[]>([]);
@@ -183,6 +219,7 @@ export function ProductForm({
     values.deliveryMode === "FILE" ||
     values.deliveryMode === "KEY_AND_FILE" ||
     values.deliveryMode === "MANUAL";
+  const activePeriods: Period[] = values.yearlyEnabled ? PERIODS : ["MONTHLY"];
 
   useEffect(() => {
     if (!accessTokenReady) return;
@@ -211,8 +248,51 @@ export function ProductForm({
     }));
   };
 
+  const ensurePriceCells = (
+    prices: ProductFormValues["prices"],
+    currencies: Currency[],
+    yearlyEnabled: boolean,
+    usdBase: string,
+  ) => {
+    const next = { ...prices };
+    const generated = defaultPrices(usdBase, currencies, yearlyEnabled);
+    for (const currency of currencies) {
+      for (const period of yearlyEnabled ? PERIODS : (["MONTHLY"] as Period[])) {
+        const key = priceKey(currency, period);
+        if (!next[key]) next[key] = generated[key];
+      }
+    }
+    return next;
+  };
+
+  const toggleCurrency = (currency: Currency) => {
+    setValues((prev) => {
+      const enabled = prev.enabledCurrencies.includes(currency)
+        ? prev.enabledCurrencies.filter((c) => c !== currency)
+        : [...prev.enabledCurrencies, currency];
+      if (enabled.length === 0) return prev;
+      return {
+        ...prev,
+        enabledCurrencies: CURRENCIES.filter((c) => enabled.includes(c)),
+        prices: ensurePriceCells(prev.prices, enabled, prev.yearlyEnabled, prev.price),
+      };
+    });
+  };
+
+  const toggleYearly = (yearlyEnabled: boolean) => {
+    setValues((prev) => ({
+      ...prev,
+      yearlyEnabled,
+      prices: ensurePriceCells(prev.prices, prev.enabledCurrencies, yearlyEnabled, prev.price),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (values.enabledCurrencies.length === 0) {
+      setError(tf("currencyRequired"));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -343,7 +423,9 @@ export function ProductForm({
                   ...prev,
                   isFree: free,
                   price: free ? "0" : prev.price === "0" ? "12" : prev.price,
-                  prices: free ? defaultPrices("0") : prev.prices,
+                  prices: free
+                    ? defaultPrices("0", prev.enabledCurrencies, prev.yearlyEnabled)
+                    : prev.prices,
                 }));
               }}
             />
@@ -458,11 +540,11 @@ export function ProductForm({
             <input
               value={values.price}
               onChange={(e) => {
-                set("price", e.target.value);
+                const nextPrice = e.target.value;
                 setValues((prev) => ({
                   ...prev,
-                  price: e.target.value,
-                  prices: defaultPrices(e.target.value),
+                  price: nextPrice,
+                  prices: defaultPrices(nextPrice, prev.enabledCurrencies, prev.yearlyEnabled),
                 }));
               }}
               required
@@ -470,28 +552,61 @@ export function ProductForm({
             />
           </div>
 
+          <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-3 rounded-xl border p-4">
+            <div>
+              <h3 className="text-sm font-semibold">{tf("pricingOptions")}</h3>
+              <p className="text-on-surface-variant mt-1 text-xs">{tf("pricingOptionsHint")}</p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-medium">{tf("enabledCurrencies")}</p>
+              <div className="flex flex-wrap gap-3">
+                {CURRENCIES.map((currency) => (
+                  <label key={currency} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={values.enabledCurrencies.includes(currency)}
+                      onChange={() => toggleCurrency(currency)}
+                    />
+                    {currency}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.yearlyEnabled}
+                onChange={(e) => toggleYearly(e.target.checked)}
+              />
+              {tf("yearlyEnabled")}
+            </label>
+            <p className="text-on-surface-variant text-xs">{tf("yearlyEnabledHint")}</p>
+          </div>
+
           <div>
-            <h3 className="mb-2 text-sm font-semibold">USD / EUR / AZN · Monthly / Yearly</h3>
+            <h3 className="mb-2 text-sm font-semibold">{tf("priceMatrix")}</h3>
             <div className="border-outline-variant/50 overflow-x-auto rounded-xl border">
               <table className="min-w-full text-sm">
                 <thead className="bg-surface-container-low text-left">
                   <tr>
-                    <th className="px-3 py-2">Currency</th>
-                    <th className="px-3 py-2">Period</th>
-                    <th className="px-3 py-2">Original</th>
-                    <th className="px-3 py-2">Sale</th>
+                    <th className="px-3 py-2">{tf("currencyColumn")}</th>
+                    <th className="px-3 py-2">{tf("periodColumn")}</th>
+                    <th className="px-3 py-2">{tf("originalColumn")}</th>
+                    <th className="px-3 py-2">{tf("saleColumn")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {CURRENCIES.flatMap((currency) =>
-                    PERIODS.map((period) => {
+                  {values.enabledCurrencies.flatMap((currency) =>
+                    activePeriods.map((period) => {
                       const key = priceKey(currency, period);
                       const cell = values.prices[key] ?? { originalPrice: "0", salePrice: "0" };
                       return (
                         <tr key={key} className="border-outline-variant/40 border-t">
                           <td className="px-3 py-2 font-medium">{currency}</td>
                           <td className="px-3 py-2">
-                            {period === "MONTHLY" ? "Monthly" : "Yearly"}
+                            {period === "MONTHLY" ? tf("periodMonthly") : tf("periodYearly")}
                           </td>
                           <td className="px-3 py-2">
                             <input

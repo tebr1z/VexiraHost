@@ -1,4 +1,4 @@
-﻿import { Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { User } from "@prisma/client";
 import { UserStatus } from "@prisma/client";
 
@@ -50,6 +50,16 @@ export class AuthRepository {
     return this.prisma.user.update({
       where: { id: userId },
       data: { localeHistory },
+    });
+  }
+
+  updateLastLogin(userId: string, ip: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        lastLoginIp: ip,
+        lastLoginAt: new Date(),
+      },
     });
   }
 
@@ -105,6 +115,16 @@ export class AuthRepository {
     return this.prisma.user.update({
       where: { id: userId },
       data: { billingAddress },
+    });
+  }
+
+  updatePhone(
+    userId: string,
+    data: { phone: string | null; whatsappNotificationsEnabled: boolean },
+  ): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
     });
   }
 

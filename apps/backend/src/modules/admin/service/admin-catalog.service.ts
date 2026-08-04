@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { HostingPanel, ProductCategory } from "@prisma/client";
+import { HostingDistributionMode, HostingPanel, ProductCategory } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 import type {
@@ -20,6 +20,13 @@ import { AdminCatalogRepository } from "../repository/admin-catalog.repository";
 import { mapProductPrices } from "@/shared/pricing/product-price.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
+function resolvePlanServerIds(serverIds?: string[], serverId?: string): string[] {
+  const ordered = (serverIds?.length ? serverIds : serverId ? [serverId] : [])
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return [...new Set(ordered)];
+}
+
 function mapHostingPlan(plan: {
   id: string;
   slug: string;
@@ -27,13 +34,29 @@ function mapHostingPlan(plan: {
   description: string | null;
   panel: string;
   serverId: string | null;
+  distributionMode?: string;
   server?: {
     id: string;
     name: string;
     ipAddress: string;
     panel: string;
     isActive: boolean;
+    maxAccounts?: number | null;
+    accountCount?: number;
   } | null;
+  planServers?: Array<{
+    priority: number;
+    isActive: boolean;
+    server: {
+      id: string;
+      name: string;
+      ipAddress: string;
+      panel: string;
+      isActive: boolean;
+      maxAccounts: number | null;
+      accountCount: number;
+    };
+  }>;
   diskGb: number;
   bandwidthGb: number;
   maxDomains: number;
@@ -49,6 +72,37 @@ function mapHostingPlan(plan: {
   updatedAt: Date;
   _count?: { accounts: number };
 }) {
+  const servers =
+    plan.planServers?.map((link) => ({
+      id: link.server.id,
+      name: link.server.name,
+      ipAddress: link.server.ipAddress,
+      panel: link.server.panel,
+      isActive: link.server.isActive,
+      maxAccounts: link.server.maxAccounts,
+      accountCount: link.server.accountCount,
+      priority: link.priority,
+      salesFull:
+        link.server.maxAccounts != null && link.server.accountCount >= link.server.maxAccounts,
+    })) ??
+    (plan.server
+      ? [
+          {
+            id: plan.server.id,
+            name: plan.server.name,
+            ipAddress: plan.server.ipAddress,
+            panel: plan.server.panel,
+            isActive: plan.server.isActive,
+            maxAccounts: plan.server.maxAccounts ?? null,
+            accountCount: plan.server.accountCount ?? 0,
+            priority: 0,
+            salesFull:
+              plan.server.maxAccounts != null &&
+              (plan.server.accountCount ?? 0) >= plan.server.maxAccounts,
+          },
+        ]
+      : []);
+
   return {
     id: plan.id,
     slug: plan.slug,
@@ -56,6 +110,7 @@ function mapHostingPlan(plan: {
     description: plan.description,
     panel: plan.panel,
     serverId: plan.serverId,
+    distributionMode: plan.distributionMode ?? HostingDistributionMode.FAILOVER,
     server: plan.server
       ? {
           id: plan.server.id,
@@ -65,6 +120,7 @@ function mapHostingPlan(plan: {
           isActive: plan.server.isActive,
         }
       : null,
+    servers,
     diskGb: plan.diskGb,
     bandwidthGb: plan.bandwidthGb,
     maxDomains: plan.maxDomains,
@@ -245,7 +301,13 @@ export class AdminCatalogService {
   }
 
   async createHostingPlan(dto: CreateHostingPlanDto) {
-    await this.assertHostingServer(dto.serverId, dto.panel);
+    const serverIds = resolvePlanServerIds(dto.serverIds, dto.serverId);
+    if (serverIds.length === 0) {
+      throw new BadRequestException("Select at least one hosting server");
+    }
+    for (const serverId of serverIds) {
+      await this.assertHostingServer(serverId, dto.panel);
+    }
 
     const slug = dto.slug?.trim()
       ? await resolveUniqueSlug(slugify(dto.slug), (candidate) => this.slugTaken(candidate))
@@ -256,7 +318,8 @@ export class AdminCatalogService {
       name: dto.name.trim(),
       description: dto.description?.trim() || null,
       panel: dto.panel,
-      server: { connect: { id: dto.serverId } },
+      server: { connect: { id: serverIds[0]! } },
+      distributionMode: dto.distributionMode ?? HostingDistributionMode.FAILOVER,
       diskGb: dto.diskGb,
       bandwidthGb: dto.bandwidthGb,
       maxDomains: dto.maxDomains,
@@ -269,6 +332,7 @@ export class AdminCatalogService {
       sortOrder: dto.sortOrder ?? 0,
       pleskPlanName: dto.pleskPlanName?.trim() || null,
     });
+    await this.catalogRepository.replacePlanServers(plan.id, serverIds);
     const created = await this.catalogRepository.findHostingPlanById(plan.id);
     return mapHostingPlan(created!);
   }
@@ -278,17 +342,26 @@ export class AdminCatalogService {
     if (!current) throw new NotFoundException("Hosting plan not found");
 
     const nextPanel = dto.panel ?? current.panel;
-    const nextServerId = dto.serverId ?? current.serverId;
-    if (!nextServerId) {
-      throw new BadRequestException("Hosting plan must be linked to a server");
+    const serverIds =
+      dto.serverIds ??
+      (dto.serverId
+        ? [dto.serverId]
+        : (current.planServers?.map((link) => link.serverId) ??
+          (current.serverId ? [current.serverId] : [])));
+
+    if (serverIds.length === 0) {
+      throw new BadRequestException("Hosting plan must be linked to at least one server");
     }
-    await this.assertHostingServer(nextServerId, nextPanel);
+    for (const serverId of serverIds) {
+      await this.assertHostingServer(serverId, nextPanel);
+    }
 
     await this.catalogRepository.updateHostingPlan(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.panel !== undefined ? { panel: dto.panel } : {}),
-      ...(dto.serverId !== undefined ? { server: { connect: { id: dto.serverId } } } : {}),
+      server: { connect: { id: serverIds[0]! } },
+      ...(dto.distributionMode !== undefined ? { distributionMode: dto.distributionMode } : {}),
       ...(dto.diskGb !== undefined ? { diskGb: dto.diskGb } : {}),
       ...(dto.bandwidthGb !== undefined ? { bandwidthGb: dto.bandwidthGb } : {}),
       ...(dto.maxDomains !== undefined ? { maxDomains: dto.maxDomains } : {}),
@@ -303,6 +376,9 @@ export class AdminCatalogService {
         ? { pleskPlanName: dto.pleskPlanName?.trim() || null }
         : {}),
     });
+    if (dto.serverIds || dto.serverId) {
+      await this.catalogRepository.replacePlanServers(id, serverIds);
+    }
     const updated = await this.catalogRepository.findHostingPlanById(id);
     return mapHostingPlan(updated!);
   }
@@ -440,11 +516,14 @@ export class AdminCatalogService {
 
     if (dto.prices?.length) {
       await this.catalogRepository.replaceProductPrices(product.id, dto.prices);
-      const usdMonthly = dto.prices.find((p) => p.currency === "USD" && p.period === "MONTHLY");
-      if (usdMonthly) {
+      const primaryMonthly =
+        dto.prices.find((p) => p.currency === "USD" && p.period === "MONTHLY") ??
+        dto.prices.find((p) => p.period === "MONTHLY") ??
+        dto.prices[0];
+      if (primaryMonthly) {
         await this.catalogRepository.updateProduct(product.id, {
-          price: new Decimal(usdMonthly.salePrice),
-          currency: "USD",
+          price: new Decimal(primaryMonthly.salePrice),
+          currency: primaryMonthly.currency,
         });
       }
     }
@@ -549,11 +628,14 @@ export class AdminCatalogService {
 
     if (dto.prices) {
       await this.catalogRepository.replaceProductPrices(product.id, dto.prices);
-      const usdMonthly = dto.prices.find((p) => p.currency === "USD" && p.period === "MONTHLY");
-      if (usdMonthly) {
+      const primaryMonthly =
+        dto.prices.find((p) => p.currency === "USD" && p.period === "MONTHLY") ??
+        dto.prices.find((p) => p.period === "MONTHLY") ??
+        dto.prices[0];
+      if (primaryMonthly) {
         await this.catalogRepository.updateProduct(product.id, {
-          price: new Decimal(usdMonthly.salePrice),
-          currency: "USD",
+          price: new Decimal(primaryMonthly.salePrice),
+          currency: primaryMonthly.currency,
         });
       }
     }

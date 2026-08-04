@@ -36,10 +36,30 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                 "Təhlükəsiz. Sürətli. Veb saytınız olmalı olduğu kimi.",
               ),
               perks: [
-                l("Ücretsiz site taşıma", "Free website migration", "Бесплатный перенос сайта", "Pulsuz sayt köçürməsi"),
-                l("WordPress ve diğer CMS'ler", "Run WordPress or any CMS", "WordPress и другие CMS", "WordPress və digər CMS"),
-                l("Tam yönetimli web hosting", "Fully managed web hosting", "Полностью управляемый хостинг", "Tam idarə olunan hostinq"),
-                l("7/24 müşteri desteği", "24/7 customer support", "Поддержка 24/7", "7/24 müştəri dəstəyi"),
+                l(
+                  "Ücretsiz site taşıma",
+                  "Free website migration",
+                  "Бесплатный перенос сайта",
+                  "Pulsuz sayt köçürməsi",
+                ),
+                l(
+                  "WordPress ve diğer CMS'ler",
+                  "Run WordPress or any CMS",
+                  "WordPress и другие CMS",
+                  "WordPress və digər CMS",
+                ),
+                l(
+                  "Tam yönetimli web hosting",
+                  "Fully managed web hosting",
+                  "Полностью управляемый хостинг",
+                  "Tam idarə olunan hostinq",
+                ),
+                l(
+                  "7/24 müşteri desteği",
+                  "24/7 customer support",
+                  "Поддержка 24/7",
+                  "7/24 müştəri dəstəyi",
+                ),
               ],
               ctaPrimary: l("Şimdi Başla", "Get Started", "Начать", "İndi başla"),
               ctaPrimaryHref: "#hosting-plans",
@@ -59,15 +79,37 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
             sortOrder: 1,
             design: { padding: "lg", columns: 4 },
             content: {
+              eyebrow: l(
+                "Hosting planları",
+                "Hosting plans",
+                "Тарифы хостинга",
+                "Hostinq planları",
+              ),
               title: l(
                 "Size en uygun planı seçin",
                 "Choose the plan that fits you",
                 "Выберите подходящий план",
                 "Sizə uyğun planı seçin",
               ),
+              subtitle: l(
+                "Basit başlayın, gerektiğinde büyütün. Ücretsiz SSL ve 7/24 destek her planda.",
+                "Start simple, scale when you need to. Free SSL and 24/7 support on every plan.",
+                "Начните просто и масштабируйтесь позже. Бесплатный SSL и поддержка 24/7 в каждом плане.",
+                "Sadə başlayın, lazım olanda böyüdün. Pulsuz SSL və 7/24 dəstək hər planda.",
+              ),
               guarantees: [
-                l("30 gün para iade garantisi", "30-day money-back guarantee", "30 дней возврата", "30 gün pul geri qaytarma"),
-                l("İstediğiniz zaman iptal", "Cancel anytime", "Отмена в любое время", "İstədiyiniz zaman ləğv"),
+                l(
+                  "30 gün para iade garantisi",
+                  "30-day money-back guarantee",
+                  "30 дней возврата",
+                  "30 gün pul geri qaytarma",
+                ),
+                l(
+                  "İstediğiniz zaman iptal",
+                  "Cancel anytime",
+                  "Отмена в любое время",
+                  "İstədiyiniz zaman ləğv",
+                ),
                 l("7/24 destek", "24/7 support", "Поддержка 24/7", "7/24 dəstək"),
               ],
               priceNote: l(
@@ -97,12 +139,42 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                 "Əlavə ödənişsiz daxildir",
               ),
               items: [
-                l("Sınırsız ücretsiz SSL sertifikası", "Unlimited free SSL certificates", "Бесплатные SSL", "Limitsiz pulsuz SSL"),
-                l("Ücretsiz otomatik site taşıma", "Free automatic site migration", "Бесплатный перенос", "Pulsuz avtomatik köçürmə"),
-                l("Otomatik yedeklemeler", "Automatic backups", "Автоматические бэкапы", "Avtomatik ehtiyat nüsxələr"),
-                l("7/24 uzman destek", "24/7 expert support", "Экспертная поддержка 24/7", "7/24 ekspert dəstək"),
-                l("cPanel ve Plesk kontrol paneli", "cPanel and Plesk control panel", "cPanel и Plesk", "cPanel və Plesk paneli"),
-                l("%99,9 çalışma süresi garantisi", "99.9% uptime guarantee", "Гарантия 99.9% uptime", "%99,9 işləmə zəmanəti"),
+                l(
+                  "Sınırsız ücretsiz SSL sertifikası",
+                  "Unlimited free SSL certificates",
+                  "Бесплатные SSL",
+                  "Limitsiz pulsuz SSL",
+                ),
+                l(
+                  "Ücretsiz otomatik site taşıma",
+                  "Free automatic site migration",
+                  "Бесплатный перенос",
+                  "Pulsuz avtomatik köçürmə",
+                ),
+                l(
+                  "Otomatik yedeklemeler",
+                  "Automatic backups",
+                  "Автоматические бэкапы",
+                  "Avtomatik ehtiyat nüsxələr",
+                ),
+                l(
+                  "7/24 uzman destek",
+                  "24/7 expert support",
+                  "Экспертная поддержка 24/7",
+                  "7/24 ekspert dəstək",
+                ),
+                l(
+                  "cPanel ve Plesk kontrol paneli",
+                  "cPanel and Plesk control panel",
+                  "cPanel и Plesk",
+                  "cPanel və Plesk paneli",
+                ),
+                l(
+                  "%99,9 çalışma süresi garantisi",
+                  "99.9% uptime guarantee",
+                  "Гарантия 99.9% uptime",
+                  "%99,9 işləmə zəmanəti",
+                ),
               ],
             },
           },
@@ -116,7 +188,12 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                 {
                   icon: "shield_lock",
                   layout: "left",
-                  title: l("Güvenlik en büyük önceliğimiz", "Security is our top priority", "Безопасность — приоритет", "Təhlükəsizlik prioritetimizdir"),
+                  title: l(
+                    "Güvenlik en büyük önceliğimiz",
+                    "Security is our top priority",
+                    "Безопасность — приоритет",
+                    "Təhlükəsizlik prioritetimizdir",
+                  ),
                   description: l(
                     "Ziyaretçilerinizin verilerini korumak için her katmanda güvenlik.",
                     "Protection at every layer for you and your visitors.",
@@ -124,15 +201,35 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                     "Hər səviyyədə qoruma.",
                   ),
                   bullets: [
-                    l("Ücretsiz SSL sertifikaları", "Free SSL certificates", "Бесплатные SSL", "Pulsuz SSL"),
-                    l("Otomatik güvenlik taramaları", "Automated security scans", "Автосканирование", "Avtomatik təhlükəsizlik skanı"),
-                    l("WHOIS gizlilik koruması", "WHOIS privacy protection", "WHOIS privacy", "WHOIS məxfilik"),
+                    l(
+                      "Ücretsiz SSL sertifikaları",
+                      "Free SSL certificates",
+                      "Бесплатные SSL",
+                      "Pulsuz SSL",
+                    ),
+                    l(
+                      "Otomatik güvenlik taramaları",
+                      "Automated security scans",
+                      "Автосканирование",
+                      "Avtomatik təhlükəsizlik skanı",
+                    ),
+                    l(
+                      "WHOIS gizlilik koruması",
+                      "WHOIS privacy protection",
+                      "WHOIS privacy",
+                      "WHOIS məxfilik",
+                    ),
                   ],
                 },
                 {
                   icon: "speed",
                   layout: "right",
-                  title: l("Eşsiz web sitesi performansı", "Outstanding website performance", "Высокая производительность", "Üstün performans"),
+                  title: l(
+                    "Eşsiz web sitesi performansı",
+                    "Outstanding website performance",
+                    "Высокая производительность",
+                    "Üstün performans",
+                  ),
                   description: l(
                     "NVMe depolama ve optimize sunucu altyapısı ile hızlı yükleme.",
                     "NVMe storage and optimized servers for fast load times.",
@@ -141,14 +238,29 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                   ),
                   bullets: [
                     l("NVMe SSD depolama", "NVMe SSD storage", "NVMe SSD", "NVMe SSD saxlama"),
-                    l("LiteSpeed ve önbellek optimizasyonu", "LiteSpeed and cache optimization", "LiteSpeed и кэш", "LiteSpeed və keş"),
-                    l("Yüksek bant genişliği", "High bandwidth limits", "Высокая пропускная способность", "Yüksək bant genişliyi"),
+                    l(
+                      "LiteSpeed ve önbellek optimizasyonu",
+                      "LiteSpeed and cache optimization",
+                      "LiteSpeed и кэш",
+                      "LiteSpeed və keş",
+                    ),
+                    l(
+                      "Yüksek bant genişliği",
+                      "High bandwidth limits",
+                      "Высокая пропускная способность",
+                      "Yüksək bant genişliyi",
+                    ),
                   ],
                 },
                 {
                   icon: "trending_up",
                   layout: "left",
-                  title: l("İşinizi ölçeklendirin, biz arkanızdayız", "Scale your business, we've got your back", "Масштабируйте бизнес", "Biznesinizi böyüdün"),
+                  title: l(
+                    "İşinizi ölçeklendirin, biz arkanızdayız",
+                    "Scale your business, we've got your back",
+                    "Масштабируйте бизнес",
+                    "Biznesinizi böyüdün",
+                  ),
                   description: l(
                     "Trafik arttıkça kaynaklarınızı kolayca yükseltin.",
                     "Upgrade resources easily as traffic grows.",
@@ -156,15 +268,35 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                     "Traffik artdıqca resursları artırın.",
                   ),
                   bullets: [
-                    l("Plan yükseltme tek tıkla", "One-click plan upgrades", "Апгрейд в один клик", "Bir kliklə plan yüksəltmə"),
-                    l("Ölçeklenebilir hosting paketleri", "Scalable hosting packages", "Масштабируемые пакеты", "Ölçülənə bilən paketlər"),
-                    l("Küresel veri merkezi ağı", "Global data center network", "Глобальная сеть ЦОД", "Qlobal mərkəz şəbəkəsi"),
+                    l(
+                      "Plan yükseltme tek tıkla",
+                      "One-click plan upgrades",
+                      "Апгрейд в один клик",
+                      "Bir kliklə plan yüksəltmə",
+                    ),
+                    l(
+                      "Ölçeklenebilir hosting paketleri",
+                      "Scalable hosting packages",
+                      "Масштабируемые пакеты",
+                      "Ölçülənə bilən paketlər",
+                    ),
+                    l(
+                      "Küresel veri merkezi ağı",
+                      "Global data center network",
+                      "Глобальная сеть ЦОД",
+                      "Qlobal mərkəz şəbəkəsi",
+                    ),
                   ],
                 },
                 {
                   icon: "sync_alt",
                   layout: "right",
-                  title: l("Zahmetsizce Vexira Host'a geçin", "Switch to Vexira Host effortlessly", "Переход на Vexira Host", "Vexira Host-a keçin"),
+                  title: l(
+                    "Zahmetsizce Vexira Host'a geçin",
+                    "Switch to Vexira Host effortlessly",
+                    "Переход на Vexira Host",
+                    "Vexira Host-a keçin",
+                  ),
                   description: l(
                     "Mevcut sitenizi ücretsiz ve kesintisiz taşıyın.",
                     "Move your existing site for free with zero downtime.",
@@ -172,9 +304,24 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                     "Saytınızı pulsuz və fasiləsiz köçürün.",
                   ),
                   bullets: [
-                    l("Ücretsiz site taşıma", "Free website migration", "Бесплатный перенос", "Pulsuz köçürmə"),
-                    l("Uzman taşıma desteği", "Expert migration support", "Экспертная поддержка", "Ekspert köçürmə dəstəyi"),
-                    l("Taşıma süresince site çevrimiçi kalır", "Site stays online during transfer", "Сайт онлайн при переносе", "Köçürmə zamanı sayt aktiv qalır"),
+                    l(
+                      "Ücretsiz site taşıma",
+                      "Free website migration",
+                      "Бесплатный перенос",
+                      "Pulsuz köçürmə",
+                    ),
+                    l(
+                      "Uzman taşıma desteği",
+                      "Expert migration support",
+                      "Экспертная поддержка",
+                      "Ekspert köçürmə dəstəyi",
+                    ),
+                    l(
+                      "Taşıma süresince site çevrimiçi kalır",
+                      "Site stays online during transfer",
+                      "Сайт онлайн при переносе",
+                      "Köçürmə zamanı sayt aktiv qalır",
+                    ),
                   ],
                 },
               ],

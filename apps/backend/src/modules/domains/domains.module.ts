@@ -25,6 +25,12 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     DomainExpiryJobService,
     SmtpMailService,
   ],
-  exports: [DomainsService, DomainsRepository, TldPricingRepository, DomainBillingService],
+  exports: [
+    DomainsService,
+    DomainsRepository,
+    TldPricingRepository,
+    DomainBillingService,
+    DomainExpiryJobService,
+  ],
 })
 export class DomainsModule {}

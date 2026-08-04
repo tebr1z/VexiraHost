@@ -5,10 +5,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
-import type { UpdateBillingAddressDto, UpdateUserPreferencesDto } from "../dto";
+import type { UpdateBillingAddressDto, UpdatePhoneDto, UpdateUserPreferencesDto } from "../dto";
 
 import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
+import { normalizeWhatsappPhone } from "@/modules/whatsapp/utils/phone.util";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import {
@@ -43,6 +44,23 @@ export class UsersService {
     }
 
     const updated = await this.authRepository.updateBillingAddress(userId, address);
+    return this.mapProfile(updated);
+  }
+
+  async updatePhone(userId: string, dto: UpdatePhoneDto) {
+    const user = await this.authRepository.findById(userId);
+    if (!user) throw new NotFoundException("User not found");
+
+    const normalized = dto.phone?.trim() ? normalizeWhatsappPhone(dto.phone) : null;
+    if (normalized && normalized.length < 8) {
+      throw new BadRequestException("Phone number is invalid");
+    }
+
+    const updated = await this.authRepository.updatePhone(userId, {
+      phone: normalized,
+      whatsappNotificationsEnabled:
+        dto.whatsappNotificationsEnabled ?? user.whatsappNotificationsEnabled,
+    });
     return this.mapProfile(updated);
   }
 
@@ -123,6 +141,8 @@ export class UsersService {
     accountBalance?: { toString(): string } | null;
     balanceCurrency?: string | null;
     billingAddress?: unknown;
+    phone?: string | null;
+    whatsappNotificationsEnabled?: boolean;
     createdAt: Date;
   }) {
     const allowed = canChangeCurrency({
@@ -146,6 +166,8 @@ export class UsersService {
       canChangeCurrency: allowed,
       nextCurrencyChangeAt: allowed ? null : (nextChange?.toISOString() ?? null),
       billingAddress: normalizeBillingAddress(user.billingAddress),
+      phone: user.phone ?? null,
+      whatsappNotificationsEnabled: user.whatsappNotificationsEnabled ?? true,
       accountBalance: Number(user.accountBalance ?? 0),
       balanceCurrency: user.balanceCurrency ?? "USD",
       preferredLocale: resolveAuthEmailLocale(user.localeHistory?.[0]),

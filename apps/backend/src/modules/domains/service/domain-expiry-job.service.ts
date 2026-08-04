@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { DomainManagementMode, DomainStatus, InvoiceStatus } from "@prisma/client";
 
 import { DomainBillingService } from "./domain-billing.service";
@@ -7,12 +7,9 @@ import { PrismaService } from "@/database/database.module";
 import { HostingEmailService } from "@/modules/hosting/service/hosting-email.service";
 
 const GRACE_DAYS = 7;
-const TICK_MS = 60 * 60 * 1000;
-
 @Injectable()
-export class DomainExpiryJobService implements OnModuleInit, OnModuleDestroy {
+export class DomainExpiryJobService {
   private readonly logger = new Logger(DomainExpiryJobService.name);
-  private timer: NodeJS.Timeout | null = null;
   private running = false;
 
   constructor(
@@ -20,15 +17,6 @@ export class DomainExpiryJobService implements OnModuleInit, OnModuleDestroy {
     private readonly billing: DomainBillingService,
     private readonly hostingEmail: HostingEmailService,
   ) {}
-
-  onModuleInit(): void {
-    setTimeout(() => void this.tick(), 20_000);
-    this.timer = setInterval(() => void this.tick(), TICK_MS);
-  }
-
-  onModuleDestroy(): void {
-    if (this.timer) clearInterval(this.timer);
-  }
 
   async tick(): Promise<void> {
     if (this.running) return;

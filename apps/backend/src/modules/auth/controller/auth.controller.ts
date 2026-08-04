@@ -18,6 +18,7 @@ import { AuthService } from "../service/auth.service";
 
 import { Public } from "@/decorators/auth.decorators";
 import { User } from "@/decorators/user.decorator";
+import { getClientIp } from "@/utils/client-ip.util";
 
 @Controller("auth")
 export class AuthController {
@@ -31,7 +32,7 @@ export class AuthController {
   register(@Body() dto: RegisterDto, @Req() req: Request) {
     return this.authService.register(dto, {
       userAgent: req.headers["user-agent"],
-      ip: req.ip,
+      ip: getClientIp(req),
     });
   }
 
@@ -40,7 +41,7 @@ export class AuthController {
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto, {
       userAgent: req.headers["user-agent"],
-      ip: req.ip,
+      ip: getClientIp(req),
     });
   }
 
@@ -49,7 +50,7 @@ export class AuthController {
   refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
     return this.authService.refresh(dto.refreshToken, {
       userAgent: req.headers["user-agent"],
-      ip: req.ip,
+      ip: getClientIp(req),
     });
   }
 
@@ -129,7 +130,7 @@ export class AuthController {
     try {
       const session = await this.authService.loginWithOAuth(req.user, {
         userAgent: req.headers["user-agent"],
-        ip: req.ip,
+        ip: getClientIp(req),
         locale: typeof req.query?.state === "string" ? req.query.state : undefined,
       });
       res.redirect(this.authService.buildOAuthRedirectUrl(session, "google"));
@@ -151,7 +152,7 @@ export class AuthController {
   async githubCallback(@Req() req: Request & { user: OAuthProfile }, @Res() res: Response) {
     const session = await this.authService.loginWithOAuth(req.user, {
       userAgent: req.headers["user-agent"],
-      ip: req.ip,
+      ip: getClientIp(req),
     });
     res.redirect(this.authService.buildOAuthRedirectUrl(session));
   }

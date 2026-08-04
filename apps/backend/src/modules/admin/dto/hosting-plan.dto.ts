@@ -1,5 +1,7 @@
-import { BillingCycle, HostingPanel } from "@prisma/client";
+import { BillingCycle, HostingDistributionMode, HostingPanel } from "@prisma/client";
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -9,6 +11,7 @@ import {
   Min,
   MinLength,
 } from "class-validator";
+
 export class CreateHostingPlanDto {
   @IsOptional()
   @IsString()
@@ -26,9 +29,22 @@ export class CreateHostingPlanDto {
   @IsEnum(HostingPanel)
   panel!: HostingPanel;
 
+  /** Primary server (also first in serverIds when omitted). */
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  serverId!: string;
+  serverId?: string;
+
+  /** One or more servers for failover / load balancing. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  serverIds?: string[];
+
+  @IsOptional()
+  @IsEnum(HostingDistributionMode)
+  distributionMode?: HostingDistributionMode;
 
   @IsInt()
   @Min(1)
@@ -93,6 +109,16 @@ export class UpdateHostingPlanDto {
   @IsString()
   @MinLength(1)
   serverId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  serverIds?: string[];
+
+  @IsOptional()
+  @IsEnum(HostingDistributionMode)
+  distributionMode?: HostingDistributionMode;
 
   @IsOptional()
   @IsInt()

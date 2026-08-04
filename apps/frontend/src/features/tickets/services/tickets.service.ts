@@ -32,11 +32,14 @@ export interface TicketAttachment {
 }
 
 export interface TicketDetail extends Ticket {
+  clientIp?: string | null;
   requester?: {
     id: string;
     email: string;
     firstName?: string | null;
     lastName?: string | null;
+    lastLoginIp?: string | null;
+    lastLoginAt?: string | null;
   };
   messages: {
     id: string;
@@ -73,7 +76,8 @@ export async function createTicket(input: {
   priority?: string;
   relatedServiceType?: string;
   relatedServiceId?: string;
-}): Promise<TicketDetail> {  const res = await apiClient.request<TicketDetail>("/tickets", {
+}): Promise<TicketDetail> {
+  const res = await apiClient.request<TicketDetail>("/tickets", {
     method: "POST",
     body: input,
   });

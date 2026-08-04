@@ -24,6 +24,7 @@ import { DomainsModule } from "./modules/domains/domains.module";
 import { GeoModule } from "./modules/geo/geo.module";
 import { HostingModule } from "./modules/hosting/hosting.module";
 import { LicensesModule } from "./modules/licenses/licenses.module";
+import { LifecycleModule } from "./modules/lifecycle/lifecycle.module";
 import { MarketingModule } from "./modules/marketing/marketing.module";
 import { NavigationModule } from "./modules/navigation/navigation.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
@@ -32,6 +33,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
 import { ServersModule } from "./modules/servers/servers.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { UsersModule } from "./modules/users/users.module";
+import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
 import { QueueModule } from "./queue/queue.module";
 import { StorageModule } from "./shared/storage/storage.module";
 
@@ -59,7 +61,7 @@ import { StorageModule } from "./shared/storage/storage.module";
           process.env.NODE_ENV !== "production"
             ? { target: "pino-pretty", options: { colorize: true } }
             : undefined,
-        redact: ["req.headers.authorization"],
+        redact: ["req.headers.authorization", "req.headers.x-api-key"],
       },
     }),
     DatabaseModule,
@@ -83,6 +85,8 @@ import { StorageModule } from "./shared/storage/storage.module";
     CmsModule,
     GeoModule,
     MarketingModule,
+    WhatsappModule,
+    LifecycleModule,
     AppCoreModule,
   ],
   controllers: [HealthController],
