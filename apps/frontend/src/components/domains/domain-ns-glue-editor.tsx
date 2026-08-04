@@ -52,10 +52,11 @@ export function DomainNsGlueEditor({
     onChange(next);
 
     if (patch.ip !== undefined) {
-      const valid = isValidIpAddress(patch.ip);
+      const ipValue = patch.ip;
+      const valid = isValidIpAddress(ipValue);
       setInvalidIpIndexes((prev) => {
         const updated = new Set(prev);
-        if (!patch.ip.trim()) {
+        if (!ipValue.trim()) {
           updated.delete(index);
         } else if (!valid) {
           updated.add(index);
