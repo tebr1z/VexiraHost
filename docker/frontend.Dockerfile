@@ -1,6 +1,6 @@
 # ─── Frontend (production, Next.js standalone) ──────────────────
 # Node is INSIDE this image — host Node.js is NOT required.
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
