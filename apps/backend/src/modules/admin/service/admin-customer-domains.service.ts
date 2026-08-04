@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DomainChangeStatus, DomainManagementMode, DomainStatus } from "@prisma/client";
+import { DomainChangeStatus, DomainManagementMode, DomainStatus, Prisma } from "@prisma/client";
 
 import type {
   AssignManualDomainDto,
@@ -334,7 +334,7 @@ export class AdminCustomerDomainsService {
         registrarSource:
           dto.registrarSource !== undefined ? dto.registrarSource.trim() || null : undefined,
         nameservers: nameservers ?? undefined,
-        nsGlueRecords: glueEntries ?? undefined,
+        nsGlueRecords: glueEntries ? (glueEntries as unknown as Prisma.InputJsonValue) : undefined,
         billingAmount:
           dto.billingAmount === null
             ? null
