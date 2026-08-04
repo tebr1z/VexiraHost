@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "@/components/ui";
 import {
   assignUserManualHostingAccount,
+  deleteUserManualHostingAccount,
   listUserManualHostingAccounts,
   updateUserManualHostingAccount,
   type AdminManualHostingAccount,
@@ -24,6 +25,7 @@ export function AdminUserHostingSection({ userId }: { userId: string }): React.R
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     label: "",
@@ -152,6 +154,52 @@ export function AdminUserHostingSection({ userId }: { userId: string }): React.R
       toast(tp("invoiceCreated"), "success");
     } catch {
       toast(tp("assignFailed"), "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (account: AdminManualHostingAccount) => {
+    if (!confirm(tp("deleteConfirm", { name: account.primaryDomain }))) return;
+    setUpdatingId(account.id);
+    try {
+      await deleteUserManualHostingAccount(userId, account.id);
+      setAccounts((prev) => prev.filter((a) => a.id !== account.id));
+      if (editingId === account.id) setEditingId(null);
+      toast(tp("deleted"), "success");
+    } catch {
+      toast(tp("deleteFailed"), "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleEditSave = async (
+    accountId: string,
+    input: {
+      panelIp: string;
+      panelUrl: string;
+      panelUsername: string;
+      panelPassword: string;
+      expiresAt: string;
+    },
+  ) => {
+    if (!input.panelIp.trim() || !input.panelUsername.trim()) return;
+
+    setUpdatingId(accountId);
+    try {
+      const updated = await updateUserManualHostingAccount(userId, accountId, {
+        panelIp: input.panelIp.trim(),
+        panelUrl: input.panelUrl.trim() || "",
+        panelUsername: input.panelUsername.trim(),
+        panelPassword: input.panelPassword || undefined,
+        expiresAt: input.expiresAt || null,
+      });
+      setAccounts((prev) => prev.map((a) => (a.id === accountId ? updated : a)));
+      setEditingId(null);
+      toast(tp("updated"), "success");
+    } catch {
+      toast(tp("updateFailed"), "error");
     } finally {
       setUpdatingId(null);
     }
@@ -375,8 +423,48 @@ export function AdminUserHostingSection({ userId }: { userId: string }): React.R
                         : ""}
                     </p>
                   </div>
-                  <StatusBadge status={account.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={account.status} />
+                    <button
+                      type="button"
+                      disabled={updatingId === account.id}
+                      onClick={() =>
+                        setEditingId((current) => (current === account.id ? null : account.id))
+                      }
+                      className="border-outline-variant/40 bg-surface rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    >
+                      {editingId === account.id ? tp("cancelEdit") : tp("edit")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={updatingId === account.id}
+                      onClick={() => void handleDelete(account)}
+                      className="border-error/40 text-error hover:bg-error/10 rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    >
+                      {tp("delete")}
+                    </button>
+                  </div>
                 </div>
+
+                {editingId === account.id ? (
+                  <HostingEditPanel
+                    account={account}
+                    disabled={updatingId === account.id}
+                    onCancel={() => setEditingId(null)}
+                    onSave={(input) => void handleEditSave(account.id, input)}
+                    labels={{
+                      panelIp: tp("panelIp"),
+                      panelUrl: tp("panelUrl"),
+                      panelUrlHint: tp("panelUrlHint"),
+                      panelUsername: tp("panelUsername"),
+                      panelPassword: tp("panelPassword"),
+                      panelPasswordHint: tp("panelPasswordHint"),
+                      expiresAt: tp("expiresAt"),
+                      save: tp("saveChanges"),
+                      cancel: tp("cancelEdit"),
+                    }}
+                  />
+                ) : null}
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <label className="block space-y-1">
@@ -431,6 +519,144 @@ export function AdminUserHostingSection({ userId }: { userId: string }): React.R
         )}
       </div>
     </section>
+  );
+}
+
+function toDateInput(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function HostingEditPanel({
+  account,
+  disabled,
+  onCancel,
+  onSave,
+  labels,
+}: {
+  account: AdminManualHostingAccount;
+  disabled: boolean;
+  onCancel: () => void;
+  onSave: (input: {
+    panelIp: string;
+    panelUrl: string;
+    panelUsername: string;
+    panelPassword: string;
+    expiresAt: string;
+  }) => void;
+  labels: {
+    panelIp: string;
+    panelUrl: string;
+    panelUrlHint: string;
+    panelUsername: string;
+    panelPassword: string;
+    panelPasswordHint: string;
+    expiresAt: string;
+    save: string;
+    cancel: string;
+  };
+}): React.ReactElement {
+  const [panelIp, setPanelIp] = useState(account.panelIp ?? "");
+  const [panelUrl, setPanelUrl] = useState(account.panelUrl ?? "");
+  const [panelUsername, setPanelUsername] = useState(account.panelUsername ?? "");
+  const [panelPassword, setPanelPassword] = useState("");
+  const [expiresAt, setExpiresAt] = useState(toDateInput(account.expiresAt));
+
+  useEffect(() => {
+    setPanelIp(account.panelIp ?? "");
+    setPanelUrl(account.panelUrl ?? "");
+    setPanelUsername(account.panelUsername ?? "");
+    setPanelPassword("");
+    setExpiresAt(toDateInput(account.expiresAt));
+  }, [account]);
+
+  return (
+    <div className="border-outline-variant/40 bg-surface-container-low/40 mt-4 space-y-4 rounded-xl border p-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block space-y-1">
+          <span className="text-on-surface text-sm font-medium">{labels.panelIp}</span>
+          <input
+            type="text"
+            value={panelIp}
+            disabled={disabled}
+            onChange={(e) => setPanelIp(e.target.value)}
+            className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5 font-mono text-sm"
+            required
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-on-surface text-sm font-medium">{labels.expiresAt}</span>
+          <input
+            type="date"
+            value={expiresAt}
+            disabled={disabled}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5 text-sm"
+          />
+        </label>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-on-surface text-sm font-medium">{labels.panelUrl}</span>
+        <input
+          type="url"
+          value={panelUrl}
+          disabled={disabled}
+          onChange={(e) => setPanelUrl(e.target.value)}
+          className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5 font-mono text-sm"
+        />
+        <p className="text-on-surface-variant text-xs">{labels.panelUrlHint}</p>
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block space-y-1">
+          <span className="text-on-surface text-sm font-medium">{labels.panelUsername}</span>
+          <input
+            type="text"
+            value={panelUsername}
+            disabled={disabled}
+            onChange={(e) => setPanelUsername(e.target.value)}
+            className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5 font-mono text-sm"
+            autoComplete="off"
+            required
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-on-surface text-sm font-medium">{labels.panelPassword}</span>
+          <input
+            type="password"
+            value={panelPassword}
+            disabled={disabled}
+            onChange={(e) => setPanelPassword(e.target.value)}
+            className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5 font-mono text-sm"
+            autoComplete="new-password"
+            placeholder="••••••••"
+          />
+          <p className="text-on-surface-variant text-xs">{labels.panelPasswordHint}</p>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={disabled || !panelIp.trim() || !panelUsername.trim()}
+          onClick={() => onSave({ panelIp, panelUrl, panelUsername, panelPassword, expiresAt })}
+          className="bg-primary text-on-primary rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          {labels.save}
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onCancel}
+          className="border-outline-variant/40 bg-surface rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          {labels.cancel}
+        </button>
+      </div>
+    </div>
   );
 }
 

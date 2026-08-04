@@ -21,9 +21,11 @@ const QUICK_LINKS = [
 
 export function DashboardNavbar({
   onMenuClick,
+  menuOpen = false,
   hideSidebarToggle,
 }: {
   onMenuClick?: () => void;
+  menuOpen?: boolean;
   hideSidebarToggle?: boolean;
 }): React.ReactElement {
   const t = useTranslations("dashboard.navbar");
@@ -41,19 +43,20 @@ export function DashboardNavbar({
 
   return (
     <header className="bg-[var(--bg-elevated)]/90 sticky top-0 z-30 border-b border-[var(--separator)] backdrop-blur-md">
-      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+      <div className="flex h-14 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-4">
           {!hideSidebarToggle && (
             <button
               type="button"
               onClick={onMenuClick}
-              className="rounded-full p-2 text-[var(--label-secondary)] transition hover:bg-[var(--fill-secondary)] lg:hidden"
-              aria-label={th("openMenu")}
+              className="shrink-0 rounded-full p-2 text-[var(--label-secondary)] transition hover:bg-[var(--fill-secondary)] lg:hidden"
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? th("closeMenu") : th("openMenu")}
             >
-              <span className="material-symbols-outlined">menu</span>
+              <span className="material-symbols-outlined">{menuOpen ? "close" : "menu"}</span>
             </button>
           )}
-          <BrandLogo href="/dashboard" className="lg:hidden" />
+          <BrandLogo href="/dashboard" className="min-w-0 lg:hidden" />
           <nav className="hidden items-center gap-1 md:flex" aria-label={t("ariaLabel")}>
             {QUICK_LINKS.map((link) => {
               const active = link.exact
@@ -77,7 +80,7 @@ export function DashboardNavbar({
           </nav>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {displayName && (
             <span className="hidden max-w-[140px] truncate text-sm text-[var(--label-secondary)] lg:block xl:max-w-[200px]">
               {displayName}
@@ -89,17 +92,23 @@ export function DashboardNavbar({
           >
             {tn("website")}
           </Link>
-          <ThemeToggle className="!h-9 !w-9" />
+          <div className="hidden items-center gap-1 sm:flex">
+            <ThemeToggle className="!h-9 !w-9" />
+            <CurrencySwitcher />
+            <LanguageSwitcher />
+          </div>
           <NotificationBell />
-          <CurrencySwitcher />
-          <LanguageSwitcher />
           <Link
             href="/dashboard/cart"
-            className="relative inline-flex items-center rounded-full bg-[var(--fill-secondary)] px-3 py-1.5 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--fill)]"
+            className="relative inline-flex h-9 items-center justify-center rounded-full bg-[var(--fill-secondary)] px-2.5 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--fill)] sm:px-3"
+            aria-label={th("cart")}
           >
-            {th("cart")}
+            <span className="material-symbols-outlined text-[20px] sm:hidden" aria-hidden>
+              shopping_cart
+            </span>
+            <span className="hidden sm:inline">{th("cart")}</span>
             {cartCount > 0 && (
-              <span className="bg-primary text-on-primary ml-1.5 rounded-full px-1.5 py-0.5 text-xs">
+              <span className="bg-primary text-on-primary absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] sm:static sm:ml-1.5 sm:h-auto sm:min-w-0 sm:px-1.5 sm:py-0.5 sm:text-xs">
                 {cartCount}
               </span>
             )}

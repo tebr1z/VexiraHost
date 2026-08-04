@@ -1185,7 +1185,16 @@
           "nsGlueAddHint": "Yalnızca host önekini yazın (ör. ns3).",
           "nsGlueHostLabel": "Host öneki",
           "nsGlueIpPlaceholder": "192.168.1.1",
-          "nsGlueAdd": "Ekle"
+          "nsGlueAdd": "Ekle",
+          "delete": "Sil",
+          "deleteConfirm": "{name} domainini silmek istiyor musunuz? Bu işlem geri alınamaz.",
+          "deleted": "Domain silindi",
+          "deleteFailed": "Domain silinemedi",
+          "edit": "Düzenle",
+          "cancelEdit": "İptal",
+          "saveChanges": "Kaydet",
+          "updated": "Domain güncellendi",
+          "updateFailed": "Domain güncellenemedi"
         },
         "hosting": {
           "title": "Manuel Plesk / cPanel",
@@ -1227,7 +1236,17 @@
           "panelUpdated": "Panel tipi güncellendi",
           "panelUpdateFailed": "Panel tipi güncellenemedi",
           "priceUpdated": "Fiyat güncellendi",
-          "invoiceCreated": "Fatura oluşturuldu"
+          "invoiceCreated": "Fatura oluşturuldu",
+          "delete": "Sil",
+          "deleteConfirm": "{name} hizmetini silmek istiyor musunuz? Bu işlem geri alınamaz.",
+          "deleted": "Hizmet silindi",
+          "deleteFailed": "Hizmet silinemedi",
+          "edit": "Düzenle",
+          "cancelEdit": "İptal",
+          "saveChanges": "Kaydet",
+          "updated": "Hizmet güncellendi",
+          "updateFailed": "Hizmet güncellenemedi",
+          "panelPasswordHint": "Mevcut şifreyi korumak için boş bırakın."
         }
       },
       "orders": {

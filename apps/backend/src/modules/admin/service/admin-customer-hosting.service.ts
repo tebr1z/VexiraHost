@@ -393,4 +393,21 @@ export class AdminCustomerHostingService {
 
     return { ...mapAdminHostingAccount(updated), invoiceId };
   }
+
+  async deleteManualHostingAccount(userId: string, accountId: string) {
+    const account = await this.prisma.hostingAccount.findFirst({
+      where: {
+        id: accountId,
+        userId,
+        managementMode: HostingManagementMode.MANUAL,
+      },
+      select: { id: true },
+    });
+    if (!account) {
+      throw new NotFoundException("Manual hosting account not found");
+    }
+
+    await this.prisma.hostingAccount.delete({ where: { id: account.id } });
+    return { deleted: true };
+  }
 }

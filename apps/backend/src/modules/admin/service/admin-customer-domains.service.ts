@@ -306,11 +306,35 @@ export class AdminCustomerDomainsService {
     });
     if (!domain) throw new NotFoundException("Manual domain not found");
 
+    const nameservers = dto.nameservers?.map((ns) => ns.trim().toLowerCase()).filter(Boolean);
+    const glueEntries = dto.nsGlueEntries?.length
+      ? normalizeNsGlueEntries(dto.nsGlueEntries)
+      : undefined;
+
+    if (glueEntries) {
+      for (const entry of glueEntries) {
+        if (!isValidIpAddress(entry.ip)) {
+          throw new BadRequestException("IP address must be a valid IPv4 or IPv6 format");
+        }
+      }
+      if (glueEntries.length < 2) {
+        throw new BadRequestException("At least two glue host records are required");
+      }
+    }
+
+    if (nameservers && nameservers.length < 2) {
+      throw new BadRequestException("At least two nameservers are required");
+    }
+
     const updated = await this.prisma.domain.update({
       where: { id: domain.id },
       data: {
         expiresAt:
           dto.expiresAt === null ? null : dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+        registrarSource:
+          dto.registrarSource !== undefined ? dto.registrarSource.trim() || null : undefined,
+        nameservers: nameservers ?? undefined,
+        nsGlueRecords: glueEntries ?? undefined,
         billingAmount:
           dto.billingAmount === null
             ? null
@@ -359,6 +383,21 @@ export class AdminCustomerDomainsService {
     }
 
     return { ...mapAdminDomain(updated), invoiceId };
+  }
+
+  async deleteManualDomain(userId: string, domainId: string) {
+    const domain = await this.prisma.domain.findFirst({
+      where: {
+        id: domainId,
+        userId,
+        managementMode: DomainManagementMode.MANUAL,
+      },
+      select: { id: true },
+    });
+    if (!domain) throw new NotFoundException("Manual domain not found");
+
+    await this.prisma.domain.delete({ where: { id: domain.id } });
+    return { deleted: true };
   }
 
   listChangeRequests(status?: DomainChangeStatus) {

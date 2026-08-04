@@ -82,3 +82,12 @@ export async function updateUserManualHostingAccount(
   );
   return res.data as AdminManualHostingAccount;
 }
+
+export async function deleteUserManualHostingAccount(
+  userId: string,
+  accountId: string,
+): Promise<void> {
+  await apiClient.request(`/admin/users/${userId}/hosting-accounts/${accountId}`, {
+    method: "DELETE",
+  });
+}

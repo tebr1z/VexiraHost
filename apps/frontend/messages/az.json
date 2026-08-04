@@ -1184,7 +1184,16 @@
           "nsGlueAddHint": "Yalnız host prefiksini yazın (məs. ns3).",
           "nsGlueHostLabel": "Host prefiksi",
           "nsGlueIpPlaceholder": "192.168.1.1",
-          "nsGlueAdd": "Əlavə et"
+          "nsGlueAdd": "Əlavə et",
+          "delete": "Sil",
+          "deleteConfirm": "{name} domainini silmək istəyirsiniz? Bu əməliyyat geri alına bilməz.",
+          "deleted": "Domain silindi",
+          "deleteFailed": "Domain silinmədi",
+          "edit": "Redaktə",
+          "cancelEdit": "Ləğv et",
+          "saveChanges": "Yadda saxla",
+          "updated": "Domain yeniləndi",
+          "updateFailed": "Domain yenilənmədi"
         },
         "hosting": {
           "title": "Manual Plesk / cPanel",
@@ -1226,7 +1235,17 @@
           "panelUpdated": "Panel tipi yeniləndi",
           "panelUpdateFailed": "Panel tipi yenilənmədi",
           "priceUpdated": "Qiymət yeniləndi",
-          "invoiceCreated": "Faktura yaradıldı"
+          "invoiceCreated": "Faktura yaradıldı",
+          "delete": "Sil",
+          "deleteConfirm": "{name} xidmətini silmək istəyirsiniz? Bu əməliyyat geri alına bilməz.",
+          "deleted": "Xidmət silindi",
+          "deleteFailed": "Xidmət silinmədi",
+          "edit": "Redaktə",
+          "cancelEdit": "Ləğv et",
+          "saveChanges": "Yadda saxla",
+          "updated": "Xidmət yeniləndi",
+          "updateFailed": "Xidmət yenilənmədi",
+          "panelPasswordHint": "Mövcud şifrəni saxlamaq üçün boş buraxın."
         }
       },
       "orders": {

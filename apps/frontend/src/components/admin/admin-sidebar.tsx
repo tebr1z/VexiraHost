@@ -58,11 +58,23 @@ export function AdminSidebar({
 
   return (
     <aside className={cn("sidebar-lagom-dark flex h-full w-60 flex-col text-white", className)}>
-      <div className="flex h-14 items-center border-b border-white/10 px-4">
+      <div className="flex h-14 items-center justify-between gap-2 border-b border-white/10 px-4">
         <BrandLogo href="/t4abriz/panel" onClick={onNavigate} tone="light" />
+        {onNavigate ? (
+          <button
+            type="button"
+            onClick={onNavigate}
+            aria-label={t("header.closeMenu")}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            <span className="material-symbols-outlined text-[22px]" aria-hidden>
+              close
+            </span>
+          </button>
+        ) : null}
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
+      <nav className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-2 py-3">
         {groups.map((group) => (
           <div key={group.id}>
             <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">

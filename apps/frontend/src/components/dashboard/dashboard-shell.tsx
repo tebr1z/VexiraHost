@@ -1,99 +1,73 @@
 "use client";
 
-
-
-import { useEffect, useState } from "react";
-
 import { useTranslations } from "next-intl";
-
-
-
-import { Link, usePathname } from "@/i18n/navigation";
-
-import { cn } from "@/lib/cn";
-
-
-
-import { SiteFooter } from "@/components/layout/site-footer";
+import { useEffect, useState } from "react";
 
 import { DashboardLegalBar } from "./dashboard-legal-bar";
 import { DashboardNavbar } from "./dashboard-navbar";
+import { DashboardSidebar } from "./dashboard-sidebar";
 import { EmailVerificationBanner } from "./email-verification-banner";
 
-import { DashboardSidebar } from "./dashboard-sidebar";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { Link, usePathname } from "@/i18n/navigation";
+import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/auth-store";
-
-
 
 const INSTANCE_DETAIL_PATTERN = /^\/dashboard\/servers\/[^/]+$/;
 
-
-
 export function DashboardShell({ children }: { children: React.ReactNode }): React.ReactElement {
-
   const t = useTranslations("dashboard.header");
   const tc = useTranslations("dashboard.common");
-
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-
   const immersive = INSTANCE_DETAIL_PATTERN.test(pathname);
-
   const [mobileOpen, setMobileOpen] = useState(false);
 
-
-
   useEffect(() => {
-
     setMobileOpen(false);
-
   }, [pathname]);
 
+  useEffect(() => {
+    if (immersive) {
+      setMobileOpen(false);
+      return;
+    }
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen, immersive]);
 
+  useEffect(() => {
+    if (!mobileOpen || immersive) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen, immersive]);
 
   return (
     <div className="panel-mesh-bg flex min-h-screen flex-col">
       {!immersive && <DashboardLegalBar />}
 
-      {!immersive && mobileOpen && (
-
+      {!immersive && mobileOpen ? (
         <button
-
           type="button"
-
-          className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm lg:hidden"
-
+          className="fixed inset-0 z-[65] bg-slate-900/35 backdrop-blur-sm lg:hidden"
           aria-label={t("closeMenu")}
-
           onClick={() => setMobileOpen(false)}
-
         />
+      ) : null}
 
-      )}
-
-
-
-      {!immersive && (
-
-        <div
-
-          className={cn(
-
-            "fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 lg:hidden",
-
-            mobileOpen ? "translate-x-0" : "-translate-x-full",
-
-          )}
-
-        >
-
-          <DashboardSidebar onNavigate={() => setMobileOpen(false)} />
-
+      {!immersive && mobileOpen ? (
+        <div className="fixed inset-y-0 left-0 z-[70] w-[min(100vw,15rem)] shadow-2xl lg:hidden">
+          <DashboardSidebar
+            onNavigate={() => setMobileOpen(false)}
+            className="h-full w-full pb-[env(safe-area-inset-bottom)]"
+          />
         </div>
-
-      )}
-
-
+      ) : null}
 
       <div className="flex min-h-0 flex-1">
         {!immersive && (
@@ -105,7 +79,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }): Rea
         <div className="flex min-w-0 flex-1 flex-col">
           {!immersive ? (
             <DashboardNavbar
-              onMenuClick={() => setMobileOpen(true)}
+              menuOpen={mobileOpen}
+              onMenuClick={() => setMobileOpen((open) => !open)}
               hideSidebarToggle={immersive}
             />
           ) : (
@@ -126,7 +101,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }): Rea
               immersive ? "px-0 py-0" : "px-4 py-6 sm:px-6 lg:px-8",
             )}
           >
-            <div className={cn(immersive ? "w-full" : "mx-auto max-w-container-max")}>
+            <div className={cn(immersive ? "w-full" : "max-w-container-max mx-auto")}>
               {!immersive && user && !user.emailVerified && <EmailVerificationBanner />}
               {children}
             </div>
@@ -136,9 +111,5 @@ export function DashboardShell({ children }: { children: React.ReactNode }): Rea
         </div>
       </div>
     </div>
-
   );
-
 }
-
-

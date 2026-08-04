@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 import { UserRole } from "@vexira/types";
 import type { Request } from "express";
@@ -114,6 +125,12 @@ export class AdminController {
     return this.customerDomainsService.updateManualDomain(id, domainId, dto);
   }
 
+  @Delete("users/:id/domains/:domainId")
+  @Roles(UserRole.ADMIN)
+  deleteUserDomain(@Param("id") id: string, @Param("domainId") domainId: string) {
+    return this.customerDomainsService.deleteManualDomain(id, domainId);
+  }
+
   @Post("users/:id/balance")
   @Roles(UserRole.ADMIN)
   creditUserBalance(
@@ -150,6 +167,12 @@ export class AdminController {
     @Body() dto: UpdateManualHostingAccountDto,
   ) {
     return this.customerHostingService.updateManualHostingAccount(id, accountId, dto);
+  }
+
+  @Delete("users/:id/hosting-accounts/:accountId")
+  @Roles(UserRole.ADMIN)
+  deleteUserHostingAccount(@Param("id") id: string, @Param("accountId") accountId: string) {
+    return this.customerHostingService.deleteManualHostingAccount(id, accountId);
   }
 
   @Get("orders")

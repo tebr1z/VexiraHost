@@ -1185,7 +1185,16 @@
           "nsGlueAddHint": "Только префикс host (напр. ns3).",
           "nsGlueHostLabel": "Префикс host",
           "nsGlueIpPlaceholder": "192.168.1.1",
-          "nsGlueAdd": "Добавить"
+          "nsGlueAdd": "Добавить",
+          "delete": "Удалить",
+          "deleteConfirm": "Удалить назначенный домен {name}? Это действие нельзя отменить.",
+          "deleted": "Домен удалён",
+          "deleteFailed": "Не удалось удалить домен",
+          "edit": "Изменить",
+          "cancelEdit": "Отмена",
+          "saveChanges": "Сохранить",
+          "updated": "Домен обновлён",
+          "updateFailed": "Не удалось обновить домен"
         },
         "hosting": {
           "title": "Ручной Plesk / cPanel",
@@ -1227,7 +1236,17 @@
           "panelUpdated": "Тип панели обновлён",
           "panelUpdateFailed": "Не удалось обновить тип панели",
           "priceUpdated": "Цена обновлена",
-          "invoiceCreated": "Счёт создан"
+          "invoiceCreated": "Счёт создан",
+          "delete": "Удалить",
+          "deleteConfirm": "Удалить назначенную услугу {name}? Это действие нельзя отменить.",
+          "deleted": "Услуга удалена",
+          "deleteFailed": "Не удалось удалить услугу",
+          "edit": "Изменить",
+          "cancelEdit": "Отмена",
+          "saveChanges": "Сохранить",
+          "updated": "Услуга обновлена",
+          "updateFailed": "Не удалось обновить услугу",
+          "panelPasswordHint": "Оставьте пустым, чтобы сохранить текущий пароль."
         }
       },
       "orders": {

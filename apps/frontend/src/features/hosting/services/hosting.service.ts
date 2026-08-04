@@ -113,14 +113,33 @@ export async function resolveClientPublicIp(): Promise<string | undefined> {
 }
 
 export async function openHostingPanel(id: string): Promise<void> {
-  const clientIp = await resolveClientPublicIp();
-  const res = await apiClient.request<{ openUrl: string }>(`/hosting/${id}/panel-login`, {
-    method: "POST",
-    body: clientIp ? { clientIp } : {},
-  });
-  const openUrl = res.data?.openUrl;
-  if (!openUrl) throw new Error("Panel login URL missing");
-  window.open(openUrl, "_blank", "noopener,noreferrer");
+  // Open synchronously so mobile browsers don't block the popup after awaits.
+  const popup = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+
+  try {
+    const clientIp = await resolveClientPublicIp();
+    const res = await apiClient.request<{ openUrl: string }>(`/hosting/${id}/panel-login`, {
+      method: "POST",
+      body: clientIp ? { clientIp } : {},
+    });
+    const openUrl = res.data?.openUrl;
+    if (!openUrl) throw new Error("Panel login URL missing");
+
+    if (popup && !popup.closed) {
+      try {
+        popup.opener = null;
+      } catch {
+        // ignore cross-origin / browser restrictions
+      }
+      popup.location.replace(openUrl);
+      return;
+    }
+
+    window.location.assign(openUrl);
+  } catch (error) {
+    popup?.close();
+    throw error;
+  }
 }
 
 export async function provisionHosting(input: {

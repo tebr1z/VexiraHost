@@ -1197,7 +1197,16 @@
           "nsGlueAddHint": "Enter only the host prefix (e.g. ns3).",
           "nsGlueHostLabel": "Host prefix",
           "nsGlueIpPlaceholder": "192.168.1.1",
-          "nsGlueAdd": "Add"
+          "nsGlueAdd": "Add",
+          "delete": "Delete",
+          "deleteConfirm": "Remove assigned domain {name}? This cannot be undone.",
+          "deleted": "Domain removed",
+          "deleteFailed": "Could not remove domain",
+          "edit": "Edit",
+          "cancelEdit": "Cancel",
+          "saveChanges": "Save changes",
+          "updated": "Domain updated",
+          "updateFailed": "Could not update domain"
         },
         "hosting": {
           "title": "Manual Plesk / cPanel",
@@ -1239,7 +1248,17 @@
           "panelUpdated": "Panel type updated",
           "panelUpdateFailed": "Could not update panel type",
           "priceUpdated": "Price updated",
-          "invoiceCreated": "Invoice created"
+          "invoiceCreated": "Invoice created",
+          "delete": "Delete",
+          "deleteConfirm": "Remove assigned service {name}? This cannot be undone.",
+          "deleted": "Service removed",
+          "deleteFailed": "Could not remove service",
+          "edit": "Edit",
+          "cancelEdit": "Cancel",
+          "saveChanges": "Save changes",
+          "updated": "Service updated",
+          "updateFailed": "Could not update service",
+          "panelPasswordHint": "Leave blank to keep the current password."
         }
       },
       "orders": {

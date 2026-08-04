@@ -82,6 +82,23 @@ export class UpdateManualDomainDto {
   @IsDateString()
   expiresAt?: string | null;
 
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(2)
+  @IsString({ each: true })
+  nameservers?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => NsGlueEntryDto)
+  nsGlueEntries?: NsGlueEntryDto[];
+
+  @IsOptional()
+  @IsString()
+  registrarSource?: string;
+
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @Type(() => Number)
   @IsNumber()

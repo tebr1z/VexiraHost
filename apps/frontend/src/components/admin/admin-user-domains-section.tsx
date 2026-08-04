@@ -16,6 +16,7 @@ import {
 import { StatusBadge } from "@/components/ui";
 import {
   assignUserManualDomain,
+  deleteUserManualDomain,
   listUserManualDomains,
   updateUserManualDomain,
   type AdminManualDomain,
@@ -33,6 +34,7 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [assignPanel, setAssignPanel] = useState<"nameservers" | "glue">("nameservers");
   const [form, setForm] = useState({
     name: "",
@@ -143,6 +145,70 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
       toast(tp("invoiceCreated"), "success");
     } catch {
       toast(tp("assignFailed"), "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (domain: AdminManualDomain) => {
+    if (!confirm(tp("deleteConfirm", { name: domain.name }))) return;
+    setUpdatingId(domain.id);
+    try {
+      await deleteUserManualDomain(userId, domain.id);
+      setDomains((prev) => prev.filter((d) => d.id !== domain.id));
+      if (editingId === domain.id) setEditingId(null);
+      toast(tp("deleted"), "success");
+    } catch {
+      toast(tp("deleteFailed"), "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleEditSave = async (
+    domainId: string,
+    input: {
+      expiresAt: string;
+      registrarSource: string;
+      nameservers: string[];
+      nsGlueEntries: NsGlueEntry[];
+    },
+  ) => {
+    const nsGlueEntries = input.nsGlueEntries
+      .map((entry) => ({
+        host: entry.host.trim().toLowerCase(),
+        ip: entry.ip.trim(),
+      }))
+      .filter((entry) => entry.host.length > 0);
+    const nameservers = input.nameservers.map((ns) => ns.trim().toLowerCase()).filter(Boolean);
+
+    const ipError = validateGlueEntries(nsGlueEntries, tp("ipInvalidFormat"));
+    if (ipError) {
+      toast(ipError, "error");
+      return;
+    }
+    if (nsGlueEntries.length < 2) {
+      toast(tp("glueHostsMin"), "error");
+      return;
+    }
+    if (nameservers.length < 2) {
+      toast(tp("nameserversMin"), "error");
+      return;
+    }
+
+    setUpdatingId(domainId);
+    try {
+      const updated = await updateUserManualDomain(userId, domainId, {
+        expiresAt: input.expiresAt || null,
+        registrarSource: input.registrarSource,
+        nameservers,
+        nsGlueEntries,
+      });
+      setDomains((prev) => prev.map((d) => (d.id === domainId ? updated : d)));
+      setEditingId(null);
+      toast(tp("updated"), "success");
+    } catch {
+      toast(tp("updateFailed"), "error");
     } finally {
       setUpdatingId(null);
     }
@@ -332,19 +398,62 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
                       {tp("pendingChanges", { count: domain.pendingChangeCount })}
                     </Link>
                   )}
+                  <button
+                    type="button"
+                    disabled={updatingId === domain.id}
+                    onClick={() =>
+                      setEditingId((current) => (current === domain.id ? null : domain.id))
+                    }
+                    className="border-outline-variant/40 bg-surface rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                  >
+                    {editingId === domain.id ? tp("cancelEdit") : tp("edit")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updatingId === domain.id}
+                    onClick={() => void handleDelete(domain)}
+                    className="border-error/40 text-error hover:bg-error/10 rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                  >
+                    {tp("delete")}
+                  </button>
                 </div>
               </div>
-              {domain.nameservers.length > 0 && (
-                <p className="text-on-surface-variant font-mono text-xs">
-                  NS: {domain.nameservers.join(" · ")}
-                </p>
-              )}
-              {domain.nsGlueRecords.length > 0 && (
-                <p className="text-on-surface-variant font-mono text-xs">
-                  {domain.nsGlueRecords
-                    .map((entry) => `${entry.host} → ${entry.ip || "—"}`)
-                    .join(" · ")}
-                </p>
+              {editingId === domain.id ? (
+                <DomainEditPanel
+                  domain={domain}
+                  disabled={updatingId === domain.id}
+                  onCancel={() => setEditingId(null)}
+                  onSave={(input) => void handleEditSave(domain.id, input)}
+                  labels={{
+                    expiresAt: tp("expiresAt"),
+                    registrarSource: tp("registrarSource"),
+                    settingsNavLabel: tp("settingsNavLabel"),
+                    settingsTabNs: tp("settingsTabNs"),
+                    settingsTabGlue: tp("settingsTabGlue"),
+                    save: tp("saveChanges"),
+                    cancel: tp("cancelEdit"),
+                    registrarOptions: {
+                      natro: tp("registrarOptions.natro"),
+                      hostinger: tp("registrarOptions.hostinger"),
+                      other: tp("registrarOptions.other"),
+                    },
+                  }}
+                />
+              ) : (
+                <>
+                  {domain.nameservers.length > 0 && (
+                    <p className="text-on-surface-variant font-mono text-xs">
+                      NS: {domain.nameservers.join(" · ")}
+                    </p>
+                  )}
+                  {domain.nsGlueRecords.length > 0 && (
+                    <p className="text-on-surface-variant font-mono text-xs">
+                      {domain.nsGlueRecords
+                        .map((entry) => `${entry.host} → ${entry.ip || "—"}`)
+                        .join(" · ")}
+                    </p>
+                  )}
+                </>
               )}
               <DomainBillingRow
                 domain={domain}
@@ -363,6 +472,167 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
         </ul>
       )}
     </section>
+  );
+}
+
+function toDateInput(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function DomainEditPanel({
+  domain,
+  disabled,
+  onCancel,
+  onSave,
+  labels,
+}: {
+  domain: AdminManualDomain;
+  disabled: boolean;
+  onCancel: () => void;
+  onSave: (input: {
+    expiresAt: string;
+    registrarSource: string;
+    nameservers: string[];
+    nsGlueEntries: NsGlueEntry[];
+  }) => void;
+  labels: {
+    expiresAt: string;
+    registrarSource: string;
+    settingsNavLabel: string;
+    settingsTabNs: string;
+    settingsTabGlue: string;
+    save: string;
+    cancel: string;
+    registrarOptions: { natro: string; hostinger: string; other: string };
+  };
+}): React.ReactElement {
+  const [panel, setPanel] = useState<"nameservers" | "glue">("nameservers");
+  const [expiresAt, setExpiresAt] = useState(toDateInput(domain.expiresAt));
+  const [registrarSource, setRegistrarSource] = useState(domain.registrarSource || "natro");
+  const [nameservers, setNameservers] = useState(
+    domain.nameservers.length >= 2 ? [...domain.nameservers] : [...DEFAULT_NAMESERVERS],
+  );
+  const [nsGlueEntries, setNsGlueEntries] = useState<NsGlueEntry[]>(
+    domain.nsGlueRecords.length >= 2
+      ? domain.nsGlueRecords.map((e) => ({ host: e.host, ip: e.ip || "" }))
+      : [...DEFAULT_NS_GLUE],
+  );
+
+  useEffect(() => {
+    setExpiresAt(toDateInput(domain.expiresAt));
+    setRegistrarSource(domain.registrarSource || "natro");
+    setNameservers(
+      domain.nameservers.length >= 2 ? [...domain.nameservers] : [...DEFAULT_NAMESERVERS],
+    );
+    setNsGlueEntries(
+      domain.nsGlueRecords.length >= 2
+        ? domain.nsGlueRecords.map((e) => ({ host: e.host, ip: e.ip || "" }))
+        : [...DEFAULT_NS_GLUE],
+    );
+  }, [domain]);
+
+  const tabClass = (active: boolean) =>
+    [
+      "w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition",
+      active
+        ? "bg-primary text-on-primary shadow-sm"
+        : "border border-outline-variant/40 bg-surface text-on-surface hover:bg-surface-container-low",
+    ].join(" ");
+
+  return (
+    <div className="border-outline-variant/40 bg-surface-container-low/40 space-y-4 rounded-xl border p-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block space-y-1">
+          <span className="text-on-surface text-sm font-medium">{labels.expiresAt}</span>
+          <input
+            type="date"
+            value={expiresAt}
+            disabled={disabled}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5 text-sm"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-on-surface text-sm font-medium">{labels.registrarSource}</span>
+          <select
+            value={registrarSource}
+            disabled={disabled}
+            onChange={(e) => setRegistrarSource(e.target.value)}
+            className="border-outline-variant/40 bg-surface w-full rounded-xl border px-4 py-2.5"
+          >
+            {REGISTRAR_SOURCES.map((key) => (
+              <option key={key} value={key}>
+                {labels.registrarOptions[key]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <aside className="lg:w-44 lg:shrink-0">
+          <p className="text-on-surface-variant mb-2 px-1 text-xs font-semibold uppercase tracking-wide">
+            {labels.settingsNavLabel}
+          </p>
+          <nav className="flex flex-row gap-2 lg:flex-col">
+            <button
+              type="button"
+              className={tabClass(panel === "nameservers")}
+              onClick={() => setPanel("nameservers")}
+            >
+              {labels.settingsTabNs}
+            </button>
+            <button
+              type="button"
+              className={tabClass(panel === "glue")}
+              onClick={() => setPanel("glue")}
+            >
+              {labels.settingsTabGlue}
+            </button>
+          </nav>
+        </aside>
+        <div className="min-w-0 flex-1">
+          {panel === "nameservers" ? (
+            <DomainNameserversEditor
+              nameservers={nameservers}
+              onChange={setNameservers}
+              translationScope="admin"
+            />
+          ) : (
+            <DomainNsGlueEditor
+              entries={nsGlueEntries}
+              onChange={setNsGlueEntries}
+              translationScope="admin"
+              onValidationError={(msg) => {
+                if (msg) toast(msg, "error");
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onSave({ expiresAt, registrarSource, nameservers, nsGlueEntries })}
+          className="bg-primary text-on-primary rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          {labels.save}
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onCancel}
+          className="border-outline-variant/40 bg-surface rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        >
+          {labels.cancel}
+        </button>
+      </div>
+    </div>
   );
 }
 

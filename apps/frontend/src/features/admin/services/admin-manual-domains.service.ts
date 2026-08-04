@@ -71,6 +71,9 @@ export interface AssignManualDomainInput {
 
 export interface UpdateManualDomainInput {
   expiresAt?: string | null;
+  nameservers?: string[];
+  nsGlueEntries?: Array<{ host: string; ip: string }>;
+  registrarSource?: string;
   billingAmount?: number | null;
   billingCurrency?: string;
   createInvoiceNow?: boolean;
@@ -102,6 +105,12 @@ export async function updateUserManualDomain(
     { method: "PATCH", body: input },
   );
   return res.data as AdminManualDomain;
+}
+
+export async function deleteUserManualDomain(userId: string, domainId: string): Promise<void> {
+  await apiClient.request(`/admin/users/${userId}/domains/${domainId}`, {
+    method: "DELETE",
+  });
 }
 
 /** @deprecated Use listUserManualDomains from user edit page */
