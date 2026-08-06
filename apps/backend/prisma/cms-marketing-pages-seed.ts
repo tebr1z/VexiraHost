@@ -749,7 +749,7 @@ export async function seedLicenseSubPages(prisma: PrismaClient): Promise<void> {
     title: L;
     sections: ReturnType<typeof licenseSubPageSections>;
     pathSegment: string;
-    parentSlug?: string;
+    parentSlug?: string | null;
     sortOrder: number;
   }> = [
     {
