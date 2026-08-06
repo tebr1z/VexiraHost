@@ -1913,6 +1913,16 @@
           "messagePlaceholder": "Leave empty — default text follows the site language",
           "messageHint": "If left empty, the default multilanguage text is shown (AZ/EN/TR/RU).",
           "adminNote": "Users with the admin role do not see the maintenance overlay and can keep using the panel."
+        },
+        "announcement": {
+          "title": "Site announcement",
+          "description": "Show a popup message when visitors open the site. After they close it, it stays hidden for 24 hours.",
+          "enabled": "Show announcement popup",
+          "heading": "Title",
+          "headingPlaceholder": "Important notice",
+          "message": "Message",
+          "messagePlaceholder": "Write the announcement text visitors should see…",
+          "messageHint": "Popup appears site-wide. Closing it hides it for 24 hours on that browser."
         }
       },
       "whatsapp": {
@@ -2207,6 +2217,10 @@
     "description": "The system is under maintenance. Please try again in a few minutes.",
     "slowTitle": "Temporary issue",
     "slowDescription": "We’re experiencing an issue right now and are working to resolve it as quickly as possible. Thank you for your understanding."
+  },
+  "announcement": {
+    "defaultTitle": "Announcement",
+    "close": "Close"
   },
   "ui": {
     "loading": "Loading...",

@@ -1902,6 +1902,16 @@
           "messagePlaceholder": "Boş bırakın — site diline göre otomatik metin gösterilir",
           "messageHint": "Boş bırakırsanız çok dilli varsayılan metin gösterilir (AZ/EN/TR/RU).",
           "adminNote": "Admin rolündeki kullanıcılar bakım ekranını görmez ve paneli kullanmaya devam eder."
+        },
+        "announcement": {
+          "title": "Site bildirimi",
+          "description": "Ziyaretçi siteye girdiğinde ekranda popup mesaj gösterilir. Kapattıktan sonra 24 saat görünmez.",
+          "enabled": "Bildirim popup'ını göster",
+          "heading": "Başlık",
+          "headingPlaceholder": "Önemli duyuru",
+          "message": "Mesaj",
+          "messagePlaceholder": "Ziyaretçilerin göreceği metni yazın…",
+          "messageHint": "Popup tüm sitede görünür. Kapatmak o tarayıcıda 24 saat gizler."
         }
       },
       "whatsapp": {
@@ -2196,6 +2206,10 @@
     "description": "Sistemde şu an bakım çalışması var. Lütfen biraz sonra tekrar deneyin.",
     "slowTitle": "Geçici bir sorun",
     "slowDescription": "Şu an bir sorunla karşılaştık. Bu sorunu en kısa sürede çözmeye çalışıyoruz. Anlayışınız için teşekkürler."
+  },
+  "announcement": {
+    "defaultTitle": "Duyuru",
+    "close": "Kapat"
   },
   "ui": {
     "loading": "Yükleniyor...",

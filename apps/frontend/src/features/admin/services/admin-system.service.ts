@@ -23,6 +23,12 @@ export interface AdminMaintenanceSettings {
   message: string;
 }
 
+export interface AdminAnnouncementSettings {
+  enabled: boolean;
+  title: string;
+  message: string;
+}
+
 export interface AdminGoogleOAuthSettings {
   clientId: string;
   clientSecret: string;
@@ -56,6 +62,7 @@ export interface AdminSystemStatus {
   kapitalPresets: Record<KapitalEnvironment, KapitalPreset>;
   googleOAuth: AdminGoogleOAuthSettings;
   maintenance: AdminMaintenanceSettings;
+  announcement: AdminAnnouncementSettings;
   note: string;
 }
 
@@ -69,6 +76,9 @@ export interface UpdateSystemSettingsInput {
   kapitalPassword?: string;
   maintenanceEnabled?: boolean;
   maintenanceMessage?: string;
+  announcementEnabled?: boolean;
+  announcementTitle?: string;
+  announcementMessage?: string;
   googleClientId?: string;
   googleClientSecret?: string;
   googleCallbackUrl?: string;

@@ -1901,6 +1901,16 @@
           "messagePlaceholder": "Boş buraxın — dilə görə avtomatik mətn göstəriləcək",
           "messageHint": "Boş buraxsanız, saytın dilinə uyğun standart mətn görünəcək (AZ/EN/TR/RU).",
           "adminNote": "Admin rolunda olan istifadəçilər bakım overlay-ini görmür və paneli idarə edə bilər."
+        },
+        "announcement": {
+          "title": "Sayt bildirişi",
+          "description": "Sayta girəndə ekranda popup mesaj göstərilir. Bağlandıqdan sonra 24 saat görünmür.",
+          "enabled": "Bildiriş popup-ını göstər",
+          "heading": "Başlıq",
+          "headingPlaceholder": "Vacib bildiriş",
+          "message": "Mesaj",
+          "messagePlaceholder": "Ziyarətçilərin görməli olduğu mətni yazın…",
+          "messageHint": "Popup bütün saytda görünür. Bağlamaq həmin brauzerdə 24 saat gizlədir."
         }
       },
       "whatsapp": {
@@ -2195,6 +2205,10 @@
     "description": "Hazırda sistemdə bakım işləri aparılır. Zəhmət olmasa bir az sonra yenidən yoxlayın.",
     "slowTitle": "Müvəqqəti problem",
     "slowDescription": "Hal-hazırda bir problemlə qarşılaşdıq. Bu məsələni ən qısa zamanda həll etməyə çalışırıq. Anlayışınız üçün təşəkkürlər."
+  },
+  "announcement": {
+    "defaultTitle": "Bildiriş",
+    "close": "Bağla"
   },
   "ui": {
     "loading": "Yüklənir...",

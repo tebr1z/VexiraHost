@@ -51,6 +51,11 @@ export default function AdminSystemPage(): React.ReactElement | null {
     enabled: false,
     message: "",
   });
+  const [announcement, setAnnouncement] = useState({
+    enabled: false,
+    title: "",
+    message: "",
+  });
   const [googleOAuth, setGoogleOAuth] = useState<AdminGoogleOAuthSettings>({
     clientId: "",
     clientSecret: "",
@@ -67,6 +72,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
         setKapital(data.kapital);
         setKapitalPresets(data.kapitalPresets);
         setMaintenance(data.maintenance);
+        setAnnouncement(data.announcement ?? { enabled: false, title: "", message: "" });
         setGoogleOAuth(data.googleOAuth);
       });
     }
@@ -91,6 +97,9 @@ export default function AdminSystemPage(): React.ReactElement | null {
         ...providers,
         maintenanceEnabled: maintenance.enabled,
         maintenanceMessage: maintenance.message,
+        announcementEnabled: announcement.enabled,
+        announcementTitle: announcement.title,
+        announcementMessage: announcement.message,
       };
 
       if (providers.paymentProvider === "kapital") {
@@ -111,6 +120,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
       setKapital(updated.kapital);
       setKapitalPresets(updated.kapitalPresets);
       setMaintenance(updated.maintenance);
+      setAnnouncement(updated.announcement ?? { enabled: false, title: "", message: "" });
       setGoogleOAuth(updated.googleOAuth);
       toast(tp("saved"), "success");
     } catch {
@@ -177,6 +187,55 @@ export default function AdminSystemPage(): React.ReactElement | null {
             <span className="text-on-surface-variant text-xs">{tp("maintenance.messageHint")}</span>
           </label>
           <p className="text-on-surface-variant text-xs">{tp("maintenance.adminNote")}</p>
+        </div>
+      </section>
+
+      <section className="card-3d rounded-2xl p-6">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("announcement.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("announcement.description")}</p>
+        <div className="mt-4 space-y-4">
+          <label className="text-on-surface flex items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={announcement.enabled}
+              onChange={(e) =>
+                setAnnouncement((current) => ({ ...current, enabled: e.target.checked }))
+              }
+              className="border-outline-variant h-4 w-4 rounded"
+            />
+            {tp("announcement.enabled")}
+          </label>
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("announcement.heading")}
+            </span>
+            <input
+              type="text"
+              value={announcement.title}
+              onChange={(e) =>
+                setAnnouncement((current) => ({ ...current, title: e.target.value }))
+              }
+              placeholder={tp("announcement.headingPlaceholder")}
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("announcement.message")}
+            </span>
+            <textarea
+              value={announcement.message}
+              onChange={(e) =>
+                setAnnouncement((current) => ({ ...current, message: e.target.value }))
+              }
+              rows={4}
+              placeholder={tp("announcement.messagePlaceholder")}
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
+            />
+            <span className="text-on-surface-variant text-xs">
+              {tp("announcement.messageHint")}
+            </span>
+          </label>
         </div>
       </section>
 

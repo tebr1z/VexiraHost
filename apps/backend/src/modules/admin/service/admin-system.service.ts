@@ -21,6 +21,9 @@ const SETTING_KEYS = {
   proxmoxProvider: "proxmox_provider",
   maintenanceEnabled: "maintenance_enabled",
   maintenanceMessage: "maintenance_message",
+  announcementEnabled: "announcement_enabled",
+  announcementTitle: "announcement_title",
+  announcementMessage: "announcement_message",
 } as const;
 
 @Injectable()
@@ -87,6 +90,19 @@ export class AdminSystemService {
     };
   }
 
+  private async resolveAnnouncement() {
+    const [enabledRow, titleRow, messageRow] = await Promise.all([
+      this.systemRepository.findSetting(SETTING_KEYS.announcementEnabled),
+      this.systemRepository.findSetting(SETTING_KEYS.announcementTitle),
+      this.systemRepository.findSetting(SETTING_KEYS.announcementMessage),
+    ]);
+    return {
+      enabled: enabledRow?.value === "true",
+      title: titleRow?.value?.trim() ?? "",
+      message: messageRow?.value?.trim() ?? "",
+    };
+  }
+
   async getSystemStatus() {
     const providers = await this.resolveProviders();
     const envDefaults = this.envDefaults();
@@ -129,6 +145,7 @@ export class AdminSystemService {
       kapitalPresets: KAPITAL_PRESETS,
       googleOAuth: await this.oauthConfigService.getGoogleAdminSettings(),
       maintenance: await this.resolveMaintenance(),
+      announcement: await this.resolveAnnouncement(),
       note: "Provider, Kapital, and Google OAuth credentials stored in the database override server .env defaults.",
     };
   }
@@ -172,6 +189,25 @@ export class AdminSystemService {
       );
     }
 
+    if (dto.announcementEnabled !== undefined) {
+      await this.systemRepository.upsertSetting(
+        SETTING_KEYS.announcementEnabled,
+        dto.announcementEnabled ? "true" : "false",
+      );
+    }
+    if (dto.announcementTitle !== undefined) {
+      await this.systemRepository.upsertSetting(
+        SETTING_KEYS.announcementTitle,
+        dto.announcementTitle.trim(),
+      );
+    }
+    if (dto.announcementMessage !== undefined) {
+      await this.systemRepository.upsertSetting(
+        SETTING_KEYS.announcementMessage,
+        dto.announcementMessage.trim(),
+      );
+    }
+
     if (
       dto.googleClientId !== undefined ||
       dto.googleClientSecret !== undefined ||
@@ -188,9 +224,13 @@ export class AdminSystemService {
   }
 
   async getPublicSystemStatus() {
-    const maintenance = await this.resolveMaintenance();
+    const [maintenance, announcement] = await Promise.all([
+      this.resolveMaintenance(),
+      this.resolveAnnouncement(),
+    ]);
     return {
       maintenance,
+      announcement,
       checkedAt: new Date().toISOString(),
     };
   }
