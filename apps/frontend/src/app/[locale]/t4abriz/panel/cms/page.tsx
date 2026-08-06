@@ -48,6 +48,7 @@ export default function AdminCmsPagesList(): React.ReactElement | null {
       : FALLBACK_PAGES.map((p) => ({
           id: p.slug,
           slug: p.slug,
+          pathSegment: null,
           title: { tr: p.title, en: p.title },
           isActive: true,
           sectionCount: 0,

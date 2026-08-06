@@ -229,6 +229,8 @@ export function CartCheckoutView({
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: email.trim(),
+            phoneDialIso2: "AZ",
+            phoneNational: "",
             password,
             confirmPassword,
             preferredCurrency: currency,

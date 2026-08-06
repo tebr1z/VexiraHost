@@ -12,6 +12,7 @@ import {
   confirmTotpRequest,
   disableTotpRequest,
   fetchProfile,
+  isEmailTwoFactorSetupChallenge,
   setupTotpRequest,
   updateBillingAddress,
   updateEmailTwoFactor,
@@ -402,12 +403,7 @@ export default function AccountPage(): React.ReactElement | null {
                         setTwoFactorSaving(true);
                         try {
                           const result = await updateEmailTwoFactor(next);
-                          if (
-                            result &&
-                            typeof result === "object" &&
-                            "requiresVerification" in result &&
-                            result.requiresVerification
-                          ) {
+                          if (isEmailTwoFactorSetupChallenge(result)) {
                             setTwoFactorChallenge({
                               challengeId: result.challengeId,
                               emailHint: result.emailHint,

@@ -36,7 +36,7 @@ export function CmsChildPagesSection({
   }, [parentSlug, locale]);
 
   return (
-    <CmsSectionShell section={section} className="py-12 md:py-16">
+    <CmsSectionShell design={section.design} className="py-12 md:py-16">
       <div className="mx-auto max-w-5xl">
         {title ? (
           <div className="mb-8 text-center">

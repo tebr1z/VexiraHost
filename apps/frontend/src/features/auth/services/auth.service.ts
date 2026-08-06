@@ -147,25 +147,31 @@ export async function updatePhone(input: {
   return response.data as AuthSession["user"];
 }
 
-export async function updateEmailTwoFactor(enabled: boolean): Promise<
-  | AuthSession["user"]
-  | {
-      requiresVerification: true;
-      challengeId: string;
-      expiresIn: number;
-      emailHint: string;
-      desiredEnabled: boolean;
-    }
-> {
+export type EmailTwoFactorSetupChallenge = {
+  requiresVerification: true;
+  challengeId: string;
+  expiresIn: number;
+  emailHint: string;
+  desiredEnabled: boolean;
+};
+
+export function isEmailTwoFactorSetupChallenge(
+  value: AuthSession["user"] | EmailTwoFactorSetupChallenge,
+): value is EmailTwoFactorSetupChallenge {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "requiresVerification" in value &&
+    value.requiresVerification === true
+  );
+}
+
+export async function updateEmailTwoFactor(
+  enabled: boolean,
+): Promise<AuthSession["user"] | EmailTwoFactorSetupChallenge> {
   const response = await apiClient.request<
     | AuthSession["user"]
-    | {
-        requiresVerification: true;
-        challengeId: string;
-        expiresIn: number;
-        emailHint: string;
-        desiredEnabled: boolean;
-      }
+    | EmailTwoFactorSetupChallenge
     | { alreadyApplied: true; profile: AuthSession["user"] }
   >("/users/me/security/email-2fa", {
     method: "PATCH",
@@ -173,27 +179,13 @@ export async function updateEmailTwoFactor(enabled: boolean): Promise<
   });
   const data = response.data as
     | AuthSession["user"]
-    | {
-        requiresVerification: true;
-        challengeId: string;
-        expiresIn: number;
-        emailHint: string;
-        desiredEnabled: boolean;
-      }
+    | EmailTwoFactorSetupChallenge
     | { alreadyApplied: true; profile: AuthSession["user"] };
 
   if (data && typeof data === "object" && "alreadyApplied" in data && data.alreadyApplied) {
     return data.profile;
   }
-  return data as
-    | AuthSession["user"]
-    | {
-        requiresVerification: true;
-        challengeId: string;
-        expiresIn: number;
-        emailHint: string;
-        desiredEnabled: boolean;
-      };
+  return data as AuthSession["user"] | EmailTwoFactorSetupChallenge;
 }
 
 export async function verifyEmailTwoFactor(input: {
