@@ -12,10 +12,12 @@ import { registerRequest } from "../services/auth.service";
 
 import { AuthField } from "./auth-field";
 import { OAuthButtons } from "./oauth-buttons";
+import { PhoneCountryField } from "./phone-country-field";
 
 import { PreferredCurrencyPicker } from "@/components/layout/preferred-currency-picker";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { composePhoneE164, findDialByIso2 } from "@/lib/phone/country-dial-codes";
 import { useAuthStore } from "@/stores/auth-store";
 import { detectGeoCurrency, usePricingStore, type AppCurrency } from "@/stores/pricing-store";
 
@@ -54,6 +56,7 @@ export function RegisterForm(): React.ReactElement {
         confirmPasswordRequired: tv("confirmPassword"),
         passwordsMismatch: tv("passwordsMismatch"),
         acceptTermsRequired: t("acceptTermsRequired"),
+        phoneInvalid: t("phoneInvalid"),
       }),
     [tv, t],
   );
@@ -66,10 +69,18 @@ export function RegisterForm(): React.ReactElement {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { preferredCurrency: "USD", acceptedTerms: false, marketingOptIn: true },
+    defaultValues: {
+      preferredCurrency: "USD",
+      acceptedTerms: false,
+      marketingOptIn: true,
+      phoneDialIso2: "AZ",
+      phoneNational: "",
+    },
   });
 
   const preferredCurrency = watch("preferredCurrency");
+  const phoneDialIso2 = watch("phoneDialIso2");
+  const phoneNational = watch("phoneNational");
 
   useEffect(() => {
     void detectGeoCurrency().then((geo) => {
@@ -80,6 +91,9 @@ export function RegisterForm(): React.ReactElement {
       } else {
         setValue("preferredCurrency", geo.currency);
       }
+      if (geo.countryCode && findDialByIso2(geo.countryCode)) {
+        setValue("phoneDialIso2", geo.countryCode.toUpperCase());
+      }
     });
   }, [setValue]);
 
@@ -87,8 +101,10 @@ export function RegisterForm(): React.ReactElement {
     try {
       setError(null);
       const currency = (azLocked ? "AZN" : values.preferredCurrency) as AppCurrency;
+      const dial = findDialByIso2(values.phoneDialIso2)?.dial ?? "994";
+      const phone = composePhoneE164(dial, values.phoneNational ?? "");
       const session = await registerRequest(
-        { ...values, preferredCurrency: currency },
+        { ...values, preferredCurrency: currency, phone: phone ?? undefined },
         locale,
         countryCode,
       );
@@ -160,6 +176,18 @@ export function RegisterForm(): React.ReactElement {
           autoComplete="email"
           error={errors.email?.message}
           {...register("email")}
+        />
+
+        <PhoneCountryField
+          label={t("phone")}
+          optionalHint={t("phoneOptional")}
+          dialIso2={phoneDialIso2 || "AZ"}
+          nationalNumber={phoneNational ?? ""}
+          onDialIso2Change={(iso2) => setValue("phoneDialIso2", iso2, { shouldValidate: true })}
+          onNationalNumberChange={(value) =>
+            setValue("phoneNational", value, { shouldValidate: true })
+          }
+          error={errors.phoneNational?.message}
         />
 
         <PreferredCurrencyPicker

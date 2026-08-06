@@ -8,6 +8,7 @@ export { UpdateAdminUserStatusDto } from "./update-admin-user-status.dto";
 export { UpdateAdminUserDto } from "./update-admin-user.dto";
 export { FulfillOrderDto } from "./fulfill-order.dto";
 export { DeliverLicenseDto } from "./deliver-license.dto";
+export { DeliverWhatsappApiDto } from "./deliver-whatsapp-api.dto";
 export {
   AssignManualDomainDto,
   UpdateManualDomainDto,

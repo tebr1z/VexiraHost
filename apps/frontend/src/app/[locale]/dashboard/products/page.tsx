@@ -27,6 +27,7 @@ const CATEGORY_ORDER = [
   "EMAIL",
   "LICENSE",
   "BACKUP",
+  "WHATSAPP_API",
 ] as const;
 
 export default function DashboardProductsPage(): React.ReactElement | null {
@@ -81,7 +82,7 @@ export default function DashboardProductsPage(): React.ReactElement | null {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title={tp("title")}
         description={tp("description")}
@@ -90,27 +91,24 @@ export default function DashboardProductsPage(): React.ReactElement | null {
           { label: t("nav.products") },
         ]}
         actions={
-          <Link
-            href="/dashboard/cart"
-            className="text-primary hover:border-primary/30 inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-4 text-sm font-medium"
-          >
+          <Link href="/dashboard/cart" className="dashboard-btn-secondary">
             {t("nav.cart")} ({cartCount})
           </Link>
         }
       />
 
       {!loading && products.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-2 shadow-sm">
           {categories.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setCategory(cat)}
               className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium transition",
+                "rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200",
                 category === cat
-                  ? "bg-primary text-on-primary"
-                  : "text-on-surface-variant hover:border-primary/30 border border-slate-200 bg-white",
+                  ? "shadow-[var(--accent)]/15 bg-[var(--accent)] text-white shadow-md"
+                  : "text-[var(--label-secondary)] hover:bg-[var(--fill-secondary)] hover:text-[var(--label-primary)]",
               )}
             >
               {cat === "ALL" ? tp("allCategories") : tp(`categories.${cat}`)}
@@ -126,27 +124,32 @@ export default function DashboardProductsPage(): React.ReactElement | null {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((product) => (
-            <article key={product.id} className="panel-card flex flex-col rounded-lg p-5">
+            <article
+              key={product.id}
+              className="hover:border-[var(--accent)]/20 group relative flex flex-col overflow-hidden rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+            >
               <div className="mb-3 flex items-start justify-between gap-2">
-                <h3 className="font-jakarta text-primary text-lg font-semibold">{product.name}</h3>
-                <span className="text-on-surface-variant shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium">
+                <h3 className="font-jakarta text-lg font-bold text-[var(--label-primary)]">
+                  {product.name}
+                </h3>
+                <span className="shrink-0 rounded-full border border-[var(--separator)] bg-[var(--fill-secondary)] px-2.5 py-1 text-[11px] font-semibold text-[var(--label-secondary)]">
                   {tp(`categories.${product.category}`)}
                 </span>
               </div>
               {product.description && (
-                <p className="text-on-surface-variant flex-1 text-sm leading-relaxed">
+                <p className="flex-1 text-sm leading-relaxed text-[var(--label-secondary)]">
                   {product.description}
                 </p>
               )}
               {product.promoText && (
-                <p className="text-on-surface-variant mt-2 text-sm">{product.promoText}</p>
+                <p className="mt-2 text-sm text-[var(--label-secondary)]">{product.promoText}</p>
               )}
-              <p className="font-jakarta text-primary mt-4 text-xl font-bold">
+              <p className="font-jakarta mt-5 text-2xl font-bold tracking-tight text-[var(--label-primary)]">
                 {product.isFree
                   ? tp("free")
                   : `${formatMoney(product.price, product.currency, locale)}`}
                 {!product.isFree && (
-                  <span className="text-on-surface-variant ml-1 text-sm font-normal">
+                  <span className="ml-1 text-sm font-normal text-[var(--label-secondary)]">
                     / {product.billingCycle.toLowerCase()}
                   </span>
                 )}
@@ -156,7 +159,7 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                   type="button"
                   disabled={claimingId === product.id}
                   onClick={() => void handleClaimFree(product)}
-                  className="bg-primary text-on-primary hover:bg-primary-dark mt-4 inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-semibold disabled:opacity-60"
+                  className="dashboard-btn-primary mt-5 w-full disabled:opacity-60"
                 >
                   {claimingId === product.id ? tp("claiming") : tp("getFree")}
                 </button>
@@ -164,7 +167,7 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                 <button
                   type="button"
                   onClick={() => handleAddToCart(product)}
-                  className="bg-primary text-on-primary hover:bg-primary-dark mt-4 inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-semibold"
+                  className="dashboard-btn-primary mt-5 w-full"
                 >
                   {th("addToCart")}
                 </button>

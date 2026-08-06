@@ -6,6 +6,8 @@ export const LifecycleJob = {
   DOMAIN_EXPIRY: "lifecycle.domain-expiry",
   ADDON_EXPIRY: "lifecycle.addon-expiry",
   SERVER_EXPIRY: "lifecycle.server-expiry",
+  SYSTEM_HOURLY_REPORT: "lifecycle.system-hourly-report",
+  TICKET_AUTO_CLOSE: "lifecycle.ticket-auto-close",
 } as const;
 
 export type LifecycleJobName = (typeof LifecycleJob)[keyof typeof LifecycleJob];

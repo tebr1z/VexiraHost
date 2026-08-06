@@ -1,158 +1,115 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { MaterialIcon } from "@/components/landing/material-icon";
-import {
-  type DomainSearchResult,
-  registerDomain,
-  searchDomains,
-} from "@/features/domains";
 import { Link } from "@/i18n/navigation";
-import { useAuthStore } from "@/stores/auth-store";
+
+const TLD_CHIPS = [
+  { key: "tldCom" as const, price: "$9.99" },
+  { key: "tldNet" as const, price: "$11.99" },
+  { key: "tldAi" as const, price: "$69.00" },
+];
 
 export function DomainSearch(): React.ReactElement {
   const t = useTranslations("domain");
   const router = useRouter();
-  const accessToken = useAuthStore((s) => s.accessToken);
+  const reduceMotion = useReducedMotion();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<DomainSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [registering, setRegistering] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      setResults(await searchDomains(query.trim()));
-    } catch {
-      setError(t("searchFailed"));
-    } finally {
-      setLoading(false);
-    }
+  const goSearch = (value?: string) => {
+    const domain = (value ?? query).trim();
+    if (!domain) return;
+    router.push(`/domains/search?q=${encodeURIComponent(domain)}`);
   };
 
-  const handleRegister = async (domain: string) => {
-    if (!accessToken) {
-      router.push(`/login?next=/domains/search?q=${encodeURIComponent(domain)}`);
-      return;
-    }
-    setRegistering(domain);
-    setError(null);
-    try {
-      await registerDomain(domain);
-      router.push("/dashboard/domains");
-    } catch (err) {
-      const message =
-        err && typeof err === "object" && "error" in err
-          ? (err as { error?: { message?: string } }).error?.message
-          : t("registerFailed");
-      setError(message ?? t("registerFailed"));
-    } finally {
-      setRegistering(null);
-    }
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    goSearch();
   };
 
   return (
-    <div className="mx-auto mt-12 max-w-container-max px-5 md:px-8">
-      <div className="apple-card mx-auto max-w-2xl p-5 sm:p-6">
-        <div className="mb-4 text-center sm:text-left">
-          <h3 className="text-xl font-semibold tracking-tight text-[var(--label)]">{t("title")}</h3>
-          <p className="mt-1 text-sm text-[var(--label-secondary)]">{t("subtitle")}</p>
-          <Link
-            href="/domains/search"
-            className="mt-2 inline-block text-sm font-medium text-[var(--accent)] hover:underline"
-          >
-            {t("advanced")}
-          </Link>
-        </div>
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 28 }}
+      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.4 }}
+      transition={{ duration: 0.5 }}
+      className="max-w-container-max relative z-10 mx-auto mt-10 px-5 pb-4 sm:mt-14 md:px-8"
+    >
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">
+          {t("title")}
+        </p>
+        <p className="mt-2 text-sm text-[var(--label-secondary)] sm:text-base">{t("subtitle")}</p>
+      </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <MaterialIcon
-              name="search"
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[18px] text-[var(--label-tertiary)]"
-            />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder={t("placeholder")}
-              className="h-11 w-full rounded-[10px] border-[0.5px] border-[var(--separator)] bg-[var(--bg-secondary)] pl-10 pr-4 text-[17px] text-[var(--label)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
-            />
-          </div>
+      <form
+        onSubmit={handleSearch}
+        className={[
+          "shadow-apple-md relative mx-auto mt-5 flex max-w-3xl flex-col overflow-hidden rounded-[22px] border bg-[var(--bg-elevated)] transition-[border-color,box-shadow] duration-300 sm:mt-6 sm:flex-row sm:items-stretch sm:rounded-full",
+          focused
+            ? "border-[color-mix(in_srgb,var(--accent)_45%,var(--separator))] shadow-[0_18px_50px_color-mix(in_srgb,var(--accent)_16%,transparent)]"
+            : "border-[var(--separator)]",
+        ].join(" ")}
+      >
+        <div className="relative flex min-w-0 flex-1 items-center">
+          <MaterialIcon
+            name="language"
+            className="pointer-events-none absolute left-5 text-[22px] text-[var(--accent)]"
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder={t("placeholder")}
+            aria-label={t("title")}
+            autoComplete="off"
+            spellCheck={false}
+            className="h-14 w-full bg-transparent pl-14 pr-4 text-[16px] text-[var(--label)] outline-none placeholder:text-[var(--label-tertiary)] sm:h-[3.75rem] sm:text-[17px]"
+          />
+        </div>
+        <div className="shrink-0 border-t border-[var(--separator)] p-2 sm:border-t-0 sm:p-2">
           <button
-            type="button"
-            onClick={handleSearch}
-            disabled={loading}
-            className="apple-btn apple-btn-primary h-11 shrink-0 disabled:opacity-50"
+            type="submit"
+            className="apple-btn apple-btn-primary h-11 w-full rounded-full px-6 sm:h-full sm:min-w-[8.5rem]"
           >
-            {loading ? t("searching") : t("search")}
+            {t("search")}
+            <MaterialIcon name="arrow_forward" className="ml-1 text-[18px]" />
           </button>
         </div>
+      </form>
 
-        {error && (
-          <p className="mt-3 rounded-[10px] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2 text-sm text-[var(--danger)]">
-            {error}
-          </p>
-        )}
-
-        {results.length > 0 && (
-          <ul className="mt-4 divide-y divide-[var(--separator)] overflow-hidden rounded-[10px] border-[0.5px] border-[var(--separator)]">
-            {results.map((result) => (
-              <li
-                key={result.domain}
-                className="flex flex-col gap-2 bg-[var(--bg-secondary)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <span className="font-medium text-[var(--label)]">{result.domain}</span>
-                  <span className="ml-2 text-sm text-[var(--label-secondary)]">
-                    {result.available ? (
-                      <span className="text-[var(--success)]">{t("available")}</span>
-                    ) : (
-                      <span className="text-[var(--danger)]">{t("taken")}</span>
-                    )}
-                    {result.premium ? ` · ${t("premium")}` : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">
-                    ${result.price.toFixed(2)}
-                    {t("perYear")}
-                  </span>
-                  {result.available && (
-                    <button
-                      type="button"
-                      disabled={registering === result.domain}
-                      onClick={() => handleRegister(result.domain)}
-                      className="apple-btn apple-btn-primary !px-3 !py-1.5 text-sm disabled:opacity-50"
-                    >
-                      {registering === result.domain ? "..." : t("register")}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-4 flex flex-wrap justify-center gap-4 text-sm text-[var(--label-secondary)] sm:justify-start">
-          <span>
-            {t("tldCom")} <strong className="text-[var(--label)]">$9.99</strong>
-          </span>
-          <span>
-            {t("tldNet")} <strong className="text-[var(--label)]">$11.99</strong>
-          </span>
-          <span>
-            {t("tldAi")} <strong className="text-[var(--label)]">$69.00</strong>
-          </span>
+      <div className="mx-auto mt-4 flex max-w-3xl flex-wrap items-center justify-center gap-2 sm:justify-between">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {TLD_CHIPS.map((tld) => (
+            <button
+              key={tld.key}
+              type="button"
+              onClick={() => {
+                const base = query.trim().replace(/\.[a-z0-9-]+$/i, "") || "brand";
+                const ext = t(tld.key).replace(".", "");
+                goSearch(`${base}.${ext}`);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--label-secondary)] transition hover:border-[color-mix(in_srgb,var(--accent)_35%,var(--separator))] hover:text-[var(--accent)]"
+            >
+              <span className="font-semibold text-[var(--label)]">{t(tld.key)}</span>
+              <span>{tld.price}</span>
+            </button>
+          ))}
         </div>
+        <Link
+          href="/domains/search"
+          className="inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)] transition hover:opacity-80"
+        >
+          {t("advanced")}
+        </Link>
       </div>
-    </div>
+    </motion.div>
   );
 }

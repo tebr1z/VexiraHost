@@ -5,11 +5,18 @@ import { useLocale, useTranslations } from "next-intl";
 import { MaterialIcon } from "@/components/landing/material-icon";
 import type { CatalogProduct } from "@/features/catalog";
 import type { HostingPlan } from "@/features/hosting/services/hosting.service";
-import { formatMoney } from "@/lib/i18n/format";
 import { cn } from "@/lib/cn";
+import { formatMoney } from "@/lib/i18n/format";
 import { usePricingStore } from "@/stores/pricing-store";
 
-const DEFAULT_FEATURES = ["f1", "f2", "f3", "f4"] as const;
+const FEATURE_BADGES = [
+  { key: "ssl", icon: "lock" },
+  { key: "backup", icon: "cloud_sync" },
+  { key: "webmail", icon: "mail" },
+  { key: "migration", icon: "sync_alt" },
+  { key: "wordpress", icon: "language" },
+  { key: "support", icon: "support_agent" },
+] as const;
 
 export function HostingPlanCard({
   plan,
@@ -40,8 +47,12 @@ export function HostingPlanCard({
         : null;
 
   const descriptionLines =
-    plan.description?.split(/\n|•/).map((l) => l.trim()).filter(Boolean) ?? [];
+    plan.description
+      ?.split(/\n|•/)
+      .map((l) => l.trim())
+      .filter(Boolean) ?? [];
   const tagline = descriptionLines[0] ?? null;
+  const isPlesk = plan.panel === "PLESK";
 
   const mainSpecs = [
     { value: plan.maxDomains, label: t("specDomainsCreate") },
@@ -73,10 +84,20 @@ export function HostingPlanCard({
         </span>
       )}
 
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--label-tertiary)]">
-        {plan.panel}
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide",
+            isPlesk
+              ? "bg-[color-mix(in_srgb,#0ea5e9_14%,transparent)] text-[#0284c7]"
+              : "bg-[color-mix(in_srgb,#f97316_14%,transparent)] text-[#c2410c]",
+          )}
+        >
+          <MaterialIcon name={isPlesk ? "dashboard" : "tune"} className="text-[14px]" />
+          {plan.panel}
+        </span>
       </div>
-      <h3 className="mt-0.5 text-xl font-bold tracking-tight text-[var(--label)] sm:text-[1.35rem]">
+      <h3 className="mt-2 text-xl font-bold tracking-tight text-[var(--label)] sm:text-[1.35rem]">
         {plan.name}
       </h3>
       {tagline && (
@@ -91,7 +112,12 @@ export function HostingPlanCard({
             {formatMoney(originalPrice, currency, locale)}
           </p>
         )}
-        <div className={cn("flex items-end gap-1", originalPrice != null && originalPrice > price ? "mt-0.5" : "")}>
+        <div
+          className={cn(
+            "flex items-end gap-1",
+            originalPrice != null && originalPrice > price ? "mt-0.5" : "",
+          )}
+        >
           <span className="text-[2rem] font-bold leading-none tracking-tight text-[var(--label)]">
             {formatMoney(price, currency, locale)}
           </span>
@@ -101,35 +127,56 @@ export function HostingPlanCard({
         </div>
       </div>
 
-      <button type="button" onClick={onSelect} className="apple-btn apple-btn-primary mt-4 w-full py-3 text-[15px] font-semibold">
+      <button
+        type="button"
+        onClick={onSelect}
+        className="apple-btn apple-btn-primary mt-4 w-full py-3 text-[15px] font-semibold"
+      >
         {t("selectPlan")}
       </button>
 
       <ul className="mt-5 space-y-2 border-t border-[var(--separator)] pt-4">
         {mainSpecs.map((spec) => (
           <li key={spec.label} className="text-sm leading-snug text-[var(--label-secondary)]">
-            <strong className="font-bold text-[var(--label)]">{spec.value}</strong>{" "}
-            {spec.label}
+            <strong className="font-bold text-[var(--label)]">{spec.value}</strong> {spec.label}
           </li>
         ))}
       </ul>
 
-      <p className="mb-2.5 mt-5 text-xs font-semibold text-[var(--label)]">{t("featuresTitle")}</p>
+      <p className="mb-3 mt-5 text-xs font-semibold text-[var(--label)]">{t("featuresTitle")}</p>
 
-      <ul className="mt-auto space-y-2">
-        {descriptionLines.slice(1).map((line) => (
-          <li key={line} className="flex items-start gap-2 text-[13px] leading-snug text-[var(--label-secondary)]">
-            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[15px] text-[var(--success)]" />
-            <span>{line}</span>
-          </li>
+      <div className="grid grid-cols-2 gap-2">
+        {FEATURE_BADGES.map((badge) => (
+          <div
+            key={badge.key}
+            className="flex items-start gap-2 rounded-xl border border-[color-mix(in_srgb,var(--separator)_75%,transparent)] bg-[color-mix(in_srgb,var(--bg-secondary)_70%,transparent)] px-2.5 py-2"
+          >
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]">
+              <MaterialIcon name={badge.icon} className="text-[15px] text-[var(--accent)]" />
+            </span>
+            <span className="text-[11px] font-medium leading-snug text-[var(--label-secondary)]">
+              {t(`badges.${badge.key}`)}
+            </span>
+          </div>
         ))}
-        {DEFAULT_FEATURES.map((key) => (
-          <li key={key} className="flex items-start gap-2 text-[13px] leading-snug text-[var(--label-secondary)]">
-            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[15px] text-[var(--success)]" />
-            <span>{t(`features.${key}`)}</span>
-          </li>
-        ))}
-      </ul>
+      </div>
+
+      {descriptionLines.length > 1 ? (
+        <ul className="mt-4 space-y-2">
+          {descriptionLines.slice(1).map((line) => (
+            <li
+              key={line}
+              className="flex items-start gap-2 text-[13px] leading-snug text-[var(--label-secondary)]"
+            >
+              <MaterialIcon
+                name="check"
+                className="mt-0.5 shrink-0 text-[15px] text-[var(--success)]"
+              />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </article>
   );
 }

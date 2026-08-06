@@ -14,18 +14,25 @@ import type { AuthUser } from "@vexira/types";
 import { UserRole } from "@vexira/types";
 import * as bcrypt from "bcryptjs";
 
-import type { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from "../dto";
+import type {
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+  ResendLoginOtpDto,
+  VerifyLoginOtpDto,
+} from "../dto";
 import { resolveAuthEmailLocale, mergeLocaleHistory } from "../email/auth-email.locale";
 import { AuthRepository } from "../repository/auth.repository";
-import type { AuthResponse, AuthUserResponse } from "../types";
+import type { AuthResponse, AuthUserResponse, LoginResult } from "../types";
 
 import { AuthEmailService } from "./auth-email.service";
 import { LoginAttemptService } from "./login-attempt.service";
 
+import { verifyTotpCode } from "@/modules/auth/utils/totp.util";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
-import { resolveRegisterCurrency } from "@/shared/pricing/user-currency.util";
-import { canChangeCurrency, nextCurrencyChangeAt } from "@/shared/pricing/user-currency.util";
-import { generateSecureToken } from "@/utils/crypto.util";
+import { resolveRegisterCurrency, canChangeCurrency } from "@/shared/pricing/user-currency.util";
+import { generateSecureToken, hashToken } from "@/utils/crypto.util";
 import { mapPrismaRoleToApp } from "@/utils/role.util";
 
 const BCRYPT_ROUNDS = 12;
@@ -33,6 +40,8 @@ const REFRESH_TOKEN_DAYS_REMEMBER = 7;
 const REFRESH_TOKEN_HOURS_SESSION = 36;
 const EMAIL_VERIFY_HOURS = 24;
 const PASSWORD_RESET_HOURS = 1;
+const LOGIN_OTP_MINUTES = 10;
+const LOGIN_OTP_EXPIRES_SECONDS = LOGIN_OTP_MINUTES * 60;
 
 @Injectable()
 export class AuthService {
@@ -61,6 +70,14 @@ export class AuthService {
       countryCode: dto.countryCode,
     });
     const locale = resolveAuthEmailLocale(dto.locale);
+    let phone: string | null = null;
+    if (dto.phone?.trim()) {
+      // Already composed E.164 digits from client (dial + national); digits only.
+      phone = dto.phone.replace(/\D/g, "");
+      if (phone.length < 8 || phone.length > 15) {
+        throw new BadRequestException("Phone number is invalid");
+      }
+    }
     const user = await this.authRepository.createUser({
       email: dto.email,
       passwordHash,
@@ -71,6 +88,7 @@ export class AuthService {
       marketingOptIn: dto.marketingOptIn ?? true,
       unsubscribeToken: generateSecureToken(24),
       localeHistory: mergeLocaleHistory([], locale),
+      phone,
     });
 
     const verifyToken = generateSecureToken();
@@ -93,7 +111,7 @@ export class AuthService {
     return this.buildAuthResponse(user, meta);
   }
 
-  async login(dto: LoginDto, meta?: { userAgent?: string; ip?: string }): Promise<AuthResponse> {
+  async login(dto: LoginDto, meta?: { userAgent?: string; ip?: string }): Promise<LoginResult> {
     const locale = resolveAuthEmailLocale(dto.locale);
     const user = await this.authRepository.findByEmail(dto.email);
     if (!user?.passwordHash) {
@@ -126,9 +144,153 @@ export class AuthService {
 
     this.loginAttemptService.clear(user.email);
     const withLocale = await this.recordLocaleQuietly(user.id, user.localeHistory, dto.locale);
-    return this.buildAuthResponse(withLocale ?? user, meta, {
+    const sessionUser = withLocale ?? user;
+
+    return this.completeLoginOrTwoFactor(sessionUser, meta, {
       rememberMe: dto.rememberMe ?? false,
+      locale,
     });
+  }
+
+  async verifyLoginOtp(
+    dto: VerifyLoginOtpDto,
+    meta?: { userAgent?: string; ip?: string },
+  ): Promise<AuthResponse> {
+    const challenge = await this.authRepository.findEmailLoginOtp(dto.challengeId);
+    if (!challenge) {
+      throw new UnauthorizedException("Invalid or expired verification code");
+    }
+
+    if (challenge.purpose === "TOTP_LOGIN") {
+      const secret = challenge.user.totpSecret;
+      if (!challenge.user.totpEnabled || !secret || !verifyTotpCode(secret, dto.code)) {
+        throw new UnauthorizedException("Invalid or expired verification code");
+      }
+    } else if (challenge.purpose === "LOGIN") {
+      if (hashToken(dto.code.trim()) !== challenge.codeHash) {
+        throw new UnauthorizedException("Invalid or expired verification code");
+      }
+    } else {
+      throw new UnauthorizedException("Invalid or expired verification code");
+    }
+
+    if (challenge.user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException("Account is suspended");
+    }
+
+    await this.authRepository.consumeEmailLoginOtp(challenge.id);
+    await this.authRepository.deleteEmailLoginOtps(challenge.userId, challenge.purpose);
+
+    const withLocale = await this.recordLocaleQuietly(
+      challenge.user.id,
+      challenge.user.localeHistory,
+      dto.locale,
+    );
+
+    return this.buildAuthResponse(withLocale ?? challenge.user, meta, {
+      rememberMe: challenge.rememberMe,
+    });
+  }
+
+  async resendLoginOtp(dto: ResendLoginOtpDto): Promise<{
+    requiresTwoFactor: true;
+    method: "EMAIL";
+    challengeId: string;
+    expiresIn: number;
+    emailHint: string;
+  }> {
+    const existing = await this.authRepository.findEmailLoginOtp(dto.challengeId, "LOGIN");
+    if (!existing) {
+      throw new UnauthorizedException("Invalid or expired verification session");
+    }
+
+    const locale = resolveAuthEmailLocale(dto.locale ?? existing.user.localeHistory?.[0]);
+    return this.startEmailTwoFactorChallenge(existing.user, {
+      rememberMe: existing.rememberMe,
+      locale,
+    });
+  }
+
+  private async startTotpChallenge(
+    user: User,
+    options: { rememberMe: boolean },
+  ): Promise<{
+    requiresTwoFactor: true;
+    method: "TOTP";
+    challengeId: string;
+    expiresIn: number;
+    emailHint: string;
+  }> {
+    await this.authRepository.deleteEmailLoginOtps(user.id, "TOTP_LOGIN");
+    const challenge = await this.authRepository.createEmailLoginOtp({
+      userId: user.id,
+      code: `totp-${generateSecureToken(8)}`,
+      rememberMe: options.rememberMe,
+      purpose: "TOTP_LOGIN",
+      expiresAt: this.addMinutes(new Date(), LOGIN_OTP_MINUTES),
+    });
+
+    return {
+      requiresTwoFactor: true,
+      method: "TOTP",
+      challengeId: challenge.id,
+      expiresIn: LOGIN_OTP_EXPIRES_SECONDS,
+      emailHint: this.maskEmail(user.email),
+    };
+  }
+
+  private async startEmailTwoFactorChallenge(
+    user: User,
+    options: { rememberMe: boolean; locale: string },
+  ): Promise<{
+    requiresTwoFactor: true;
+    method: "EMAIL";
+    challengeId: string;
+    expiresIn: number;
+    emailHint: string;
+  }> {
+    await this.authRepository.deleteEmailLoginOtps(user.id, "LOGIN");
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const challenge = await this.authRepository.createEmailLoginOtp({
+      userId: user.id,
+      code,
+      rememberMe: options.rememberMe,
+      purpose: "LOGIN",
+      expiresAt: this.addMinutes(new Date(), LOGIN_OTP_MINUTES),
+    });
+
+    this.logger.log(`Login OTP for ${user.email}: ${code}`);
+    try {
+      await this.authEmailService.sendLoginOtpEmail(
+        user.email,
+        code,
+        options.locale,
+        user.firstName,
+        user.lastName,
+      );
+    } catch (err) {
+      this.logger.error(`Failed to send login OTP to ${user.email}: ${String(err)}`);
+      throw new BadRequestException("Could not send verification email. Please try again.");
+    }
+
+    return {
+      requiresTwoFactor: true,
+      method: "EMAIL",
+      challengeId: challenge.id,
+      expiresIn: LOGIN_OTP_EXPIRES_SECONDS,
+      emailHint: this.maskEmail(user.email),
+    };
+  }
+
+  private maskEmail(email: string): string {
+    const [local, domain] = email.split("@");
+    if (!local || !domain) return email;
+    if (local.length <= 2) return `${local[0] ?? "*"}***@${domain}`;
+    return `${local.slice(0, 2)}***@${domain}`;
+  }
+
+  private addMinutes(date: Date, minutes: number): Date {
+    return new Date(date.getTime() + minutes * 60 * 1000);
   }
 
   async recordPreferredLocale(userId: string, locale?: string | null) {
@@ -284,7 +446,7 @@ export class AuthService {
   async loginWithOAuth(
     profile: import("../interfaces").OAuthProfile,
     meta?: { userAgent?: string; ip?: string; locale?: string },
-  ): Promise<AuthResponse> {
+  ): Promise<LoginResult> {
     const locale = resolveAuthEmailLocale(meta?.locale);
     const existingOAuth = await this.authRepository.findOAuthAccount(
       profile.provider,
@@ -300,7 +462,11 @@ export class AuthService {
         existingOAuth.user.localeHistory,
         meta?.locale,
       );
-      return this.buildAuthResponse(withLocale ?? existingOAuth.user, meta);
+      // OAuth proves Google identity only — still require app 2FA when enabled.
+      return this.completeLoginOrTwoFactor(withLocale ?? existingOAuth.user, meta, {
+        rememberMe: true,
+        locale,
+      });
     }
 
     const existingUser = await this.authRepository.findByEmail(profile.email);
@@ -372,7 +538,10 @@ export class AuthService {
     }
 
     const withLocale = await this.recordLocaleQuietly(user.id, user.localeHistory, meta?.locale);
-    return this.buildAuthResponse(withLocale ?? user, meta);
+    return this.completeLoginOrTwoFactor(withLocale ?? user, meta, {
+      rememberMe: true,
+      locale,
+    });
   }
 
   async getLinkedProviders(userId: string) {
@@ -412,22 +581,52 @@ export class AuthService {
     return this.buildAuthResponse(target, meta);
   }
 
-  buildOAuthRedirectUrl(session: AuthResponse, provider?: "google" | "github"): string {
+  buildOAuthRedirectUrl(result: LoginResult, provider?: "google" | "github"): string {
     const base = this.configService.get<string>(
       "oauth.frontendCallbackUrl",
       "http://localhost:3000/auth/callback",
     );
     const url = new URL(base);
-    url.searchParams.set("accessToken", session.tokens.accessToken);
-    url.searchParams.set("refreshToken", session.tokens.refreshToken);
+    if ("requiresTwoFactor" in result && result.requiresTwoFactor === true) {
+      url.searchParams.set("requiresTwoFactor", "1");
+      url.searchParams.set("challengeId", result.challengeId);
+      url.searchParams.set("method", result.method);
+      url.searchParams.set("emailHint", result.emailHint);
+      url.searchParams.set("expiresIn", String(result.expiresIn));
+    } else {
+      const session = result as AuthResponse;
+      url.searchParams.set("accessToken", session.tokens.accessToken);
+      url.searchParams.set("refreshToken", session.tokens.refreshToken);
+    }
     if (provider) {
       url.searchParams.set("provider", provider);
     }
     return url.toString();
   }
 
+  /** Prefer TOTP over email when both are enabled. Always re-read flags from DB. */
+  private async completeLoginOrTwoFactor(
+    user: User,
+    meta: { userAgent?: string; ip?: string } | undefined,
+    options: { rememberMe: boolean; locale: string },
+  ): Promise<LoginResult> {
+    const fresh = (await this.authRepository.findById(user.id)) ?? user;
+
+    if (fresh.totpEnabled) {
+      this.logger.log(`Login 2FA challenge (TOTP) for user ${fresh.id}`);
+      return this.startTotpChallenge(fresh, { rememberMe: options.rememberMe });
+    }
+    if (fresh.emailTwoFactorEnabled) {
+      this.logger.log(`Login 2FA challenge (EMAIL) for user ${fresh.id}`);
+      return this.startEmailTwoFactorChallenge(fresh, {
+        rememberMe: options.rememberMe,
+        locale: options.locale,
+      });
+    }
+    return this.buildAuthResponse(fresh, meta, { rememberMe: options.rememberMe });
+  }
+
   mapUser(user: User): AuthUserResponse {
-    const nextChange = nextCurrencyChangeAt(user.currencyChangedAt);
     const allowed = canChangeCurrency({
       currencyLocked: user.currencyLocked,
       currencyChangedAt: user.currencyChangedAt,
@@ -446,10 +645,12 @@ export class AuthService {
       currencyLocked: user.currencyLocked,
       currencyChangedAt: user.currencyChangedAt?.toISOString() ?? null,
       canChangeCurrency: allowed,
-      nextCurrencyChangeAt: allowed ? null : (nextChange?.toISOString() ?? null),
+      nextCurrencyChangeAt: null,
       billingAddress: normalizeBillingAddress(user.billingAddress),
       phone: user.phone ?? null,
       whatsappNotificationsEnabled: user.whatsappNotificationsEnabled,
+      emailTwoFactorEnabled: user.emailTwoFactorEnabled,
+      totpEnabled: user.totpEnabled,
       accountBalance: Number(user.accountBalance ?? 0),
       balanceCurrency: user.balanceCurrency ?? "USD",
       preferredLocale: resolveAuthEmailLocale(user.localeHistory?.[0]),

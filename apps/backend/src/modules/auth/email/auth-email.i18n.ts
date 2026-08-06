@@ -44,6 +44,24 @@ export interface AuthEmailCopy {
     actionText: string;
     footer: string;
   };
+  loginOtp: {
+    title: string;
+    subtitle: (name: string) => string;
+    actionText: string;
+    footer: string;
+  };
+  securityOtpEnable: {
+    title: string;
+    subtitle: (name: string) => string;
+    actionText: string;
+    footer: string;
+  };
+  securityOtpDisable: {
+    title: string;
+    subtitle: (name: string) => string;
+    actionText: string;
+    footer: string;
+  };
 }
 
 const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
@@ -61,14 +79,16 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
       subtitle: (name) =>
         `Merhaba ${name}, Google hesabınızla Vexira Host'a başarıyla kayıt oldunuz. Hizmetlerinizi hemen keşfedebilirsiniz.`,
       actionText: "Panele git",
-      footer: "Bu işlemi siz yapmadıysanız hesabınızı güvence altına almak için bizimle iletişime geçin.",
+      footer:
+        "Bu işlemi siz yapmadıysanız hesabınızı güvence altına almak için bizimle iletişime geçin.",
     },
     googleSignIn: {
       title: "Google ile giriş yaptınız",
       subtitle: (name) =>
         `Merhaba ${name}, Vexira Host hesabınıza Google ile başarıyla giriş yapıldı.`,
       actionText: "Hesabımı aç",
-      footer: "Bu girişi siz yapmadıysanız derhal şifrenizi değiştirin ve destek ekibimize bildirin.",
+      footer:
+        "Bu girişi siz yapmadıysanız derhal şifrenizi değiştirin ve destek ekibimize bildirin.",
     },
     googleAccountLinked: {
       title: "Google hesabınız bağlandı",
@@ -87,7 +107,8 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
       title: "Şifre sıfırlama talebiniz",
       subtitle: "Hesap şifrenizi sıfırlamak için aşağıdaki güvenli bağlantıyı kullanın.",
       actionText: "Şifremi sıfırla",
-      footer: "Bu isteği siz yapmadıysanız hesabınız güvende kalır, bu e-postayı yok sayabilirsiniz.",
+      footer:
+        "Bu isteği siz yapmadıysanız hesabınız güvende kalır, bu e-postayı yok sayabilirsiniz.",
     },
     failedPasswordAttempts: {
       title: "Şifreniz 3 kez yanlış girildi",
@@ -95,6 +116,27 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
         `Merhaba ${name}, Vexira Host hesabınıza ardışık 3 kez yanlış şifre girildi. Hesabınızı korumak için şifrenizi sıfırlamanızı öneririz.`,
       actionText: "Şifremi sıfırla",
       footer: "Bu giriş denemelerini siz yapmadıysanız derhal destek ekibimizle iletişime geçin.",
+    },
+    loginOtp: {
+      title: "Giriş doğrulama kodunuz",
+      subtitle: (name) =>
+        `Merhaba ${name}, hesabınıza giriş için tek kullanımlık kodunuz aşağıdadır. Kod 10 dakika geçerlidir.`,
+      actionText: "Giriş sayfasına dön",
+      footer: "Bu girişi siz başlatmadıysanız bu e-postayı yok sayın ve şifrenizi değiştirin.",
+    },
+    securityOtpEnable: {
+      title: "İki faktörlü korumayı açma kodu",
+      subtitle: (name) =>
+        `Merhaba ${name}, e-posta ile iki faktörlü korumayı açmak için kodunuz aşağıdadır. Kod 10 dakika geçerlidir.`,
+      actionText: "Hesap ayarlarına git",
+      footer: "Bu isteği siz yapmadıysanız e-postayı yok sayın.",
+    },
+    securityOtpDisable: {
+      title: "İki faktörlü korumayı kapatma kodu",
+      subtitle: (name) =>
+        `Merhaba ${name}, e-posta ile iki faktörlü korumayı kapatmak için kodunuz aşağıdadır. Kod 10 dakika geçerlidir.`,
+      actionText: "Hesap ayarlarına git",
+      footer: "Bu isteği siz yapmadıysanız e-postayı yok sayın ve şifrenizi değiştirin.",
     },
   },
   en: {
@@ -146,6 +188,27 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
       actionText: "Reset password",
       footer: "If these login attempts were not made by you, contact our support team immediately.",
     },
+    loginOtp: {
+      title: "Your sign-in verification code",
+      subtitle: (name) =>
+        `Hi ${name}, your one-time sign-in code is below. It expires in 10 minutes.`,
+      actionText: "Back to sign in",
+      footer: "If you did not start this sign-in, ignore this email and change your password.",
+    },
+    securityOtpEnable: {
+      title: "Code to turn on email two-factor",
+      subtitle: (name) =>
+        `Hi ${name}, use the code below to enable email two-factor protection. It expires in 10 minutes.`,
+      actionText: "Open account settings",
+      footer: "If you did not request this, ignore this email.",
+    },
+    securityOtpDisable: {
+      title: "Code to turn off email two-factor",
+      subtitle: (name) =>
+        `Hi ${name}, use the code below to disable email two-factor protection. It expires in 10 minutes.`,
+      actionText: "Open account settings",
+      footer: "If you did not request this, ignore this email and change your password.",
+    },
   },
   ru: {
     brandTagline: "Безопасная облачная и хостинг-платформа",
@@ -196,6 +259,27 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
       actionText: "Сбросить пароль",
       footer: "Если это были не вы, немедленно свяжитесь с нашей службой поддержки.",
     },
+    loginOtp: {
+      title: "Код подтверждения входа",
+      subtitle: (name) =>
+        `Здравствуйте, ${name}! Ваш одноразовый код для входа ниже. Код действует 10 минут.`,
+      actionText: "Вернуться ко входу",
+      footer: "Если вход начали не вы, проигнорируйте письмо и смените пароль.",
+    },
+    securityOtpEnable: {
+      title: "Код для включения 2FA по email",
+      subtitle: (name) =>
+        `Здравствуйте, ${name}! Код для включения двухфакторной защиты по email ниже. Действует 10 минут.`,
+      actionText: "Открыть настройки аккаунта",
+      footer: "Если вы не запрашивали это, просто проигнорируйте письмо.",
+    },
+    securityOtpDisable: {
+      title: "Код для отключения 2FA по email",
+      subtitle: (name) =>
+        `Здравствуйте, ${name}! Код для отключения двухфакторной защиты по email ниже. Действует 10 минут.`,
+      actionText: "Открыть настройки аккаунта",
+      footer: "Если вы не запрашивали это, проигнорируйте письмо и смените пароль.",
+    },
   },
   az: {
     brandTagline: "Təhlükəsiz Bulud və Hostinq Platforması",
@@ -215,8 +299,7 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
     },
     googleSignIn: {
       title: "Google ilə daxil oldunuz",
-      subtitle: (name) =>
-        `Salam ${name}, Vexira Host hesabınıza Google ilə uğurla daxil olundu.`,
+      subtitle: (name) => `Salam ${name}, Vexira Host hesabınıza Google ilə uğurla daxil olundu.`,
       actionText: "Hesabımı aç",
       footer: "Bu giriş siz deyilsinizsə, dərhal şifrənizi dəyişin və dəstəyə bildirin.",
     },
@@ -246,6 +329,27 @@ const COPY: Record<AuthEmailLocale, AuthEmailCopy> = {
       actionText: "Şifrəmi sıfırla",
       footer: "Bu giriş cəhdlərini siz etməmisinizsə, dərhal dəstək komandamızla əlaqə saxlayın.",
     },
+    loginOtp: {
+      title: "Giriş təsdiq kodunuz",
+      subtitle: (name) =>
+        `Salam ${name}, hesabınıza giriş üçün birdəfəlik kodunuz aşağıdadır. Kod 10 dəqiqə etibarlıdır.`,
+      actionText: "Giriş səhifəsinə qayıt",
+      footer: "Bu girişi siz başlamamısınızsa, e-poçtu nəzərə almayın və şifrənizi dəyişin.",
+    },
+    securityOtpEnable: {
+      title: "İki faktorlu qorumanı açmaq üçün kod",
+      subtitle: (name) =>
+        `Salam ${name}, e-poçt ilə iki faktorlu qorumanı aktiv etmək üçün kodunuz aşağıdadır. Kod 10 dəqiqə etibarlıdır.`,
+      actionText: "Hesab ayarlarına keç",
+      footer: "Bu sorğunu siz etməmisinizsə, e-poçtu nəzərə almayın.",
+    },
+    securityOtpDisable: {
+      title: "İki faktorlu qorumanı söndürmək üçün kod",
+      subtitle: (name) =>
+        `Salam ${name}, e-poçt ilə iki faktorlu qorumanı söndürmək üçün kodunuz aşağıdadır. Kod 10 dəqiqə etibarlıdır.`,
+      actionText: "Hesab ayarlarına keç",
+      footer: "Bu sorğunu siz etməmisinizsə, e-poçtu nəzərə almayın və şifrənizi dəyişin.",
+    },
   },
 };
 
@@ -253,7 +357,11 @@ export function getAuthEmailCopy(locale: AuthEmailLocale): AuthEmailCopy {
   return COPY[locale];
 }
 
-export function displayName(firstName?: string | null, lastName?: string | null, email?: string): string {
+export function displayName(
+  firstName?: string | null,
+  lastName?: string | null,
+  email?: string,
+): string {
   const full = [firstName, lastName].filter(Boolean).join(" ").trim();
   if (full) return full;
   if (email) return email.split("@")[0] ?? "there";

@@ -25,6 +25,7 @@ export const DASHBOARD_NAV_KEYS = {
   cart: "cart",
   account: "account",
   whatsappApi: "whatsappApi",
+  apiDocumentation: "apiDocumentation",
 } as const;
 
 export const DASHBOARD_SECTION_KEYS = {
@@ -131,6 +132,12 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
         labelKey: "whatsappApi",
         icon: "api",
         matchPrefix: "/dashboard/whatsapp-api",
+      },
+      {
+        href: "/dashboard/api-docs",
+        labelKey: "apiDocumentation",
+        icon: "description",
+        matchPrefix: "/dashboard/api-docs",
       },
     ],
   },

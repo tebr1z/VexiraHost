@@ -4,7 +4,10 @@ import type { TicketStatus } from "@prisma/client";
 
 import { getTicketEmailCopy, truncateMessage } from "../email/ticket-email.i18n";
 
-import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
+import {
+  resolveAuthEmailLocale,
+  resolveUserEmailLocale,
+} from "@/modules/auth/email/auth-email.locale";
 import { displayName, resolveEmailLocaleFromUser } from "@/modules/licenses/email/addon-email.i18n";
 import { SmtpMailService, type MailContent } from "@/shared/email/smtp-mail.service";
 import {
@@ -265,6 +268,56 @@ export class TicketEmailService {
         `${c.subjectLabel}: ${input.subject}`,
         `${c.previousLabel}: ${fromLabel}`,
         `${c.newLabel}: ${toLabel}`,
+        `${c.openButton}: ${ticketUrl}`,
+      ],
+      c.footer,
+    );
+
+    await this.safeSend(input.to, content);
+  }
+
+  async sendTicketAutoClosedEmail(
+    input: TicketMailUser & {
+      ticketId: string;
+      subject: string;
+    },
+  ): Promise<void> {
+    // Prefer the customer's last UI locale from localeHistory.
+    const locale = resolveUserEmailLocale({
+      localeHistory: input.localeHistory,
+      locale: input.locale,
+    });
+    const copy = getTicketEmailCopy(locale);
+    const c = copy.autoClosed;
+    const name = displayName(input.firstName, input.lastName, input.to);
+    const appUrl = this.appUrl();
+    const ticketUrl = `${appUrl}/dashboard/tickets/${input.ticketId}`;
+
+    const bodyHtml = [
+      noticeBlock(c.noticeTitle, c.noticeBody, "warning"),
+      infoTable(
+        infoRow(c.subjectLabel, input.subject) + infoRow(c.statusLabel, copy.statusLabel("CLOSED")),
+      ),
+      primaryButton(c.openButton, ticketUrl),
+    ].join("");
+
+    const content = createBrandEmail({
+      brand: "Vexira Host",
+      tagline: copy.brandTagline,
+      appUrl,
+      title: c.title,
+      subtitle: c.subtitle(name, input.subject),
+      bodyHtml,
+      footer: c.footer,
+    });
+
+    content.subject = `Vexira Host • ${c.title} — ${input.subject}`;
+    content.text = this.buildText(
+      c.title,
+      c.subtitle(name, input.subject),
+      [
+        `${c.subjectLabel}: ${input.subject}`,
+        `${c.statusLabel}: ${copy.statusLabel("CLOSED")}`,
         `${c.openButton}: ${ticketUrl}`,
       ],
       c.footer,

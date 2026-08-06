@@ -1,39 +1,34 @@
-import {
-  parseCurrency,
-  type SupportedCurrency,
-} from "@/shared/pricing/currency.util";
+import { parseCurrency, type SupportedCurrency } from "@/shared/pricing/currency.util";
 
-/** Days before an unlocked user may change preferred currency again. */
-export const CURRENCY_CHANGE_COOLDOWN_DAYS = 30;
-
-export function nextCurrencyChangeAt(currencyChangedAt?: Date | null): Date | null {
-  if (!currencyChangedAt) return null;
-  return new Date(
-    currencyChangedAt.getTime() + CURRENCY_CHANGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000,
-  );
-}
-
-export function canChangeCurrency(input: {
-  currencyLocked?: boolean | null;
-  currencyChangedAt?: Date | null;
-}): boolean {
-  if (input.currencyLocked) return false;
-  const next = nextCurrencyChangeAt(input.currencyChangedAt);
-  if (!next) return true;
-  return Date.now() >= next.getTime();
-}
-
+/**
+ * Soft default only: Azerbaijan visitors start on AZN, everyone else on USD.
+ * Currency is never hard-locked by geo; users can change anytime.
+ */
 export function resolveRegisterCurrency(input: {
   preferredCurrency?: string | null;
   countryCode?: string | null;
 }): { currency: SupportedCurrency; locked: boolean } {
-  const country = input.countryCode?.toUpperCase();
-  if (country === "AZ") {
-    return { currency: "AZN", locked: true };
+  if (input.preferredCurrency) {
+    return { currency: parseCurrency(input.preferredCurrency), locked: false };
   }
 
-  return {
-    currency: parseCurrency(input.preferredCurrency),
-    locked: false,
-  };
+  const country = input.countryCode?.toUpperCase();
+  if (country === "AZ") {
+    return { currency: "AZN", locked: false };
+  }
+
+  return { currency: "USD", locked: false };
+}
+
+/** Currency can always be changed by the customer. */
+export function canChangeCurrency(_input?: {
+  currencyLocked?: boolean | null;
+  currencyChangedAt?: Date | null;
+}): boolean {
+  return true;
+}
+
+/** @deprecated Cooldown removed — kept for API compatibility. */
+export function nextCurrencyChangeAt(_currencyChangedAt?: Date | null): Date | null {
+  return null;
 }

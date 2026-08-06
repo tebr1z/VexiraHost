@@ -1,11 +1,13 @@
 "use client";
 
+import { motion, useReducedMotion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { PricingCard } from "./pricing-card";
 
 import { PlansSectionIntro } from "@/components/hosting/plans-section-intro";
+import { MaterialIcon } from "@/components/landing/material-icon";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
 import {
@@ -19,6 +21,22 @@ import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
+const CATEGORY_ICONS: Record<string, string> = {
+  HOSTING: "language",
+  VPS: "memory",
+  DEDICATED: "dns",
+  DOMAIN: "public",
+  WHATSAPP_API: "chat",
+  SSL: "verified_user",
+  EMAIL: "mail",
+  LICENSE: "key",
+  BACKUP: "backup",
+};
+
+function categoryIcon(category: CatalogCategory): string {
+  return CATEGORY_ICONS[(category.systemType ?? category.slug).toUpperCase()] ?? "deployed_code";
+}
+
 export function PricingSection(): React.ReactElement {
   const locale = useLocale();
   const t = useTranslations("pricing");
@@ -26,6 +44,7 @@ export function PricingSection(): React.ReactElement {
   const continueAfterAdd = useAddToCartNavigation();
   const currency = usePricingStore((s) => s.currency);
   const period = usePricingStore((s) => s.period);
+  const reduceMotion = useReducedMotion();
 
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -85,20 +104,63 @@ export function PricingSection(): React.ReactElement {
           guarantees={[t("guarantee1"), t("guarantee2"), t("guarantee3")]}
           controls={
             loadingCategories ? (
-              <LoadingSkeleton className="h-9 w-72 rounded-[9px]" />
+              <LoadingSkeleton className="h-10 w-56 rounded-xl" />
             ) : categories.length > 0 ? (
-              <div className="apple-segmented max-w-full overflow-x-auto">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    data-active={cat.id === activeCategory}
-                    onClick={() => setActiveCategory(cat.id)}
-                    className="apple-segmented-item"
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+              <div className="w-full">
+                <div
+                  className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 sm:hidden"
+                  role="tablist"
+                  aria-label={t("title")}
+                >
+                  {categories.map((cat) => (
+                    <motion.button
+                      key={cat.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={cat.id === activeCategory}
+                      data-active={cat.id === activeCategory}
+                      onClick={() => setActiveCategory(cat.id)}
+                      whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+                      className="flex shrink-0 snap-start items-center gap-2 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3.5 py-2.5 text-sm font-semibold text-[var(--label-secondary)] shadow-sm transition-colors data-[active=true]:border-[color-mix(in_srgb,var(--accent)_35%,var(--separator))] data-[active=true]:bg-[color-mix(in_srgb,var(--accent)_10%,var(--bg-elevated))] data-[active=true]:text-[var(--accent)]"
+                    >
+                      <MaterialIcon name={categoryIcon(cat)} className="text-[18px] opacity-70" />
+                      <span>{cat.name}</span>
+                    </motion.button>
+                  ))}
+                </div>
+
+                <div
+                  className="hidden max-w-full gap-1 overflow-x-auto rounded-[20px] border border-[color-mix(in_srgb,var(--separator)_85%,transparent)] bg-[color-mix(in_srgb,var(--bg-secondary)_82%,transparent)] p-1.5 sm:flex"
+                  role="tablist"
+                  aria-label={t("title")}
+                >
+                  {categories.map((cat) => (
+                    <motion.button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setActiveCategory(cat.id)}
+                      role="tab"
+                      aria-selected={cat.id === activeCategory}
+                      whileHover={reduceMotion ? undefined : { y: -2 }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                      className="group relative flex min-w-[104px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-[14px] px-3 py-2.5 text-sm font-semibold text-[var(--label-secondary)] transition-colors hover:text-[var(--label)] data-[active=true]:text-[var(--accent)]"
+                      data-active={cat.id === activeCategory}
+                    >
+                      {cat.id === activeCategory && (
+                        <motion.span
+                          layoutId="active-catalog-category"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                          className="absolute inset-0 rounded-[14px] border border-[color-mix(in_srgb,var(--accent)_25%,var(--separator))] bg-[var(--bg-elevated)] shadow-[0_8px_20px_color-mix(in_srgb,var(--accent)_12%,transparent)]"
+                        />
+                      )}
+                      <MaterialIcon
+                        name={categoryIcon(cat)}
+                        className="relative text-[18px] text-[var(--label-tertiary)] transition-colors group-data-[active=true]:text-[var(--accent)]"
+                      />
+                      <span className="relative whitespace-nowrap">{cat.name}</span>
+                    </motion.button>
+                  ))}
+                </div>
               </div>
             ) : null
           }

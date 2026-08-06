@@ -1,8 +1,14 @@
 import { existsSync } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
 import QRCode from "qrcode";
 
 import { WhatsappRepository } from "../repository/whatsapp.repository";
@@ -12,51 +18,74 @@ type BaileysModule = typeof import("@whiskeysockets/baileys");
 type WASocket = import("@whiskeysockets/baileys").WASocket;
 
 const AUTH_DIR = join(process.cwd(), ".whatsapp-auth");
+const ACCOUNTS_DIR = join(AUTH_DIR, "accounts");
 const INIT_RETRY_MS = 30_000;
+
+interface GatewaySocket {
+  sock: WASocket | null;
+  qr: string | null;
+  qrDataUrl: string | null;
+  starting: boolean;
+  intentionalStop: boolean;
+}
 
 @Injectable()
 export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsappSessionService.name);
-  private sock: WASocket | null = null;
   private baileys: BaileysModule | null = null;
-  private currentQr: string | null = null;
-  private currentQrDataUrl: string | null = null;
-  private starting = false;
-  private intentionalStop = false;
+  private readonly sockets = new Map<string, GatewaySocket>();
   private initRetryTimer: NodeJS.Timeout | null = null;
 
   constructor(private readonly repository: WhatsappRepository) {}
 
   onModuleInit(): void {
-    void this.initialize();
+    void this.initialize().catch((error) =>
+      this.logger.warn(`WhatsApp initialization deferred: ${this.errorSummary(error)}`),
+    );
   }
 
   async onModuleDestroy() {
-    this.intentionalStop = true;
     if (this.initRetryTimer) clearTimeout(this.initRetryTimer);
-    await this.closeSocket();
+    await Promise.all([...this.sockets.keys()].map((id) => this.closeSocket(id, true)));
   }
 
   private async initialize(): Promise<void> {
     try {
       await this.repository.ensureSession();
+      await this.repository.ensurePrimaryGatewayAccount();
+      await this.importLegacyPrimaryAuth();
       this.initRetryTimer = null;
-      if (existsSync(AUTH_DIR)) {
-        this.logger.log("Existing WhatsApp auth found — attempting reconnect");
-        void this.connect().catch((err) => {
-          this.logger.warn(`Auto-reconnect failed: ${String(err)}`);
-        });
+      const accounts = await this.repository.listGatewayAccounts();
+      for (const account of accounts) {
+        if (account.isEnabled && existsSync(this.authDirectory(account.id))) {
+          void this.connect(account.id).catch((error) =>
+            this.logger.warn(
+              `WhatsApp account ${account.id} reconnect failed: ${this.errorSummary(error)}`,
+            ),
+          );
+        }
       }
     } catch (error) {
-      this.logger.warn(
-        `WhatsApp session initialization deferred: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      if (!this.intentionalStop) {
-        this.initRetryTimer = setTimeout(() => void this.initialize(), INIT_RETRY_MS);
-      }
+      this.logger.warn(`WhatsApp session initialization deferred: ${this.errorSummary(error)}`);
+      this.initRetryTimer = setTimeout(() => void this.initialize(), INIT_RETRY_MS);
     }
+  }
+
+  private async importLegacyPrimaryAuth(): Promise<void> {
+    const primaryDir = this.authDirectory("primary");
+    if (existsSync(primaryDir) || !existsSync(AUTH_DIR)) return;
+    // Only migrate known legacy Baileys files; never treat an arbitrary path as auth storage.
+    const legacyCreds = join(AUTH_DIR, "creds.json");
+    if (!existsSync(legacyCreds)) return;
+    await mkdir(ACCOUNTS_DIR, { recursive: true });
+    await rename(AUTH_DIR, `${AUTH_DIR}.migration-tmp`).catch(() => undefined);
+    const temporary = `${AUTH_DIR}.migration-tmp`;
+    if (!existsSync(temporary)) return;
+    await mkdir(AUTH_DIR, { recursive: true });
+    await mkdir(ACCOUNTS_DIR, { recursive: true });
+    await rename(temporary, primaryDir).catch(async () => {
+      await rm(temporary, { recursive: true, force: true });
+    });
   }
 
   private async loadBaileys(): Promise<BaileysModule> {
@@ -66,50 +95,71 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
     return this.baileys;
   }
 
-  getQrPayload() {
+  private state(id: string): GatewaySocket {
+    let state = this.sockets.get(id);
+    if (!state) {
+      state = { sock: null, qr: null, qrDataUrl: null, starting: false, intentionalStop: false };
+      this.sockets.set(id, state);
+    }
+    return state;
+  }
+
+  private authDirectory(id: string): string {
+    if (id !== "primary" && !/^c[a-z0-9]{20,}$/i.test(id))
+      throw new Error("INVALID_GATEWAY_ACCOUNT_ID");
+    return join(ACCOUNTS_DIR, id);
+  }
+
+  getQrPayload(id = "primary") {
+    const state = this.state(id);
     return {
-      qr: this.currentQr,
-      qrDataUrl: this.currentQrDataUrl,
+      qr: state.qr,
+      qrDataUrl: state.qrDataUrl,
     };
   }
 
-  isConnected(): boolean {
-    return Boolean(this.sock?.user);
+  isConnected(id = "primary"): boolean {
+    return Boolean(this.sockets.get(id)?.sock?.user);
   }
 
-  getConnectedPhone(): string | null {
-    const user = this.sock?.user;
+  hasConnectedAccount(): boolean {
+    return [...this.sockets.values()].some((state) => Boolean(state.sock?.user));
+  }
+
+  getConnectedPhone(id = "primary"): string | null {
+    const user = this.sockets.get(id)?.sock?.user;
     if (!user) return null;
     return phoneFromJid(user.phoneNumber) ?? phoneFromJid(user.id);
   }
 
-  async connect(): Promise<void> {
-    if (this.starting) return;
-    if (this.isConnected()) return;
-
-    this.starting = true;
-    this.intentionalStop = false;
+  async connect(id = "primary"): Promise<void> {
+    const account = await this.repository.getGatewayAccount(id);
+    if (!account) throw new NotFoundException("WhatsApp gateway account not found");
+    const state = this.state(id);
+    if (state.starting || this.isConnected(id)) return;
+    state.starting = true;
+    state.intentionalStop = false;
     try {
-      await mkdir(AUTH_DIR, { recursive: true });
-      await this.startSocket();
+      await mkdir(this.authDirectory(id), { recursive: true });
+      await this.startSocket(id);
     } finally {
-      this.starting = false;
+      state.starting = false;
     }
   }
 
-  async disconnect(): Promise<void> {
-    this.intentionalStop = true;
-    this.currentQr = null;
-    this.currentQrDataUrl = null;
-
+  async disconnect(id = "primary"): Promise<void> {
+    const state = this.state(id);
+    state.intentionalStop = true;
+    state.qr = null;
+    state.qrDataUrl = null;
     try {
-      if (this.sock) {
-        await this.sock.logout().catch(() => undefined);
+      if (state.sock) {
+        await state.sock.logout().catch(() => undefined);
       }
     } finally {
-      await this.closeSocket();
-      await rm(AUTH_DIR, { recursive: true, force: true }).catch(() => undefined);
-      await this.repository.updateSession({
+      await this.closeSocket(id, true);
+      await rm(this.authDirectory(id), { recursive: true, force: true }).catch(() => undefined);
+      await this.repository.updateGatewayAccount(id, {
         status: "DISCONNECTED",
         phoneNumber: null,
         displayName: null,
@@ -119,43 +169,47 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async sendText(jid: string, text: string): Promise<void> {
-    if (!this.sock || !this.isConnected()) {
+  async sendText(id: string, jid: string, text: string): Promise<void> {
+    const sock = this.sockets.get(id)?.sock;
+    if (!sock || !this.isConnected(id)) {
       throw new Error("WHATSAPP_NOT_CONNECTED");
     }
-    await this.sock.sendMessage(jid, { text });
+    await sock.sendMessage(jid, { text });
   }
 
-  private async closeSocket() {
-    if (this.sock) {
+  private async closeSocket(id: string, intentional = false) {
+    const state = this.state(id);
+    if (intentional) state.intentionalStop = true;
+    if (state.sock) {
       try {
-        this.sock.ev.removeAllListeners("connection.update");
-        this.sock.ev.removeAllListeners("creds.update");
-        this.sock.end?.(undefined);
+        state.sock.ev.removeAllListeners("connection.update");
+        state.sock.ev.removeAllListeners("creds.update");
+        state.sock.end?.(undefined);
       } catch {
         /* ignore */
       }
-      this.sock = null;
+      state.sock = null;
     }
   }
 
-  private async startSocket() {
+  private async startSocket(id: string) {
     const baileys = await this.loadBaileys();
-    const { state, saveCreds } = await baileys.useMultiFileAuthState(AUTH_DIR);
-
-    await this.closeSocket();
-
-    await this.repository.updateSession({
+    const { state: authState, saveCreds } = await baileys.useMultiFileAuthState(
+      this.authDirectory(id),
+    );
+    const state = this.state(id);
+    await this.closeSocket(id);
+    await this.repository.updateGatewayAccount(id, {
       status: "CONNECTING",
       lastError: null,
     });
 
     const sock = baileys.makeWASocket({
-      auth: state,
+      auth: authState,
       syncFullHistory: false,
       markOnlineOnConnect: false,
     });
-    this.sock = sock;
+    state.sock = sock;
 
     sock.ev.on("creds.update", saveCreds);
 
@@ -163,18 +217,18 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        this.currentQr = qr;
+        state.qr = qr;
         try {
-          this.currentQrDataUrl = await QRCode.toDataURL(qr, {
+          state.qrDataUrl = await QRCode.toDataURL(qr, {
             margin: 1,
             width: 320,
             errorCorrectionLevel: "M",
           });
         } catch (err) {
           this.logger.warn(`QR render failed: ${String(err)}`);
-          this.currentQrDataUrl = null;
+          state.qrDataUrl = null;
         }
-        await this.repository.updateSession({
+        await this.repository.updateGatewayAccount(id, {
           status: "QR_READY",
           lastQrAt: new Date(),
           lastError: null,
@@ -183,17 +237,17 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
       }
 
       if (connection === "open") {
-        this.currentQr = null;
-        this.currentQrDataUrl = null;
+        state.qr = null;
+        state.qrDataUrl = null;
         const phone = phoneFromJid(sock.user?.phoneNumber) ?? phoneFromJid(sock.user?.id);
-        await this.repository.updateSession({
+        await this.repository.updateGatewayAccount(id, {
           status: "CONNECTED",
           phoneNumber: phone,
           displayName: sock.user?.notify ?? sock.user?.name ?? null,
           lastConnectedAt: new Date(),
           lastError: null,
         });
-        this.logger.log(`WhatsApp connected as ${phone ?? "unknown"}`);
+        this.logger.log(`WhatsApp gateway account ${id} connected`);
         return;
       }
 
@@ -205,17 +259,19 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
         const restartRequired = statusCode === baileys.DisconnectReason.restartRequired;
 
         this.logger.warn(
-          `WhatsApp connection closed (code=${statusCode ?? "unknown"}, intentional=${this.intentionalStop})`,
+          `WhatsApp account ${id} connection closed (code=${statusCode ?? "unknown"}, intentional=${state.intentionalStop})`,
         );
 
-        if (this.intentionalStop || loggedOut) {
-          this.currentQr = null;
-          this.currentQrDataUrl = null;
-          this.sock = null;
-          if (loggedOut && !this.intentionalStop) {
-            await rm(AUTH_DIR, { recursive: true, force: true }).catch(() => undefined);
+        if (state.intentionalStop || loggedOut) {
+          state.qr = null;
+          state.qrDataUrl = null;
+          state.sock = null;
+          if (loggedOut && !state.intentionalStop) {
+            await rm(this.authDirectory(id), { recursive: true, force: true }).catch(
+              () => undefined,
+            );
           }
-          await this.repository.updateSession({
+          await this.repository.updateGatewayAccount(id, {
             status: "DISCONNECTED",
             phoneNumber: null,
             displayName: null,
@@ -225,16 +281,18 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
         }
 
         // Restart required after QR scan, or transient disconnect — reconnect.
-        this.sock = null;
+        state.sock = null;
         if (restartRequired || !loggedOut) {
           setTimeout(
             () => {
-              if (this.intentionalStop) return;
-              void this.startSocket().catch((err) => {
-                this.logger.error(`Reconnect failed: ${String(err)}`);
-                void this.repository.updateSession({
+              if (state.intentionalStop) return;
+              void this.startSocket(id).catch((err) => {
+                this.logger.error(
+                  `WhatsApp account ${id} reconnect failed: ${this.errorSummary(err)}`,
+                );
+                void this.repository.updateGatewayAccount(id, {
                   status: "DISCONNECTED",
-                  lastError: String(err),
+                  lastError: this.errorSummary(err),
                 });
               });
             },
@@ -243,5 +301,10 @@ export class WhatsappSessionService implements OnModuleInit, OnModuleDestroy {
         }
       }
     });
+  }
+
+  private errorSummary(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.replace(/[\r\n]/g, " ").slice(0, 300);
   }
 }

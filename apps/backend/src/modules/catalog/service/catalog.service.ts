@@ -3,6 +3,7 @@ import type { ProductCategory } from "@prisma/client";
 
 import { CatalogRepository } from "../repository/catalog.repository";
 
+import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
 import { yearlySavingsPercent } from "@/shared/pricing/currency.util";
 import {
   availableCurrenciesFromPrices,
@@ -85,7 +86,14 @@ function mapProduct(
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly catalogRepository: CatalogRepository) {}
+  constructor(
+    private readonly catalogRepository: CatalogRepository,
+    private readonly cbarExchange: CbarExchangeService,
+  ) {}
+
+  getExchangeRates() {
+    return this.cbarExchange.getRates();
+  }
 
   async listProducts(categorySlugOrId?: string, currency?: string, period?: string) {
     let catalogCategoryId: string | undefined;

@@ -41,7 +41,17 @@ export interface PublicCmsSection {
 export interface PublicCmsPage {
   slug: string;
   title: string;
+  pathSegment?: string | null;
+  parentSlug?: string | null;
   sections: PublicCmsSection[];
+}
+
+export interface PublicCmsChildPage {
+  slug: string;
+  pathSegment: string | null;
+  href: string | null;
+  title: string;
+  sortOrder: number;
 }
 
 export interface AdminCmsSection {
@@ -61,6 +71,9 @@ export interface AdminCmsPage {
   id: string;
   slug: string;
   title: I18nText;
+  parentSlug?: string | null;
+  pathSegment?: string | null;
+  sortOrder?: number;
   isActive: boolean;
   sections: AdminCmsSection[];
   createdAt: string;
@@ -71,6 +84,9 @@ export interface AdminCmsPageSummary {
   id: string;
   slug: string;
   title: I18nText;
+  parentSlug?: string | null;
+  pathSegment?: string | null;
+  sortOrder?: number;
   isActive: boolean;
   sectionCount: number;
   createdAt: string;

@@ -42,34 +42,30 @@ export const usePricingStore = create<PricingState>()(
       currencyLocked: false,
       hydrated: false,
       setCurrency: (currency) => {
-        if (get().currencyLocked) {
-          set({ currency: "AZN" });
-          return;
-        }
+        if (get().currencyLocked) return;
         set({ currency });
       },
       setPeriod: (period) => set({ period }),
       setFromGeo: ({ currency, countryCode }) => {
-        // Geo only drives guests. Authenticated prefs come from setFromUser.
+        // Guests only: AZ → AZN soft default, otherwise USD. Never hard-lock.
         if (get().currencyLocked) {
-          set({ countryCode, currency: "AZN" });
+          set({ countryCode });
           return;
         }
-        const locked = countryCode === "AZ";
+        const fromAzerbaijan = countryCode === "AZ";
         set({
-          currency: locked ? "AZN" : currency,
+          currency: fromAzerbaijan ? "AZN" : currency === "AZN" ? "AZN" : "USD",
           countryCode,
-          currencyLocked: locked,
+          currencyLocked: false,
         });
       },
       setFromUser: ({ preferredCurrency, billingPeriod, currencyLocked }) => {
         const locked = Boolean(currencyLocked);
         set({
-          currency: locked ? "AZN" : parseCurrency(preferredCurrency),
+          currency: parseCurrency(preferredCurrency),
           period: parsePeriod(billingPeriod),
           currencyLocked: locked,
-          // Profile wins over stale geo lock in localStorage.
-          countryCode: locked ? "AZ" : get().countryCode === "AZ" ? null : get().countryCode,
+          countryCode: get().countryCode,
         });
       },
       setHydrated: (value) => set({ hydrated: value }),

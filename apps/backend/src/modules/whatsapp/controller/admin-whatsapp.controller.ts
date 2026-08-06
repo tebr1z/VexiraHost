@@ -1,7 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { UserRole } from "@vexira/types";
 
-import { SendWhatsappMessageDto, UpdateWhatsappApiAccessDto } from "../dto/whatsapp.dto";
+import {
+  CreateWhatsappGatewayAccountDto,
+  SendWhatsappMessageDto,
+  UpdateWhatsappApiAccessDto,
+  UpdateWhatsappGatewayAccountDto,
+} from "../dto/whatsapp.dto";
 import { WhatsappApiService } from "../service/whatsapp-api.service";
 import { WhatsappService } from "../service/whatsapp.service";
 
@@ -38,6 +43,42 @@ export class AdminWhatsappController {
   @Roles(UserRole.ADMIN)
   disconnect() {
     return this.whatsappService.disconnect();
+  }
+
+  @Get("accounts")
+  @Roles(UserRole.ADMIN)
+  accounts() {
+    return this.whatsappService.listGatewayAccounts();
+  }
+
+  @Post("accounts")
+  @Roles(UserRole.ADMIN)
+  createAccount(@Body() dto: CreateWhatsappGatewayAccountDto) {
+    return this.whatsappService.createGatewayAccount(dto.label);
+  }
+
+  @Patch("accounts/:id")
+  @Roles(UserRole.ADMIN)
+  updateAccount(@Param("id") id: string, @Body() dto: UpdateWhatsappGatewayAccountDto) {
+    return this.whatsappService.updateGatewayAccount(id, dto);
+  }
+
+  @Get("accounts/:id/qr")
+  @Roles(UserRole.ADMIN)
+  accountQr(@Param("id") id: string) {
+    return this.whatsappService.getGatewayAccountQr(id);
+  }
+
+  @Post("accounts/:id/connect")
+  @Roles(UserRole.ADMIN)
+  connectAccount(@Param("id") id: string) {
+    return this.whatsappService.connectGatewayAccount(id);
+  }
+
+  @Post("accounts/:id/disconnect")
+  @Roles(UserRole.ADMIN)
+  disconnectAccount(@Param("id") id: string) {
+    return this.whatsappService.disconnectGatewayAccount(id);
   }
 
   @Get("users")

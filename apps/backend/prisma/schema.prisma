@@ -62,6 +62,16 @@ model User {
   phone                        String?
   whatsappNotificationsEnabled Boolean    @default(true)
   /**
+   * When true, password login requires a one-time code emailed to the user.
+   */
+  emailTwoFactorEnabled        Boolean    @default(false)
+  /**
+   * Authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.).
+   */
+  totpEnabled                  Boolean    @default(false)
+  /** Base32 TOTP secret — set during setup; cleared when disabled. */
+  totpSecret                   String?
+  /**
    * Client (exit) IP from the most recent successful login.
    */
   lastLoginIp                  String?
@@ -72,6 +82,7 @@ model User {
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  emailLoginOtps          EmailLoginOtp[]
   oauthAccounts           OAuthAccount[]
   domains                 Domain[]
   domainChangeRequests    DomainChangeRequest[]
@@ -212,6 +223,27 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmailLoginOtp {
+  id             String    @id @default(cuid())
+  codeHash       String
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /**
+   * LOGIN = password sign-in challenge
+   * EMAIL_2FA = confirm enable/disable of email two-factor
+   */
+  purpose        String    @default("LOGIN")
+  rememberMe     Boolean   @default(false)
+  desiredEnabled Boolean?
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, purpose])
+  @@map("email_login_otps")
+}
+
 model OAuthAccount {
   id         String        @id @default(cuid())
   provider   OAuthProvider
@@ -233,6 +265,7 @@ enum ProductCategory {
   SSL
   EMAIL
   BACKUP
+  WHATSAPP_API
 }
 
 enum DigitalDeliveryMode {
@@ -895,6 +928,7 @@ enum AddonServiceType {
   SSL
   EMAIL
   BACKUP
+  WHATSAPP_API
 }
 
 model AddonService {
@@ -1106,14 +1140,18 @@ enum CmsSectionType {
 }
 
 model CmsPage {
-  id        String           @id @default(cuid())
-  slug      String           @unique
-  title     Json
-  isActive  Boolean          @default(true)
-  sections  CmsPageSection[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  title       Json
+  parentSlug  String?
+  pathSegment String?          @unique
+  sortOrder   Int              @default(0)
+  isActive    Boolean          @default(true)
+  sections    CmsPageSection[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
+  @@index([parentSlug])
   @@map("cms_pages")
 }
 
@@ -1165,12 +1203,40 @@ model WhatsappSession {
   @@map("whatsapp_sessions")
 }
 
+/**
+ * A linked WhatsApp number available to the outbound message pool.
+ * The legacy singleton session is imported as the primary account.
+ */
+model WhatsappGatewayAccount {
+  id              String                @id @default(cuid())
+  label           String
+  status          WhatsappSessionStatus @default(DISCONNECTED)
+  phoneNumber     String?
+  displayName     String?
+  isEnabled       Boolean               @default(true)
+  sentCount       Int                   @default(0)
+  failedCount     Int                   @default(0)
+  lastSentAt      DateTime?
+  lastQrAt        DateTime?
+  lastConnectedAt DateTime?
+  lastError       String?
+  updatedAt       DateTime              @updatedAt
+  createdAt       DateTime              @default(now())
+
+  messageLogs WhatsappMessageLog[]
+
+  @@index([isEnabled, status, sentCount])
+  @@map("whatsapp_gateway_accounts")
+}
+
 model WhatsappMessageLog {
   id        String                @id @default(cuid())
   toPhone   String
   userId    String?
   apiKeyId  String?
   apiKey    WhatsappApiKey?       @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  gatewayAccountId String?
+  gatewayAccount   WhatsappGatewayAccount? @relation(fields: [gatewayAccountId], references: [id], onDelete: SetNull)
   body      String
   status    WhatsappMessageStatus @default(PENDING)
   error     String?
@@ -1179,6 +1245,7 @@ model WhatsappMessageLog {
   @@index([createdAt])
   @@index([userId])
   @@index([apiKeyId])
+  @@index([gatewayAccountId])
   @@map("whatsapp_message_logs")
 }
 
@@ -1186,13 +1253,17 @@ model WhatsappMessageLog {
  * Admin-managed entitlement for use of the shared WhatsApp gateway.
  */
 model WhatsappApiAccess {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isEnabled    Boolean  @default(false)
-  monthlyLimit Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isEnabled           Boolean  @default(false)
+  monthlyLimit        Int      @default(0)
+  /**
+   * Admin-granted access outside the purchase flow (legacy/manual customers).
+   */
+  legacyManualAccess  Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@map("whatsapp_api_access")
 }

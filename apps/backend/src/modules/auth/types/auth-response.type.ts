@@ -24,6 +24,8 @@ export interface AuthUserResponse {
   } | null;
   phone?: string | null;
   whatsappNotificationsEnabled?: boolean;
+  emailTwoFactorEnabled?: boolean;
+  totpEnabled?: boolean;
   accountBalance?: number;
   balanceCurrency?: string;
   preferredLocale?: string;
@@ -40,3 +42,13 @@ export interface AuthResponse {
   user: AuthUserResponse;
   tokens: AuthTokensResponse;
 }
+
+export interface LoginTwoFactorChallenge {
+  requiresTwoFactor: true;
+  method: "EMAIL" | "TOTP";
+  challengeId: string;
+  expiresIn: number;
+  emailHint: string;
+}
+
+export type LoginResult = AuthResponse | LoginTwoFactorChallenge;

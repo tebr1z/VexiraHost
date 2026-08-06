@@ -35,6 +35,7 @@ import { TicketsModule } from "./modules/tickets/tickets.module";
 import { UsersModule } from "./modules/users/users.module";
 import { WhatsappModule } from "./modules/whatsapp/whatsapp.module";
 import { QueueModule } from "./queue/queue.module";
+import { PricingModule } from "./shared/pricing/pricing.module";
 import { StorageModule } from "./shared/storage/storage.module";
 
 @Module({
@@ -67,6 +68,7 @@ import { StorageModule } from "./shared/storage/storage.module";
     DatabaseModule,
     QueueModule,
     StorageModule,
+    PricingModule,
     AuthModule,
     UsersModule,
     OrdersModule,

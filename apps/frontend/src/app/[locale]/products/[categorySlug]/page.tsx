@@ -4,8 +4,10 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { MaterialIcon } from "@/components/landing/material-icon";
+import { PlansSectionIntro } from "@/components/hosting/plans-section-intro";
 import { PricingCard } from "@/components/landing/pricing-card";
+import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
+import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
@@ -17,6 +19,7 @@ import {
 } from "@/features/catalog";
 import { Link } from "@/i18n/navigation";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
+import { cn } from "@/lib/cn";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
@@ -67,22 +70,32 @@ export default function CategoryProductsPage(): React.ReactElement {
   };
 
   const popularIndex = products.length >= 2 ? 1 : -1;
+  const maxYearlySavings =
+    products.length === 0 ? 0 : Math.max(...products.map((p) => p.yearlySavingsPercent ?? 0));
 
   return (
     <MarketingShell>
       <section className="apple-grouped py-16 sm:py-20">
         <div className="max-w-container-max mx-auto px-5 md:px-8">
-          <div className="mb-10">
-            <Link
-              href="/"
-              className="mb-4 inline-flex items-center gap-1 text-sm text-[var(--label-secondary)] hover:text-[var(--accent)]"
-            >
-              <MaterialIcon name="arrow_back" className="text-base" />
-              {t("backHome")}
-            </Link>
-            <h1 className="apple-section-title">{activeCategory?.name ?? t("title")}</h1>
-            <p className="apple-section-subtitle mt-3">{t("subtitle")}</p>
-          </div>
+          <Link
+            href="/#pricing"
+            className="mb-6 inline-flex text-sm text-[var(--label-secondary)] hover:text-[var(--accent)]"
+          >
+            ← {t("backHome")}
+          </Link>
+
+          <PlansSectionIntro
+            eyebrow={t("eyebrow")}
+            title={activeCategory?.name ?? t("title")}
+            subtitle={t("subtitle")}
+            guarantees={[t("guarantee1"), t("guarantee2"), t("guarantee3")]}
+            controls={
+              <>
+                <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+                <CurrencySwitcher variant="segmented" />
+              </>
+            }
+          />
 
           {categories.length > 1 ? (
             <div className="mb-10 flex justify-center overflow-x-auto pb-1">
@@ -110,7 +123,14 @@ export default function CategoryProductsPage(): React.ReactElement {
           ) : products.length === 0 ? (
             <p className="text-center text-[var(--label-secondary)]">{t("empty")}</p>
           ) : (
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div
+              className={cn(
+                "grid gap-5",
+                products.length === 1 && "mx-auto max-w-sm",
+                products.length === 2 && "mx-auto max-w-3xl md:grid-cols-2",
+                products.length >= 3 && "md:grid-cols-2 xl:grid-cols-3",
+              )}
+            >
               {products.map((product, index) => (
                 <PricingCard
                   key={product.id}

@@ -16,6 +16,7 @@ const ADDON_CATEGORIES = new Set<ProductCategory>([
   ProductCategory.SSL,
   ProductCategory.EMAIL,
   ProductCategory.BACKUP,
+  ProductCategory.WHATSAPP_API,
 ]);
 
 @Injectable()

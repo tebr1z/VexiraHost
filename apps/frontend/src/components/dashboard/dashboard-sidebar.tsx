@@ -36,10 +36,12 @@ function isActive(
 export function DashboardSidebar({
   collapsed = false,
   onNavigate,
+  onCollapseToggle,
   className,
 }: {
   collapsed?: boolean;
   onNavigate?: () => void;
+  onCollapseToggle?: () => void;
   className?: string;
 }): React.ReactElement {
   const pathname = usePathname();
@@ -56,14 +58,14 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        "sidebar-lagom flex h-full flex-col",
-        collapsed ? "w-[72px]" : "w-60",
+        "sidebar-lagom flex h-full flex-col transition-[width] duration-300 ease-out",
+        collapsed ? "w-[76px]" : "w-64",
         className,
       )}
     >
       <div
         className={cn(
-          "flex h-[52px] items-center border-b-[0.5px] border-[var(--separator)] px-4",
+          "flex h-16 items-center border-b-[0.5px] border-[var(--separator)] px-4",
           collapsed && "justify-center px-2",
           onNavigate && "justify-between gap-2",
         )}
@@ -93,9 +95,9 @@ export function DashboardSidebar({
 
       <nav className="flex-1 overflow-y-auto overscroll-contain px-2 py-3">
         {DASHBOARD_NAV_SECTIONS.map((section) => (
-          <div key={section.labelKey} className={cn("mb-4 last:mb-0", collapsed && "mb-2")}>
+          <div key={section.labelKey} className={cn("mb-5 last:mb-0", collapsed && "mb-2")}>
             {!collapsed && (
-              <p className="text-on-surface-variant/70 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider">
+              <p className="text-on-surface-variant/60 mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em]">
                 {t(`sections.${section.labelKey}`)}
               </p>
             )}
@@ -111,15 +113,27 @@ export function DashboardSidebar({
                     onClick={onNavigate}
                     title={collapsed ? label : undefined}
                     className={cn(
-                      "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                      "group relative flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                       active
-                        ? "nav-item-lagom-active text-primary"
-                        : "text-on-surface-variant hover:text-primary hover:bg-slate-100 dark:hover:bg-white/5",
+                        ? "nav-item-lagom-active text-primary shadow-sm"
+                        : "text-on-surface-variant hover:bg-[var(--fill-secondary)] hover:text-[var(--label-primary)]",
                       collapsed && "justify-center px-2",
                     )}
                   >
-                    <NavIcon name={item.icon} />
-                    {!collapsed && <span>{label}</span>}
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                        active
+                          ? "bg-[var(--accent)]/12 text-[var(--accent)]"
+                          : "group-hover:bg-[var(--fill)]",
+                      )}
+                    >
+                      <NavIcon name={item.icon} />
+                    </span>
+                    {!collapsed && <span className="truncate">{label}</span>}
+                    {!collapsed && active ? (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                    ) : null}
                   </Link>
                 );
               })}
@@ -148,6 +162,23 @@ export function DashboardSidebar({
             )}
           </Link>
         ))}
+        {onCollapseToggle ? (
+          <button
+            type="button"
+            onClick={onCollapseToggle}
+            className={cn(
+              "text-on-surface-variant hover:text-primary mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-[var(--fill-secondary)]",
+              collapsed && "justify-center px-2",
+            )}
+            aria-label={t(collapsed ? "header.expandSidebar" : "header.collapseSidebar")}
+            title={t(collapsed ? "header.expandSidebar" : "header.collapseSidebar")}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {collapsed ? "keyboard_double_arrow_right" : "keyboard_double_arrow_left"}
+            </span>
+            {!collapsed ? <span>{t("header.collapseSidebar")}</span> : null}
+          </button>
+        ) : null}
       </div>
     </aside>
   );

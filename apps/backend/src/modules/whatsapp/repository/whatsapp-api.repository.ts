@@ -22,17 +22,40 @@ export class WhatsappApiRepository {
     return this.prisma.whatsappApiAccess.findUnique({ where: { userId } });
   }
 
-  upsertAccess(userId: string, data: { isEnabled: boolean; monthlyLimit: number }) {
+  upsertAccess(
+    userId: string,
+    data: { isEnabled: boolean; monthlyLimit: number; legacyManualAccess?: boolean },
+  ) {
+    const { legacyManualAccess, ...rest } = data;
     return this.prisma.whatsappApiAccess.upsert({
       where: { userId },
-      create: { userId, ...data },
-      update: data,
+      create: {
+        userId,
+        ...rest,
+        legacyManualAccess: legacyManualAccess ?? false,
+      },
+      update: {
+        ...rest,
+        ...(legacyManualAccess !== undefined ? { legacyManualAccess } : {}),
+      },
     });
   }
 
   getUsage(userId: string, periodStart = currentUtcMonth()) {
     return this.prisma.whatsappApiUsage.findUnique({
       where: { userId_periodStart: { userId, periodStart } },
+    });
+  }
+
+  getPendingPackage(userId: string) {
+    return this.prisma.addonService.findFirst({
+      where: {
+        userId,
+        type: "WHATSAPP_API",
+        status: "PROVISIONING",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
     });
   }
 

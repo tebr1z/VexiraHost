@@ -44,6 +44,6 @@ import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
     GitHubAuthGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
-  exports: [AuthService, AuthRepository, JwtModule, OauthConfigService],
+  exports: [AuthService, AuthRepository, AuthEmailService, JwtModule, OauthConfigService],
 })
 export class AuthModule {}

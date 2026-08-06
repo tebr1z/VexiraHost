@@ -1,5 +1,6 @@
-import type { AuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
 import type { TicketStatus } from "@prisma/client";
+
+import type { AuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
 
 export interface TicketEmailCopy {
   brandTagline: string;
@@ -36,6 +37,16 @@ export interface TicketEmailCopy {
     subjectLabel: string;
     previousLabel: string;
     newLabel: string;
+    openButton: string;
+    footer: string;
+  };
+  autoClosed: {
+    title: string;
+    subtitle: (name: string, subject: string) => string;
+    noticeTitle: string;
+    noticeBody: string;
+    subjectLabel: string;
+    statusLabel: string;
     openButton: string;
     footer: string;
   };
@@ -94,8 +105,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     reply: {
       title: "New reply on your ticket",
-      subtitle: (name, subject) =>
-        `Hi ${name}, support replied to your ticket “${subject}”.`,
+      subtitle: (name, subject) => `Hi ${name}, support replied to your ticket “${subject}”.`,
       noticeTitle: "Support response",
       noticeBody: "Please review the message below and reply if you still need help.",
       subjectLabel: "Subject",
@@ -115,6 +125,18 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
       newLabel: "New status",
       openButton: "View ticket",
       footer: "If you have more questions, open the ticket and send a reply.",
+    },
+    autoClosed: {
+      title: "Ticket closed automatically",
+      subtitle: (name, subject) =>
+        `Hi ${name}, your ticket “${subject}” was closed because we did not receive a reply within 12 hours.`,
+      noticeTitle: "No customer reply",
+      noticeBody:
+        "Our last support message went unanswered for 12 hours, so this ticket was closed automatically. You can open a new ticket anytime if you still need help.",
+      subjectLabel: "Subject",
+      statusLabel: "Status",
+      openButton: "View ticket",
+      footer: "Need more help? Create a new support ticket from your customer panel.",
     },
   },
   tr: {
@@ -149,8 +171,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     statusChanged: {
       title: "Talep durumu güncellendi",
-      subtitle: (name, subject) =>
-        `Merhaba ${name}, “${subject}” talebinizin durumu değişti.`,
+      subtitle: (name, subject) => `Merhaba ${name}, “${subject}” talebinizin durumu değişti.`,
       noticeTitle: "Durum değişikliği",
       noticeBody: (from, to) => `Durum ${from} → ${to} olarak güncellendi.`,
       subjectLabel: "Konu",
@@ -158,6 +179,18 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
       newLabel: "Yeni durum",
       openButton: "Talebi görüntüle",
       footer: "Başka sorunuz varsa talebi açıp yanıt gönderebilirsiniz.",
+    },
+    autoClosed: {
+      title: "Talep otomatik kapatıldı",
+      subtitle: (name, subject) =>
+        `Merhaba ${name}, “${subject}” talebiniz 12 saat içinde yanıt gelmediği için otomatik kapatıldı.`,
+      noticeTitle: "Müşteri yanıtı gelmedi",
+      noticeBody:
+        "Son destek mesajımıza 12 saat boyunca yanıt gelmediği için talep otomatik kapatıldı. Hâlâ yardıma ihtiyacınız varsa yeni bir talep açabilirsiniz.",
+      subjectLabel: "Konu",
+      statusLabel: "Durum",
+      openButton: "Talebi görüntüle",
+      footer: "Yeni destek talebini müşteri panelinden oluşturabilirsiniz.",
     },
   },
   ru: {
@@ -168,8 +201,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
       subtitle: (name, subject) =>
         `Здравствуйте, ${name}! Мы получили ваш тикет «${subject}». Команда скоро его рассмотрит.`,
       noticeTitle: "Что дальше?",
-      noticeBody:
-        "Мы пришлём письмо, когда поддержка ответит или изменится статус тикета.",
+      noticeBody: "Мы пришлём письмо, когда поддержка ответит или изменится статус тикета.",
       subjectLabel: "Тема",
       statusLabel: "Статус",
       priorityLabel: "Приоритет",
@@ -192,8 +224,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     statusChanged: {
       title: "Статус тикета обновлён",
-      subtitle: (name, subject) =>
-        `Здравствуйте, ${name}! Статус тикета «${subject}» изменился.`,
+      subtitle: (name, subject) => `Здравствуйте, ${name}! Статус тикета «${subject}» изменился.`,
       noticeTitle: "Изменение статуса",
       noticeBody: (from, to) => `Статус изменён: ${from} → ${to}.`,
       subjectLabel: "Тема",
@@ -201,6 +232,18 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
       newLabel: "Стало",
       openButton: "Открыть тикет",
       footer: "Если остались вопросы — откройте тикет и напишите ответ.",
+    },
+    autoClosed: {
+      title: "Тикет закрыт автоматически",
+      subtitle: (name, subject) =>
+        `Здравствуйте, ${name}! Тикет «${subject}» закрыт автоматически, так как мы не получили ответа в течение 12 часов.`,
+      noticeTitle: "Нет ответа клиента",
+      noticeBody:
+        "На последнее сообщение поддержки не было ответа 12 часов, поэтому тикет закрыт автоматически. Если помощь всё ещё нужна — создайте новый тикет.",
+      subjectLabel: "Тема",
+      statusLabel: "Статус",
+      openButton: "Открыть тикет",
+      footer: "Новый тикет можно создать в клиентской панели.",
     },
   },
   az: {
@@ -211,8 +254,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
       subtitle: (name, subject) =>
         `Salam ${name}, “${subject}” mövzulu biletinizi aldıq. Komandamız tezliklə baxacaq.`,
       noticeTitle: "Növbəti addım?",
-      noticeBody:
-        "Dəstək cavab verdikdə və ya bilet statusu dəyişdikdə sizə e-poçt göndərəcəyik.",
+      noticeBody: "Dəstək cavab verdikdə və ya bilet statusu dəyişdikdə sizə e-poçt göndərəcəyik.",
       subjectLabel: "Mövzu",
       statusLabel: "Status",
       priorityLabel: "Prioritet",
@@ -223,8 +265,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     reply: {
       title: "Biletinizə yeni cavab",
-      subtitle: (name, subject) =>
-        `Salam ${name}, dəstək “${subject}” biletinizə cavab verdi.`,
+      subtitle: (name, subject) => `Salam ${name}, dəstək “${subject}” biletinizə cavab verdi.`,
       noticeTitle: "Dəstək cavabı",
       noticeBody: "Aşağıdakı mesaja baxın; hələ kömək lazımdırsa cavab yazın.",
       subjectLabel: "Mövzu",
@@ -235,8 +276,7 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     statusChanged: {
       title: "Bilet statusu yeniləndi",
-      subtitle: (name, subject) =>
-        `Salam ${name}, “${subject}” biletinizin statusu dəyişdi.`,
+      subtitle: (name, subject) => `Salam ${name}, “${subject}” biletinizin statusu dəyişdi.`,
       noticeTitle: "Status dəyişikliyi",
       noticeBody: (from, to) => `Status ${from} → ${to} olaraq yeniləndi.`,
       subjectLabel: "Mövzu",
@@ -244,6 +284,18 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
       newLabel: "Yeni status",
       openButton: "Biletə bax",
       footer: "Əlavə sualınız varsa bileti açıb cavab göndərin.",
+    },
+    autoClosed: {
+      title: "Bilet avtomatik bağlandı",
+      subtitle: (name, subject) =>
+        `Salam ${name}, “${subject}” biletiniz 12 saat ərzində cavab gəlmədiyi üçün avtomatik bağlandı.`,
+      noticeTitle: "Müştəri cavabı gəlmədi",
+      noticeBody:
+        "Son dəstək mesajımıza 12 saat ərzində cavab gəlmədiyi üçün bilet avtomatik bağlandı. Hələ kömək lazımdırsa yeni bilet aça bilərsiniz.",
+      subjectLabel: "Mövzu",
+      statusLabel: "Status",
+      openButton: "Biletə bax",
+      footer: "Yeni dəstək biletini müştəri panelindən yarada bilərsiniz.",
     },
   },
 };

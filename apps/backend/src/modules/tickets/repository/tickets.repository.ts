@@ -227,4 +227,47 @@ export class TicketsRepository {
       },
     });
   }
+
+  /**
+   * Open tickets whose latest message is from staff and older than `olderThan`.
+   * Used to auto-close after the customer silence window.
+   */
+  async findStaleAwaitingCustomer(olderThan: Date) {
+    const candidates = await this.prisma.ticket.findMany({
+      where: {
+        status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] },
+        updatedAt: { lte: olderThan },
+        messages: {
+          some: {
+            isStaff: true,
+            createdAt: { lte: olderThan },
+          },
+        },
+      },
+      include: {
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { id: true, isStaff: true, createdAt: true },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            preferredCurrency: true,
+            localeHistory: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: "asc" },
+      take: 200,
+    });
+
+    return candidates.filter((ticket) => {
+      const last = ticket.messages[0];
+      return Boolean(last?.isStaff && last.createdAt <= olderThan);
+    });
+  }
 }

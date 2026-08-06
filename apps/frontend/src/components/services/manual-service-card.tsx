@@ -12,8 +12,10 @@ import {
   PencilIcon,
 } from "@/components/ui/edit-icon-button";
 import { openHostingPanel, type HostingAccount } from "@/features/hosting";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/i18n/format";
+import { useNavigationProgressStore } from "@/stores/navigation-progress-store";
 import { toast } from "@/stores/toast-store";
 
 export function ManualServiceCard({
@@ -27,6 +29,8 @@ export function ManualServiceCard({
 }): React.ReactElement {
   const tu = useTranslations("ui");
   const tc = useTranslations("dashboard.common");
+  const router = useRouter();
+  const startNav = useNavigationProgressStore((s) => s.start);
   const [panelLoading, setPanelLoading] = useState(false);
   const isServer = account.serviceCategory === "SERVER";
   const isSuspended = account.status === "SUSPENDED";
@@ -48,32 +52,71 @@ export function ManualServiceCard({
     }
   };
 
+  const openDetail = () => {
+    startNav();
+    router.push(manageHref);
+  };
+
   return (
-    <article className="card-3d border-outline-variant/50 bg-surface hover:border-secondary/30 rounded-2xl border p-5 transition">
+    <article
+      role="link"
+      tabIndex={0}
+      className={cn(
+        "dashboard-nav-card rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm",
+      )}
+      onClick={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest("a,button,[data-stop-row-click='true']")) return;
+        openDetail();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDetail();
+        }
+      }}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-primary truncate font-semibold">{account.primaryDomain}</p>
-          <p className="text-on-surface-variant mt-1 text-sm">
-            {isServer ? tc("categoryServer") : tc("categoryHosting")}
-            {" · "}
-            {account.panelIp ?? account.server?.ipAddress ?? "—"}
-          </p>
-          {account.panelUsername ? (
-            <p className="text-on-surface-variant mt-1 text-sm">
-              {tc("username")}: {account.panelUsername}
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <span className="bg-[var(--accent)]/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--accent)]">
+            <span className="material-symbols-outlined text-[22px]">
+              {isServer ? "cloud" : "web"}
+            </span>
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-[var(--label-primary)]">
+              {account.primaryDomain}
             </p>
-          ) : null}
-          {account.expiresAt ? (
-            <p className="text-on-surface-variant mt-1 text-sm">
-              {tc("expires")}: {formatDate(account.expiresAt, locale)}
+            <p className="mt-1 text-sm text-[var(--label-secondary)]">
+              {isServer ? tc("categoryServer") : tc("categoryHosting")}
+              {" · "}
+              {account.panelIp ?? account.server?.ipAddress ?? "—"}
             </p>
-          ) : null}
+            {account.panelUsername ? (
+              <p className="mt-1 text-sm text-[var(--label-secondary)]">
+                {tc("username")}: {account.panelUsername}
+              </p>
+            ) : null}
+            {account.expiresAt ? (
+              <p className="mt-1 text-sm text-[var(--label-secondary)]">
+                {tc("expires")}: {formatDate(account.expiresAt, locale)}
+              </p>
+            ) : null}
+          </div>
         </div>
-        <StatusBadge status={account.status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={account.status} />
+          <span className="dashboard-nav-card-chevron inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--label-tertiary)]">
+            <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+          </span>
+        </div>
       </div>
 
       {isSuspended && (
-        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+        <div
+          className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3"
+          data-stop-row-click="true"
+        >
           <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
             {tc("suspendedTitle")}
           </p>
@@ -98,7 +141,11 @@ export function ManualServiceCard({
         </div>
       )}
 
-      <div className="border-outline-variant/30 mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+      <div
+        className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--separator)] pt-4"
+        data-stop-row-click="true"
+        onClick={(event) => event.stopPropagation()}
+      >
         <IconActionLink href={manageHref} label={tu("view")} variant="view" showLabel>
           <EyeIcon />
         </IconActionLink>

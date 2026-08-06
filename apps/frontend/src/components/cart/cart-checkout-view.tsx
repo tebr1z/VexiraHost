@@ -73,7 +73,6 @@ export function CartCheckoutView({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [preferredCurrency, setPreferredCurrency] = useState<AppCurrency>("USD");
   const [countryCode, setCountryCode] = useState<string | null>(null);
-  const [azLocked, setAzLocked] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [billingAddress, setBillingAddress] = useState<BillingAddressInput>(EMPTY_BILLING);
   const [editingBilling, setEditingBilling] = useState(false);
@@ -117,12 +116,8 @@ export function CartCheckoutView({
     if (isAuthenticated || !quickAccount) return;
     void detectGeoCurrency().then((geo) => {
       setCountryCode(geo.countryCode);
-      if (geo.countryCode === "AZ") {
-        setAzLocked(true);
-        setPreferredCurrency("AZN");
-      } else {
-        setPreferredCurrency(geo.currency);
-      }
+      // Soft default only — user can still pick another currency.
+      setPreferredCurrency(geo.countryCode === "AZ" ? "AZN" : "USD");
     });
   }, [isAuthenticated, quickAccount]);
 
@@ -228,7 +223,7 @@ export function CartCheckoutView({
           setLoading(false);
           return;
         }
-        const currency = (azLocked ? "AZN" : preferredCurrency) as AppCurrency;
+        const currency = preferredCurrency;
         const session = await registerRequest(
           {
             firstName: firstName.trim(),
@@ -247,7 +242,7 @@ export function CartCheckoutView({
         setFromUser({
           preferredCurrency: session.user.preferredCurrency ?? currency,
           billingPeriod: session.user.billingPeriod,
-          currencyLocked: session.user.currencyLocked ?? azLocked,
+          currencyLocked: false,
         });
       }
 
@@ -600,11 +595,7 @@ export function CartCheckoutView({
               />
             </div>
             <div className="sm:col-span-2">
-              <PreferredCurrencyPicker
-                value={preferredCurrency}
-                locked={azLocked}
-                onChange={setPreferredCurrency}
-              />
+              <PreferredCurrencyPicker value={preferredCurrency} onChange={setPreferredCurrency} />
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm font-medium">{tAuth("password")}</label>

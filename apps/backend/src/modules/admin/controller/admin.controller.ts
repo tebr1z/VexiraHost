@@ -17,6 +17,7 @@ import type { Request } from "express";
 import {
   FulfillOrderDto,
   DeliverLicenseDto,
+  DeliverWhatsappApiDto,
   UpdateAdminUserDto,
   UpdateAdminUserRoleDto,
   UpdateAdminUserStatusDto,
@@ -199,6 +200,12 @@ export class AdminController {
   @Roles(UserRole.ADMIN)
   deliverLicense(@Param("id") id: string, @Body() dto: DeliverLicenseDto) {
     return this.adminService.deliverLicense(id, dto);
+  }
+
+  @Post("orders/:id/deliver-whatsapp-api")
+  @Roles(UserRole.ADMIN)
+  deliverWhatsappApi(@Param("id") id: string, @Body() dto: DeliverWhatsappApiDto) {
+    return this.adminService.deliverWhatsappApi(id, dto);
   }
 
   @Get("invoices")

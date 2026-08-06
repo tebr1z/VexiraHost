@@ -108,6 +108,54 @@ export default function WhatsappApiPage(): React.ReactElement {
   const access = dashboard?.access;
   const activeKeys = dashboard?.keys.filter((key) => key.isActive) ?? [];
   const inactiveKeys = dashboard?.keys.filter((key) => !key.isActive) ?? [];
+  const isEnabled = dashboard?.accessState === "ENABLED";
+  const isPendingApproval = dashboard?.accessState === "PENDING_APPROVAL";
+
+  if (!isEnabled) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeader
+          title={tp("title")}
+          description={tp("description")}
+          breadcrumbs={[{ label: t("nav.dashboard"), href: "/dashboard" }, { label: tp("title") }]}
+        />
+
+        <section className="rounded-2xl border border-amber-400/60 bg-amber-50 p-5 text-amber-950">
+          <span className="material-symbols-outlined text-2xl">
+            {isPendingApproval ? "schedule" : "lock"}
+          </span>
+          <h2 className="mt-3 text-lg font-semibold">
+            {isPendingApproval ? tp("pendingTitle") : tp("unavailableTitle")}
+          </h2>
+          <p className="mt-1 text-sm">
+            {isPendingApproval ? tp("pendingHelp") : tp("unavailableHelp")}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {!isPendingApproval ? (
+              <Link
+                href="/dashboard/products"
+                className="rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold"
+              >
+                {tp("browseProducts")}
+              </Link>
+            ) : null}
+            <Link
+              href="/dashboard/tickets/new"
+              className="rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold"
+            >
+              {tp("contactSupport")}
+            </Link>
+            <Link
+              href="/dashboard/api-docs"
+              className="rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold"
+            >
+              {tp("viewDocumentation")}
+            </Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,30 +188,10 @@ export default function WhatsappApiPage(): React.ReactElement {
           <Metric label={tp("used")} value={String(access?.used ?? 0)} />
           <Metric label={tp("remaining")} value={String(access?.remaining ?? 0)} />
         </div>
+        {access?.isEnabled ? (
+          <p className="text-on-surface-variant mt-3 text-xs">{tp("profanityPolicy")}</p>
+        ) : null}
       </section>
-
-      {!access?.isEnabled ? (
-        <section className="rounded-2xl border border-amber-400/60 bg-amber-50 p-5 text-amber-950">
-          <h2 className="text-lg font-semibold">{tp("supportTitle")}</h2>
-          <p className="mt-1 text-sm">{tp("supportHelp")}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href="/dashboard/tickets/new"
-              className="rounded-xl border border-amber-700 px-4 py-2 text-sm font-semibold"
-            >
-              {tp("contactSupport")}
-            </Link>
-            <a
-              href="https://wa.me/994709646466"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
-            >
-              {tp("contactWhatsapp")} · +994 70 964 64 66
-            </a>
-          </div>
-        </section>
-      ) : null}
 
       {createdKey ? (
         <section className="rounded-2xl border border-amber-400/60 bg-amber-50 p-5 text-amber-950">

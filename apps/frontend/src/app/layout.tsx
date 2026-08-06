@@ -18,11 +18,42 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
   return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://vexirahost.com"),
     title: {
       default: t("title"),
       template: "%s | Vexira Host",
     },
     description: t("description"),
+    applicationName: "Vexira Host",
+    keywords: [
+      "web hosting",
+      "VPS hosting",
+      "cloud infrastructure",
+      "domain registration",
+      "dedicated servers",
+    ],
+    openGraph: {
+      type: "website",
+      siteName: "Vexira Host",
+      title: t("title"),
+      description: t("description"),
+    },
+    twitter: {
+      card: "summary",
+      title: t("title"),
+      description: t("description"),
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
     icons: {
       icon: [{ url: "/favicon.png", type: "image/png" }],
       apple: "/favicon.png",
@@ -51,7 +82,7 @@ export default async function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
+      <body className="bg-background text-foreground min-h-screen font-sans antialiased">
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

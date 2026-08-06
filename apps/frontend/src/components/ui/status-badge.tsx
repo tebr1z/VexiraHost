@@ -6,31 +6,31 @@ import { cn } from "@/lib/cn";
 import { isKnownStatus } from "@/lib/i18n/status";
 
 const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: "bg-green-100 text-green-800 border-green-200",
-  PROVISIONING: "bg-amber-100 text-amber-800 border-amber-200",
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  SUSPENDED: "bg-orange-100 text-orange-800 border-orange-200",
-  EXPIRED: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  CANCELLED: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  ERROR: "bg-red-100 text-red-800 border-red-200",
-  PAID: "bg-green-100 text-green-800 border-green-200",
-  OPEN: "bg-blue-100 text-blue-800 border-blue-200",
-  CLOSED: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  COMPLETED: "bg-green-100 text-green-800 border-green-200",
-  FAILED: "bg-red-100 text-red-800 border-red-200",
-  REFUNDED: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  PROCESSING: "bg-blue-100 text-blue-800 border-blue-200",
-  IN_PROGRESS: "bg-blue-100 text-blue-800 border-blue-200",
-  WAITING_CUSTOMER: "bg-amber-100 text-amber-800 border-amber-200",
-  RESOLVED: "bg-green-100 text-green-800 border-green-200",
-  RUNNING: "bg-green-100 text-green-800 border-green-200",
-  STOPPED: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  TRANSFER_PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  DRAFT: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  SENT: "bg-green-100 text-green-800 border-green-200",
-  SENDING: "bg-blue-100 text-blue-800 border-blue-200",
-  VOID: "bg-surface-container-high text-on-surface-variant border-outline-variant/40",
-  OVERDUE: "bg-red-100 text-red-800 border-red-200",
+  ACTIVE: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300",
+  PROVISIONING: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300",
+  PENDING: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300",
+  SUSPENDED: "bg-orange-500/10 text-orange-700 border-orange-500/20 dark:text-orange-300",
+  EXPIRED: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  CANCELLED: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  ERROR: "bg-red-500/10 text-red-700 border-red-500/20 dark:text-red-300",
+  PAID: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300",
+  OPEN: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
+  CLOSED: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  COMPLETED: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300",
+  FAILED: "bg-red-500/10 text-red-700 border-red-500/20 dark:text-red-300",
+  REFUNDED: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  PROCESSING: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
+  IN_PROGRESS: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
+  WAITING_CUSTOMER: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300",
+  RESOLVED: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300",
+  RUNNING: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300",
+  STOPPED: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  TRANSFER_PENDING: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300",
+  DRAFT: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  SENT: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-300",
+  SENDING: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-300",
+  VOID: "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]",
+  OVERDUE: "bg-red-500/10 text-red-700 border-red-500/20 dark:text-red-300",
 };
 
 export function StatusBadge({
@@ -44,13 +44,13 @@ export function StatusBadge({
   const key = status.toUpperCase();
   const style =
     STATUS_STYLES[key] ??
-    "bg-surface-container-low text-on-surface-variant border-outline-variant/40";
+    "bg-[var(--fill-secondary)] text-[var(--label-secondary)] border-[var(--separator)]";
   const label = isKnownStatus(key) ? t(key) : status.replace(/_/g, " ").toLowerCase();
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium shadow-sm",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-sm",
         style,
         className,
       )}

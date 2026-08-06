@@ -3,23 +3,30 @@
 import { useLocale } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import { fetchCmsPage } from "@/features/cms/services/cms.service";
-import type { PublicCmsPage } from "@/features/cms/types";
-
 import { CmsSectionRenderer } from "./cms-section-renderer";
 
-export function CmsPageView({ slug }: { slug: string }): React.ReactElement {
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { fetchCmsPage, fetchCmsPageByPath } from "@/features/cms/services/cms.service";
+import type { PublicCmsPage } from "@/features/cms/types";
+
+type CmsPageViewProps =
+  { slug: string; pathSegment?: never } | { slug?: never; pathSegment: string };
+
+export function CmsPageView(props: CmsPageViewProps): React.ReactElement {
   const locale = useLocale();
   const [page, setPage] = useState<PublicCmsPage | null>(null);
   const [loading, setLoading] = useState(true);
+  const pathSegment = "pathSegment" in props ? props.pathSegment : undefined;
+  const slug = "slug" in props ? props.slug : undefined;
 
   useEffect(() => {
     setLoading(true);
-    fetchCmsPage(slug, locale)
-      .then(setPage)
-      .finally(() => setLoading(false));
-  }, [slug, locale]);
+    const loader = pathSegment
+      ? fetchCmsPageByPath(pathSegment, locale)
+      : fetchCmsPage(slug!, locale);
+
+    loader.then(setPage).finally(() => setLoading(false));
+  }, [pathSegment, slug, locale]);
 
   if (loading) {
     return (

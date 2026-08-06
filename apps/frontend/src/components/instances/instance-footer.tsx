@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { FooterPaymentLogos } from "@/components/layout/footer-payment-logos";
 import { Link } from "@/i18n/navigation";
 
 export function InstanceFooter(): React.ReactElement {
@@ -130,6 +131,16 @@ export function InstanceFooter(): React.ReactElement {
               </li>
             </ul>
           </div>
+        </div>
+
+        <div className="mt-12 flex flex-col gap-4 border-t border-[var(--separator)] pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--label-tertiary)]">
+              {t("paymentMethods")}
+            </p>
+            <p className="mt-1 text-sm text-[var(--label-secondary)]">{t("paymentMethodsHint")}</p>
+          </div>
+          <FooterPaymentLogos />
         </div>
       </div>
     </footer>

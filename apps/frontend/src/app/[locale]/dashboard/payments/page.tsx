@@ -44,7 +44,7 @@ export default function PaymentsPage(): React.ReactElement | null {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title={tp("title")}
         description={tp("description")}
@@ -57,7 +57,7 @@ export default function PaymentsPage(): React.ReactElement | null {
             type="button"
             onClick={addMockCard}
             disabled={adding}
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary disabled:opacity-60"
+            className="dashboard-btn-primary disabled:opacity-60"
           >
             {adding ? "Adding..." : "Add mock card"}
           </button>
@@ -67,27 +67,32 @@ export default function PaymentsPage(): React.ReactElement | null {
       {loading ? (
         <LoadingSkeletonList rows={2} />
       ) : methods.length === 0 ? (
-        <EmptyState
-          title={tp("empty")}
-          actionLabel="Add mock card"
-          onAction={addMockCard}
-        />
+        <EmptyState title={tp("empty")} actionLabel="Add mock card" onAction={addMockCard} />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-4 sm:grid-cols-2">
           {methods.map((m) => (
             <li
               key={m.id}
-              className="card-3d flex items-center justify-between rounded-2xl border border-outline-variant/50 bg-surface p-4"
+              className="hover:border-[var(--accent)]/20 group flex min-h-28 items-center justify-between rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
-              <div>
-                <p className="font-semibold">{m.label}</p>
-                <p className="text-sm text-on-surface-variant">
-                  {m.type}
-                  {m.last4 ? ` · **** ${m.last4}` : ""}
-                  {m.isDefault ? " · Default" : ""}
-                </p>
+              <div className="flex items-center gap-3">
+                <span className="bg-[var(--accent)]/10 flex h-11 w-11 items-center justify-center rounded-xl text-[var(--accent)]">
+                  <span className="material-symbols-outlined">credit_card</span>
+                </span>
+                <div>
+                  <p className="font-semibold text-[var(--label-primary)]">{m.label}</p>
+                  <p className="text-sm text-[var(--label-secondary)]">
+                    {m.type}
+                    {m.last4 ? ` · **** ${m.last4}` : ""}
+                    {m.isDefault ? " · Default" : ""}
+                  </p>
+                </div>
               </div>
-              {m.brand && <span className="text-sm text-on-surface-variant">{m.brand}</span>}
+              {m.brand && (
+                <span className="rounded-full bg-[var(--fill-secondary)] px-2.5 py-1 text-xs font-semibold text-[var(--label-secondary)]">
+                  {m.brand}
+                </span>
+              )}
             </li>
           ))}
         </ul>

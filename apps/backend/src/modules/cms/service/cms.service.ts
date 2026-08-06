@@ -27,9 +27,36 @@ export class CmsService {
     const page = await this.repository.findActivePageBySlug(slug);
     if (!page) return null;
 
+    return this.mapPublicPage(page, locale);
+  }
+
+  async getPublicPageByPathSegment(pathSegment: string, locale = "tr") {
+    const page = await this.repository.findActivePageByPathSegment(pathSegment);
+    if (!page) return null;
+
+    return this.mapPublicPage(page, locale);
+  }
+
+  async listPublicChildPages(parentSlug: string, locale = "tr") {
+    const pages = await this.repository.findActiveChildPages(parentSlug);
+    return pages.map((page) => ({
+      slug: page.slug,
+      pathSegment: page.pathSegment,
+      href: page.pathSegment ? `/licenses/${page.pathSegment}` : null,
+      title: resolveI18nText(page.title, locale),
+      sortOrder: page.sortOrder,
+    }));
+  }
+
+  private mapPublicPage(
+    page: NonNullable<Awaited<ReturnType<CmsRepository["findActivePageBySlug"]>>>,
+    locale: string,
+  ) {
     return {
       slug: page.slug,
       title: resolveI18nText(page.title, locale),
+      pathSegment: page.pathSegment,
+      parentSlug: page.parentSlug,
       sections: page.sections.map((section) => ({
         id: section.id,
         key: section.key,
@@ -46,6 +73,9 @@ export class CmsService {
         id: page.id,
         slug: page.slug,
         title: page.title as I18nText,
+        parentSlug: page.parentSlug,
+        pathSegment: page.pathSegment,
+        sortOrder: page.sortOrder,
         isActive: page.isActive,
         sectionCount: page.sections.length,
         createdAt: page.createdAt,
@@ -62,6 +92,9 @@ export class CmsService {
       id: page.id,
       slug: page.slug,
       title: page.title as I18nText,
+      parentSlug: page.parentSlug,
+      pathSegment: page.pathSegment,
+      sortOrder: page.sortOrder,
       isActive: page.isActive,
       sections: page.sections.map(mapSectionAdmin),
       createdAt: page.createdAt,

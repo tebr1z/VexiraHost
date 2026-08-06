@@ -32,12 +32,14 @@ import { HostingModule } from "@/modules/hosting/hosting.module";
 import { LicensesModule } from "@/modules/licenses/licenses.module";
 import { PaymentsModule } from "@/modules/payments/payments.module";
 import { TicketsModule } from "@/modules/tickets/tickets.module";
+import { WhatsappModule } from "@/modules/whatsapp/whatsapp.module";
 
 @Module({
   imports: [
     AuthModule,
     HostingModule,
     LicensesModule,
+    WhatsappModule,
     DomainsModule,
     TicketsModule,
     PaymentsModule,

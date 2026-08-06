@@ -31,6 +31,29 @@ export class CmsRepository {
     });
   }
 
+  findPageByPathSegment(pathSegment: string) {
+    return this.prisma.cmsPage.findFirst({ where: { pathSegment } });
+  }
+
+  findActivePageByPathSegment(pathSegment: string) {
+    return this.prisma.cmsPage.findFirst({
+      where: { pathSegment, isActive: true },
+      include: {
+        sections: {
+          where: { isActive: true },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+  }
+
+  findActiveChildPages(parentSlug: string) {
+    return this.prisma.cmsPage.findMany({
+      where: { parentSlug, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
+    });
+  }
+
   findAllPages() {
     return this.prisma.cmsPage.findMany({
       include: {

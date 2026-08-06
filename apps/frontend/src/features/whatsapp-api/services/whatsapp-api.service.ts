@@ -13,6 +13,7 @@ export interface WhatsappApiKeySummary {
 }
 
 export interface WhatsappApiDashboard {
+  accessState: "ENABLED" | "PENDING_APPROVAL" | "UNAVAILABLE";
   access: {
     isEnabled: boolean;
     monthlyLimit: number;

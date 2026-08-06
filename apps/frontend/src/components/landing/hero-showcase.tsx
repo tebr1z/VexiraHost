@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
 
 import { MaterialIcon } from "./material-icon";
@@ -13,6 +13,7 @@ const CARD_OFFSETS = [
 
 export function HeroShowcase(): React.ReactElement {
   const t = useTranslations("hero");
+  const reduceMotion = useReducedMotion();
 
   const cards = [
     {
@@ -50,23 +51,31 @@ export function HeroShowcase(): React.ReactElement {
         return (
           <motion.div
             key={card.title}
-            initial={{ opacity: 0, y: 48 }}
-            animate={{
-              opacity: 1,
-              y: [offset.y, offset.y - 10, offset.y],
-              x: offset.x,
-              rotate: [offset.rotate, offset.rotate + 1, offset.rotate],
-            }}
-            transition={{
-              opacity: { duration: 0.5, delay: offset.delay },
-              y: { duration: 5 + index, repeat: Infinity, ease: "easeInOut" },
-              rotate: { duration: 6 + index, repeat: Infinity, ease: "easeInOut" },
-              x: { duration: 0.5, delay: offset.delay },
-            }}
+            initial={reduceMotion ? false : { opacity: 0, y: 48 }}
+            animate={
+              reduceMotion
+                ? { opacity: 1, y: offset.y, x: offset.x, rotate: offset.rotate }
+                : {
+                    opacity: 1,
+                    y: [offset.y, offset.y - 10, offset.y],
+                    x: offset.x,
+                    rotate: [offset.rotate, offset.rotate + 1, offset.rotate],
+                  }
+            }
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : {
+                    opacity: { duration: 0.5, delay: offset.delay },
+                    y: { duration: 5 + index, repeat: Infinity, ease: "easeInOut" },
+                    rotate: { duration: 6 + index, repeat: Infinity, ease: "easeInOut" },
+                    x: { duration: 0.5, delay: offset.delay },
+                  }
+            }
             className="absolute left-1/2 top-1/2 w-[210px] -translate-x-1/2 -translate-y-1/2"
             style={{ zIndex: offset.z }}
           >
-            <div className="overflow-hidden rounded-[22px] border-[0.5px] border-[var(--separator)] bg-[var(--bg-elevated)] p-4 shadow-apple-md">
+            <div className="shadow-apple-md overflow-hidden rounded-[22px] border-[0.5px] border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span
                   className="flex h-9 w-9 items-center justify-center rounded-xl"
@@ -83,7 +92,9 @@ export function HeroShowcase(): React.ReactElement {
                 )}
               </div>
               <p className="text-sm font-semibold text-[var(--label)]">{card.title}</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight text-[var(--label)]">{card.metric}</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-[var(--label)]">
+                {card.metric}
+              </p>
               <p className="text-xs text-[var(--label-tertiary)]">{card.sub}</p>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--fill-secondary)]">
                 <motion.div

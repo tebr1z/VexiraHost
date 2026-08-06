@@ -8,6 +8,8 @@ import { LicensesRepository } from "../repository/licenses.repository";
 
 import { AddonEmailService } from "./addon-email.service";
 
+import { resolveWhatsappPackageLimit } from "@/modules/whatsapp/constants/whatsapp-package.constants";
+
 function mapAddonService(service: AddonService) {
   return {
     id: service.id,
@@ -32,6 +34,8 @@ function mapCategoryToAddonType(category: ProductCategory): AddonServiceType | n
       return "EMAIL";
     case "BACKUP":
       return "BACKUP";
+    case "WHATSAPP_API":
+      return "WHATSAPP_API";
     default:
       return null;
   }
@@ -110,6 +114,17 @@ export class LicensesService {
     if (!type) return;
 
     const product = await this.licensesRepository.findProductBySlug(input.productSlug);
+
+    if (input.productCategory === "WHATSAPP_API") {
+      await this.createPendingWhatsappPackage({
+        userId: input.userId,
+        productName: input.productName,
+        productSlug: input.productSlug,
+        orderId: input.orderId,
+        orderItemId: input.orderItemId,
+      });
+      return;
+    }
 
     // Manual license: create pending service; admin sends key later from the order page.
     if (type === "LICENSE" && product?.deliveryMode === "MANUAL") {
@@ -197,6 +212,72 @@ export class LicensesService {
       orderId: input.orderId,
       orderItemId: input.orderItemId,
     });
+  }
+
+  async createPendingWhatsappPackage(input: {
+    userId: string;
+    productName: string;
+    productSlug: string;
+    orderId: string;
+    orderItemId?: string;
+  }) {
+    const messageLimit = resolveWhatsappPackageLimit(input.productSlug);
+    if (!messageLimit) {
+      throw new BadRequestException("Invalid WhatsApp API package");
+    }
+
+    const existing = await this.licensesRepository.findByOrderItem(
+      input.orderId,
+      input.orderItemId,
+    );
+    if (existing) return mapAddonService(existing);
+
+    const service = await this.licensesRepository.createAddon({
+      userId: input.userId,
+      type: "WHATSAPP_API",
+      name: input.productName,
+      status: "PROVISIONING",
+      metadata: {
+        pendingManualApproval: true,
+        orderId: input.orderId,
+        orderItemId: input.orderItemId ?? null,
+        productSlug: input.productSlug,
+        messageLimit,
+      },
+    });
+    return mapAddonService(service);
+  }
+
+  async ensurePendingWhatsappPackage(input: {
+    userId: string;
+    productSlug: string;
+    productName: string;
+    orderId: string;
+    orderItemId: string;
+  }) {
+    return this.createPendingWhatsappPackage(input);
+  }
+
+  async activateWhatsappPackage(input: { orderId: string; orderItemId: string }) {
+    const service = await this.licensesRepository.findByOrderItem(input.orderId, input.orderItemId);
+    if (!service) {
+      throw new NotFoundException("Pending WhatsApp API package for this order item was not found");
+    }
+    if (service.type !== "WHATSAPP_API") {
+      throw new BadRequestException("Order item is not a WhatsApp API package");
+    }
+
+    const prevMeta = (service.metadata ?? {}) as Record<string, unknown>;
+    const updated = await this.licensesRepository.updateAddon(service.id, {
+      status: "ACTIVE",
+      provisionedAt: new Date(),
+      metadata: {
+        ...prevMeta,
+        pendingManualApproval: false,
+        activatedAt: new Date().toISOString(),
+      } as Prisma.InputJsonValue,
+    });
+    return mapAddonService(updated);
   }
 
   async deliverManualLicense(input: {

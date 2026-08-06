@@ -4,7 +4,7 @@ export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 export const SUPPORTED_PERIODS = ["MONTHLY", "YEARLY"] as const;
 export type SupportedPeriod = (typeof SUPPORTED_PERIODS)[number];
 
-/** EU member states → EUR */
+/** Kept for catalog/admin tooling; geo default no longer auto-selects EUR. */
 export const EU_COUNTRY_CODES = new Set([
   "AT",
   "BE",
@@ -35,10 +35,10 @@ export const EU_COUNTRY_CODES = new Set([
   "SE",
 ]);
 
+/** Soft geo default: Azerbaijan → AZN, everything else → USD. */
 export function currencyForCountry(countryCode?: string | null): SupportedCurrency {
   const code = countryCode?.toUpperCase();
   if (code === "AZ") return "AZN";
-  if (code && EU_COUNTRY_CODES.has(code)) return "EUR";
   return "USD";
 }
 

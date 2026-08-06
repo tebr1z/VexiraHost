@@ -16,9 +16,43 @@ function buildFallbackNavigation(
       key: "licenses",
       label: t("licenses"),
       items: [
-        { id: "licenses-windows-office", label: t("licensesWindowsOffice"), href: "/#pricing" },
-        { id: "licenses-antivirus", label: t("licensesAntivirus"), href: "/#pricing" },
-        { id: "licenses-other", label: t("licensesOther"), href: "/#pricing" },
+        { id: "licenses-all", label: t("licensesAll"), href: "/licenses", pathMatch: "/licenses" },
+        {
+          id: "licenses-windows",
+          label: t("licensesWindows"),
+          href: "/licenses/windows",
+          pathMatch: "/licenses/windows",
+        },
+        {
+          id: "licenses-server",
+          label: t("licensesServer"),
+          href: "/licenses/server",
+          pathMatch: "/licenses/server",
+        },
+        {
+          id: "licenses-office",
+          label: t("licensesOffice"),
+          href: "/licenses/office",
+          pathMatch: "/licenses/office",
+        },
+        {
+          id: "licenses-antivirus",
+          label: t("licensesAntivirus"),
+          href: "/licenses/antivirus",
+          pathMatch: "/licenses/antivirus",
+        },
+        {
+          id: "licenses-google-workspace",
+          label: t("licensesGoogleWorkspace"),
+          href: "/email",
+          pathMatch: "/email",
+        },
+        {
+          id: "licenses-webmail",
+          label: t("licensesWebmail"),
+          href: "/webmail",
+          pathMatch: "/webmail",
+        },
       ],
     },
     {
@@ -26,10 +60,27 @@ function buildFallbackNavigation(
       label: t("hostingServers"),
       items: [
         { id: "hosting-web", label: t("hostingWeb"), href: "/hosting", pathMatch: "/hosting" },
-        { id: "hosting-vds-vps", label: t("hostingVdsVps"), href: "/hosting", pathMatch: "/hosting" },
+        { id: "hosting-vds-vps", label: t("hostingVdsVps"), href: "/vps", pathMatch: "/vps" },
         { id: "hosting-vpn", label: t("hostingVpn"), href: "/hosting", pathMatch: "/hosting" },
         { id: "hosting-n8n", label: t("hostingN8n"), href: "/hosting", pathMatch: "/hosting" },
-        { id: "hosting-deploy", label: t("hostingDirectDeploy"), href: "/hosting", pathMatch: "/hosting" },
+        {
+          id: "hosting-deploy",
+          label: t("hostingDirectDeploy"),
+          href: "/hosting",
+          pathMatch: "/hosting",
+        },
+      ],
+    },
+    {
+      key: "whatsappApi",
+      label: t("whatsappApi"),
+      items: [
+        {
+          id: "whatsapp-api-products",
+          label: t("whatsappApiPackages"),
+          href: "/products/whatsapp-api",
+          pathMatch: "/products/whatsapp-api",
+        },
       ],
     },
     {

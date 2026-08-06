@@ -25,6 +25,12 @@ export class CatalogController {
   }
 
   @Public()
+  @Get("exchange-rates")
+  getExchangeRates() {
+    return this.catalogService.getExchangeRates();
+  }
+
+  @Public()
   @Get("products/:slug")
   getProduct(
     @Param("slug") slug: string,

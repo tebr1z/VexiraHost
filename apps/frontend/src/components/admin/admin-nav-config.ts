@@ -163,7 +163,7 @@ export const ADMIN_PANEL_NAV_GROUPS: AdminNavGroup[] = [
         adminOnly: true,
       },
       {
-        href: "/t4abriz/panel/cms/hosting",
+        href: "/t4abriz/panel/cms",
         labelKey: "cmsPages",
         icon: "web",
         matchPrefix: "/t4abriz/panel/cms",

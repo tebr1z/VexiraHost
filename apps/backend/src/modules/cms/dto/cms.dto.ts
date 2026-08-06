@@ -1,5 +1,7 @@
+import { CmsSectionType } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -9,7 +11,6 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { CmsSectionType } from "@prisma/client";
 
 export class I18nTextDto {
   @IsString()
@@ -41,6 +42,29 @@ export class CreateCmsPageDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  parentSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  pathSegment?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+
+  /** When set to "license-catalog", default HERO + catalog sections are created. */
+  @IsOptional()
+  @IsString()
+  template?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  productSlugs?: string[];
 }
 
 export class UpdateCmsPageDto {
@@ -57,6 +81,18 @@ export class UpdateCmsPageDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  parentSlug?: string | null;
+
+  @IsOptional()
+  @IsString()
+  pathSegment?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
 }
 
 export class CreateCmsSectionDto {

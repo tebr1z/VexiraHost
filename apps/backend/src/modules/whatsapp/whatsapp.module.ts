@@ -10,6 +10,8 @@ import { WhatsappApiService } from "./service/whatsapp-api.service";
 import { WhatsappSessionService } from "./service/whatsapp-session.service";
 import { WhatsappService } from "./service/whatsapp.service";
 
+import { SmtpMailService } from "@/shared/email/smtp-mail.service";
+
 @Module({
   controllers: [AdminWhatsappController, WhatsappApiController, PublicWhatsappApiController],
   providers: [
@@ -19,7 +21,8 @@ import { WhatsappService } from "./service/whatsapp.service";
     WhatsappService,
     WhatsappApiService,
     WhatsappApiKeyGuard,
+    SmtpMailService,
   ],
-  exports: [WhatsappService, WhatsappSessionService],
+  exports: [WhatsappRepository, WhatsappService, WhatsappSessionService, WhatsappApiService],
 })
 export class WhatsappModule {}

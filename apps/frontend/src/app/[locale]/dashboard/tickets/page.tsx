@@ -1,12 +1,18 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import { DataTable, EmptyState, LoadingSkeletonList, PageHeader, StatusBadge } from "@/components/ui";
+import {
+  DataTable,
+  EmptyState,
+  LoadingSkeletonList,
+  PageHeader,
+  StatusBadge,
+} from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import { listTickets, type Ticket } from "@/features/tickets";
+import { Link } from "@/i18n/navigation";
 
 const STATUS_FILTERS = [
   { value: "ALL", labelKey: "all" },
@@ -38,7 +44,7 @@ export default function TicketsPage(): React.ReactElement | null {
   }, [tickets, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title={tp("title")}
         description={tp("description")}
@@ -47,25 +53,22 @@ export default function TicketsPage(): React.ReactElement | null {
           { label: t("nav.support") },
         ]}
         actions={
-          <Link
-            href="/dashboard/tickets/new"
-            className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary"
-          >
+          <Link href="/dashboard/tickets/new" className="dashboard-btn-primary">
             {tp("newTitle")}
           </Link>
         }
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-2 shadow-sm">
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.value}
             type="button"
             onClick={() => setStatusFilter(f.value)}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
               statusFilter === f.value
-                ? "bg-primary text-on-primary"
-                : "bg-surface-container-low text-on-surface-variant hover:text-primary"
+                ? "shadow-[var(--accent)]/15 bg-[var(--accent)] text-white shadow-md"
+                : "text-[var(--label-secondary)] hover:bg-[var(--fill-secondary)] hover:text-[var(--label-primary)]"
             }`}
           >
             {tf(f.labelKey)}
@@ -85,6 +88,7 @@ export default function TicketsPage(): React.ReactElement | null {
         <DataTable
           data={filtered as unknown as Record<string, unknown>[]}
           getRowKey={(row) => String(row.id)}
+          getRowHref={(row) => `/dashboard/tickets/${String(row.id)}`}
           columns={[
             {
               key: "subject",
@@ -93,9 +97,12 @@ export default function TicketsPage(): React.ReactElement | null {
               render: (row) => {
                 const ticket = row as unknown as Ticket;
                 return (
-                  <Link href={`/dashboard/tickets/${ticket.id}`} className="font-medium text-secondary hover:underline">
+                  <span className="inline-flex items-center gap-2 font-semibold text-[var(--label-primary)] group-hover:text-[var(--accent)]">
+                    <span className="bg-[var(--accent)]/10 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)]">
+                      <span className="material-symbols-outlined text-[18px]">support_agent</span>
+                    </span>
                     {ticket.subject}
-                  </Link>
+                  </span>
                 );
               },
             },
@@ -103,7 +110,9 @@ export default function TicketsPage(): React.ReactElement | null {
               key: "priority",
               header: "Priority",
               render: (row) => (
-                <span className="capitalize">{(row as unknown as Ticket).priority.toLowerCase()}</span>
+                <span className="capitalize">
+                  {(row as unknown as Ticket).priority.toLowerCase()}
+                </span>
               ),
             },
             {

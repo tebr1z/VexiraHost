@@ -1,6 +1,5 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
@@ -11,6 +10,7 @@ import {
   InstanceShell,
   InstanceTabs,
 } from "@/components/instances";
+import { PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import {
   getServer,
@@ -19,6 +19,7 @@ import {
   type ServerInstance,
   type ServerMetrics,
 } from "@/features/servers";
+import { Link } from "@/i18n/navigation";
 import { formatDate } from "@/lib/i18n/format";
 
 const METRICS_POLL_MS = 30_000;
@@ -28,6 +29,7 @@ export default function ServerDetailPage(): React.ReactElement | null {
   const params = useParams();
   const locale = useLocale();
   const tc = useTranslations("dashboard.common");
+  const t = useTranslations("dashboard");
   const serverId = params.id as string;
   const [server, setServer] = useState<ServerInstance | null>(null);
   const [metrics, setMetrics] = useState<ServerMetrics | null>(null);
@@ -93,7 +95,10 @@ export default function ServerDetailPage(): React.ReactElement | null {
     return (
       <div>
         <p className="text-error">{error ?? tc("serverNotFound")}</p>
-        <Link href="/dashboard/servers" className="mt-4 inline-block text-secondary hover:underline">
+        <Link
+          href="/dashboard/servers"
+          className="text-secondary mt-4 inline-block hover:underline"
+        >
           {tc("backToServers")}
         </Link>
       </div>
@@ -101,59 +106,71 @@ export default function ServerDetailPage(): React.ReactElement | null {
   }
 
   return (
-    <InstanceShell activeNav="compute">
-      {error && (
-        <p className="mb-4 rounded-xl border border-error/20 bg-error-container px-4 py-3 text-sm text-error">
-          {error}
-        </p>
-      )}
-
-      <InstanceHeader
-        displayName={server.displayName}
-        status={server.status}
-        ipv4={server.ipv4}
-        regionLabel={server.regionLabel}
-        powerLoading={powerLoading}
-        onStart={server.status === "STOPPED" ? () => handlePower("START") : undefined}
-        onReboot={server.status === "RUNNING" ? () => handlePower("REBOOT") : undefined}
-        onShutdown={server.status === "RUNNING" ? () => handlePower("SHUTDOWN") : undefined}
+    <div className="space-y-4">
+      <PageHeader
+        title={server.displayName}
+        description={server.hostname}
+        breadcrumbs={[
+          { label: t("nav.dashboard"), href: "/dashboard" },
+          { label: t("nav.servers"), href: "/dashboard/servers" },
+          { label: server.displayName },
+        ]}
       />
-      <InstanceMetrics metrics={metrics} />
-      <InstanceTabs />
 
-      <section className="mt-stack-md rounded-2xl border border-outline-variant/50 bg-surface p-5">
-        <h2 className="font-jakarta text-xl font-semibold">{tc("serverDetails")}</h2>
-        <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-on-surface-variant">{tc("hostname")}</dt>
-            <dd>{server.hostname}</dd>
-          </div>
-          <div>
-            <dt className="text-on-surface-variant">{tc("plan")}</dt>
-            <dd>{server.plan.name}</dd>
-          </div>
-          <div>
-            <dt className="text-on-surface-variant">{tc("proxmoxVm")}</dt>
-            <dd>
-              {server.proxmoxVmId ?? "—"} @ {server.proxmoxNode ?? "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-on-surface-variant">{tc("os")}</dt>
-            <dd>{server.osTemplate}</dd>
-          </div>
-          <div>
-            <dt className="text-on-surface-variant">{tc("disk")}</dt>
-            <dd>{server.diskGb} GB</dd>
-          </div>
-          <div>
-            <dt className="text-on-surface-variant">{tc("provisionedAt")}</dt>
-            <dd>
-              {server.provisionedAt ? formatDate(server.provisionedAt, locale) : tc("pending")}
-            </dd>
-          </div>
-        </dl>
-      </section>
-    </InstanceShell>
+      <InstanceShell activeNav="compute">
+        {error && (
+          <p className="border-error/20 bg-error-container text-error mb-4 rounded-xl border px-4 py-3 text-sm">
+            {error}
+          </p>
+        )}
+
+        <InstanceHeader
+          displayName={server.displayName}
+          status={server.status}
+          ipv4={server.ipv4}
+          regionLabel={server.regionLabel}
+          powerLoading={powerLoading}
+          onStart={server.status === "STOPPED" ? () => handlePower("START") : undefined}
+          onReboot={server.status === "RUNNING" ? () => handlePower("REBOOT") : undefined}
+          onShutdown={server.status === "RUNNING" ? () => handlePower("SHUTDOWN") : undefined}
+        />
+        <InstanceMetrics metrics={metrics} />
+        <InstanceTabs />
+
+        <section className="mt-stack-md border-outline-variant/50 bg-surface rounded-2xl border p-5">
+          <h2 className="font-jakarta text-xl font-semibold">{tc("serverDetails")}</h2>
+          <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-on-surface-variant">{tc("hostname")}</dt>
+              <dd>{server.hostname}</dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-variant">{tc("plan")}</dt>
+              <dd>{server.plan.name}</dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-variant">{tc("proxmoxVm")}</dt>
+              <dd>
+                {server.proxmoxVmId ?? "—"} @ {server.proxmoxNode ?? "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-variant">{tc("os")}</dt>
+              <dd>{server.osTemplate}</dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-variant">{tc("disk")}</dt>
+              <dd>{server.diskGb} GB</dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-variant">{tc("provisionedAt")}</dt>
+              <dd>
+                {server.provisionedAt ? formatDate(server.provisionedAt, locale) : tc("pending")}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </InstanceShell>
+    </div>
   );
 }

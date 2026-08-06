@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { resolveWhatsappPackageLimit } from "../constants/whatsapp-package.constants";
 import type {
   CreateWhatsappApiKeyDto,
   SendWhatsappApiMessageDto,
@@ -18,6 +19,7 @@ import type {
 import { WhatsappApiRepository, currentUtcMonth } from "../repository/whatsapp-api.repository";
 import { createWhatsappApiKey } from "../utils/api-key.util";
 import { normalizeWhatsappPhone, toWhatsappJid } from "../utils/phone.util";
+import { assertNoProfanity } from "../utils/profanity-filter.util";
 
 import { WhatsappService } from "./whatsapp.service";
 
@@ -32,17 +34,25 @@ export class WhatsappApiService {
   ) {}
 
   async getDashboard(userId: string) {
-    const [access, usage, keys] = await Promise.all([
+    const [access, usage, keys, pendingPackage] = await Promise.all([
       this.repository.getAccess(userId),
       this.repository.getUsage(userId),
       this.repository.listKeys(userId),
+      this.repository.getPendingPackage(userId),
     ]);
     const limit = access?.monthlyLimit ?? 0;
     const used = usage?.sentCount ?? 0;
+    const accessState =
+      access?.isEnabled && access.monthlyLimit > 0
+        ? "ENABLED"
+        : pendingPackage
+          ? "PENDING_APPROVAL"
+          : "UNAVAILABLE";
     const apiBaseUrl = this.config
       .get<string>("API_PUBLIC_URL", "http://localhost:4000/api/v1")
       .replace(/\/$/, "");
     return {
+      accessState,
       access: {
         isEnabled: access?.isEnabled ?? false,
         monthlyLimit: limit,
@@ -123,13 +133,52 @@ export class WhatsappApiService {
     const access = await this.repository.upsertAccess(userId, {
       isEnabled: dto.isEnabled,
       monthlyLimit: dto.monthlyLimit,
+      legacyManualAccess: true,
     });
     return this.getAdminAccess(access.userId);
+  }
+
+  async approvePurchasedPackage(input: {
+    userId: string;
+    productSlug: string;
+    orderId: string;
+    orderItemId: string;
+  }) {
+    const messageLimit = resolveWhatsappPackageLimit(input.productSlug);
+    if (!messageLimit) {
+      throw new BadRequestException("Unknown WhatsApp API package");
+    }
+
+    const existing = await this.repository.getAccess(input.userId);
+    if (existing?.legacyManualAccess) {
+      await this.repository.upsertAccess(input.userId, {
+        isEnabled: true,
+        monthlyLimit: existing.monthlyLimit + messageLimit,
+        legacyManualAccess: true,
+      });
+    } else {
+      await this.repository.upsertAccess(input.userId, {
+        isEnabled: true,
+        monthlyLimit: messageLimit,
+        legacyManualAccess: false,
+      });
+    }
+
+    return {
+      messageLimit,
+      access: await this.getAdminAccess(input.userId),
+    };
   }
 
   async sendMessage(principal: { userId: string; keyId: string }, dto: SendWhatsappApiMessageDto) {
     if (!this.whatsapp.isGatewayConnected()) {
       throw new ServiceUnavailableException("WhatsApp gateway is not connected");
+    }
+
+    try {
+      assertNoProfanity(dto.message);
+    } catch {
+      throw new BadRequestException("Message contains prohibited language and cannot be sent");
     }
 
     let phone: string;

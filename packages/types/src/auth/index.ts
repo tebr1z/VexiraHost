@@ -70,6 +70,8 @@ export interface AuthUserProfile {
   } | null;
   phone?: string | null;
   whatsappNotificationsEnabled?: boolean;
+  emailTwoFactorEnabled?: boolean;
+  totpEnabled?: boolean;
   accountBalance?: number;
   balanceCurrency?: string;
   preferredLocale?: string;

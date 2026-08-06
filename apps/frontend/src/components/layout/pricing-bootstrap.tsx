@@ -21,7 +21,8 @@ export function PricingBootstrap({ children }: { children: React.ReactNode }): R
       setFromUser({
         preferredCurrency: user.preferredCurrency,
         billingPeriod: user.billingPeriod,
-        currencyLocked: user.currencyLocked,
+        // Legacy AZ geo locks no longer block the UI.
+        currencyLocked: false,
       });
       return;
     }

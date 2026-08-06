@@ -329,7 +329,7 @@ export class TicketsService {
         throw new NotFoundException("Ticket not found");
       }
 
-      const status = TicketStatus.IN_PROGRESS;
+      const status = TicketStatus.WAITING_CUSTOMER;
       const message = await this.ticketsRepository.addReply({
         ticketId: id,
         userId,
@@ -368,7 +368,7 @@ export class TicketsService {
       userId,
       message: dto.message.trim(),
       isStaff: false,
-      status: TicketStatus.WAITING_CUSTOMER,
+      status: TicketStatus.IN_PROGRESS,
     });
 
     return mapMessage(message);

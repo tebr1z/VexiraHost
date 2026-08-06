@@ -27,6 +27,7 @@ export class AuthRepository {
     marketingOptIn?: boolean;
     unsubscribeToken?: string;
     localeHistory?: string[];
+    phone?: string | null;
   }): Promise<User> {
     const marketingOptIn = data.marketingOptIn ?? true;
     return this.prisma.user.create({
@@ -42,6 +43,7 @@ export class AuthRepository {
         marketingOptInAt: marketingOptIn ? new Date() : null,
         unsubscribeToken: data.unsubscribeToken,
         localeHistory: data.localeHistory ?? [],
+        phone: data.phone ?? null,
       },
     });
   }
@@ -69,7 +71,7 @@ export class AuthRepository {
       preferredCurrency: string;
       billingPeriod?: string | null;
       currencyLocked?: boolean;
-      /** When true, bumps the 30-day change cooldown. */
+      /** When true, bumps currencyChangedAt for audit. */
       markCurrencyChanged?: boolean;
     },
   ): Promise<User> {
@@ -126,6 +128,75 @@ export class AuthRepository {
       where: { id: userId },
       data,
     });
+  }
+
+  updateEmailTwoFactor(userId: string, enabled: boolean): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { emailTwoFactorEnabled: enabled },
+    });
+  }
+
+  updateTotp(
+    userId: string,
+    data: { totpEnabled?: boolean; totpSecret?: string | null },
+  ): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+  }
+
+  deleteEmailLoginOtps(userId: string, purpose?: string): Promise<void> {
+    return this.prisma.emailLoginOtp
+      .deleteMany({
+        where: {
+          userId,
+          ...(purpose ? { purpose } : {}),
+        },
+      })
+      .then(() => undefined);
+  }
+
+  createEmailLoginOtp(data: {
+    userId: string;
+    code: string;
+    rememberMe?: boolean;
+    purpose?: string;
+    desiredEnabled?: boolean | null;
+    expiresAt: Date;
+  }) {
+    return this.prisma.emailLoginOtp.create({
+      data: {
+        userId: data.userId,
+        codeHash: hashToken(data.code),
+        rememberMe: data.rememberMe ?? false,
+        purpose: data.purpose ?? "LOGIN",
+        desiredEnabled: data.desiredEnabled ?? null,
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  findEmailLoginOtp(challengeId: string, purpose?: string) {
+    return this.prisma.emailLoginOtp.findFirst({
+      where: {
+        id: challengeId,
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+        ...(purpose ? { purpose } : {}),
+      },
+      include: { user: true },
+    });
+  }
+
+  consumeEmailLoginOtp(id: string): Promise<void> {
+    return this.prisma.emailLoginOtp
+      .update({
+        where: { id },
+        data: { consumedAt: new Date() },
+      })
+      .then(() => undefined);
   }
 
   createRefreshToken(data: {

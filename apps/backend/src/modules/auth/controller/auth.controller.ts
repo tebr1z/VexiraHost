@@ -8,9 +8,11 @@ import {
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
+  ResendLoginOtpDto,
   ResetPasswordDto,
   UpdateLocaleDto,
   VerifyEmailDto,
+  VerifyLoginOtpDto,
 } from "../dto";
 import { GitHubAuthGuard, GoogleAuthGuard } from "../guards/oauth.guards";
 import type { OAuthProfile } from "../interfaces";
@@ -43,6 +45,21 @@ export class AuthController {
       userAgent: req.headers["user-agent"],
       ip: getClientIp(req),
     });
+  }
+
+  @Public()
+  @Post("login/verify-otp")
+  verifyLoginOtp(@Body() dto: VerifyLoginOtpDto, @Req() req: Request) {
+    return this.authService.verifyLoginOtp(dto, {
+      userAgent: req.headers["user-agent"],
+      ip: getClientIp(req),
+    });
+  }
+
+  @Public()
+  @Post("login/resend-otp")
+  resendLoginOtp(@Body() dto: ResendLoginOtpDto) {
+    return this.authService.resendLoginOtp(dto);
   }
 
   @Public()
@@ -128,12 +145,12 @@ export class AuthController {
       return;
     }
     try {
-      const session = await this.authService.loginWithOAuth(req.user, {
+      const result = await this.authService.loginWithOAuth(req.user, {
         userAgent: req.headers["user-agent"],
         ip: getClientIp(req),
         locale: typeof req.query?.state === "string" ? req.query.state : undefined,
       });
-      res.redirect(this.authService.buildOAuthRedirectUrl(session, "google"));
+      res.redirect(this.authService.buildOAuthRedirectUrl(result, "google"));
     } catch {
       res.redirect(`${appUrl}/login?oauthError=google_failed`);
     }
@@ -150,10 +167,10 @@ export class AuthController {
   @Get("github/callback")
   @UseGuards(GitHubAuthGuard)
   async githubCallback(@Req() req: Request & { user: OAuthProfile }, @Res() res: Response) {
-    const session = await this.authService.loginWithOAuth(req.user, {
+    const result = await this.authService.loginWithOAuth(req.user, {
       userAgent: req.headers["user-agent"],
       ip: getClientIp(req),
     });
-    res.redirect(this.authService.buildOAuthRedirectUrl(session));
+    res.redirect(this.authService.buildOAuthRedirectUrl(result));
   }
 }

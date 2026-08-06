@@ -1,5 +1,4 @@
 import { Link } from "@/i18n/navigation";
-
 import { cn } from "@/lib/cn";
 
 export function EmptyState({
@@ -20,19 +19,23 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "card-3d rounded-2xl px-6 py-12 text-center",
+        "relative overflow-hidden rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-6 py-14 text-center shadow-sm",
         className,
       )}
     >
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 shadow-inner">
-        <span className="material-symbols-outlined text-[28px] text-primary">inbox</span>
+      <div className="bg-[var(--accent)]/10 ring-[var(--accent)]/10 relative z-10 mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl text-[var(--accent)] shadow-inner ring-1">
+        <span className="material-symbols-outlined text-[30px]">inbox</span>
       </div>
-      <p className="font-semibold text-primary">{title}</p>
-      {description && <p className="mt-2 text-sm text-on-surface-variant">{description}</p>}
+      <p className="relative z-10 text-lg font-semibold text-[var(--label-primary)]">{title}</p>
+      {description && (
+        <p className="relative z-10 mx-auto mt-2 max-w-lg text-sm leading-6 text-[var(--label-secondary)]">
+          {description}
+        </p>
+      )}
       {actionLabel && actionHref && (
         <Link
           href={actionHref}
-          className="mt-5 inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+          className="shadow-[var(--accent)]/20 relative z-10 mt-6 inline-flex h-11 items-center rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
         >
           {actionLabel}
         </Link>
@@ -41,11 +44,12 @@ export function EmptyState({
         <button
           type="button"
           onClick={onAction}
-          className="mt-5 inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+          className="shadow-[var(--accent)]/20 relative z-10 mt-6 inline-flex h-11 items-center rounded-xl bg-[var(--accent)] px-5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
         >
           {actionLabel}
         </button>
       )}
+      <div className="bg-[var(--accent)]/5 pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-2xl" />
     </div>
   );
 }

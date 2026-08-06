@@ -8,6 +8,7 @@ export type AuthValidationMessages = {
   confirmPasswordRequired: string;
   passwordsMismatch: string;
   acceptTermsRequired: string;
+  phoneInvalid?: string;
 };
 
 export function createLoginSchema(
@@ -26,11 +27,25 @@ export function createRegisterSchema(messages: AuthValidationMessages) {
       firstName: z.string().min(1, messages.firstNameRequired).optional(),
       lastName: z.string().min(1, messages.lastNameRequired).optional(),
       email: z.string().email(messages.emailRequired),
+      phoneDialIso2: z.string().min(2).default("AZ"),
+      phoneNational: z.string().optional().default(""),
       password: z.string().min(8, messages.passwordMin),
       confirmPassword: z.string().min(8, messages.confirmPasswordRequired),
       preferredCurrency: z.enum(["USD", "EUR", "AZN"]).default("USD"),
       acceptedTerms: z.boolean().default(false),
       marketingOptIn: z.boolean().default(true),
+    })
+    .superRefine((data, ctx) => {
+      const national = (data.phoneNational ?? "").replace(/\D/g, "");
+      if (!national) return;
+      const digits = national.startsWith("0") ? national.slice(1) : national;
+      if (digits.length < 6 || digits.length > 12) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: messages.phoneInvalid ?? "Enter a valid phone number",
+          path: ["phoneNational"],
+        });
+      }
     })
     .refine((data) => data.password === data.confirmPassword, {
       message: messages.passwordsMismatch,

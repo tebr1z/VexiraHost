@@ -18,6 +18,21 @@ export interface WhatsappQr {
   qrDataUrl: string | null;
 }
 
+export interface WhatsappGatewayAccount {
+  id: string;
+  label: string;
+  status: WhatsappConnectionStatus;
+  phoneNumber: string | null;
+  displayName: string | null;
+  isEnabled: boolean;
+  sentCount: number;
+  failedCount: number;
+  lastSentAt: string | null;
+  lastQrAt: string | null;
+  lastConnectedAt: string | null;
+  lastError: string | null;
+}
+
 export interface WhatsappUserOption {
   id: string;
   email: string;
@@ -67,6 +82,57 @@ export async function disconnectWhatsapp(): Promise<WhatsappStatus> {
     method: "POST",
   });
   return res.data as WhatsappStatus;
+}
+
+export async function listWhatsappGatewayAccounts(): Promise<WhatsappGatewayAccount[]> {
+  const res = await apiClient.request<WhatsappGatewayAccount[]>("/admin/whatsapp/accounts");
+  return res.data ?? [];
+}
+
+export async function createWhatsappGatewayAccount(label: string): Promise<WhatsappGatewayAccount> {
+  const res = await apiClient.request<WhatsappGatewayAccount>("/admin/whatsapp/accounts", {
+    method: "POST",
+    body: { label },
+  });
+  return res.data as WhatsappGatewayAccount;
+}
+
+export async function updateWhatsappGatewayAccount(
+  id: string,
+  input: { label?: string; isEnabled?: boolean },
+): Promise<WhatsappGatewayAccount> {
+  const res = await apiClient.request<WhatsappGatewayAccount>(`/admin/whatsapp/accounts/${id}`, {
+    method: "PATCH",
+    body: input,
+  });
+  return res.data as WhatsappGatewayAccount;
+}
+
+export async function getWhatsappGatewayAccountQr(id: string): Promise<WhatsappQr> {
+  const res = await apiClient.request<WhatsappQr>(`/admin/whatsapp/accounts/${id}/qr`);
+  return res.data as WhatsappQr;
+}
+
+export async function connectWhatsappGatewayAccount(id: string): Promise<WhatsappGatewayAccount> {
+  const res = await apiClient.request<WhatsappGatewayAccount>(
+    `/admin/whatsapp/accounts/${id}/connect`,
+    {
+      method: "POST",
+    },
+  );
+  return res.data as WhatsappGatewayAccount;
+}
+
+export async function disconnectWhatsappGatewayAccount(
+  id: string,
+): Promise<WhatsappGatewayAccount> {
+  const res = await apiClient.request<WhatsappGatewayAccount>(
+    `/admin/whatsapp/accounts/${id}/disconnect`,
+    {
+      method: "POST",
+    },
+  );
+  return res.data as WhatsappGatewayAccount;
 }
 
 export async function listWhatsappUsers(q?: string): Promise<WhatsappUserOption[]> {

@@ -263,6 +263,20 @@ export async function deliverAdminLicense(
   return res.data as AdminOrderDetail;
 }
 
+export async function deliverAdminWhatsappApi(
+  orderId: string,
+  input: { orderItemId: string },
+): Promise<AdminOrderDetail> {
+  const res = await apiClient.request<AdminOrderDetail>(
+    `/admin/orders/${orderId}/deliver-whatsapp-api`,
+    {
+      method: "POST",
+      body: input,
+    },
+  );
+  return res.data as AdminOrderDetail;
+}
+
 export async function getAdminOrder(id: string): Promise<AdminOrderDetail> {
   const res = await apiClient.request<AdminOrderDetail>(`/admin/orders/${id}`);
   return res.data as AdminOrderDetail;

@@ -1,1 +1,7 @@
-﻿export type { AuthResponse, AuthTokensResponse, AuthUserResponse } from "./auth-response.type";
+﻿export type {
+  AuthResponse,
+  AuthTokensResponse,
+  AuthUserResponse,
+  LoginResult,
+  LoginTwoFactorChallenge,
+} from "./auth-response.type";

@@ -1,19 +1,12 @@
-import { Injectable, Logger } from "@nestjs/common";
-
-import { ConfigService } from "@nestjs/config";
-
 import { TLSSocket, connect as tlsConnect } from "node:tls";
 
-
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 import { displayName, getAuthEmailCopy } from "../email/auth-email.i18n";
-
 import { type AuthEmailLocale, resolveAuthEmailLocale } from "../email/auth-email.locale";
 
-
-
 interface SmtpConfig {
-
   host: string;
 
   port: number;
@@ -23,37 +16,23 @@ interface SmtpConfig {
   pass: string;
 
   from: string;
-
 }
 
-
-
 interface MailContent {
-
   subject: string;
 
   text: string;
 
   html: string;
-
 }
 
-
-
 @Injectable()
-
 export class AuthEmailService {
-
   private readonly logger = new Logger(AuthEmailService.name);
-
-
 
   constructor(private readonly configService: ConfigService) {}
 
-
-
   async sendWelcomeEmail(
-
     to: string,
 
     locale?: string | null,
@@ -61,9 +40,7 @@ export class AuthEmailService {
     firstName?: string | null,
 
     lastName?: string | null,
-
   ): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -73,7 +50,6 @@ export class AuthEmailService {
     const dashboardUrl = this.dashboardUrl();
 
     const content = this.createTemplate(resolved, {
-
       title: copy.welcome.title,
 
       subtitle: copy.welcome.subtitle(name),
@@ -83,17 +59,12 @@ export class AuthEmailService {
       actionUrl: dashboardUrl,
 
       footer: copy.welcome.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
-
-
   async sendGoogleWelcomeEmail(
-
     to: string,
 
     locale?: string | null,
@@ -101,9 +72,7 @@ export class AuthEmailService {
     firstName?: string | null,
 
     lastName?: string | null,
-
   ): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -111,7 +80,6 @@ export class AuthEmailService {
     const name = displayName(firstName, lastName, to);
 
     const content = this.createTemplate(resolved, {
-
       title: copy.googleWelcome.title,
 
       subtitle: copy.googleWelcome.subtitle(name),
@@ -121,17 +89,12 @@ export class AuthEmailService {
       actionUrl: this.dashboardUrl(),
 
       footer: copy.googleWelcome.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
-
-
   async sendGoogleSignInEmail(
-
     to: string,
 
     locale?: string | null,
@@ -139,9 +102,7 @@ export class AuthEmailService {
     firstName?: string | null,
 
     lastName?: string | null,
-
   ): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -149,7 +110,6 @@ export class AuthEmailService {
     const name = displayName(firstName, lastName, to);
 
     const content = this.createTemplate(resolved, {
-
       title: copy.googleSignIn.title,
 
       subtitle: copy.googleSignIn.subtitle(name),
@@ -159,17 +119,12 @@ export class AuthEmailService {
       actionUrl: this.dashboardUrl(),
 
       footer: copy.googleSignIn.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
-
-
   async sendGoogleAccountLinkedEmail(
-
     to: string,
 
     locale?: string | null,
@@ -177,9 +132,7 @@ export class AuthEmailService {
     firstName?: string | null,
 
     lastName?: string | null,
-
   ): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -187,7 +140,6 @@ export class AuthEmailService {
     const name = displayName(firstName, lastName, to);
 
     const content = this.createTemplate(resolved, {
-
       title: copy.googleAccountLinked.title,
 
       subtitle: copy.googleAccountLinked.subtitle(name, to),
@@ -197,17 +149,12 @@ export class AuthEmailService {
       actionUrl: this.dashboardUrl(),
 
       footer: copy.googleAccountLinked.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
-
-
   async sendFailedPasswordAttemptsEmail(
-
     to: string,
 
     locale?: string | null,
@@ -215,9 +162,7 @@ export class AuthEmailService {
     firstName?: string | null,
 
     lastName?: string | null,
-
   ): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -225,7 +170,6 @@ export class AuthEmailService {
     const name = displayName(firstName, lastName, to);
 
     const content = this.createTemplate(resolved, {
-
       title: copy.failedPasswordAttempts.title,
 
       subtitle: copy.failedPasswordAttempts.subtitle(name),
@@ -235,17 +179,12 @@ export class AuthEmailService {
       actionUrl: `${this.appUrl()}/forgot-password`,
 
       footer: copy.failedPasswordAttempts.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
-
-
   async sendVerificationEmail(to: string, token: string, locale?: string | null): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -253,7 +192,6 @@ export class AuthEmailService {
     const verifyUrl = `${this.appUrl()}/verify-email?token=${encodeURIComponent(token)}`;
 
     const content = this.createTemplate(resolved, {
-
       title: copy.verify.title,
 
       subtitle: copy.verify.subtitle,
@@ -263,17 +201,12 @@ export class AuthEmailService {
       actionUrl: verifyUrl,
 
       footer: copy.verify.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
-
-
   async sendPasswordResetEmail(to: string, token: string, locale?: string | null): Promise<void> {
-
     const resolved = resolveAuthEmailLocale(locale);
 
     const copy = getAuthEmailCopy(resolved);
@@ -281,7 +214,6 @@ export class AuthEmailService {
     const resetUrl = `${this.appUrl()}/reset-password?token=${encodeURIComponent(token)}`;
 
     const content = this.createTemplate(resolved, {
-
       title: copy.resetPassword.title,
 
       subtitle: copy.resetPassword.subtitle,
@@ -291,49 +223,103 @@ export class AuthEmailService {
       actionUrl: resetUrl,
 
       footer: copy.resetPassword.footer,
-
     });
 
     await this.sendMail(to, content);
-
   }
 
+  async sendLoginOtpEmail(
+    to: string,
 
+    code: string,
+
+    locale?: string | null,
+
+    firstName?: string | null,
+
+    lastName?: string | null,
+  ): Promise<void> {
+    const resolved = resolveAuthEmailLocale(locale);
+
+    const copy = getAuthEmailCopy(resolved);
+
+    const name = displayName(firstName, lastName, to);
+
+    const content = this.createTemplate(resolved, {
+      title: copy.loginOtp.title,
+
+      subtitle: copy.loginOtp.subtitle(name),
+
+      actionText: copy.loginOtp.actionText,
+
+      actionUrl: `${this.appUrl()}/login`,
+
+      footer: copy.loginOtp.footer,
+
+      otpCode: code,
+    });
+
+    await this.sendMail(to, content);
+  }
+
+  async sendSecurityOtpEmail(
+    to: string,
+
+    code: string,
+
+    enabling: boolean,
+
+    locale?: string | null,
+
+    firstName?: string | null,
+
+    lastName?: string | null,
+  ): Promise<void> {
+    const resolved = resolveAuthEmailLocale(locale);
+
+    const copy = getAuthEmailCopy(resolved);
+
+    const name = displayName(firstName, lastName, to);
+
+    const block = enabling ? copy.securityOtpEnable : copy.securityOtpDisable;
+
+    const content = this.createTemplate(resolved, {
+      title: block.title,
+
+      subtitle: block.subtitle(name),
+
+      actionText: block.actionText,
+
+      actionUrl: `${this.appUrl()}/dashboard/account`,
+
+      footer: block.footer,
+
+      otpCode: code,
+    });
+
+    await this.sendMail(to, content);
+  }
 
   private dashboardUrl(): string {
-
     return `${this.appUrl()}/dashboard`;
-
   }
-
-
 
   private appUrl(): string {
-
     return this.configService.get<string>("APP_URL", "http://localhost:3000").replace(/\/$/, "");
-
   }
 
-
-
   private async sendMail(to: string, content: MailContent): Promise<void> {
-
     const cfg = this.getConfig();
 
     if (!cfg) {
-
       this.logger.warn("SMTP config missing. Email not sent.");
 
       return;
-
     }
-
-
 
     const socket = await this.connect(cfg);
 
     try {
-
       await this.expectCode(socket, 220);
 
       await this.command(socket, `EHLO vexirahost.local`, [250]);
@@ -350,8 +336,6 @@ export class AuthEmailService {
 
       await this.command(socket, "DATA", [354]);
 
-
-
       const boundary = `vexira_${Date.now().toString(16)}`;
 
       const date = new Date().toUTCString();
@@ -359,79 +343,46 @@ export class AuthEmailService {
       const messageId = `<${Date.now()}.${Math.random().toString(16).slice(2)}@vexirahost.com>`;
 
       const body =
-
         `From: Vexira Host <${cfg.from}>\r\n` +
-
         `To: <${to}>\r\n` +
-
         `Subject: ${content.subject}\r\n` +
-
         `Date: ${date}\r\n` +
-
         `Message-ID: ${messageId}\r\n` +
-
         `MIME-Version: 1.0\r\n` +
-
         `X-Mailer: Vexira Host Transactional\r\n` +
-
         `Content-Type: multipart/alternative; boundary="${boundary}"\r\n` +
-
         `\r\n` +
-
         `--${boundary}\r\n` +
-
         `Content-Type: text/plain; charset=utf-8\r\n` +
-
         `Content-Transfer-Encoding: 8bit\r\n` +
-
         `\r\n` +
-
         `${content.text}\r\n` +
-
         `\r\n` +
-
         `--${boundary}\r\n` +
-
         `Content-Type: text/html; charset=utf-8\r\n` +
-
         `Content-Transfer-Encoding: 8bit\r\n` +
-
         `\r\n` +
-
         `${content.html}\r\n` +
-
         `\r\n` +
-
         `--${boundary}--\r\n` +
-
         `.\r\n`;
-
-
 
       const dataResult = await this.writeAndRead(socket, body);
 
       this.ensureCode(dataResult, [250]);
 
       await this.command(socket, "QUIT", [221]);
-
     } finally {
-
       socket.end();
 
       socket.destroy();
-
     }
-
   }
 
-
-
   private createTemplate(
-
     locale: AuthEmailLocale,
 
     input: {
-
       title: string;
 
       subtitle: string;
@@ -442,10 +393,9 @@ export class AuthEmailService {
 
       footer: string;
 
+      otpCode?: string;
     },
-
   ): MailContent {
-
     const appUrl = this.appUrl();
 
     const brand = "Vexira Host";
@@ -462,23 +412,21 @@ export class AuthEmailService {
 
     const footer = this.escapeHtml(input.footer);
 
+    const otpCodeHtml = input.otpCode
+      ? `<div style="margin:8px 0 24px;text-align:center;">
+  <div style="display:inline-block;font-size:40px;line-height:1.2;font-weight:700;letter-spacing:0.28em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#0f172a;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:14px;padding:18px 28px;user-select:all;-webkit-user-select:all;-moz-user-select:all;">${this.escapeHtml(input.otpCode)}</div>
+</div>`
+      : "";
 
+    const otpCodeText = input.otpCode ? `\n\n${input.otpCode}\n\n` : "\n\n";
 
     const text =
-
       `${brand}\n\n` +
-
       `${input.title}\n` +
-
-      `${input.subtitle}\n\n` +
-
+      `${input.subtitle}${otpCodeText}` +
       `${input.actionText}: ${input.actionUrl}\n\n` +
-
       `${input.footer}\n` +
-
       `Web site: ${appUrl}`;
-
-
 
     const html = `<!doctype html>
 
@@ -513,7 +461,7 @@ export class AuthEmailService {
                 <h1 style="margin:0 0 10px;font-size:24px;line-height:1.3;color:#0f172a;">${title}</h1>
 
                 <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#475569;">${subtitle}</p>
-
+                ${otpCodeHtml}
                 <a href="${actionUrl}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">${actionText}</a>
 
                 <p style="margin:18px 0 0;font-size:13px;color:#64748b;word-break:break-all;">${this.escapeHtml(actionUrl)}</p>
@@ -548,24 +496,16 @@ export class AuthEmailService {
 
 </html>`;
 
-
-
     return {
-
       subject: `${brand} • ${input.title}`,
 
       text,
 
       html,
-
     };
-
   }
 
-
-
   private escapeHtml(value: string): string {
-
     return value
 
       .replaceAll("&", "&amp;")
@@ -577,13 +517,9 @@ export class AuthEmailService {
       .replaceAll('"', "&quot;")
 
       .replaceAll("'", "&#039;");
-
   }
 
-
-
   private getConfig(): SmtpConfig | null {
-
     const host = this.configService.get<string>("SMTP_HOST", "").trim();
 
     const port = Number(this.configService.get<string>("SMTP_PORT", "465"));
@@ -597,65 +533,43 @@ export class AuthEmailService {
     if (!host || !port || !user || !pass || !from) return null;
 
     return { host, port, user, pass, from };
-
   }
 
-
-
   private connect(cfg: SmtpConfig): Promise<TLSSocket> {
-
     return new Promise((resolve, reject) => {
-
       const socket = tlsConnect(
-
         {
-
           host: cfg.host,
 
           port: cfg.port,
 
           servername: cfg.host,
-
         },
 
         () => resolve(socket),
-
       );
 
       socket.on("error", reject);
-
     });
-
   }
 
-
-
   private async command(socket: TLSSocket, cmd: string, okCodes: number[]): Promise<string> {
-
     const result = await this.writeAndRead(socket, `${cmd}\r\n`);
 
     this.ensureCode(result, okCodes);
 
     return result;
-
   }
 
-
-
   private async expectCode(socket: TLSSocket, code: number): Promise<string> {
-
     const result = await this.readResponse(socket);
 
     this.ensureCode(result, [code]);
 
     return result;
-
   }
 
-
-
   private ensureCode(result: string, okCodes: number[]): void {
-
     const lines = result.trim().split(/\r?\n/).filter(Boolean);
 
     const last = lines[lines.length - 1] ?? "";
@@ -663,47 +577,29 @@ export class AuthEmailService {
     const code = Number(last.slice(0, 3));
 
     if (!okCodes.includes(code)) {
-
       throw new Error(`SMTP error: ${last}`);
-
     }
-
   }
 
-
-
   private writeAndRead(socket: TLSSocket, payload: string): Promise<string> {
-
     return new Promise((resolve, reject) => {
-
       socket.write(payload, (err) => {
-
         if (err) {
-
           reject(err);
 
           return;
-
         }
 
         this.readResponse(socket).then(resolve).catch(reject);
-
       });
-
     });
-
   }
 
-
-
   private readResponse(socket: TLSSocket): Promise<string> {
-
     return new Promise((resolve, reject) => {
-
       let buffer = "";
 
       const onData = (chunk: Buffer) => {
-
         buffer += chunk.toString("utf8");
 
         const lines = buffer.split(/\r?\n/).filter(Boolean);
@@ -711,39 +607,27 @@ export class AuthEmailService {
         const last = lines[lines.length - 1];
 
         if (last && /^\d{3}\s/.test(last)) {
-
           cleanup();
 
           resolve(buffer);
-
         }
-
       };
 
       const onError = (err: Error) => {
-
         cleanup();
 
         reject(err);
-
       };
 
       const cleanup = () => {
-
         socket.off("data", onData);
 
         socket.off("error", onError);
-
       };
 
       socket.on("data", onData);
 
       socket.on("error", onError);
-
     });
-
   }
-
 }
-
-

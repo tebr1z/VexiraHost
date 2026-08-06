@@ -29,6 +29,12 @@ export class RegisterDto {
   @IsString()
   countryCode?: string;
 
+  /** Optional E.164 digits without + (e.g. 994501234567) */
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  phone?: string;
+
   @IsOptional()
   @IsIn([...AUTH_EMAIL_LOCALES])
   locale?: string;

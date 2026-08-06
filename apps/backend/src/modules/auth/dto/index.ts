@@ -5,3 +5,5 @@ export { VerifyEmailDto } from "./verify-email.dto";
 export { ForgotPasswordDto } from "./forgot-password.dto";
 export { ResetPasswordDto } from "./reset-password.dto";
 export { UpdateLocaleDto } from "./update-locale.dto";
+export { VerifyLoginOtpDto } from "./verify-login-otp.dto";
+export { ResendLoginOtpDto } from "./resend-login-otp.dto";

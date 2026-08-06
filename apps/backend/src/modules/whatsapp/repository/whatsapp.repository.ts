@@ -44,10 +44,74 @@ export class WhatsappRepository {
     });
   }
 
+  ensurePrimaryGatewayAccount() {
+    return this.prisma.whatsappGatewayAccount.upsert({
+      where: { id: "primary" },
+      create: { id: "primary", label: "Primary WhatsApp" },
+      update: {},
+    });
+  }
+
+  listGatewayAccounts() {
+    return this.prisma.whatsappGatewayAccount.findMany({
+      orderBy: [{ createdAt: "asc" }],
+    });
+  }
+
+  getGatewayAccount(id: string) {
+    return this.prisma.whatsappGatewayAccount.findUnique({ where: { id } });
+  }
+
+  createGatewayAccount(label: string) {
+    return this.prisma.whatsappGatewayAccount.create({ data: { label } });
+  }
+
+  updateGatewayAccount(
+    id: string,
+    data: {
+      label?: string;
+      isEnabled?: boolean;
+      status?: WhatsappSessionStatus;
+      phoneNumber?: string | null;
+      displayName?: string | null;
+      lastQrAt?: Date | null;
+      lastConnectedAt?: Date | null;
+      lastError?: string | null;
+    },
+  ) {
+    return this.prisma.whatsappGatewayAccount.update({ where: { id }, data });
+  }
+
+  async listEligibleGatewayAccounts(excludeId?: string) {
+    return this.prisma.whatsappGatewayAccount.findMany({
+      where: {
+        isEnabled: true,
+        status: "CONNECTED",
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      orderBy: [{ sentCount: "asc" }, { lastSentAt: "asc" }, { createdAt: "asc" }],
+    });
+  }
+
+  recordGatewaySuccess(id: string) {
+    return this.prisma.whatsappGatewayAccount.update({
+      where: { id },
+      data: { sentCount: { increment: 1 }, lastSentAt: new Date(), lastError: null },
+    });
+  }
+
+  recordGatewayFailure(id: string, error: string) {
+    return this.prisma.whatsappGatewayAccount.update({
+      where: { id },
+      data: { failedCount: { increment: 1 }, lastError: error.slice(0, 300) },
+    });
+  }
+
   createMessageLog(data: {
     toPhone: string;
     userId?: string | null;
     apiKeyId?: string | null;
+    gatewayAccountId?: string | null;
     body: string;
     status: WhatsappMessageStatus;
     error?: string | null;

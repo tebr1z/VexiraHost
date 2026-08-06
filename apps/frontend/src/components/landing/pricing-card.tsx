@@ -1,12 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 
 import { MaterialIcon } from "@/components/landing/material-icon";
 import type { CatalogProduct } from "@/features/catalog";
-import { formatMoney } from "@/lib/i18n/format";
 import { cn } from "@/lib/cn";
+import { formatMoney } from "@/lib/i18n/format";
 
 const CATEGORY_FEATURES: Record<string, string[]> = {
   HOSTING: ["f1", "f2", "f3"],
@@ -14,9 +14,22 @@ const CATEGORY_FEATURES: Record<string, string[]> = {
   DEDICATED: ["f1", "f2", "f3"],
   DOMAIN: ["f1", "f2"],
   SSL: ["f1", "f2"],
-  EMAIL: ["f1", "f2"],
-  LICENSE: ["f1", "f2"],
+  EMAIL: ["f1", "f2", "f3"],
+  LICENSE: ["f1", "f2", "f3"],
   BACKUP: ["f1", "f2"],
+  WHATSAPP_API: ["f1", "f2", "f3"],
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  HOSTING: "language",
+  VPS: "memory",
+  DEDICATED: "dns",
+  DOMAIN: "public",
+  WHATSAPP_API: "chat",
+  SSL: "verified_user",
+  EMAIL: "mail",
+  LICENSE: "key",
+  BACKUP: "backup",
 };
 
 function billingLabel(cycle: string, t: ReturnType<typeof useTranslations<"pricing">>): string {
@@ -39,9 +52,14 @@ export function PricingCard({
   const locale = useLocale();
   const t = useTranslations("pricing");
   const tCat = useTranslations("dashboard.pages.products.categories");
+  const reduceMotion = useReducedMotion();
   const featureKeys = CATEGORY_FEATURES[product.category] ?? ["f1", "f2"];
+  const categoryIcon = CATEGORY_ICONS[product.category] ?? "deployed_code";
   const descriptionLines =
-    product.description?.split(/\n|•/).map((l) => l.trim()).filter(Boolean) ?? [];
+    product.description
+      ?.split(/\n|•/)
+      .map((l) => l.trim())
+      .filter(Boolean) ?? [];
 
   return (
     <motion.article
@@ -49,29 +67,52 @@ export function PricingCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.4, delay: index * 0.06 }}
+      whileHover={reduceMotion ? undefined : { y: -6 }}
       className={cn(
-        "apple-card flex h-full flex-col p-6 sm:p-7",
-        featured && "ring-1 ring-[var(--accent)]",
+        "hover:shadow-apple-md group relative flex h-full flex-col overflow-hidden p-6 transition-shadow duration-300 sm:p-7",
+        "rounded-[26px] border border-[var(--separator)] bg-[var(--bg-elevated)]",
+        featured
+          ? "shadow-[0_18px_45px_color-mix(in_srgb,var(--accent)_14%,transparent)] ring-1 ring-[var(--accent)]"
+          : "shadow-apple",
       )}
     >
-      {featured && (
-        <span className="mb-4 inline-flex w-fit rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
-          {t("popular")}
-        </span>
-      )}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-28 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 75% 90% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%)",
+        }}
+      />
 
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--label-tertiary)]">
-        {tCat(product.category as never)}
-      </p>
-      <h3 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--label)]">{product.name}</h3>
+      <div className="relative flex items-start justify-between gap-4">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]">
+          <MaterialIcon name={categoryIcon} className="text-[22px]" />
+        </span>
+        {featured && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)]">
+            <MaterialIcon name="workspace_premium" className="text-[15px]" />
+            {t("popular")}
+          </span>
+        )}
+      </div>
+
+      <div className="relative mt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--label-tertiary)]">
+          {tCat(product.category as never)}
+        </p>
+        <h3 className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--label)]">
+          {product.name}
+        </h3>
+      </div>
 
       {product.description && (
-        <p className="mt-2 min-h-[2.5rem] text-sm leading-relaxed text-[var(--label-secondary)]">
+        <p className="relative mt-2 min-h-[2.5rem] text-sm leading-relaxed text-[var(--label-secondary)]">
           {descriptionLines[0] ?? product.description}
         </p>
       )}
 
-      <div className="my-6 flex items-end gap-1">
+      <div className="relative my-6 flex items-end gap-1">
         <span className="text-4xl font-semibold tracking-tight text-[var(--label)]">
           {formatMoney(product.price, product.currency, locale)}
         </span>
@@ -80,20 +121,34 @@ export function PricingCard({
         </span>
       </div>
 
-      <button type="button" onClick={onSelect} className="apple-btn apple-btn-primary w-full">
+      <button
+        type="button"
+        onClick={onSelect}
+        className="apple-btn apple-btn-primary relative w-full"
+      >
         {t("selectPlan")}
+        <MaterialIcon
+          name="arrow_forward"
+          className="ml-1 text-[18px] transition-transform duration-200 group-hover:translate-x-0.5"
+        />
       </button>
 
-      <ul className="mt-6 space-y-2.5 border-t-[0.5px] border-[var(--separator)] pt-5">
+      <ul className="relative mt-6 space-y-2.5 border-t-[0.5px] border-[var(--separator)] pt-5">
         {descriptionLines.slice(1).map((line) => (
           <li key={line} className="flex items-start gap-2 text-sm text-[var(--label-secondary)]">
-            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]" />
+            <MaterialIcon
+              name="check"
+              className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]"
+            />
             <span>{line}</span>
           </li>
         ))}
         {featureKeys.map((key) => (
           <li key={key} className="flex items-start gap-2 text-sm text-[var(--label-secondary)]">
-            <MaterialIcon name="check" className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]" />
+            <MaterialIcon
+              name="check"
+              className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]"
+            />
             <span>{t(`categoryFeatures.${product.category}.${key}` as never)}</span>
           </li>
         ))}

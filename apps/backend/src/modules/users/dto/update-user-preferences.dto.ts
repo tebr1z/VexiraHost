@@ -11,7 +11,7 @@ export class UpdateUserPreferencesDto {
   @IsIn([...SUPPORTED_PERIODS])
   billingPeriod?: string;
 
-  /** Used to force AZN lock when client reports Azerbaijan. */
+  /** Optional client geo hint (no longer locks currency). */
   @IsOptional()
   @IsString()
   countryCode?: string;

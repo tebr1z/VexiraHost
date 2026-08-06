@@ -25,7 +25,6 @@ const CURRENCY_META: Record<
 function useCurrencySwitcherState() {
   const t = useTranslations("pricing");
   const currency = usePricingStore((s) => s.currency);
-  const currencyLocked = usePricingStore((s) => s.currencyLocked);
   const countryCode = usePricingStore((s) => s.countryCode);
   const setCurrency = usePricingStore((s) => s.setCurrency);
   const setFromUser = usePricingStore((s) => s.setFromUser);
@@ -35,32 +34,14 @@ function useCurrencySwitcherState() {
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const [saving, setSaving] = useState(false);
 
-  const locked = Boolean(
-    user ? user.currencyLocked || currencyLocked : currencyLocked || countryCode === "AZ",
-  );
-  const activeCurrency: AppCurrency = locked ? "AZN" : currency;
-  const canChange = user ? Boolean(user.canChangeCurrency) : true;
-  const disabled = locked || saving || (Boolean(user) && !canChange);
+  const activeCurrency: AppCurrency = currency;
+  const disabled = saving;
 
   const handleSelect = async (next: AppCurrency) => {
-    if (locked) {
-      setFromUser({
-        preferredCurrency: "AZN",
-        billingPeriod: usePricingStore.getState().period,
-        currencyLocked: true,
-      });
-      return;
-    }
-
     if (next === activeCurrency) return;
 
     if (!user) {
       setCurrency(next);
-      return;
-    }
-
-    if (!canChange && next !== (user.preferredCurrency as AppCurrency)) {
-      toast(t("changeCooldown"), "error");
       return;
     }
 
@@ -83,26 +64,23 @@ function useCurrencySwitcherState() {
       setFromUser({
         preferredCurrency: profile.preferredCurrency,
         billingPeriod: profile.billingPeriod,
-        currencyLocked: profile.currencyLocked,
+        currencyLocked: false,
       });
       toast(t("currencyUpdated"), "success");
     } catch (err) {
-      toast(getApiErrorMessage(err, t("changeCooldown")), "error");
+      toast(getApiErrorMessage(err, t("currencyUpdateFailed")), "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const title = locked ? t("azLocked") : !canChange ? t("changeCooldown") : t("currency");
-
   return {
     t,
     activeCurrency,
     disabled,
-    locked,
     saving,
     handleSelect,
-    title,
+    title: t("currency"),
   };
 }
 
@@ -133,8 +111,7 @@ export function CurrencySwitcher({
   className?: string;
   variant?: "dropdown" | "segmented";
 }): React.ReactElement {
-  const { t, activeCurrency, disabled, locked, saving, handleSelect, title } =
-    useCurrencySwitcherState();
+  const { t, activeCurrency, disabled, saving, handleSelect, title } = useCurrencySwitcherState();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -163,13 +140,12 @@ export function CurrencySwitcher({
       >
         {OPTIONS.map((code) => {
           const active = activeCurrency === code;
-          const optionDisabled = disabled || (locked && code !== "AZN");
           return (
             <button
               key={code}
               type="button"
               data-active={active}
-              disabled={optionDisabled}
+              disabled={disabled}
               title={title}
               onClick={() => void handleSelect(code)}
               className={cn(
@@ -204,13 +180,7 @@ export function CurrencySwitcher({
           open && "bg-[var(--fill-secondary)] text-[var(--label)]",
         )}
       >
-        {locked ? (
-          <span className="material-symbols-outlined text-[16px] text-[var(--label-tertiary)]">
-            lock
-          </span>
-        ) : (
-          <span className="material-symbols-outlined text-[16px]">payments</span>
-        )}
+        <span className="material-symbols-outlined text-[16px]">payments</span>
         <CurrencySymbol code={activeCurrency} />
         <span className="uppercase tracking-wide">{activeCurrency}</span>
         {!disabled && (

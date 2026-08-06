@@ -139,42 +139,60 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                 "Əlavə ödənişsiz daxildir",
               ),
               items: [
-                l(
-                  "Sınırsız ücretsiz SSL sertifikası",
-                  "Unlimited free SSL certificates",
-                  "Бесплатные SSL",
-                  "Limitsiz pulsuz SSL",
-                ),
-                l(
-                  "Ücretsiz otomatik site taşıma",
-                  "Free automatic site migration",
-                  "Бесплатный перенос",
-                  "Pulsuz avtomatik köçürmə",
-                ),
-                l(
-                  "Otomatik yedeklemeler",
-                  "Automatic backups",
-                  "Автоматические бэкапы",
-                  "Avtomatik ehtiyat nüsxələr",
-                ),
-                l(
-                  "7/24 uzman destek",
-                  "24/7 expert support",
-                  "Экспертная поддержка 24/7",
-                  "7/24 ekspert dəstək",
-                ),
-                l(
-                  "cPanel ve Plesk kontrol paneli",
-                  "cPanel and Plesk control panel",
-                  "cPanel и Plesk",
-                  "cPanel və Plesk paneli",
-                ),
-                l(
-                  "%99,9 çalışma süresi garantisi",
-                  "99.9% uptime guarantee",
-                  "Гарантия 99.9% uptime",
-                  "%99,9 işləmə zəmanəti",
-                ),
+                {
+                  icon: "lock",
+                  label: l(
+                    "Sınırsız ücretsiz SSL sertifikası",
+                    "Unlimited free SSL certificates",
+                    "Бесплатные SSL",
+                    "Limitsiz pulsuz SSL",
+                  ),
+                },
+                {
+                  icon: "sync_alt",
+                  label: l(
+                    "Ücretsiz otomatik site taşıma",
+                    "Free automatic site migration",
+                    "Бесплатный перенос",
+                    "Pulsuz avtomatik köçürmə",
+                  ),
+                },
+                {
+                  icon: "cloud_sync",
+                  label: l(
+                    "Haftalık otomatik yedekleme",
+                    "Weekly automatic backups",
+                    "Еженедельные бэкапы",
+                    "Həftəlik avtomatik ehtiyat nüsxə",
+                  ),
+                },
+                {
+                  icon: "mail",
+                  label: l(
+                    "Webmail e-posta erişimi",
+                    "Webmail email access",
+                    "Доступ к Webmail",
+                    "Webmail e-poçt girişi",
+                  ),
+                },
+                {
+                  icon: "dashboard",
+                  label: l(
+                    "cPanel ve Plesk kontrol paneli",
+                    "cPanel and Plesk control panel",
+                    "cPanel и Plesk",
+                    "cPanel və Plesk paneli",
+                  ),
+                },
+                {
+                  icon: "verified",
+                  label: l(
+                    "%99,9 çalışma süresi garantisi",
+                    "99.9% uptime guarantee",
+                    "Гарантия 99.9% uptime",
+                    "%99,9 işləmə zəmanəti",
+                  ),
+                },
               ],
             },
           },

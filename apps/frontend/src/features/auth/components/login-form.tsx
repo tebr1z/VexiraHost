@@ -9,7 +9,13 @@ import { useForm } from "react-hook-form";
 import { useAuthHydration } from "../hooks/use-auth";
 import { goAfterAuth, getSafeNextPath, stashAuthNext } from "../lib/auth-redirect";
 import { createLoginSchema, type LoginFormValues } from "../schemas/auth.schema";
-import { loginRequest } from "../services/auth.service";
+import {
+  isLoginTwoFactorChallenge,
+  loginRequest,
+  resendLoginOtpRequest,
+  verifyLoginOtpRequest,
+  type LoginTwoFactorChallenge,
+} from "../services/auth.service";
 
 import { AuthField } from "./auth-field";
 import { OAuthButtons } from "./oauth-buttons";
@@ -27,6 +33,11 @@ function LoginFormInner(): React.ReactElement {
   const setSession = useAuthStore((s) => s.setSession);
   const { isReady, isAuthenticated } = useAuthHydration();
   const [error, setError] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<LoginTwoFactorChallenge | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     if (nextPath) stashAuthNext(nextPath);
@@ -59,8 +70,25 @@ function LoginFormInner(): React.ReactElement {
   const onSubmit = async (values: LoginFormValues) => {
     try {
       setError(null);
-      const session = await loginRequest(values, locale);
-      setSession(session, { rememberMe: values.rememberMe });
+      setRememberMe(Boolean(values.rememberMe));
+      const result = await loginRequest(values, locale);
+      if (isLoginTwoFactorChallenge(result)) {
+        setChallenge(result);
+        setOtpCode("");
+        return;
+      }
+      // Guard: never treat a 2FA payload as a session
+      if (
+        result &&
+        typeof result === "object" &&
+        "challengeId" in result &&
+        !("tokens" in result)
+      ) {
+        setChallenge(result as LoginTwoFactorChallenge);
+        setOtpCode("");
+        return;
+      }
+      setSession(result, { rememberMe: values.rememberMe });
       goAfterAuth((href) => router.push(href), nextPath);
     } catch (err) {
       const message =
@@ -71,10 +99,132 @@ function LoginFormInner(): React.ReactElement {
     }
   };
 
-  if (!isReady || isAuthenticated) {
+  const onVerifyOtp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!challenge) return;
+    try {
+      setError(null);
+      setOtpSubmitting(true);
+      const session = await verifyLoginOtpRequest({
+        challengeId: challenge.challengeId,
+        code: otpCode.trim(),
+        locale,
+      });
+      setSession(session, { rememberMe });
+      goAfterAuth((href) => router.push(href), nextPath);
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "error" in err
+          ? (err as { error?: { message?: string } }).error?.message
+          : t("otpInvalid");
+      setError(message ?? t("otpInvalid"));
+    } finally {
+      setOtpSubmitting(false);
+    }
+  };
+
+  const onResendOtp = async () => {
+    if (!challenge) return;
+    try {
+      setError(null);
+      setOtpResending(true);
+      const next = await resendLoginOtpRequest({
+        challengeId: challenge.challengeId,
+        locale,
+      });
+      setChallenge(next);
+      setOtpCode("");
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "error" in err
+          ? (err as { error?: { message?: string } }).error?.message
+          : t("otpResendFailed");
+      setError(message ?? t("otpResendFailed"));
+    } finally {
+      setOtpResending(false);
+    }
+  };
+
+  if (!isReady) {
+    return (
+      <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8" aria-busy="true">
+        <div className="bg-surface-container-high mx-auto h-4 w-32 animate-pulse rounded" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
     return (
       <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8">
         <p className="text-on-surface-variant text-center text-sm">{t("signingIn")}</p>
+      </div>
+    );
+  }
+
+  if (challenge) {
+    const isTotp = challenge.method === "TOTP";
+    return (
+      <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8">
+        <div className="mb-8 text-center">
+          <h1 className="font-jakarta text-primary sm:text-headline-lg text-3xl font-bold">
+            {isTotp ? t("totpLoginTitle") : t("otpTitle")}
+          </h1>
+          <p className="text-on-surface-variant sm:text-body-md mt-2 text-sm">
+            {isTotp ? t("totpLoginSubtitle") : t("otpSubtitle", { email: challenge.emailHint })}
+          </p>
+        </div>
+
+        <form onSubmit={onVerifyOtp} className="space-y-3.5">
+          <AuthField
+            name="otpCode"
+            label={isTotp ? t("totpLoginCode") : t("otpCode")}
+            icon="pin"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={otpCode}
+            onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            maxLength={6}
+          />
+
+          {error && (
+            <div className="border-error/20 bg-error-container text-error rounded-xl border px-4 py-3 text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={otpSubmitting || otpCode.trim().length !== 6}
+            className="bg-primary text-on-primary mt-1 h-12 w-full rounded-2xl font-semibold transition hover:opacity-90 disabled:opacity-60"
+          >
+            {otpSubmitting ? t("otpVerifying") : t("otpVerify")}
+          </button>
+        </form>
+
+        <div className="mt-5 flex flex-col items-center gap-2 text-sm">
+          {!isTotp ? (
+            <button
+              type="button"
+              onClick={() => void onResendOtp()}
+              disabled={otpResending}
+              className="text-secondary font-semibold hover:underline disabled:opacity-60"
+            >
+              {otpResending ? t("otpResending") : t("otpResend")}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setChallenge(null);
+              setOtpCode("");
+              setError(null);
+            }}
+            className="text-on-surface-variant hover:underline"
+          >
+            {t("otpBack")}
+          </button>
+        </div>
       </div>
     );
   }

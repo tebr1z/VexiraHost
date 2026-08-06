@@ -1,37 +1,49 @@
-import { BillingCycle, HostingPanel, PriceCurrency, PricePeriod, PrismaClient, ProductCategory, ServerType, UserRole, UserStatus } from "@prisma/client";
+import {
+  BillingCycle,
+  DigitalDeliveryMode,
+  HostingPanel,
+  PriceCurrency,
+  PrismaClient,
+  ProductCategory,
+  ServerType,
+  UserRole,
+  UserStatus,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
+import { FALLBACK_EXCHANGE_RATES } from "../src/shared/pricing/exchange-rates.types";
+import { expandUsdPricesToAllCurrencies } from "../src/shared/pricing/usd-price-expand.util";
 import { encryptSecret } from "../src/utils/crypto.util";
+
 import { seedHostingCmsPage } from "./cms-hosting-seed";
+import { seedMarketingCmsPages } from "./cms-marketing-pages-seed";
 
 const prisma = new PrismaClient();
 
 function multiCurrencyPrices(usdMonthly: number) {
-  const eurMonthly = Math.round(usdMonthly * 0.92 * 100) / 100;
-  const aznMonthly = Math.round(usdMonthly * 1.7 * 100) / 100;
-  return [
-    { currency: PriceCurrency.USD, period: PricePeriod.MONTHLY, originalPrice: usdMonthly, salePrice: usdMonthly },
-    { currency: PriceCurrency.EUR, period: PricePeriod.MONTHLY, originalPrice: eurMonthly, salePrice: eurMonthly },
-    { currency: PriceCurrency.AZN, period: PricePeriod.MONTHLY, originalPrice: aznMonthly, salePrice: aznMonthly },
+  return expandUsdPricesToAllCurrencies(
     {
-      currency: PriceCurrency.USD,
-      period: PricePeriod.YEARLY,
-      originalPrice: Math.round(usdMonthly * 12 * 100) / 100,
-      salePrice: Math.round(usdMonthly * 10 * 100) / 100,
+      monthlyOriginal: usdMonthly,
+      monthlySale: usdMonthly,
+      yearlyEnabled: true,
     },
+    FALLBACK_EXCHANGE_RATES,
+  );
+}
+
+function fixedAznPackagePrices(azn: number) {
+  const usd = Number((azn / FALLBACK_EXCHANGE_RATES.usdToAzn).toFixed(4));
+  const rows = expandUsdPricesToAllCurrencies(
     {
-      currency: PriceCurrency.EUR,
-      period: PricePeriod.YEARLY,
-      originalPrice: Math.round(eurMonthly * 12 * 100) / 100,
-      salePrice: Math.round(eurMonthly * 10 * 100) / 100,
+      monthlyOriginal: usd,
+      monthlySale: usd,
+      yearlyEnabled: false,
     },
-    {
-      currency: PriceCurrency.AZN,
-      period: PricePeriod.YEARLY,
-      originalPrice: Math.round(aznMonthly * 12 * 100) / 100,
-      salePrice: Math.round(aznMonthly * 10 * 100) / 100,
-    },
-  ];
+    FALLBACK_EXCHANGE_RATES,
+  );
+  return rows.map((row) =>
+    row.currency === PriceCurrency.AZN ? { ...row, originalPrice: azn, salePrice: azn } : row,
+  );
 }
 
 const products = [
@@ -73,13 +85,113 @@ const products = [
     sortOrder: 4,
   },
   {
-    slug: "windows-server-license",
-    name: "Windows Server License",
-    description: "Windows Server standard license.",
+    slug: "windows-11-pro",
+    name: "Windows 11 Pro",
+    description:
+      "Windows 11 Pro license for business workstations.\n• BitLocker & Remote Desktop\n• Instant key delivery",
     category: ProductCategory.LICENSE,
-    price: 79,
+    price: 89,
     billingCycle: BillingCycle.MONTHLY,
     sortOrder: 5,
+  },
+  {
+    slug: "windows-11-home",
+    name: "Windows 11 Home",
+    description:
+      "Windows 11 Home license for personal use.\n• Genuine activation key\n• Panel delivery after payment",
+    category: ProductCategory.LICENSE,
+    price: 69,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 6,
+  },
+  {
+    slug: "windows-8",
+    name: "Windows 8",
+    description:
+      "Windows 8 license for legacy systems.\n• Genuine activation key\n• Compatible with older hardware",
+    category: ProductCategory.LICENSE,
+    price: 49,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 7,
+  },
+  {
+    slug: "windows-server-2022-standard",
+    name: "Windows Server 2022 Standard",
+    description:
+      "Windows Server 2022 Standard license.\n• Physical & virtual server use\n• Panel delivery",
+    category: ProductCategory.LICENSE,
+    price: 129,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 8,
+  },
+  {
+    slug: "windows-server-2022-datacenter",
+    name: "Windows Server 2022 Datacenter",
+    description:
+      "Windows Server 2022 Datacenter license.\n• Unlimited virtualization\n• Enterprise workloads",
+    category: ProductCategory.LICENSE,
+    price: 249,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 9,
+  },
+  {
+    slug: "windows-server-2019-standard",
+    name: "Windows Server 2019 Standard",
+    description:
+      "Windows Server 2019 Standard license.\n• Stable long-term support\n• Genuine activation key",
+    category: ProductCategory.LICENSE,
+    price: 109,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 10,
+  },
+  {
+    slug: "windows-server-2019-datacenter",
+    name: "Windows Server 2019 Datacenter",
+    description: "Windows Server 2019 Datacenter license.\n• Unlimited VMs\n• Panel delivery",
+    category: ProductCategory.LICENSE,
+    price: 219,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 11,
+  },
+  {
+    slug: "windows-server-2016-standard",
+    name: "Windows Server 2016 Standard",
+    description:
+      "Windows Server 2016 Standard license.\n• Legacy server support\n• Instant key delivery",
+    category: ProductCategory.LICENSE,
+    price: 99,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 12,
+  },
+  {
+    slug: "windows-server-2016-datacenter",
+    name: "Windows Server 2016 Datacenter",
+    description:
+      "Windows Server 2016 Datacenter license.\n• Unlimited virtualization rights\n• Genuine key",
+    category: ProductCategory.LICENSE,
+    price: 199,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 13,
+  },
+  {
+    slug: "office-365-license",
+    name: "Microsoft Office License",
+    description:
+      "Microsoft Office license for business desktops.\n• Instant key delivery\n• Compatible with Windows & Mac",
+    category: ProductCategory.LICENSE,
+    price: 39,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 14,
+  },
+  {
+    slug: "antivirus-pro",
+    name: "Antivirus Pro",
+    description:
+      "Business antivirus protection for workstations.\n• Real-time threat shield\n• Centralized license management",
+    category: ProductCategory.LICENSE,
+    price: 19,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 15,
   },
   {
     slug: "ssl-standard",
@@ -88,16 +200,27 @@ const products = [
     category: ProductCategory.SSL,
     price: 29,
     billingCycle: BillingCycle.YEARLY,
-    sortOrder: 6,
+    sortOrder: 16,
   },
   {
     slug: "email-pro",
-    name: "Professional Email",
-    description: "Business email hosting with webmail access.",
+    name: "Professional Webmail",
+    description:
+      "Business email with branded addresses and webmail.\n• Spam protection\n• Mobile & desktop sync",
     category: ProductCategory.EMAIL,
     price: 5,
     billingCycle: BillingCycle.MONTHLY,
-    sortOrder: 7,
+    sortOrder: 17,
+  },
+  {
+    slug: "google-workspace",
+    name: "Google Workspace",
+    description:
+      "Google Workspace for your domain — Gmail, Drive, Meet.\n• Professional @yourdomain.com\n• Admin console & collaboration tools",
+    category: ProductCategory.EMAIL,
+    price: 12,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 18,
   },
   {
     slug: "backup-daily",
@@ -106,7 +229,31 @@ const products = [
     category: ProductCategory.BACKUP,
     price: 9,
     billingCycle: BillingCycle.MONTHLY,
-    sortOrder: 8,
+    sortOrder: 19,
+  },
+  {
+    slug: "whatsapp-api-5000",
+    name: "WhatsApp API — 5.000 mesaj",
+    description:
+      "Aylıq 5.000 WhatsApp mesaj paketi.\n• REST API inteqrasiyası\n• Ödənişdən sonra admin təsdiqi tələb olunur\n• Küfür və təhqiramiz məzmun qadağandır",
+    category: ProductCategory.WHATSAPP_API,
+    price: 1.0,
+    currency: "AZN",
+    billingCycle: BillingCycle.ONE_TIME,
+    deliveryMode: DigitalDeliveryMode.MANUAL,
+    sortOrder: 25,
+  },
+  {
+    slug: "whatsapp-api-15000",
+    name: "WhatsApp API — 15.000 mesaj",
+    description:
+      "Aylıq 15.000 WhatsApp mesaj paketi.\n• REST API inteqrasiyası\n• Ödənişdən sonra admin təsdiqi tələb olunur\n• Küfür və təhqiramiz məzmun qadağandır",
+    category: ProductCategory.WHATSAPP_API,
+    price: 1.5,
+    currency: "AZN",
+    billingCycle: BillingCycle.ONE_TIME,
+    deliveryMode: DigitalDeliveryMode.MANUAL,
+    sortOrder: 26,
   },
 ];
 
@@ -198,7 +345,8 @@ const hostingPlans = [
   {
     slug: "web-starter",
     name: "Web Starter",
-    description: "Shared cPanel hosting for personal sites and portfolios.",
+    description:
+      "Shared cPanel hosting for personal sites and portfolios.\n• Free SSL & weekly backups\n• Webmail included",
     panel: HostingPanel.CPANEL,
     serverSlug: "cpanel-primary",
     diskGb: 10,
@@ -212,7 +360,8 @@ const hostingPlans = [
   {
     slug: "web-pro",
     name: "Web Pro",
-    description: "cPanel hosting with room for multiple sites and email accounts.",
+    description:
+      "cPanel hosting with room for multiple sites and email accounts.\n• Free SSL & weekly backups\n• Webmail + one-click WordPress",
     panel: HostingPanel.CPANEL,
     serverSlug: "cpanel-primary",
     diskGb: 50,
@@ -226,7 +375,8 @@ const hostingPlans = [
   {
     slug: "business-plesk",
     name: "Business Plesk",
-    description: "Plesk-powered hosting for agencies and growing businesses.",
+    description:
+      "Plesk-powered hosting for agencies and growing businesses.\n• Free SSL & weekly backups\n• Webmail + multi-site tools",
     panel: HostingPanel.PLESK,
     serverSlug: "plesk-primary",
     diskGb: 100,
@@ -257,7 +407,9 @@ async function main(): Promise<void> {
       create: product,
     });
 
-    for (const price of multiCurrencyPrices(Number(product.price))) {
+    for (const price of product.category === ProductCategory.WHATSAPP_API
+      ? fixedAznPackagePrices(Number(product.price))
+      : multiCurrencyPrices(Number(product.price))) {
       await prisma.productPrice.upsert({
         where: {
           productId_currency_period: {
@@ -361,25 +513,82 @@ async function main(): Promise<void> {
       sortOrder: 1,
       items: [
         {
-          labels: { tr: "Windows & Office", en: "Windows & Office", az: "Windows və Office", ru: "Windows и Office" },
-          href: "/#pricing",
+          labels: {
+            tr: "Tüm Lisanslar",
+            en: "All Licenses",
+            az: "Bütün Lisenziyalar",
+            ru: "Все лицензии",
+          },
+          href: "/licenses",
+          pathMatch: "/licenses",
           sortOrder: 1,
         },
         {
-          labels: { tr: "Antivirüs", en: "Antivirus", az: "Antivirus", ru: "Антивирус" },
-          href: "/#pricing",
+          labels: {
+            tr: "Windows Lisansları",
+            en: "Windows Licenses",
+            az: "Windows Lisenziyaları",
+            ru: "Лицензии Windows",
+          },
+          href: "/licenses/windows",
+          pathMatch: "/licenses/windows",
           sortOrder: 2,
         },
         {
-          labels: { tr: "Diğer Lisanslar", en: "Other Licenses", az: "Digər Lisenziyalar", ru: "Другие лицензии" },
-          href: "/#pricing",
+          labels: {
+            tr: "Server Lisansları",
+            en: "Server Licenses",
+            az: "Server Lisenziyaları",
+            ru: "Серверные лицензии",
+          },
+          href: "/licenses/server",
+          pathMatch: "/licenses/server",
           sortOrder: 3,
+        },
+        {
+          labels: {
+            tr: "Microsoft Office",
+            en: "Microsoft Office",
+            az: "Microsoft Office",
+            ru: "Microsoft Office",
+          },
+          href: "/licenses/office",
+          pathMatch: "/licenses/office",
+          sortOrder: 4,
+        },
+        {
+          labels: { tr: "Antivirüs", en: "Antivirus", az: "Antivirus", ru: "Антивирус" },
+          href: "/licenses/antivirus",
+          pathMatch: "/licenses/antivirus",
+          sortOrder: 5,
+        },
+        {
+          labels: {
+            tr: "Google Workspace",
+            en: "Google Workspace",
+            az: "Google Workspace",
+            ru: "Google Workspace",
+          },
+          href: "/email",
+          pathMatch: "/email",
+          sortOrder: 8,
+        },
+        {
+          labels: { tr: "Webmail", en: "Webmail", az: "Webmail", ru: "Webmail" },
+          href: "/webmail",
+          pathMatch: "/webmail",
+          sortOrder: 9,
         },
       ],
     },
     {
       key: "hostingServers",
-      labels: { tr: "Hosting & Sunucu", en: "Hosting & Servers", az: "Hosting və Server", ru: "Хостинг и Серверы" },
+      labels: {
+        tr: "Hosting & Sunucu",
+        en: "Hosting & Servers",
+        az: "Hosting və Server",
+        ru: "Хостинг и Серверы",
+      },
       sortOrder: 2,
       items: [
         {
@@ -390,8 +599,8 @@ async function main(): Promise<void> {
         },
         {
           labels: { tr: "VDS / VPS", en: "VDS / VPS", az: "VDS / VPS", ru: "VDS / VPS" },
-          href: "/hosting",
-          pathMatch: "/hosting",
+          href: "/vps",
+          pathMatch: "/vps",
           sortOrder: 2,
         },
         {
@@ -415,9 +624,27 @@ async function main(): Promise<void> {
       ],
     },
     {
+      key: "whatsappApi",
+      labels: { tr: "WhatsApp API", en: "WhatsApp API", az: "WhatsApp API", ru: "WhatsApp API" },
+      sortOrder: 3,
+      items: [
+        {
+          labels: {
+            tr: "Mesaj Paketleri",
+            en: "Message Packages",
+            az: "Mesaj Paketləri",
+            ru: "Пакеты сообщений",
+          },
+          href: "/products/whatsapp-api",
+          pathMatch: "/products/whatsapp-api",
+          sortOrder: 1,
+        },
+      ],
+    },
+    {
       key: "forumBlog",
       labels: { tr: "Forum/Blog", en: "Forum/Blog", az: "Forum/Blog", ru: "Форум/Блог" },
-      sortOrder: 3,
+      sortOrder: 4,
       items: [
         {
           labels: { tr: "Forum", en: "Forum", az: "Forum", ru: "Форум" },
@@ -455,7 +682,6 @@ async function main(): Promise<void> {
       const existingItem = await prisma.navItem.findFirst({
         where: {
           groupId: createdGroup.id,
-          href: item.href,
           sortOrder: item.sortOrder,
         },
       });
@@ -465,6 +691,7 @@ async function main(): Promise<void> {
           where: { id: existingItem.id },
           data: {
             labels: item.labels,
+            href: item.href,
             pathMatch: "pathMatch" in item ? item.pathMatch : null,
             isActive: true,
           },
@@ -482,12 +709,34 @@ async function main(): Promise<void> {
         });
       }
     }
+
+    const activeSortOrders = group.items.map((item) => item.sortOrder);
+    await prisma.navItem.updateMany({
+      where: {
+        groupId: createdGroup.id,
+        sortOrder: { notIn: activeSortOrders },
+      },
+      data: { isActive: false },
+    });
+  }
+
+  // Keep catalogCategoryId aligned with system product category
+  const categories = await prisma.catalogCategory.findMany();
+  const categoryByType = new Map(categories.map((c) => [c.systemType, c.id]));
+  for (const product of products) {
+    const catalogCategoryId = categoryByType.get(product.category) ?? null;
+    if (!catalogCategoryId) continue;
+    await prisma.product.updateMany({
+      where: { slug: product.slug },
+      data: { catalogCategoryId },
+    });
   }
 
   await seedHostingCmsPage(prisma);
+  await seedMarketingCmsPages(prisma);
 
   console.log(
-    `Seeded ${products.length} products, ${serverPlans.length} server plans, ${hostingPlans.length} hosting plans, ${tldPricing.length} TLD prices, ${navGroups.length} nav groups, and admin user admin@vexirahost.com`,
+    `Seeded ${products.length} products, ${serverPlans.length} server plans, ${hostingPlans.length} hosting plans, ${tldPricing.length} TLD prices, ${navGroups.length} nav groups, CMS pages, and admin user admin@vexirahost.com`,
   );
 }
 

@@ -5,14 +5,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { DataTable, PageHeader, StatusBadge } from "@/components/ui";
 import {
+  connectWhatsappGatewayAccount,
   connectWhatsapp,
+  createWhatsappGatewayAccount,
+  disconnectWhatsappGatewayAccount,
   disconnectWhatsapp,
+  getWhatsappGatewayAccountQr,
   getWhatsappQr,
   getWhatsappStatus,
+  listWhatsappGatewayAccounts,
   listWhatsappMessages,
   listWhatsappUsers,
   sendWhatsappMessage,
+  updateWhatsappGatewayAccount,
   type WhatsappConnectionStatus,
+  type WhatsappGatewayAccount,
   type WhatsappMessageLog,
   type WhatsappStatus,
   type WhatsappUserOption,
@@ -37,6 +44,10 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
 
   const [status, setStatus] = useState<WhatsappStatus | null>(null);
+  const [gatewayAccounts, setGatewayAccounts] = useState<WhatsappGatewayAccount[]>([]);
+  const [selectedGatewayId, setSelectedGatewayId] = useState<string | null>(null);
+  const [newGatewayLabel, setNewGatewayLabel] = useState("");
+  const [gatewayBusyId, setGatewayBusyId] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [users, setUsers] = useState<WhatsappUserOption[]>([]);
   const [messages, setMessages] = useState<WhatsappMessageLog[]>([]);
@@ -59,6 +70,12 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
     setMessages(rows);
   }, []);
 
+  const loadGatewayAccounts = useCallback(async () => {
+    const accounts = await listWhatsappGatewayAccounts();
+    setGatewayAccounts(accounts);
+    setSelectedGatewayId((current) => current ?? accounts[0]?.id ?? null);
+  }, []);
+
   const loadUsers = useCallback(async (q?: string) => {
     const rows = await listWhatsappUsers(q);
     setUsers(rows);
@@ -67,13 +84,13 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
   const refreshAll = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([loadStatus(), loadMessages(), loadUsers()]);
+      await Promise.all([loadStatus(), loadGatewayAccounts(), loadMessages(), loadUsers()]);
     } catch (err) {
       toast(getApiErrorMessage(err, tp("loadFailed")), "error");
     } finally {
       setLoading(false);
     }
-  }, [loadMessages, loadStatus, loadUsers, tp]);
+  }, [loadGatewayAccounts, loadMessages, loadStatus, loadUsers, tp]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -111,6 +128,33 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
     };
   }, [isAdmin, loadMessages, status?.status]);
 
+  useEffect(() => {
+    const selected = gatewayAccounts.find((account) => account.id === selectedGatewayId);
+    if (!isAdmin || !selected || !["QR_READY", "CONNECTING"].includes(selected.status)) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const [qr, accounts] = await Promise.all([
+          getWhatsappGatewayAccountQr(selected.id),
+          listWhatsappGatewayAccounts(),
+        ]);
+        if (cancelled) return;
+        setQrDataUrl(qr.qrDataUrl);
+        setGatewayAccounts(accounts);
+      } catch {
+        /* Ignore a transient QR refresh error. */
+      }
+    };
+
+    void tick();
+    const id = window.setInterval(() => void tick(), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [gatewayAccounts, isAdmin, selectedGatewayId]);
+
   const selectedUser = useMemo(
     () => users.find((user) => user.id === selectedUserId) ?? null,
     [selectedUserId, users],
@@ -145,6 +189,63 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
       toast(getApiErrorMessage(err, tp("disconnectFailed")), "error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleCreateGateway = async () => {
+    const label = newGatewayLabel.trim();
+    if (!label) return;
+    setGatewayBusyId("new");
+    try {
+      const account = await createWhatsappGatewayAccount(label);
+      setNewGatewayLabel("");
+      setSelectedGatewayId(account.id);
+      await loadGatewayAccounts();
+      toast(tp("gatewayAdded"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("gatewayAddFailed")), "error");
+    } finally {
+      setGatewayBusyId(null);
+    }
+  };
+
+  const handleGatewayConnect = async (accountId: string) => {
+    setGatewayBusyId(accountId);
+    try {
+      await connectWhatsappGatewayAccount(accountId);
+      setSelectedGatewayId(accountId);
+      await loadGatewayAccounts();
+      const qr = await getWhatsappGatewayAccountQr(accountId);
+      setQrDataUrl(qr.qrDataUrl);
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("connectFailed")), "error");
+    } finally {
+      setGatewayBusyId(null);
+    }
+  };
+
+  const handleGatewayDisconnect = async (accountId: string) => {
+    setGatewayBusyId(accountId);
+    try {
+      await disconnectWhatsappGatewayAccount(accountId);
+      if (selectedGatewayId === accountId) setQrDataUrl(null);
+      await loadGatewayAccounts();
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("disconnectFailed")), "error");
+    } finally {
+      setGatewayBusyId(null);
+    }
+  };
+
+  const toggleGateway = async (account: WhatsappGatewayAccount) => {
+    setGatewayBusyId(account.id);
+    try {
+      await updateWhatsappGatewayAccount(account.id, { isEnabled: !account.isEnabled });
+      await loadGatewayAccounts();
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("gatewayUpdateFailed")), "error");
+    } finally {
+      setGatewayBusyId(null);
     }
   };
 
@@ -185,6 +286,101 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
           { label: tp("title") },
         ]}
       />
+
+      <section className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-on-surface text-lg font-semibold">{tp("gatewayTitle")}</h2>
+            <p className="text-on-surface-variant mt-1 text-sm">{tp("gatewayHelp")}</p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={newGatewayLabel}
+              onChange={(event) => setNewGatewayLabel(event.target.value)}
+              maxLength={100}
+              placeholder={tp("gatewayLabel")}
+              className="border-outline-variant h-10 w-40 rounded-xl border px-3 text-sm"
+            />
+            <button
+              type="button"
+              disabled={gatewayBusyId === "new" || !newGatewayLabel.trim()}
+              onClick={() => void handleCreateGateway()}
+              className="bg-primary text-on-primary h-10 rounded-xl px-4 text-sm font-semibold disabled:opacity-50"
+            >
+              {tp("gatewayAdd")}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          {gatewayAccounts.map((account) => {
+            const selected = account.id === selectedGatewayId;
+            const isConnected = account.status === "CONNECTED";
+            return (
+              <article
+                key={account.id}
+                className={`rounded-xl border p-4 ${selected ? "border-primary/50 bg-primary/5" : "border-outline-variant/50"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGatewayId(account.id);
+                      setQrDataUrl(null);
+                    }}
+                    className="min-w-0 text-left"
+                  >
+                    <p className="truncate font-semibold">{account.label}</p>
+                    <p className="text-on-surface-variant mt-1 text-xs">
+                      {account.phoneNumber ?? tp("notLinked")}
+                    </p>
+                  </button>
+                  <StatusBadge status={statusTone(account.status)} />
+                </div>
+
+                <div className="text-on-surface-variant mt-3 flex gap-4 text-xs">
+                  <span>{tp("gatewaySent", { count: account.sentCount })}</span>
+                  <span>{tp("gatewayFailed", { count: account.failedCount })}</span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={gatewayBusyId === account.id || !account.isEnabled || isConnected}
+                    onClick={() => void handleGatewayConnect(account.id)}
+                    className="bg-primary text-on-primary h-9 rounded-lg px-3 text-xs font-semibold disabled:opacity-50"
+                  >
+                    {tp("connect")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={gatewayBusyId === account.id || account.status === "DISCONNECTED"}
+                    onClick={() => void handleGatewayDisconnect(account.id)}
+                    className="border-outline-variant h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-50"
+                  >
+                    {tp("disconnect")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={gatewayBusyId === account.id}
+                    onClick={() => void toggleGateway(account)}
+                    className="border-outline-variant h-9 rounded-lg border px-3 text-xs font-semibold disabled:opacity-50"
+                  >
+                    {account.isEnabled ? tp("gatewayDisable") : tp("gatewayEnable")}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {selectedGatewayId && qrDataUrl ? (
+          <div className="border-outline-variant bg-surface-container-low/40 mt-5 flex flex-col items-center gap-3 rounded-xl border border-dashed p-6">
+            <img src={qrDataUrl} alt={tp("qrAlt")} className="h-64 w-64 rounded-lg bg-white p-2" />
+            <p className="text-on-surface-variant max-w-md text-center text-sm">{tp("qrHelp")}</p>
+          </div>
+        ) : null}
+      </section>
 
       <section className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">

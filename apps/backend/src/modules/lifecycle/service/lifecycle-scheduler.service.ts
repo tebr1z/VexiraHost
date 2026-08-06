@@ -28,6 +28,8 @@ export class LifecycleSchedulerService implements OnModuleInit, OnModuleDestroy 
       this.scheduleFallback(LifecycleJob.DOMAIN_EXPIRY, ONE_HOUR);
       this.scheduleFallback(LifecycleJob.ADDON_EXPIRY, ONE_HOUR);
       this.scheduleFallback(LifecycleJob.SERVER_EXPIRY, ONE_HOUR);
+      this.scheduleFallback(LifecycleJob.SYSTEM_HOURLY_REPORT, ONE_HOUR);
+      this.scheduleFallback(LifecycleJob.TICKET_AUTO_CLOSE, FIFTEEN_MINUTES);
       return;
     }
 
@@ -62,6 +64,16 @@ export class LifecycleSchedulerService implements OnModuleInit, OnModuleDestroy 
         LifecycleJob.SERVER_EXPIRY,
         { every: ONE_HOUR },
         { name: LifecycleJob.SERVER_EXPIRY, data: {}, opts: options },
+      ),
+      this.queue.upsertJobScheduler(
+        LifecycleJob.SYSTEM_HOURLY_REPORT,
+        { every: ONE_HOUR },
+        { name: LifecycleJob.SYSTEM_HOURLY_REPORT, data: {}, opts: options },
+      ),
+      this.queue.upsertJobScheduler(
+        LifecycleJob.TICKET_AUTO_CLOSE,
+        { every: FIFTEEN_MINUTES },
+        { name: LifecycleJob.TICKET_AUTO_CLOSE, data: {}, opts: options },
       ),
     ]);
     this.logger.log("Global lifecycle job schedulers registered in BullMQ");

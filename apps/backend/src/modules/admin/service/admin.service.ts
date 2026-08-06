@@ -12,6 +12,7 @@ import bcrypt from "bcryptjs";
 
 import type {
   DeliverLicenseDto,
+  DeliverWhatsappApiDto,
   UpdateAdminUserDto,
   UpdateAdminUserRoleDto,
   UpdateAdminUserStatusDto,
@@ -23,6 +24,7 @@ import { AuthService } from "@/modules/auth/service/auth.service";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 import { LicensesService } from "@/modules/licenses/service/licenses.service";
 import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
+import { WhatsappApiService } from "@/modules/whatsapp/service/whatsapp-api.service";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { mapAppRoleToPrisma, mapPrismaRoleToApp } from "@/utils/role.util";
 
@@ -128,6 +130,7 @@ export class AdminService {
     private readonly adminPaymentsRepository: AdminPaymentsRepository,
     private readonly orderFulfillmentService: OrderFulfillmentService,
     private readonly licensesService: LicensesService,
+    private readonly whatsappApiService: WhatsappApiService,
     private readonly paymentsRepository: PaymentsRepository,
     private readonly authService: AuthService,
   ) {}
@@ -214,7 +217,7 @@ export class AdminService {
       const nextCurrency = parseCurrency(dto.preferredCurrency);
       data.preferredCurrency = nextCurrency;
       if (nextCurrency !== user.preferredCurrency) {
-        // Admin override resets the customer 30-day change cooldown.
+        // Customer currency change is unrestricted; still stamp for audit.
         data.currencyChangedAt = new Date();
       }
     }
@@ -324,7 +327,9 @@ export class AdminService {
             ? {
                 addonId: linked.id,
                 status: linked.status,
-                pendingManualDelivery: Boolean(linkedMeta.pendingManualDelivery),
+                pendingManualDelivery: Boolean(
+                  linkedMeta.pendingManualDelivery || linkedMeta.pendingManualApproval,
+                ),
                 licenseKey:
                   typeof linkedMeta.licenseKey === "string"
                     ? linkedMeta.licenseKey
@@ -381,6 +386,47 @@ export class AdminService {
       lastName: order.user.lastName,
       preferredCurrency: order.user.preferredCurrency,
       localeHistory: order.user.localeHistory,
+    });
+
+    return this.getOrder(orderId);
+  }
+
+  async deliverWhatsappApi(orderId: string, dto: DeliverWhatsappApiDto) {
+    const order = await this.adminRepository.findOrderById(orderId);
+    if (!order) throw new NotFoundException("Order not found");
+
+    const item = order.items.find((row) => row.id === dto.orderItemId);
+    if (!item) throw new NotFoundException("Order item not found");
+
+    const category = item.product?.category;
+    if (category !== "WHATSAPP_API") {
+      throw new BadRequestException("Only WhatsApp API order items can be activated");
+    }
+
+    const productSlug = item.product?.slug;
+    const productName = item.productName;
+    if (!productSlug) {
+      throw new BadRequestException("Product slug is missing for this order item");
+    }
+
+    await this.licensesService.ensurePendingWhatsappPackage({
+      userId: order.user.id,
+      productSlug,
+      productName,
+      orderId,
+      orderItemId: dto.orderItemId,
+    });
+
+    await this.whatsappApiService.approvePurchasedPackage({
+      userId: order.user.id,
+      productSlug,
+      orderId,
+      orderItemId: dto.orderItemId,
+    });
+
+    await this.licensesService.activateWhatsappPackage({
+      orderId,
+      orderItemId: dto.orderItemId,
     });
 
     return this.getOrder(orderId);

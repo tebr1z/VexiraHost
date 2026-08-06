@@ -1,7 +1,15 @@
-import { Body, Controller, Get, Patch } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 
-import { UpdateBillingAddressDto, UpdatePhoneDto, UpdateUserPreferencesDto } from "../dto";
+import {
+  ConfirmTotpDto,
+  DisableTotpDto,
+  UpdateBillingAddressDto,
+  UpdateEmailTwoFactorDto,
+  UpdatePhoneDto,
+  UpdateUserPreferencesDto,
+  VerifyEmailTwoFactorDto,
+} from "../dto";
 import { UsersService } from "../service/users.service";
 
 import { User } from "@/decorators/user.decorator";
@@ -28,5 +36,35 @@ export class UsersController {
   @Patch("me/phone")
   updatePhone(@User() user: AuthUser, @Body() dto: UpdatePhoneDto) {
     return this.usersService.updatePhone(user.id, dto);
+  }
+
+  @Patch("me/security/email-2fa")
+  requestEmailTwoFactor(@User() user: AuthUser, @Body() dto: UpdateEmailTwoFactorDto) {
+    return this.usersService.requestEmailTwoFactorChange(user.id, dto);
+  }
+
+  @Post("me/security/email-2fa/verify")
+  verifyEmailTwoFactor(@User() user: AuthUser, @Body() dto: VerifyEmailTwoFactorDto) {
+    return this.usersService.verifyEmailTwoFactorChange(user.id, dto);
+  }
+
+  @Post("me/security/totp/setup")
+  setupTotp(@User() user: AuthUser) {
+    return this.usersService.setupTotp(user.id);
+  }
+
+  @Post("me/security/totp/confirm")
+  confirmTotp(@User() user: AuthUser, @Body() dto: ConfirmTotpDto) {
+    return this.usersService.confirmTotp(user.id, dto);
+  }
+
+  @Post("me/security/totp/disable")
+  disableTotp(@User() user: AuthUser, @Body() dto: DisableTotpDto) {
+    return this.usersService.disableTotp(user.id, dto);
+  }
+
+  @Post("me/security/totp/cancel")
+  cancelTotpSetup(@User() user: AuthUser) {
+    return this.usersService.cancelTotpSetup(user.id);
   }
 }

@@ -1,18 +1,12 @@
+import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import type { AbstractIntlMessages } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
 
 import { LocaleHtmlUpdater } from "@/components/i18n/locale-html-updater";
 import { LocaleShell } from "@/components/layout/locale-shell";
 import { routing, type AppLocale } from "@/i18n/routing";
-
-import az from "../../../messages/az.json";
-import en from "../../../messages/en.json";
-import ru from "../../../messages/ru.json";
-import tr from "../../../messages/tr.json";
-
-const localeMessages: Record<AppLocale, typeof en> = { en, tr, ru, az };
+import { localeMessages } from "@/lib/i18n/messages";
 
 type Props = {
   children: React.ReactNode;

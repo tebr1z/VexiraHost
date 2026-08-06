@@ -9,6 +9,11 @@ import { CopyableField } from "@/components/ui/copyable-field";
 import { listAddons, provisionAddon, type AddonService, type AddonType } from "@/features/addons";
 import { useRequireAuth } from "@/features/auth";
 import { listHostingAccounts, type HostingAccount } from "@/features/hosting";
+import {
+  getWhatsappApiDashboard,
+  type WhatsappApiDashboard,
+} from "@/features/whatsapp-api/services/whatsapp-api.service";
+import { Link } from "@/i18n/navigation";
 import { formatDate } from "@/lib/i18n/format";
 
 const ADDON_TYPES: AddonType[] = ["LICENSE", "SSL", "EMAIL", "BACKUP"];
@@ -27,6 +32,19 @@ function getDownloadUrl(service: AddonService): string | null {
   return metaString(service.metadata, "downloadUrl");
 }
 
+function metaNumber(meta: Record<string, unknown> | null | undefined, key: string): number | null {
+  const value = meta?.[key];
+  return typeof value === "number" ? value : null;
+}
+
+function isPendingWhatsapp(service: AddonService): boolean {
+  const meta = service.metadata as Record<string, unknown> | null | undefined;
+  return (
+    service.type === "WHATSAPP_API" &&
+    (meta?.pendingManualApproval === true || metaString(meta, "pendingManualApproval") === "true")
+  );
+}
+
 export default function ServicesPage(): React.ReactElement | null {
   useRequireAuth();
   const locale = useLocale();
@@ -40,13 +58,22 @@ export default function ServicesPage(): React.ReactElement | null {
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [whatsappUsage, setWhatsappUsage] = useState<WhatsappApiDashboard["access"] | null>(null);
+  const showAdminWhatsappService = Boolean(
+    whatsappUsage?.isEnabled && !services.some((service) => service.type === "WHATSAPP_API"),
+  );
 
   const load = () => {
     setListLoading(true);
-    return Promise.all([listAddons(), listHostingAccounts()])
-      .then(([addons, hosting]) => {
+    return Promise.all([
+      listAddons(),
+      listHostingAccounts(),
+      getWhatsappApiDashboard().catch(() => null),
+    ])
+      .then(([addons, hosting, whatsapp]) => {
         setServices(addons);
         setPleskServices(hosting.filter((acc) => acc.managementMode === "MANUAL"));
+        setWhatsappUsage(whatsapp?.access ?? null);
       })
       .finally(() => setListLoading(false));
   };
@@ -129,6 +156,32 @@ export default function ServicesPage(): React.ReactElement | null {
         </button>
       </form>
 
+      {!listLoading && showAdminWhatsappService && whatsappUsage ? (
+        <section className="border-outline-variant/50 bg-surface rounded-2xl border p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-primary font-semibold">{tp("categories.WHATSAPP_API")}</p>
+              <p className="text-on-surface-variant mt-1 text-sm">{tp("whatsappAdminActivated")}</p>
+            </div>
+            <StatusBadge status="ACTIVE" />
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <UsageMetric label={tp("whatsappUsed")} value={whatsappUsage.used} />
+            <UsageMetric label={tp("whatsappRemaining")} value={whatsappUsage.remaining} />
+            <UsageMetric label={tp("whatsappFailed")} value={whatsappUsage.failed} />
+          </div>
+
+          <Link
+            href="/dashboard/whatsapp-api"
+            className="apple-btn apple-btn-primary mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold"
+          >
+            <span className="material-symbols-outlined text-base">api</span>
+            {tp("whatsappOpenPanel")}
+          </Link>
+        </section>
+      ) : null}
+
       {pleskServices.length > 0 && (
         <section className="space-y-4">
           <div>
@@ -154,7 +207,7 @@ export default function ServicesPage(): React.ReactElement | null {
 
       {listLoading ? (
         <LoadingSkeletonList rows={3} />
-      ) : services.length === 0 && pleskServices.length === 0 ? (
+      ) : services.length === 0 && pleskServices.length === 0 && !showAdminWhatsappService ? (
         <EmptyState title={tp("empty")} description={tp("emptyDesc")} />
       ) : (
         <ul className="space-y-4">
@@ -187,6 +240,53 @@ export default function ServicesPage(): React.ReactElement | null {
                   <p className="text-on-surface-variant mt-3 whitespace-pre-wrap text-sm">
                     {promoText}
                   </p>
+                )}
+
+                {service.type === "WHATSAPP_API" && (
+                  <div className="mt-4 space-y-3">
+                    {metaNumber(service.metadata, "messageLimit") != null && (
+                      <p className="text-on-surface-variant text-sm">
+                        {tp("whatsappMessageLimit", {
+                          limit: metaNumber(service.metadata, "messageLimit") ?? 0,
+                        })}
+                      </p>
+                    )}
+                    {whatsappUsage && service.status === "ACTIVE" && (
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <div className="bg-surface-container-low rounded-xl px-3 py-2 text-sm">
+                          <span className="text-on-surface-variant block text-xs">
+                            {tp("whatsappUsed")}
+                          </span>
+                          <span className="font-semibold">{whatsappUsage.used}</span>
+                        </div>
+                        <div className="bg-surface-container-low rounded-xl px-3 py-2 text-sm">
+                          <span className="text-on-surface-variant block text-xs">
+                            {tp("whatsappRemaining")}
+                          </span>
+                          <span className="font-semibold">{whatsappUsage.remaining}</span>
+                        </div>
+                        <div className="bg-surface-container-low rounded-xl px-3 py-2 text-sm">
+                          <span className="text-on-surface-variant block text-xs">
+                            {tp("whatsappFailed")}
+                          </span>
+                          <span className="font-semibold">{whatsappUsage.failed ?? 0}</span>
+                        </div>
+                      </div>
+                    )}
+                    {isPendingWhatsapp(service) ? (
+                      <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+                        {tp("whatsappAwaitingActivation")}
+                      </p>
+                    ) : service.status === "ACTIVE" ? (
+                      <Link
+                        href="/dashboard/whatsapp-api"
+                        className="apple-btn apple-btn-primary inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold"
+                      >
+                        <span className="material-symbols-outlined text-base">api</span>
+                        {tp("whatsappOpenPanel")}
+                      </Link>
+                    ) : null}
+                  </div>
                 )}
 
                 {service.type === "LICENSE" && (
@@ -261,6 +361,15 @@ export default function ServicesPage(): React.ReactElement | null {
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+function UsageMetric({ label, value }: { label: string; value: number }): React.ReactElement {
+  return (
+    <div className="bg-surface-container-low rounded-xl px-3 py-2 text-sm">
+      <span className="text-on-surface-variant block text-xs">{label}</span>
+      <span className="font-semibold">{value}</span>
     </div>
   );
 }

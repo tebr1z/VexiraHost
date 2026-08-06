@@ -8,7 +8,9 @@ import { InvoiceReminderJobService } from "./invoice-reminder-job.service";
 import { DomainExpiryJobService } from "@/modules/domains/service/domain-expiry-job.service";
 import { HostingExpiryJobService } from "@/modules/hosting/service/hosting-expiry-job.service";
 import { AddonExpiryJobService } from "@/modules/licenses/service/addon-expiry-job.service";
+import { SystemReportJobService } from "@/modules/monitoring/service/system-report-job.service";
 import { ServerExpiryJobService } from "@/modules/servers/service/server-expiry-job.service";
+import { TicketAutoCloseJobService } from "@/modules/tickets/service/ticket-auto-close-job.service";
 import { LIFECYCLE_QUEUE, QUEUE_CONNECTION, createWorker } from "@/queue/queue.module";
 
 @Injectable()
@@ -24,6 +26,8 @@ export class LifecycleWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly domainExpiry: DomainExpiryJobService,
     private readonly addonExpiry: AddonExpiryJobService,
     private readonly serverExpiry: ServerExpiryJobService,
+    private readonly systemReport: SystemReportJobService,
+    private readonly ticketAutoClose: TicketAutoCloseJobService,
   ) {}
 
   onModuleInit(): void {
@@ -58,6 +62,12 @@ export class LifecycleWorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       case LifecycleJob.SERVER_EXPIRY:
         await this.serverExpiry.tick();
+        return;
+      case LifecycleJob.SYSTEM_HOURLY_REPORT:
+        await this.systemReport.tick();
+        return;
+      case LifecycleJob.TICKET_AUTO_CLOSE:
+        await this.ticketAutoClose.tick();
         return;
       default:
         this.logger.warn(`Ignoring unknown lifecycle job: ${name}`);

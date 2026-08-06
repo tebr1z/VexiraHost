@@ -17,7 +17,9 @@ import type {
 } from "../dto";
 import { AdminCatalogRepository } from "../repository/admin-catalog.repository";
 
+import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
 import { mapProductPrices } from "@/shared/pricing/product-price.util";
+import { expandProductPricesFromUsdSource } from "@/shared/pricing/usd-price-expand.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
 function resolvePlanServerIds(serverIds?: string[], serverId?: string): string[] {
@@ -269,7 +271,19 @@ function digitalFieldsFromDto(dto: {
 
 @Injectable()
 export class AdminCatalogService {
-  constructor(private readonly catalogRepository: AdminCatalogRepository) {}
+  constructor(
+    private readonly catalogRepository: AdminCatalogRepository,
+    private readonly cbarExchange: CbarExchangeService,
+  ) {}
+
+  private async expandPricesFromUsd<
+    T extends { prices?: CreateProductDto["prices"]; isFree?: boolean },
+  >(dto: T): Promise<T["prices"]> {
+    if (dto.isFree || !dto.prices?.length) return dto.prices;
+    const rates = await this.cbarExchange.getRates();
+    const yearlyEnabled = dto.prices.some((p) => p.period === "YEARLY");
+    return expandProductPricesFromUsdSource(dto.prices, rates, yearlyEnabled);
+  }
 
   private async assertHostingServer(serverId: string, panel: HostingPanel) {
     const server = await this.catalogRepository.findHostingServerById(serverId);
@@ -515,11 +529,14 @@ export class AdminCatalogService {
     });
 
     if (dto.prices?.length) {
-      await this.catalogRepository.replaceProductPrices(product.id, dto.prices);
+      const expandedPrices = await this.expandPricesFromUsd(dto);
+      await this.catalogRepository.replaceProductPrices(product.id, expandedPrices ?? dto.prices);
       const primaryMonthly =
-        dto.prices.find((p) => p.currency === "USD" && p.period === "MONTHLY") ??
-        dto.prices.find((p) => p.period === "MONTHLY") ??
-        dto.prices[0];
+        (expandedPrices ?? dto.prices).find(
+          (p) => p.currency === "USD" && p.period === "MONTHLY",
+        ) ??
+        (expandedPrices ?? dto.prices).find((p) => p.period === "MONTHLY") ??
+        (expandedPrices ?? dto.prices)[0];
       if (primaryMonthly) {
         await this.catalogRepository.updateProduct(product.id, {
           price: new Decimal(primaryMonthly.salePrice),
@@ -627,11 +644,17 @@ export class AdminCatalogService {
     });
 
     if (dto.prices) {
-      await this.catalogRepository.replaceProductPrices(product.id, dto.prices);
+      const expandedPrices = await this.expandPricesFromUsd({
+        prices: dto.prices,
+        isFree: dto.isFree ?? current.isFree,
+      });
+      await this.catalogRepository.replaceProductPrices(product.id, expandedPrices ?? dto.prices);
       const primaryMonthly =
-        dto.prices.find((p) => p.currency === "USD" && p.period === "MONTHLY") ??
-        dto.prices.find((p) => p.period === "MONTHLY") ??
-        dto.prices[0];
+        (expandedPrices ?? dto.prices).find(
+          (p) => p.currency === "USD" && p.period === "MONTHLY",
+        ) ??
+        (expandedPrices ?? dto.prices).find((p) => p.period === "MONTHLY") ??
+        (expandedPrices ?? dto.prices)[0];
       if (primaryMonthly) {
         await this.catalogRepository.updateProduct(product.id, {
           price: new Decimal(primaryMonthly.salePrice),

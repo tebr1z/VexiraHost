@@ -82,36 +82,54 @@ export default function ServersPage(): React.ReactElement | null {
               <Link
                 key={server.id}
                 href={`/dashboard/servers/${server.id}`}
-                className="card-3d card-3d-hover border-outline-variant/50 bg-surface hover:border-secondary/40 rounded-2xl border p-5 transition"
+                className="dashboard-nav-card group block rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-primary font-semibold">{server.displayName}</p>
-                    <p className="text-on-surface-variant text-sm">{server.hostname}</p>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="bg-[var(--accent)]/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--accent)]">
+                      <span className="material-symbols-outlined text-[22px]">dns</span>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-[var(--label-primary)] group-hover:text-[var(--accent)]">
+                        {server.displayName}
+                      </p>
+                      <p className="text-sm text-[var(--label-secondary)]">{server.hostname}</p>
+                    </div>
                   </div>
-                  <StatusBadge status={server.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={server.status} />
+                    <span className="dashboard-nav-card-chevron inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--label-tertiary)]">
+                      <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </span>
+                  </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <dt className="text-on-surface-variant">{tc("type")}</dt>
-                    <dd className="font-medium">{server.type}</dd>
+                    <dt className="text-[var(--label-secondary)]">{tc("type")}</dt>
+                    <dd className="font-medium text-[var(--label-primary)]">{server.type}</dd>
                   </div>
                   <div>
-                    <dt className="text-on-surface-variant">{tc("region")}</dt>
-                    <dd className="font-medium">{server.regionLabel}</dd>
+                    <dt className="text-[var(--label-secondary)]">{tc("region")}</dt>
+                    <dd className="font-medium text-[var(--label-primary)]">
+                      {server.regionLabel}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-on-surface-variant">{tc("ip")}</dt>
-                    <dd className="font-medium">{server.ipv4 ?? "—"}</dd>
+                    <dt className="text-[var(--label-secondary)]">{tc("ip")}</dt>
+                    <dd className="font-medium text-[var(--label-primary)]">
+                      {server.ipv4 ?? "—"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-on-surface-variant">{tc("specs")}</dt>
-                    <dd className="font-medium">
+                    <dt className="text-[var(--label-secondary)]">{tc("specs")}</dt>
+                    <dd className="font-medium text-[var(--label-primary)]">
                       {server.cpuCores} vCPU · {server.ramGb}GB RAM
                     </dd>
                   </div>
                 </dl>
-                <p className="text-secondary mt-3 text-sm font-medium">{tc("manageServer")} →</p>
+                <p className="mt-3 text-sm font-medium text-[var(--accent)]">
+                  {tc("manageServer")}
+                </p>
               </Link>
             ))}
           </div>

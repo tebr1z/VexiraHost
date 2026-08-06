@@ -1,6 +1,6 @@
 import { apiClient } from "@/services/api-client";
 
-export type AddonType = "LICENSE" | "SSL" | "EMAIL" | "BACKUP";
+export type AddonType = "LICENSE" | "SSL" | "EMAIL" | "BACKUP" | "WHATSAPP_API";
 
 export interface AddonService {
   id: string;

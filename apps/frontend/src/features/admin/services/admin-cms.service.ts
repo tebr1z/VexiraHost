@@ -1,5 +1,3 @@
-import { apiClient } from "@/services/api-client";
-
 import type {
   AdminCmsPage,
   AdminCmsPageSummary,
@@ -8,6 +6,7 @@ import type {
   CmsSectionType,
   I18nText,
 } from "@/features/cms/types";
+import { apiClient } from "@/services/api-client";
 
 export async function listAdminCmsPages(): Promise<AdminCmsPageSummary[]> {
   const response = await apiClient.request<AdminCmsPageSummary[]>("/admin/cms/pages");
@@ -15,9 +14,39 @@ export async function listAdminCmsPages(): Promise<AdminCmsPageSummary[]> {
 }
 
 export async function getAdminCmsPage(slug: string): Promise<AdminCmsPage> {
-  const response = await apiClient.request<AdminCmsPage>(`/admin/cms/pages/${encodeURIComponent(slug)}`);
+  const response = await apiClient.request<AdminCmsPage>(
+    `/admin/cms/pages/${encodeURIComponent(slug)}`,
+  );
   return response.data as AdminCmsPage;
 }
+
+export async function createAdminCmsPage(input: {
+  slug: string;
+  title: I18nText;
+  parentSlug?: string;
+  pathSegment?: string;
+  sortOrder?: number;
+  template?: "license-catalog";
+  productSlugs?: string[];
+  isActive?: boolean;
+}): Promise<AdminCmsPage> {
+  const response = await apiClient.request<AdminCmsPage>("/admin/cms/pages", {
+    method: "POST",
+    body: input,
+  });
+  return response.data as AdminCmsPage;
+}
+
+export async function deleteAdminCmsPage(slug: string): Promise<void> {
+  await apiClient.request(`/admin/cms/pages/${encodeURIComponent(slug)}`, { method: "DELETE" });
+}
+
+export const LICENSE_CMS_SECTIONS = [
+  { slug: "licenses-windows", labelKey: "sectionWindows", pathPrefix: "windows" },
+  { slug: "licenses-server", labelKey: "sectionServer", pathPrefix: "server" },
+  { slug: "licenses-office", labelKey: "sectionOffice", pathPrefix: "office" },
+  { slug: "licenses-antivirus", labelKey: "sectionAntivirus", pathPrefix: "antivirus" },
+] as const;
 
 export async function createAdminCmsSection(
   pageSlug: string,

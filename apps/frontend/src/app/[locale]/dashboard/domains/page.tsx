@@ -33,7 +33,7 @@ export default function DomainsPage(): React.ReactElement | null {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title={tp("title")}
         description={tp("description")}
@@ -42,10 +42,7 @@ export default function DomainsPage(): React.ReactElement | null {
           { label: t("nav.domains") },
         ]}
         actions={
-          <Link
-            href="/domains/search"
-            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold"
-          >
+          <Link href="/domains/search" className="dashboard-btn-primary">
             {tp("emptyAction")}
           </Link>
         }
@@ -63,13 +60,19 @@ export default function DomainsPage(): React.ReactElement | null {
         <DataTable
           data={domains as unknown as Record<string, unknown>[]}
           getRowKey={(row) => String(row.id)}
+          getRowHref={(row) => `/dashboard/domains/${String(row.id)}`}
           columns={[
             {
               key: "name",
               header: "Domain",
               sortable: true,
               render: (row) => (
-                <span className="font-semibold">{(row as unknown as UserDomain).name}</span>
+                <span className="inline-flex items-center gap-2 font-semibold text-[var(--label-primary)] group-hover:text-[var(--accent)]">
+                  <span className="bg-[var(--accent)]/10 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)]">
+                    <span className="material-symbols-outlined text-[18px]">language</span>
+                  </span>
+                  {(row as unknown as UserDomain).name}
+                </span>
               ),
             },
             {
@@ -101,6 +104,7 @@ export default function DomainsPage(): React.ReactElement | null {
             {
               key: "actions",
               header: tt("actions"),
+              stopRowClick: true,
               render: (row) => {
                 const d = row as unknown as UserDomain;
                 return (
@@ -114,6 +118,7 @@ export default function DomainsPage(): React.ReactElement | null {
                             : "/dashboard/invoices"
                         }
                         className="text-xs font-semibold text-amber-800 hover:underline"
+                        data-stop-row-click="true"
                       >
                         {tc("payInvoice")}
                       </Link>

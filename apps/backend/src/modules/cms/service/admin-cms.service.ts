@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 
 import type {
@@ -13,8 +9,9 @@ import type {
   UpdateCmsSectionDto,
 } from "../dto/cms.dto";
 import { CmsRepository } from "../repository/cms.repository";
-import { CmsService } from "./cms.service";
 import { toJsonValue } from "../utils/cms-i18n.util";
+
+import { CmsService } from "./cms.service";
 
 @Injectable()
 export class AdminCmsService {
@@ -35,12 +32,86 @@ export class AdminCmsService {
     const existing = await this.repository.findPageBySlug(dto.slug);
     if (existing) throw new ConflictException("Page slug already exists");
 
+    if (dto.pathSegment) {
+      const pathConflict = await this.repository.findPageByPathSegment(dto.pathSegment);
+      if (pathConflict) throw new ConflictException("Path segment already in use");
+    }
+
     const page = await this.repository.createPage({
       slug: dto.slug,
       title: toJsonValue(dto.title),
+      parentSlug: dto.parentSlug ?? null,
+      pathSegment: dto.pathSegment ?? null,
+      sortOrder: dto.sortOrder ?? 0,
       isActive: dto.isActive ?? true,
     });
+
+    if (dto.template === "license-catalog") {
+      await this.createLicenseCatalogTemplate(page.id, dto);
+    }
+
     return this.cmsService.getAdminPage(page.slug);
+  }
+
+  private async createLicenseCatalogTemplate(pageId: string, dto: CreateCmsPageDto): Promise<void> {
+    const title = dto.title;
+    await this.repository.createSection({
+      page: { connect: { id: pageId } },
+      key: "hero",
+      type: "HERO",
+      sortOrder: 0,
+      isActive: true,
+      design: toJsonValue({ variant: "gradient", padding: "lg" }),
+      content: toJsonValue({
+        title,
+        subtitle: {
+          tr: "Orijinal lisans — anında teslim ve panelden yönetim.",
+          en: "Genuine license — instant delivery and panel management.",
+          ru: "Оригинальная лицензия — мгновенная доставка и управление в панели.",
+          az: "Orijinal lisenziya — ani çatdırılma və paneldən idarə.",
+        },
+        ctaPrimary: {
+          tr: "Paketleri gör",
+          en: "See plans",
+          ru: "Смотреть тарифы",
+          az: "Paketlara bax",
+        },
+        ctaPrimaryHref: "#license-products",
+        ctaSecondary: {
+          tr: "Tüm lisanslar",
+          en: "All licenses",
+          ru: "Все лицензии",
+          az: "Bütün lisenziyalar",
+        },
+        ctaSecondaryHref: "/licenses",
+      }),
+    });
+
+    const catalogContent: Record<string, unknown> = {
+      template: "catalog",
+      categorySlug: "license",
+      anchorId: "license-products",
+      title,
+      subtitle: {
+        tr: "İhtiyacınıza uygun lisansı seçin.",
+        en: "Choose the license that fits your needs.",
+        ru: "Выберите подходящую лицензию.",
+        az: "Ehtiyacınıza uyğun lisenziyanı seçin.",
+      },
+    };
+    if (dto.productSlugs?.length) {
+      catalogContent.productSlugs = dto.productSlugs;
+    }
+
+    await this.repository.createSection({
+      page: { connect: { id: pageId } },
+      key: "products",
+      type: "CUSTOM",
+      sortOrder: 1,
+      isActive: true,
+      design: toJsonValue({ padding: "lg", columns: 3 }),
+      content: toJsonValue(catalogContent),
+    });
   }
 
   async updatePage(slug: string, dto: UpdateCmsPageDto) {
@@ -56,6 +127,9 @@ export class AdminCmsService {
     if (dto.slug !== undefined) data.slug = dto.slug;
     if (dto.title !== undefined) data.title = toJsonValue(dto.title);
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.parentSlug !== undefined) data.parentSlug = dto.parentSlug;
+    if (dto.pathSegment !== undefined) data.pathSegment = dto.pathSegment;
+    if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
 
     await this.repository.updatePage(page.id, data);
     return this.cmsService.getAdminPage(dto.slug ?? page.slug);

@@ -26,6 +26,25 @@ export class SendWhatsappMessageDto {
   message!: string;
 }
 
+export class CreateWhatsappGatewayAccountDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  label!: string;
+}
+
+export class UpdateWhatsappGatewayAccountDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  label?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isEnabled?: boolean;
+}
+
 export class CreateWhatsappApiKeyDto {
   @IsString()
   @MinLength(1)

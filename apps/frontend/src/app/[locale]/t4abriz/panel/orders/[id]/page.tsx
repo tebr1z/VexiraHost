@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { PageHeader, StatusBadge } from "@/components/ui";
 import {
   deliverAdminLicense,
+  deliverAdminWhatsappApi,
   fulfillAdminOrder,
   getAdminOrder,
   type AdminOrderDetail,
@@ -35,6 +36,7 @@ export default function AdminOrderDetailPage(): React.ReactElement | null {
   const [alreadyDeployed, setAlreadyDeployed] = useState(false);
   const [licenseKeys, setLicenseKeys] = useState<Record<string, string>>({});
   const [sendingItemId, setSendingItemId] = useState<string | null>(null);
+  const [activatingWhatsappId, setActivatingWhatsappId] = useState<string | null>(null);
 
   const load = () =>
     getAdminOrder(id)
@@ -74,6 +76,19 @@ export default function AdminOrderDetailPage(): React.ReactElement | null {
       toast(getApiErrorMessage(err, tp("licenseSendFailed")), "error");
     } finally {
       setSendingItemId(null);
+    }
+  };
+
+  const handleActivateWhatsapp = async (orderItemId: string) => {
+    setActivatingWhatsappId(orderItemId);
+    try {
+      const updated = await deliverAdminWhatsappApi(id, { orderItemId });
+      setOrder(updated);
+      toast(tp("whatsappActivated"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("whatsappActivateFailed")), "error");
+    } finally {
+      setActivatingWhatsappId(null);
     }
   };
 
@@ -161,13 +176,26 @@ export default function AdminOrderDetailPage(): React.ReactElement | null {
         <ul className="divide-outline-variant/30 divide-y">
           {order.items.map((item) => {
             const meta = item.metadata as { primaryDomain?: string } | null;
-            const isLicense = item.productCategory === "LICENSE" || item.deliveryMode === "MANUAL";
+            const isLicense = item.productCategory === "LICENSE" && item.deliveryMode === "MANUAL";
+            const isWhatsappApi = item.productCategory === "WHATSAPP_API";
             const canSend =
+              isLicense &&
               item.deliveryMode === "MANUAL" &&
               (!item.licenseDelivery ||
                 item.licenseDelivery.pendingManualDelivery ||
                 item.licenseDelivery.status === "PROVISIONING");
             const delivered =
+              isLicense &&
+              Boolean(item.licenseDelivery) &&
+              !item.licenseDelivery?.pendingManualDelivery &&
+              item.licenseDelivery?.status === "ACTIVE";
+            const whatsappPending =
+              isWhatsappApi &&
+              (!item.licenseDelivery ||
+                item.licenseDelivery.pendingManualDelivery ||
+                item.licenseDelivery.status === "PROVISIONING");
+            const whatsappActivated =
+              isWhatsappApi &&
               Boolean(item.licenseDelivery) &&
               !item.licenseDelivery?.pendingManualDelivery &&
               item.licenseDelivery?.status === "ACTIVE";
@@ -194,7 +222,7 @@ export default function AdminOrderDetailPage(): React.ReactElement | null {
                   </p>
                 </div>
 
-                {isAdmin && isLicense && item.deliveryMode === "MANUAL" && (
+                {isAdmin && isLicense && (
                   <div className="border-outline-variant/50 bg-surface-container-low/50 rounded-xl border p-4">
                     {delivered ? (
                       <div className="space-y-1 text-sm">
@@ -228,6 +256,38 @@ export default function AdminOrderDetailPage(): React.ReactElement | null {
                           </button>
                         </div>
                         {!item.licenseDelivery && (
+                          <p className="text-on-surface-variant text-xs">
+                            {tp("awaitingFulfillHint")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isAdmin && isWhatsappApi && (
+                  <div className="border-outline-variant/50 bg-surface-container-low/50 rounded-xl border p-4">
+                    {whatsappActivated ? (
+                      <p className="text-primary text-sm font-medium">
+                        {tp("whatsappActivatedLabel")}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium">{tp("whatsappActivationTitle")}</p>
+                        <p className="text-on-surface-variant text-xs">
+                          {tp("whatsappActivationHint")}
+                        </p>
+                        <button
+                          type="button"
+                          disabled={activatingWhatsappId === item.id}
+                          onClick={() => void handleActivateWhatsapp(item.id)}
+                          className="bg-primary text-on-primary inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+                        >
+                          {activatingWhatsappId === item.id
+                            ? tp("whatsappActivating")
+                            : tp("whatsappActivate")}
+                        </button>
+                        {whatsappPending && !item.licenseDelivery && (
                           <p className="text-on-surface-variant text-xs">
                             {tp("awaitingFulfillHint")}
                           </p>
