@@ -59,7 +59,7 @@
     "showcaseVps": "VPS Cloud",
     "showcasePanel": "İdarəetmə Paneli",
     "showcaseLive": "Canlı",
-    "showcaseLatency": "10ms gecikmə",
+    "showcaseLatency": "Anlıq idarə",
     "marquee": [
       "30 gün pul geri",
       "Canlı dəstək, 7/24",
@@ -336,8 +336,8 @@
       },
       "WHATSAPP_API": {
         "f1": "REST API ilə mesaj göndərmə",
-        "f2": "Aylıq mesaj kvotası izləmə",
-        "f3": "Admin təsdiqindən sonra aktivləşmə"
+        "f2": "Aylıq mesaj limitinin izlənməsi",
+        "f3": "Ödənişdən sonra yoxlama ilə aktivləşmə"
       }
     },
     "plans": {
@@ -450,12 +450,12 @@
   "infra": {
     "eyebrow": "İstifadəçinizə daha yaxın",
     "networkTitle": "Harada olsanız, sürətli qalsın",
-    "networkDesc": "24+ nöqtədə iş yüklərinizi auditoriyanıza yaxın yerləşdirin. Orta gecikmə ~10ms — ziyarətçi üçün cəld, sizin üçün rahat.",
+    "networkDesc": "24+ nöqtədə iş yüklərinizi auditoriyanıza yaxın yerləşdirin. NVMe depolama və güclü omurga ilə ziyarətçi üçün cəld, sizin üçün rahat.",
     "mapAlt": "Mərkəz yerləşmələrini göstərən qlobal şəbəkə xəritəsi",
     "legendActive": "Aktiv PoP",
     "legendRoutes": "Canlı marşrutlar",
     "popsLabel": "Qlobal PoP",
-    "latencyLabel": "Orta gecikmə",
+    "nvmeLabel": "NVMe depolama",
     "guardTitle": "Həmişə açıq qalxan",
     "guardDesc": "2,5Tbps-ə qədər DDoS qorunması və korporativ firewall — başqaları dayananda sizin trafik axır.",
     "systemStatus": "Sistem Statusu",
@@ -475,7 +475,7 @@
     "nodeStorage": "Storage",
     "metricThroughput": "Ani ötürülmə",
     "metricPackets": "Ötürülən paket",
-    "metricLatency": "Orta gecikmə"
+    "metricSsl": "Şifrəli yol"
   },
   "homeJourney": {
     "eyebrow": "Hazır olduğunuzda hazırıq",
@@ -968,7 +968,7 @@
         "whatsappUsed": "Göndərilən",
         "whatsappRemaining": "Qalan",
         "whatsappFailed": "Uğursuz",
-        "whatsappAwaitingActivation": "Ödəniş alındı. WhatsApp API admin təsdiqindən sonra aktiv olacaq.",
+        "whatsappAwaitingActivation": "Ödəniş alındı. Paket qısa yoxlamadan sonra aktivləşəcək.",
         "whatsappOpenPanel": "WhatsApp API paneli",
         "whatsappAdminActivated": "Administrator tərəfindən aktivləşdirilib.",
         "licenseKey": "Aktivasiya açarı",
@@ -1163,12 +1163,12 @@
         "keysTitle": "API açarları",
         "keysHelp": "Maksimum {max} aktiv açar istifadə edin. Açarları istənilən vaxt passiv və aktiv edə bilərsiniz.",
         "supportTitle": "API girişi aktiv deyil",
-        "supportHelp": "API girişi və göndəriş limiti üçün dəstək və ya WhatsApp vasitəsilə bizimlə əlaqə saxlayın.",
-        "profanityPolicy": "Söyüş, təhqir və uyğun olmayan məzmunlu mesajlar hər dildə bloklanır.",
+        "supportHelp": "Məhsullardan WhatsApp API paketi alın və ya dəstəyə yazın. Ödənişdən sonra qısa yoxlama ilə API girişi açılır.",
+        "profanityPolicy": "Uyğunsuz dil, təhqir və qəbuledilməz məzmunlu mesajlar bütün dillərdə avtomatik bloklanır.",
         "contactSupport": "Dəstəyə yaz",
         "browseProducts": "Məhsullara bax",
-        "pendingTitle": "Təsdiq gözlənilir",
-        "pendingHelp": "Ödənişiniz qəbul edilib. Zəhmət olmasa admin təsdiqini gözləyin və ya dəstək ilə əlaqə saxlayın.",
+        "pendingTitle": "Aktivləşmə gözlənilir",
+        "pendingHelp": "Ödənişiniz qəbul edilib. Paket tezliklə yoxlanıb aktivləşəcək — suallar üçün dəstəyə yaza bilərsiniz.",
         "unavailableTitle": "Bu xidmət sizin üçün əlçatan deyil",
         "unavailableHelp": "Bu xidməti satın almamısınız və ya hesabınız üçün hələ giriş təyin edilməyib.",
         "viewDocumentation": "Sənədləşməyə bax",
@@ -1466,7 +1466,7 @@
         "licenseDelivered": "Aktivasiya kodu təslim edildi",
         "awaitingFulfillHint": "Gözləyən xidmət yoxdursa əvvəlcə ödəniş/fulfillment tamamlayın.",
         "whatsappActivationTitle": "WhatsApp API-ni aktivləşdir",
-        "whatsappActivationHint": "Müştəri ödənişi tamamladı. Təsdiqlədikdən sonra mesaj kvotası təyin edilir və Xidmətlər bölməsində görünür.",
+        "whatsappActivationHint": "Müştəri ödənişi tamamladı. Təsdiqlədikdən sonra mesaj limiti təyin olunur və xidmət paneldə görünür.",
         "whatsappActivate": "WhatsApp API-ni təsdiqlə",
         "whatsappActivating": "Aktivləşdirilir…",
         "whatsappActivated": "WhatsApp API girişi açıldı",

@@ -235,7 +235,7 @@ const products = [
     slug: "whatsapp-api-5000",
     name: "WhatsApp API — 5.000 mesaj",
     description:
-      "Aylıq 5.000 WhatsApp mesaj paketi.\n• REST API inteqrasiyası\n• Ödənişdən sonra admin təsdiqi tələb olunur\n• Küfür və təhqiramiz məzmun qadağandır",
+      "Aylıq 5.000 WhatsApp mesaj paketi.\n• REST API ilə mesaj göndərmə\n• Aylıq mesaj limiti paneldə izlənir\n• Ödənişdən sonra qısa yoxlama ilə aktivləşmə\n• Uyğunsuz və təhqiredici məzmun bloklanır",
     category: ProductCategory.WHATSAPP_API,
     price: 1.0,
     currency: "AZN",
@@ -247,7 +247,7 @@ const products = [
     slug: "whatsapp-api-15000",
     name: "WhatsApp API — 15.000 mesaj",
     description:
-      "Aylıq 15.000 WhatsApp mesaj paketi.\n• REST API inteqrasiyası\n• Ödənişdən sonra admin təsdiqi tələb olunur\n• Küfür və təhqiramiz məzmun qadağandır",
+      "Aylıq 15.000 WhatsApp mesaj paketi.\n• REST API ilə mesaj göndərmə\n• Aylıq mesaj limiti paneldə izlənir\n• Ödənişdən sonra qısa yoxlama ilə aktivləşmə\n• Uyğunsuz və təhqiredici məzmun bloklanır",
     category: ProductCategory.WHATSAPP_API,
     price: 1.5,
     currency: "AZN",

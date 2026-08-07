@@ -7,16 +7,16 @@ import { projectLonLat, WorldLandmass } from "./world-landmass";
 
 /** Real city lat/lon → projected onto the equirectangular land map */
 const POP_LOCS = [
-  { id: "nyc", lon: -74.0, lat: 40.7, ping: "12ms" },
-  { id: "fra", lon: 8.7, lat: 50.1, ping: "8ms" },
-  { id: "ams", lon: 4.9, lat: 52.4, ping: "9ms" },
-  { id: "ist", lon: 29.0, lat: 41.0, ping: "11ms" },
-  { id: "dxb", lon: 55.3, lat: 25.2, ping: "14ms" },
-  { id: "sgp", lon: 103.8, lat: 1.3, ping: "18ms" },
-  { id: "tyo", lon: 139.7, lat: 35.7, ping: "22ms" },
-  { id: "syd", lon: 151.2, lat: -33.9, ping: "28ms" },
-  { id: "sao", lon: -46.6, lat: -23.5, ping: "24ms" },
-  { id: "lax", lon: -118.2, lat: 34.0, ping: "16ms" },
+  { id: "nyc", lon: -74.0, lat: 40.7 },
+  { id: "fra", lon: 8.7, lat: 50.1 },
+  { id: "ams", lon: 4.9, lat: 52.4 },
+  { id: "ist", lon: 29.0, lat: 41.0 },
+  { id: "dxb", lon: 55.3, lat: 25.2 },
+  { id: "sgp", lon: 103.8, lat: 1.3 },
+  { id: "tyo", lon: 139.7, lat: 35.7 },
+  { id: "syd", lon: 151.2, lat: -33.9 },
+  { id: "sao", lon: -46.6, lat: -23.5 },
+  { id: "lax", lon: -118.2, lat: 34.0 },
 ] as const;
 
 const POPS = POP_LOCS.map((pop) => {
@@ -90,7 +90,7 @@ export function InfrastructureSection(): React.ReactElement {
                 })}
 
                 {POPS.map((pop, i) => (
-                  <g key={pop.id} aria-label={`${pop.id.toUpperCase()} ${pop.ping}`}>
+                  <g key={pop.id} aria-label={pop.id.toUpperCase()}>
                     <circle
                       cx={pop.cx}
                       cy={pop.cy}
@@ -117,7 +117,7 @@ export function InfrastructureSection(): React.ReactElement {
             {[
               { value: "99.99%", label: t("uptimeSla") },
               { value: "24+", label: t("popsLabel") },
-              { value: "10ms", label: t("latencyLabel") },
+              { value: "NVMe", label: t("nvmeLabel") },
               { value: "120TB", label: t("coreBackbone") },
             ].map((stat) => (
               <div key={stat.label} className="px-4 py-5 text-center">

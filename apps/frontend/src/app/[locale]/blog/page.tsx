@@ -1,18 +1,70 @@
+import { getLocale } from "next-intl/server";
+
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { getBlogUi, listBlogPosts, type BlogCategoryId } from "@/content/blog";
 import { Link } from "@/i18n/navigation";
 
-export default function BlogPage(): React.ReactElement {
+function formatDate(iso: string, locale: string): string {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export default async function BlogPage(): Promise<React.ReactElement> {
+  const locale = await getLocale();
+  const ui = getBlogUi(locale);
+  const posts = listBlogPosts(locale);
+
   return (
     <MarketingShell>
-      <section className="apple-page py-20">
-        <div className="mx-auto max-w-3xl px-5 text-center md:px-8">
-          <h1 className="text-4xl font-semibold tracking-tight text-[var(--label)]">Blog</h1>
-          <p className="mt-4 text-[17px] text-[var(--label-secondary)]">
-            Blog sayfasi yakinda. Lisans, hosting, VPS/VDS, VPN ve deploy icerikleri yayinlanacak.
-          </p>
-          <Link href="/forum" className="apple-btn apple-btn-ghost mt-8 inline-flex px-6">
-            Forum sayfasina git
-          </Link>
+      <section className="apple-page py-16 sm:py-20">
+        <div className="mx-auto max-w-5xl px-5 md:px-8">
+          <header className="max-w-2xl">
+            <h1 className="text-3xl font-semibold tracking-tight text-[var(--label)] sm:text-4xl">
+              {ui.title}
+            </h1>
+            <p className="mt-3 text-base text-[var(--label-secondary)] sm:text-lg">{ui.subtitle}</p>
+          </header>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {posts.map((post) => {
+              const category = ui.categories[post.category as BlogCategoryId];
+              return (
+                <article
+                  key={post.slug}
+                  className="flex flex-col rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 sm:p-6"
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--label-tertiary)]">
+                    <span className="text-[var(--accent)]">{category}</span>
+                    <span aria-hidden>·</span>
+                    <time dateTime={post.publishedAt}>{formatDate(post.publishedAt, locale)}</time>
+                    <span aria-hidden>·</span>
+                    <span>{ui.readingTime.replace("{minutes}", String(post.readingMinutes))}</span>
+                  </div>
+                  <h2 className="mt-3 text-lg font-semibold tracking-tight text-[var(--label)] sm:text-xl">
+                    <Link href={`/blog/${post.slug}`} className="hover:text-[var(--accent)]">
+                      {post.title}
+                    </Link>
+                  </h2>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--label-secondary)]">
+                    {post.excerpt}
+                  </p>
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="mt-4 inline-flex text-sm font-semibold text-[var(--accent)] hover:underline"
+                  >
+                    {ui.readMore} →
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
         </div>
       </section>
     </MarketingShell>

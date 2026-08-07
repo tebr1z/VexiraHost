@@ -59,7 +59,7 @@
     "showcaseVps": "VPS Cloud",
     "showcasePanel": "Kontrol Paneli",
     "showcaseLive": "Canlı",
-    "showcaseLatency": "10ms gecikme",
+    "showcaseLatency": "Anlık kontrol",
     "marquee": [
       "30 gün para iade",
       "Canlı destek, 7/24",
@@ -336,8 +336,8 @@
       },
       "WHATSAPP_API": {
         "f1": "REST API ile mesaj gönderimi",
-        "f2": "Aylık mesaj kotası takibi",
-        "f3": "Admin onayından sonra aktivasyon"
+        "f2": "Aylık mesaj kotasının takibi",
+        "f3": "Ödeme sonrası inceleme ile aktivleşme"
       }
     },
     "plans": {
@@ -450,12 +450,12 @@
   "infra": {
     "eyebrow": "Kullanıcınıza daha yakın",
     "networkTitle": "Nerede olursanız olun hızlı kalsın",
-    "networkDesc": "24+ noktada iş yüklerinizi kitlenize yaklaştırın. Ortalama gecikme ~10ms — ziyaretçi için çevik, sizin için rahat.",
+    "networkDesc": "24+ noktada iş yüklerinizi kitlenize yaklaştırın. NVMe depolama ve güçlü omurga ile ziyaretçi için çevik, sizin için rahat.",
     "mapAlt": "Veri merkezi konumlarını gösteren küresel ağ haritası",
     "legendActive": "Aktif PoP",
     "legendRoutes": "Canlı rotalar",
     "popsLabel": "Küresel PoP",
-    "latencyLabel": "Ortalama gecikme",
+    "nvmeLabel": "NVMe depolama",
     "guardTitle": "Hep açık kalkan",
     "guardDesc": "2,5Tbps’e kadar DDoS koruması ve kurumsal güvenlik duvarı — başkaları takılırken trafiğiniz akar.",
     "systemStatus": "Sistem Durumu",
@@ -475,7 +475,7 @@
     "nodeStorage": "Storage",
     "metricThroughput": "Anlık aktarım",
     "metricPackets": "Taşınan paket",
-    "metricLatency": "Ortalama gecikme"
+    "metricSsl": "Şifreli yol"
   },
   "homeJourney": {
     "eyebrow": "Siz hazır olduğunuzda biz de hazırız",
@@ -968,7 +968,7 @@
         "whatsappUsed": "Gönderilen",
         "whatsappRemaining": "Kalan",
         "whatsappFailed": "Başarısız",
-        "whatsappAwaitingActivation": "Ödeme alındı. WhatsApp API admin onayından sonra aktif olacak.",
+        "whatsappAwaitingActivation": "Ödeme alındı. Paket kısa incelemeden sonra aktif olacak.",
         "whatsappOpenPanel": "WhatsApp API paneli",
         "whatsappAdminActivated": "Yönetici tarafından etkinleştirildi.",
         "licenseKey": "Aktivasyon anahtarı",
@@ -1163,12 +1163,12 @@
         "keysTitle": "API anahtarları",
         "keysHelp": "En fazla {max} aktif anahtar kullanın. Anahtarları istediğiniz zaman pasif veya aktif yapabilirsiniz.",
         "supportTitle": "API erişimi aktif değil",
-        "supportHelp": "Ürünler bölümünden WhatsApp API paketi satın alabilir veya destekle iletişime geçebilirsiniz. Admin onayından sonra API erişimi açılır.",
-        "profanityPolicy": "Küfür, hakaret ve uygunsuz içerik içeren mesajlar her dilde engellenir.",
+        "supportHelp": "Ürünler bölümünden WhatsApp API paketi satın alabilir veya destekle iletişime geçebilirsiniz. Ödeme sonrası kısa inceleme ile API erişimi açılır.",
+        "profanityPolicy": "Uygunsuz dil, hakaret ve kabul edilemez içerik içeren mesajlar her dilde otomatik engellenir.",
         "contactSupport": "Desteğe yaz",
         "browseProducts": "Ürünleri gör",
-        "pendingTitle": "Onay bekleniyor",
-        "pendingHelp": "Ödemeniz alındı. Lütfen admin onayını bekleyin veya destek ile iletişime geçin.",
+        "pendingTitle": "Aktivasyon bekleniyor",
+        "pendingHelp": "Ödemeniz alındı. Paket kısa süre içinde incelenip aktif edilecek — sorularınız için desteğe yazabilirsiniz.",
         "unavailableTitle": "Bu hizmet size açık değil",
         "unavailableHelp": "Bu hizmeti satın almadınız veya hesabınız için henüz erişim tanımlanmadı.",
         "viewDocumentation": "Dokümantasyonu görüntüle",

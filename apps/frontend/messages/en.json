@@ -71,7 +71,7 @@
     "showcaseVps": "VPS Cloud",
     "showcasePanel": "Control Panel",
     "showcaseLive": "Live",
-    "showcaseLatency": "10ms latency",
+    "showcaseLatency": "Live control",
     "marquee": [
       "30-day money-back",
       "Real humans, 24/7",
@@ -348,8 +348,8 @@
       },
       "WHATSAPP_API": {
         "f1": "Send messages via REST API",
-        "f2": "Monthly message quota tracking",
-        "f3": "Activation after admin approval"
+        "f2": "Track your monthly message quota",
+        "f3": "Goes live after a quick post-payment review"
       }
     },
     "plans": {
@@ -462,12 +462,12 @@
   "infra": {
     "eyebrow": "Closer to your users",
     "networkTitle": "A network built for speed everywhere",
-    "networkDesc": "Put your workloads near your audience across 24+ locations. Average latency around 10ms — snappy for visitors, calm for you.",
+    "networkDesc": "Put your workloads near your audience across 24+ locations. NVMe storage and a strong backbone — snappy for visitors, calm for you.",
     "mapAlt": "Global network map with data center locations",
     "legendActive": "Active PoP",
     "legendRoutes": "Live routes",
     "popsLabel": "Global PoPs",
-    "latencyLabel": "Avg latency",
+    "nvmeLabel": "NVMe storage",
     "guardTitle": "Shield that stays on",
     "guardDesc": "DDoS mitigation up to 2.5Tbps plus enterprise firewalls — so your traffic keeps flowing when others stall.",
     "systemStatus": "System Status",
@@ -487,7 +487,7 @@
     "nodeStorage": "Storage",
     "metricThroughput": "Live throughput",
     "metricPackets": "Packets moved",
-    "metricLatency": "Avg latency"
+    "metricSsl": "Encrypted path"
   },
   "homeJourney": {
     "eyebrow": "Ready when you are",
@@ -980,7 +980,7 @@
         "whatsappUsed": "Sent",
         "whatsappRemaining": "Remaining",
         "whatsappFailed": "Failed",
-        "whatsappAwaitingActivation": "Payment received. WhatsApp API will activate after admin approval.",
+        "whatsappAwaitingActivation": "Payment received. WhatsApp API will go live after a short review.",
         "whatsappOpenPanel": "Open WhatsApp API panel",
         "whatsappAdminActivated": "Enabled by an administrator.",
         "licenseKey": "Activation key",
@@ -1175,12 +1175,12 @@
         "keysTitle": "API keys",
         "keysHelp": "Keep up to {max} active keys. Deactivate and reactivate keys whenever needed.",
         "supportTitle": "API access is not active",
-        "supportHelp": "Purchase a WhatsApp API package from Products or contact support. API access opens after admin approval.",
-        "profanityPolicy": "Messages containing profanity, insults, or inappropriate content are blocked in any language.",
+        "supportHelp": "Purchase a WhatsApp API package from Products or contact support. After payment, a short review unlocks API access.",
+        "profanityPolicy": "Messages with abusive language, insults, or inappropriate content are blocked automatically in every language.",
         "contactSupport": "Contact support",
         "browseProducts": "Browse products",
-        "pendingTitle": "Approval pending",
-        "pendingHelp": "Your payment was received. Please wait for administrator approval or contact support.",
+        "pendingTitle": "Activation pending",
+        "pendingHelp": "Your payment was received. Our team will complete a short review and enable the API — contact support if you need help.",
         "unavailableTitle": "This service is not available to you",
         "unavailableHelp": "You have not purchased this service or access has not yet been assigned to your account.",
         "viewDocumentation": "View documentation",

@@ -193,9 +193,9 @@ export function DataTransferSection(): React.ReactElement {
               </div>
               <div className="rounded-2xl bg-[var(--bg-secondary)] px-4 py-4 text-center">
                 <p className="data-transfer-metric text-2xl font-semibold tracking-tight text-[var(--label)] sm:text-3xl">
-                  8<span className="text-sm font-medium text-[var(--label-tertiary)]">ms</span>
+                  SSL
                 </p>
-                <p className="mt-1 text-xs text-[var(--label-tertiary)]">{t("metricLatency")}</p>
+                <p className="mt-1 text-xs text-[var(--label-tertiary)]">{t("metricSsl")}</p>
               </div>
             </div>
           </div>
