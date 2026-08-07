@@ -64,21 +64,21 @@
     "trust1": "30-day money-back",
     "trust2": "Real humans, 24/7",
     "trust3": "Live in minutes",
-    "socialProof": "Trusted by 5,000+ live projects",
+    "socialProof": "Customer satisfaction above all",
     "highlight": "Less waiting. More shipping. Infrastructure that keeps up.",
     "scrollHint": "See what’s inside",
     "showcaseHosting": "Web Hosting",
     "showcaseVps": "VPS Cloud",
     "showcasePanel": "Control Panel",
     "showcaseLive": "Live",
-    "showcaseLatency": "12ms latency",
+    "showcaseLatency": "10ms latency",
     "marquee": [
       "30-day money-back",
       "Real humans, 24/7",
       "Live in minutes",
-      "Trusted by 5,000+ live projects",
+      "Customer satisfaction above all",
       "Less waiting. More shipping.",
-      "Free SSL · NVMe · 99.9% uptime"
+      "Free SSL · NVMe · 99.99% uptime"
     ]
   },
   "domain": {

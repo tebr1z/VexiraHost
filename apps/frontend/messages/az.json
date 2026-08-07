@@ -52,21 +52,21 @@
     "trust1": "30 gün pul geri",
     "trust2": "Canlı dəstək, 7/24",
     "trust3": "Dəqiqələrlə yayım",
-    "socialProof": "5.000+ canlı layihə bizə güvənir",
+    "socialProof": "Müştəri məmnuniyyəti hər şeydən üstündür",
     "highlight": "Gözləməyə yox. Nəticəyə bəli. Sizinlə ayaqlaşan infrastruktur.",
     "scrollHint": "İçəri baxın",
     "showcaseHosting": "Web Hosting",
     "showcaseVps": "VPS Cloud",
     "showcasePanel": "İdarəetmə Paneli",
     "showcaseLive": "Canlı",
-    "showcaseLatency": "12ms gecikmə",
+    "showcaseLatency": "10ms gecikmə",
     "marquee": [
       "30 gün pul geri",
       "Canlı dəstək, 7/24",
       "Dəqiqələrlə yayım",
-      "5.000+ canlı layihə bizə güvənir",
+      "Müştəri məmnuniyyəti hər şeydən üstündür",
       "Gözləməyə yox. Nəticəyə bəli.",
-      "Pulsuz SSL · NVMe · %99.9 uptime"
+      "Pulsuz SSL · NVMe · 99.99% uptime"
     ]
   },
   "domain": {
