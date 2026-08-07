@@ -282,6 +282,12 @@
       0 10px 28px rgba(0, 0, 0, 0.12);
   }
 
+  /* Hide floating glass nav while the mobile drawer is open (avoids top-of-page overlap). */
+  body.mobile-nav-open .ios-nav-float {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   .dark .ios-nav-float {
     box-shadow:
       0 0 0 0.5px color-mix(in srgb, white 8%, transparent) inset,
