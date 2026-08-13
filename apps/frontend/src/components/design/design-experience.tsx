@@ -13,7 +13,7 @@ import { ProjectMock } from "./design-visuals";
 import "./design.css";
 
 const display = Newsreader({
-  subsets: ["latin", "latin-ext", "cyrillic"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
   variable: "--font-vd-display",
