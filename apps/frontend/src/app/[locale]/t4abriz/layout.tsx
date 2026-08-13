@@ -1,7 +1,14 @@
-export default function AdminLoginLayout({
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+};
+
+/** Passthrough — no admin chrome here, so gated 404 matches the public template. */
+export default function StaffAreaLayout({
   children,
 }: {
   children: React.ReactNode;
 }): React.ReactElement {
-  return <div className="admin-mesh-bg min-h-screen">{children}</div>;
+  return children;
 }

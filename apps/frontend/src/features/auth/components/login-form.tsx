@@ -31,6 +31,7 @@ function LoginFormInner(): React.ReactElement {
   const searchParams = useSearchParams();
   const nextPath = getSafeNextPath(searchParams.get("next"));
   const setSession = useAuthStore((s) => s.setSession);
+  const userRole = useAuthStore((s) => s.user?.role);
   const { isReady, isAuthenticated } = useAuthHydration();
   const [error, setError] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<LoginTwoFactorChallenge | null>(null);
@@ -45,9 +46,9 @@ function LoginFormInner(): React.ReactElement {
 
   useEffect(() => {
     if (isReady && isAuthenticated) {
-      goAfterAuth((href) => router.replace(href), nextPath);
+      goAfterAuth((href) => router.replace(href), nextPath, userRole);
     }
-  }, [isReady, isAuthenticated, nextPath, router]);
+  }, [isReady, isAuthenticated, nextPath, router, userRole]);
 
   const schema = useMemo(
     () =>
@@ -89,7 +90,7 @@ function LoginFormInner(): React.ReactElement {
         return;
       }
       setSession(result, { rememberMe: values.rememberMe });
-      goAfterAuth((href) => router.push(href), nextPath);
+      goAfterAuth((href) => router.push(href), nextPath, result.user?.role);
     } catch (err) {
       const message =
         err && typeof err === "object" && "error" in err
@@ -111,7 +112,7 @@ function LoginFormInner(): React.ReactElement {
         locale,
       });
       setSession(session, { rememberMe });
-      goAfterAuth((href) => router.push(href), nextPath);
+      goAfterAuth((href) => router.push(href), nextPath, session.user?.role);
     } catch (err) {
       const message =
         err && typeof err === "object" && "error" in err

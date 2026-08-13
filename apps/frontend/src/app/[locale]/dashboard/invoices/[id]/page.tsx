@@ -14,6 +14,7 @@ import {
   getInvoice,
   type InvoiceDetail,
 } from "@/features/billing";
+import { useDisplayMoney } from "@/hooks/use-display-money";
 import { Link } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/stores/auth-store";
@@ -29,6 +30,7 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.invoices");
+  const { format: formatDisplay } = useDisplayMoney();
   const id = params.id as string;
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [balance, setBalance] = useState<{ balance: number; currency: string } | null>(null);
@@ -137,7 +139,7 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
     setDownloadingPdf(true);
     setMessage(null);
     try {
-      await downloadInvoicePdf(id, token);
+      await downloadInvoicePdf(id, token, locale);
     } catch {
       setMessage(tp("pdfFailed"));
       setMessageOk(false);
@@ -177,7 +179,7 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
         <p className="text-on-surface-variant text-sm">
           {tc("accountBalance")}:{" "}
           <span className="text-on-surface font-semibold">
-            {balance.balance.toFixed(2)} {balance.currency}
+            {formatDisplay(balance.balance, balance.currency)}
           </span>
         </p>
       )}

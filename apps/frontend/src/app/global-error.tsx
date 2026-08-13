@@ -28,6 +28,7 @@ export default function GlobalError({
       <body>
         <ErrorShellView
           variant="500"
+          showThemeToggle={false}
           content={{
             code: "500",
             title: "Critical error",

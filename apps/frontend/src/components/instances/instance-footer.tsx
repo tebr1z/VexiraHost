@@ -133,14 +133,18 @@ export function InstanceFooter(): React.ReactElement {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-4 border-t border-[var(--separator)] pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--label-tertiary)]">
-              {t("paymentMethods")}
-            </p>
-            <p className="mt-1 text-sm text-[var(--label-secondary)]">{t("paymentMethodsHint")}</p>
+        <div className="mt-12 border-t border-[var(--separator)] pt-8">
+          <div className="flex flex-col gap-5 rounded-2xl border border-[var(--separator)] bg-[color-mix(in_srgb,var(--bg-elevated)_70%,transparent)] p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:p-6">
+            <div className="min-w-0 max-w-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+                {t("paymentMethods")}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-[var(--label-secondary)]">
+                {t("paymentMethodsHint")}
+              </p>
+            </div>
+            <FooterPaymentLogos className="sm:justify-end" />
           </div>
-          <FooterPaymentLogos />
         </div>
       </div>
     </footer>

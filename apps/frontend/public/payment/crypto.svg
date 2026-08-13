@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" role="img" aria-label="Crypto">
+  <defs>
+    <linearGradient id="crypto" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="32" rx="6" fill="url(#crypto)"/>
+  <circle cx="24" cy="16" r="9.2" fill="#F7931A"/>
+  <circle cx="24" cy="16" r="9.2" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1"/>
+  <path fill="#fff" d="M26.1 10.4h-1.3V9h-1.4v1.4h-1.4v1.4h1.3v8.2h-1.3V21h1.4v1.4h1.4V21h1.3c2 0 3.4-1 3.4-2.7 0-1.1-.6-1.9-1.6-2.3 1-.4 1.5-1.2 1.5-2.3 0-1.6-1.4-2.7-3.3-2.7Zm-.2 8.3h-2.4v-1.9h2.4c.9 0 1.5.4 1.5 1s-.6.9-1.5.9Zm0-3.7h-2.4v-1.8h2.4c.8 0 1.4.3 1.4.9s-.6.9-1.4.9Z"/>
+</svg>

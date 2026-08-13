@@ -1,8 +1,11 @@
-import { getLocale } from "next-intl/server";
+import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getBlogUi, listBlogPosts, type BlogCategoryId } from "@/content/blog";
 import { Link } from "@/i18n/navigation";
+import { breadcrumbJsonLd, buildPageMetadata } from "@/lib/seo";
 
 function formatDate(iso: string, locale: string): string {
   try {
@@ -16,13 +19,29 @@ function formatDate(iso: string, locale: string): string {
   }
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("seoPages");
+  return buildPageMetadata({
+    title: t("blogTitle"),
+    description: t("blogDescription"),
+    path: "/blog",
+  });
+}
+
 export default async function BlogPage(): Promise<React.ReactElement> {
   const locale = await getLocale();
   const ui = getBlogUi(locale);
   const posts = listBlogPosts(locale);
+  const tSeo = await getTranslations("seoPages");
 
   return (
     <MarketingShell>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: tSeo("blogTitle"), path: "/blog" },
+        ])}
+      />
       <section className="apple-page py-16 sm:py-20">
         <div className="mx-auto max-w-5xl px-5 md:px-8">
           <header className="max-w-2xl">

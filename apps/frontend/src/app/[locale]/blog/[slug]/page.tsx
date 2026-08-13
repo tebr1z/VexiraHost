@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { BlogArticleBody } from "@/components/blog/blog-article-body";
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { JsonLd } from "@/components/seo/json-ld";
 import {
   BLOG_SLUGS,
   getBlogPost,
@@ -11,6 +13,7 @@ import {
   type BlogCategoryId,
 } from "@/content/blog";
 import { Link } from "@/i18n/navigation";
+import { articleJsonLd, breadcrumbJsonLd, buildPageMetadata } from "@/lib/seo";
 
 function formatDate(iso: string, locale: string): string {
   try {
@@ -28,6 +31,26 @@ export function generateStaticParams(): Array<{ slug: string }> {
   return BLOG_SLUGS.map((slug) => ({ slug }));
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const locale = await getLocale();
+  const post = getBlogPost(locale, slug);
+  if (!post) return {};
+
+  return buildPageMetadata({
+    title: post.title,
+    description: post.excerpt,
+    path: `/blog/${slug}`,
+    type: "article",
+    publishedTime: post.publishedAt,
+    modifiedTime: post.publishedAt,
+  });
+}
+
 export default async function BlogPostPage({
   params,
 }: {
@@ -37,13 +60,31 @@ export default async function BlogPostPage({
   const locale = await getLocale();
   const ui = getBlogUi(locale);
   const post = getBlogPost(locale, slug);
+  const tSeo = await getTranslations("seoPages");
 
   if (!post) notFound();
 
   const related = getRelatedPosts(locale, slug);
+  const path = `/blog/${slug}`;
 
   return (
     <MarketingShell>
+      <JsonLd
+        data={[
+          articleJsonLd({
+            title: post.title,
+            description: post.excerpt,
+            path,
+            publishedAt: post.publishedAt,
+            locale,
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: tSeo("blogTitle"), path: "/blog" },
+            { name: post.title, path },
+          ]),
+        ]}
+      />
       <article className="apple-page py-16 sm:py-20">
         <div className="mx-auto max-w-3xl px-5 md:px-8">
           <Link href="/blog" className="text-sm font-semibold text-[var(--accent)] hover:underline">

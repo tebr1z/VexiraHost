@@ -11,6 +11,7 @@ import { listDomains } from "@/features/domains";
 import { listHostingAccounts } from "@/features/hosting";
 import { listServers } from "@/features/servers";
 import { listTickets } from "@/features/tickets";
+import { useDisplayMoney } from "@/hooks/use-display-money";
 import { Link } from "@/i18n/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -27,24 +28,12 @@ interface OverviewCounts {
   balanceCurrency: string;
 }
 
-function formatBalance(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
-}
-
 export default function DashboardPage(): React.ReactElement | null {
   const th = useTranslations("dashboard.home");
   const to = useTranslations("dashboard.overview");
   const { isReady } = useRequireAuth();
   const user = useAuthStore((s) => s.user);
+  const { format: formatDisplay } = useDisplayMoney();
   const [counts, setCounts] = useState<OverviewCounts | null>(null);
 
   useEffect(() => {
@@ -190,7 +179,7 @@ export default function DashboardPage(): React.ReactElement | null {
               <DashboardOverviewStat
                 href="/dashboard/invoices"
                 label={to("balance")}
-                value={formatBalance(counts.balance, counts.balanceCurrency)}
+                value={formatDisplay(counts.balance, counts.balanceCurrency)}
                 icon="account_balance_wallet"
                 accent="emerald"
                 delay={0.03}

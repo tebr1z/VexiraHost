@@ -1,17 +1,53 @@
+import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { FaqAccordion } from "@/components/faq/faq-accordion";
 import { MarketingShell } from "@/components/layout/marketing-shell";
-import { Link } from "@/i18n/navigation";
+import { JsonLd } from "@/components/seo/json-ld";
 import { FAQ_CONTENT, type FaqLocale } from "@/content/faq";
+import { Link } from "@/i18n/navigation";
+import { breadcrumbJsonLd, buildPageMetadata } from "@/lib/seo";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("seoPages");
+  return buildPageMetadata({
+    title: t("faqTitle"),
+    description: t("faqDescription"),
+    path: "/faq",
+  });
+}
 
 export default async function FaqPage(): Promise<React.ReactElement> {
   const locale = await getLocale();
   const t = await getTranslations("faqPage");
+  const tSeo = await getTranslations("seoPages");
   const content = FAQ_CONTENT[(locale in FAQ_CONTENT ? locale : "en") as FaqLocale];
+
+  const faqEntities = content.categories.flatMap((category) =>
+    category.items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  );
 
   return (
     <MarketingShell>
+      <JsonLd
+        data={[
+          {
+            "@type": "FAQPage",
+            mainEntity: faqEntities,
+          },
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: tSeo("faqTitle"), path: "/faq" },
+          ]),
+        ]}
+      />
       <section className="apple-page py-16 sm:py-20">
         <div className="mx-auto max-w-4xl px-5 md:px-8">
           <div className="mb-10 text-center">
@@ -27,7 +63,9 @@ export default async function FaqPage(): Promise<React.ReactElement> {
           <FaqAccordion categories={content.categories} />
 
           <div className="mt-12 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-6 text-center sm:p-8">
-            <p className="text-sm text-[var(--label-secondary)] sm:text-[15px]">{t("contactNote")}</p>
+            <p className="text-sm text-[var(--label-secondary)] sm:text-[15px]">
+              {t("contactNote")}
+            </p>
             <Link
               href={content.contactLink}
               className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-[var(--accent)] px-6 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"

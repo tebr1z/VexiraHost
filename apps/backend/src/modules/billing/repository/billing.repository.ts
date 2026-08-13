@@ -26,7 +26,7 @@ export class BillingRepository {
       where: { id, userId },
       include: {
         user: {
-          select: { email: true, firstName: true, lastName: true },
+          select: { email: true, firstName: true, lastName: true, localeHistory: true },
         },
         items: { orderBy: { createdAt: "asc" } },
         order: { select: { id: true, status: true } },

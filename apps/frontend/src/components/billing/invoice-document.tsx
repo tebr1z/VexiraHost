@@ -6,9 +6,10 @@ import { InvoicePaymentHistory } from "@/components/billing/invoice-payment-hist
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { StatusBadge } from "@/components/ui";
 import type { InvoiceDetail } from "@/features/billing";
+import { useDisplayMoney } from "@/hooks/use-display-money";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
-import { formatDate, formatMoney } from "@/lib/i18n/format";
+import { formatDate } from "@/lib/i18n/format";
 
 export function InvoiceDocument({
   invoice,
@@ -23,6 +24,8 @@ export function InvoiceDocument({
 }): React.ReactElement {
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.invoices");
+  const { format: formatDisplay } = useDisplayMoney();
+  const currency = invoice.currency || "USD";
 
   const amountDue =
     invoice.amountDue ??
@@ -103,10 +106,10 @@ export function InvoiceDocument({
                     {item.quantity}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-[var(--label-secondary)]">
-                    {formatMoney(item.unitPrice, invoice.currency, locale)}
+                    {formatDisplay(item.unitPrice, currency)}
                   </td>
                   <td className="px-4 py-3 text-right font-medium tabular-nums text-[var(--label)]">
-                    {formatMoney(item.totalPrice, invoice.currency, locale)}
+                    {formatDisplay(item.totalPrice, currency)}
                   </td>
                 </tr>
               ))}
@@ -118,38 +121,30 @@ export function InvoiceDocument({
           <dl className="w-full max-w-xs space-y-2 text-sm">
             <div className="flex justify-between text-[var(--label-secondary)]">
               <dt>{tc("subtotal")}</dt>
-              <dd className="tabular-nums">
-                {formatMoney(invoice.subtotal, invoice.currency, locale)}
-              </dd>
+              <dd className="tabular-nums">{formatDisplay(invoice.subtotal, currency)}</dd>
             </div>
             <div className="flex justify-between text-[var(--label-secondary)]">
               <dt>{tc("total")}</dt>
-              <dd className="tabular-nums">
-                {formatMoney(invoice.total, invoice.currency, locale)}
-              </dd>
+              <dd className="tabular-nums">{formatDisplay(invoice.total, currency)}</dd>
             </div>
             {(invoice.amountPaid ?? 0) > 0 ? (
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                 <dt>{tc("amountPaid")}</dt>
                 <dd className="tabular-nums">
-                  -{formatMoney(invoice.amountPaid ?? 0, invoice.currency, locale)}
+                  -{formatDisplay(invoice.amountPaid ?? 0, currency)}
                 </dd>
               </div>
             ) : null}
             <div className="flex justify-between border-t border-[var(--separator)] pt-2 text-base font-bold text-[var(--label)]">
               <dt>{tc("amountDue")}</dt>
-              <dd className="tabular-nums">{formatMoney(amountDue, invoice.currency, locale)}</dd>
+              <dd className="tabular-nums">{formatDisplay(amountDue, currency)}</dd>
             </div>
           </dl>
         </div>
       </div>
 
       {invoice.payments && invoice.payments.length > 0 && (
-        <InvoicePaymentHistory
-          payments={invoice.payments}
-          currency={invoice.currency}
-          locale={locale}
-        />
+        <InvoicePaymentHistory payments={invoice.payments} currency={currency} locale={locale} />
       )}
 
       {actions && (

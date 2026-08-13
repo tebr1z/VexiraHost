@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { BrandLogo } from "@/components/brand/brand-logo";
 import { Link } from "@/i18n/navigation";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AuthLayout({
   children,
@@ -14,13 +19,16 @@ export default async function AuthLayout({
 
   return (
     <div className="panel-mesh-bg min-h-screen">
-      <header className="header-3d sticky top-0 z-50 border-b border-outline-variant/30 px-4 py-3 sm:px-6 lg:px-margin-desktop">
-        <div className="mx-auto flex max-w-container-max items-center justify-between gap-4">
+      <header className="header-3d border-outline-variant/30 lg:px-margin-desktop sticky top-0 z-50 border-b px-4 py-3 sm:px-6">
+        <div className="max-w-container-max mx-auto flex items-center justify-between gap-4">
           <BrandLogo href="/" />
           <div className="flex items-center gap-3 sm:gap-4">
             <ThemeToggle />
             <LanguageSwitcher />
-            <Link href="/" className="text-sm text-on-surface-variant transition-colors hover:text-primary">
+            <Link
+              href="/"
+              className="text-on-surface-variant hover:text-primary text-sm transition-colors"
+            >
               {t("backToHome")}
             </Link>
           </div>

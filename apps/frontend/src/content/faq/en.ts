@@ -148,7 +148,7 @@ export const faqEn: FaqPageContent = {
           id: "domains-4",
           question: "Will I receive reminders before my domain expires?",
           answer:
-            "Yes, email notifications are sent as your domain renewal date approaches.\nYou can enable auto-renewal to reduce the risk of losing your domain.",
+            "Yes. We email you at 30, 20, 15, 10, 5, 3, 2, and 1 days before expiry.\nAfter expiry a 1% processing fee is added, with further notices on day 7, 10, and 15. If the domain is not renewed within 15 days, it is removed from your account.",
         },
       ],
     },

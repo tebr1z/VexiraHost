@@ -1,3 +1,5 @@
+import { isStaffRole } from "@/lib/is-staff-role";
+
 const AUTH_NEXT_KEY = "vexira-auth-next";
 
 /** Only same-origin relative paths (blocks open redirects). */
@@ -15,10 +17,16 @@ export function getSafeNextPath(raw: string | null | undefined): string | null {
   return value;
 }
 
+export function isAdminAreaPath(path: string | null | undefined): boolean {
+  if (!path) return false;
+  return path === "/t4abriz" || path.startsWith("/t4abriz/");
+}
+
 export function stashAuthNext(path: string | null | undefined): void {
   if (typeof window === "undefined") return;
   const safe = getSafeNextPath(path);
-  if (safe) {
+  // Never stash staff-only paths for anonymous redirects — that leaks the surface.
+  if (safe && !isAdminAreaPath(safe)) {
     sessionStorage.setItem(AUTH_NEXT_KEY, safe);
   }
 }
@@ -35,12 +43,25 @@ export function consumeAuthNext(): string | null {
   return value;
 }
 
-/** Prefer URL `next`, then stashed OAuth next, else dashboard. */
-export function resolvePostAuthPath(urlNext?: string | null): string {
-  return getSafeNextPath(urlNext) ?? peekAuthNext() ?? "/dashboard";
+function resolveDestination(path: string, role?: string | null): string {
+  // Staff may land on the staff area after login. Everyone else never follows that next.
+  if (isAdminAreaPath(path) && !isStaffRole(role)) {
+    return "/dashboard";
+  }
+  return path;
 }
 
-export function goAfterAuth(navigate: (href: string) => void, urlNext?: string | null): void {
+/** Prefer URL `next`, then stashed OAuth next, else dashboard. */
+export function resolvePostAuthPath(urlNext?: string | null, role?: string | null): string {
+  const path = getSafeNextPath(urlNext) ?? peekAuthNext() ?? "/dashboard";
+  return resolveDestination(path, role);
+}
+
+export function goAfterAuth(
+  navigate: (href: string) => void,
+  urlNext?: string | null,
+  role?: string | null,
+): void {
   const path = getSafeNextPath(urlNext) ?? consumeAuthNext() ?? "/dashboard";
-  navigate(path);
+  navigate(resolveDestination(path, role));
 }

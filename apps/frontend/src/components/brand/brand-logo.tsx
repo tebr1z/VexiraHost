@@ -1,11 +1,15 @@
+import Link from "next/link";
+
 import { BrandMark } from "@/components/brand/brand-mark";
-import { Link } from "@/i18n/navigation";
+import { Link as LocaleLink } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 
 type BrandLogoProps = {
   variant?: "full" | "icon";
   tone?: "default" | "light";
   href?: string;
+  /** Use next/link — safe outside NextIntl provider (error / global boundaries). */
+  plainLink?: boolean;
   className?: string;
   labelClassName?: string;
   onClick?: () => void;
@@ -15,6 +19,7 @@ export function BrandLogo({
   variant = "full",
   tone = "default",
   href = "/",
+  plainLink = false,
   className,
   labelClassName,
   onClick,
@@ -53,10 +58,17 @@ export function BrandLogo({
   const wrapperClass = cn("group inline-flex shrink-0 items-center gap-2.5", className);
 
   if (href) {
+    if (plainLink) {
+      return (
+        <Link href={href} onClick={onClick} className={wrapperClass} aria-label="Vexira Host">
+          {content}
+        </Link>
+      );
+    }
     return (
-      <Link href={href} onClick={onClick} className={wrapperClass} aria-label="Vexira Host">
+      <LocaleLink href={href} onClick={onClick} className={wrapperClass} aria-label="Vexira Host">
         {content}
-      </Link>
+      </LocaleLink>
     );
   }
 

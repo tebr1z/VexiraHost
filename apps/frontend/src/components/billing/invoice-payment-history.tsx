@@ -4,8 +4,9 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { StatusBadge } from "@/components/ui";
+import { useDisplayMoney } from "@/hooks/use-display-money";
 import { cn } from "@/lib/cn";
-import { formatDateTime, formatMoney } from "@/lib/i18n/format";
+import { formatDateTime } from "@/lib/i18n/format";
 
 const DEFAULT_VISIBLE = 5;
 
@@ -41,6 +42,7 @@ export function InvoicePaymentHistory({
   locale: string;
 }): React.ReactElement | null {
   const tp = useTranslations("dashboard.pages.invoices");
+  const { format: formatDisplay } = useDisplayMoney();
   const [expanded, setExpanded] = useState(false);
 
   const sorted = useMemo(
@@ -107,7 +109,7 @@ export function InvoicePaymentHistory({
                   <StatusBadge status={payment.status} className="!px-2 !py-0.5 !text-[11px]" />
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums text-[var(--label)] sm:px-4">
-                  {formatMoney(payment.amount, currency, locale)}
+                  {formatDisplay(payment.amount, currency)}
                 </td>
               </tr>
             ))}

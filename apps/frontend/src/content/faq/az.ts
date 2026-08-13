@@ -148,7 +148,7 @@ export const faqAz: FaqPageContent = {
           id: "domains-4",
           question: "Domen müddəti bitməzdən əvvəl xatırlatma alarammı?",
           answer:
-            "Bəli, domen yeniləmə tarixiniz yaxınlaşdıqca e-poçt bildirişləri göndərilir.\nAvtomatik yeniləmə seçimini aktivləşdirərək domen itkisi riskini azalda bilərsiniz.",
+            "Bəli. Bitməyə 30, 20, 15, 10, 5, 3, 2 və 1 gün qalanda e-poçt göndərilir.\nBitəndən sonra 1% əməliyyat haqqı əlavə olunur; 7, 10 və 15-ci günlərdə də xəbərdarlıq gəlir. 15 gün ərzində yenilənməsə, domain hesabınızdan silinir.",
         },
       ],
     },

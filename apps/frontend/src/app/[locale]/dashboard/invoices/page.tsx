@@ -12,6 +12,7 @@ import {
 } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import { downloadInvoicePdf, listInvoices, type Invoice } from "@/features/billing";
+import { useDisplayMoney } from "@/hooks/use-display-money";
 import { Link, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { formatDate, formatMoney } from "@/lib/i18n/format";
@@ -29,6 +30,7 @@ export default function InvoicesPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.invoices");
+  const { currency: displayCurrency, convert, format: formatDisplay } = useDisplayMoney();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -43,17 +45,19 @@ export default function InvoicesPage(): React.ReactElement | null {
 
   const stats = useMemo(() => {
     const open = invoices.filter((inv) => inv.status === "OPEN" || inv.status === "OVERDUE");
-    const openTotal = open.reduce((sum, inv) => sum + invoiceDue(inv), 0);
-    const currency = open[0]?.currency ?? invoices[0]?.currency ?? "USD";
-    return { openCount: open.length, openTotal, currency };
-  }, [invoices]);
+    const openTotal = open.reduce(
+      (sum, inv) => sum + convert(invoiceDue(inv), inv.currency || "USD"),
+      0,
+    );
+    return { openCount: open.length, openTotal, currency: displayCurrency };
+  }, [invoices, convert, displayCurrency]);
 
   const handleDownloadPdf = async (invoiceId: string) => {
     const token = useAuthStore.getState().accessToken;
     if (!token) return;
     setDownloadingId(invoiceId);
     try {
-      await downloadInvoicePdf(invoiceId, token);
+      await downloadInvoicePdf(invoiceId, token, locale);
     } finally {
       setDownloadingId(null);
     }
@@ -136,11 +140,11 @@ export default function InvoicesPage(): React.ReactElement | null {
                       <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                         <div className="text-left sm:text-right">
                           <p className="font-jakarta text-lg font-bold tabular-nums text-[var(--label)]">
-                            {formatMoney(showDue ? due : inv.total, inv.currency, locale)}
+                            {formatDisplay(showDue ? due : inv.total, inv.currency)}
                           </p>
                           {showDue && (inv.amountPaid ?? 0) > 0 ? (
                             <p className="text-xs text-[var(--label-secondary)]">
-                              {tc("total")}: {formatMoney(inv.total, inv.currency, locale)}
+                              {tc("total")}: {formatDisplay(inv.total, inv.currency)}
                             </p>
                           ) : null}
                         </div>

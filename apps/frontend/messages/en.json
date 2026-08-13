@@ -13,7 +13,37 @@
   },
   "meta": {
     "title": "Vexira Host | Fast Hosting, VPS & Domains That Scale",
-    "description": "Launch with confidence. Premium hosting, VPS, domains, and licenses — clear pricing, instant setup, and support that stays with you."
+    "description": "Launch with confidence. Premium hosting, VPS, domains, and licenses — clear pricing, instant setup, and support that stays with you.",
+    "keywords": [
+      "web hosting",
+      "VPS hosting",
+      "VDS",
+      "cloud infrastructure",
+      "domain registration",
+      "dedicated servers",
+      "WhatsApp API",
+      "Vexira Host",
+      "NVMe hosting",
+      "cheap VPS"
+    ]
+  },
+  "seoPages": {
+    "aboutTitle": "About Us",
+    "aboutDescription": "Vexira Labs LLC — technology since 2021, Vexira Host since 2023. Hosting, VPS, and digital services.",
+    "blogTitle": "Blog",
+    "blogDescription": "Guides and practical tips on hosting, VPS/VDS, and WhatsApp API.",
+    "faqTitle": "Frequently asked questions",
+    "faqDescription": "Answers about hosting, VPS, payments, domains, and support.",
+    "hostingTitle": "Web Hosting",
+    "hostingDescription": "Professional web hosting plans with NVMe, SSL, and reliable uptime.",
+    "vpsTitle": "VPS / VDS Servers",
+    "vpsDescription": "High-performance VPS and VDS plans with root access.",
+    "termsTitle": "Terms of Service",
+    "termsDescription": "Rules and terms for using Vexira Host services.",
+    "privacyTitle": "Privacy Policy",
+    "privacyDescription": "How we collect, use, and protect personal data.",
+    "cookiesTitle": "Cookie Policy",
+    "cookiesDescription": "How cookies are used on this website."
   },
   "nav": {
     "infrastructure": "Infrastructure",
@@ -1274,8 +1304,10 @@
       "loginFailed": "Sign-in failed. Check your email and password."
     },
     "header": {
+      "title": "Admin panel",
       "openMenu": "Open menu",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "logout": "Sign out"
     },
     "breadcrumb": {
       "admin": "Admin",
@@ -1353,7 +1385,7 @@
           "billingAmount": "Price",
           "billingCurrency": "Currency",
           "createInvoiceNow": "Create invoice now",
-          "createInvoiceHint": "Creates an unpaid invoice due in 7 days. Renewal invoices are also sent automatically when the domain expires.",
+          "createInvoiceHint": "Creates an unpaid invoice due in 15 days. Renewal invoices, a 1% processing fee after expiry, and reminder emails are sent automatically.",
           "savePrice": "Save price",
           "createInvoiceAction": "Create invoice",
           "invoiceLinked": "Open renewal invoice linked",
@@ -2289,7 +2321,7 @@
       "headline": "This route does not exist",
       "description": "The URL may be mistyped, expired, or the page was moved. Double-check the address or return to a known area of the platform.",
       "hint1": "Verify spelling and slashes in the URL bar.",
-      "hint2": "Use the dashboard sidebar to navigate to your services.",
+      "hint2": "Continue from the customer dashboard.",
       "hint3": "Contact support if you followed a link from an email or invoice.",
       "home": "Back to homepage",
       "dashboard": "Open client dashboard",
@@ -2299,15 +2331,15 @@
     "forbidden": {
       "code": "403",
       "title": "Access denied",
-      "headline": "You do not have permission",
-      "description": "Your account is authenticated but lacks the role or scope required for this resource. Staff-only and admin-only areas are protected separately from the customer dashboard.",
-      "hint1": "Customer accounts cannot open the admin panel at /t4abriz.",
-      "hint2": "Suspended accounts lose access until an administrator reactivates them.",
-      "hint3": "Sign in with the correct account or request elevated access from your organization admin.",
+      "headline": "You do not have permission for this action",
+      "description": "Your account is signed in, but you do not have permission for this action.",
+      "hint1": "Try signing in with a different account.",
+      "hint2": "Manage orders and services from the customer dashboard.",
+      "hint3": "If the problem continues, contact support.",
       "home": "Back to homepage",
       "dashboard": "Client dashboard",
       "login": "Sign in with another account",
-      "contact": "Request access"
+      "contact": "Contact support"
     },
     "server": {
       "code": "500",

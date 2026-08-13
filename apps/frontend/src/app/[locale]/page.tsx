@@ -9,44 +9,25 @@ import {
   PricingSection,
 } from "@/components/landing";
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { JsonLd } from "@/components/seo/json-ld";
+import { buildPageMetadata, organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
-
-  return {
+  return buildPageMetadata({
     title: t("title"),
     description: t("description"),
-    alternates: { canonical: "/" },
-  };
+    path: "/",
+    keywords: t.raw("keywords") as string[],
+  });
 }
 
 export default async function HomePage(): Promise<React.ReactElement> {
   const t = await getTranslations("meta");
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vexirahost.com";
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        name: "Vexira Host",
-        url: siteUrl,
-        logo: `${siteUrl}/favicon.png`,
-      },
-      {
-        "@type": "WebSite",
-        name: "Vexira Host",
-        url: siteUrl,
-        description: t("description"),
-      },
-    ],
-  };
 
   return (
     <MarketingShell>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <JsonLd data={[organizationJsonLd(), websiteJsonLd(t("description"))]} />
       <HeroSection />
       <HomeJourney />
       <PricingSection />

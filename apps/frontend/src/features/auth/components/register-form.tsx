@@ -27,6 +27,7 @@ export function RegisterForm(): React.ReactElement {
   const locale = useLocale();
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
+  const userRole = useAuthStore((s) => s.user?.role);
   const setFromUser = usePricingStore((s) => s.setFromUser);
   const { isReady, isAuthenticated } = useAuthHydration();
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +43,9 @@ export function RegisterForm(): React.ReactElement {
 
   useEffect(() => {
     if (isReady && isAuthenticated) {
-      goAfterAuth((href) => router.replace(href), urlNext);
+      goAfterAuth((href) => router.replace(href), urlNext, userRole);
     }
-  }, [isReady, isAuthenticated, urlNext, router]);
+  }, [isReady, isAuthenticated, urlNext, router, userRole]);
 
   const schema = useMemo(
     () =>
@@ -114,7 +115,7 @@ export function RegisterForm(): React.ReactElement {
         billingPeriod: session.user.billingPeriod,
         currencyLocked: session.user.currencyLocked ?? azLocked,
       });
-      goAfterAuth((href) => router.push(href), urlNext);
+      goAfterAuth((href) => router.push(href), urlNext, session.user?.role);
     } catch (err) {
       setError(
         getApiErrorMessage(err, t("registerFailed"), {

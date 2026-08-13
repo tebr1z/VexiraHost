@@ -55,3 +55,6 @@ docker/data/
 
 # WhatsApp Baileys linked-device auth (do not commit)
 apps/backend/.whatsapp-auth/
+
+# Customer ticket uploads (do not commit)
+apps/backend/storage/tickets/

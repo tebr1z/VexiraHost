@@ -15,6 +15,7 @@ import { TicketsRepository } from "../repository/tickets.repository";
 
 import { TicketEmailService } from "./ticket-email.service";
 
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "@/shared/storage/storage.interface";
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -173,6 +174,7 @@ export class TicketsService {
   constructor(
     private readonly ticketsRepository: TicketsRepository,
     private readonly ticketEmailService: TicketEmailService,
+    private readonly staffAlerts: StaffAlertService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
@@ -285,6 +287,22 @@ export class TicketsService {
         clientIp: ticket.clientIp,
         lastLoginIp: ticket.user.lastLoginIp,
       });
+
+      this.staffAlerts.notify({
+        kind: "TICKET_OPENED",
+        title: "Yeni ticket açıldı",
+        lines: [
+          `Müştəri: ${
+            [ticket.user.firstName, ticket.user.lastName].filter(Boolean).join(" ").trim() ||
+            ticket.user.email
+          }`,
+          `Email: ${ticket.user.email}`,
+          `Mövzu: ${ticket.subject}`,
+          `Prioritet: ${ticket.priority}`,
+          `Mesaj: ${dto.message.trim()}`,
+        ],
+        url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/tickets/${ticket.id}`,
+      });
     }
 
     return mapTicketSummary(ticket);
@@ -369,6 +387,30 @@ export class TicketsService {
       message: dto.message.trim(),
       isStaff: false,
       status: TicketStatus.IN_PROGRESS,
+    });
+
+    const customer =
+      ticket.user ??
+      ({
+        email: "",
+        firstName: null as string | null,
+        lastName: null as string | null,
+      } as const);
+    const customerName =
+      [customer.firstName, customer.lastName].filter(Boolean).join(" ").trim() ||
+      customer.email ||
+      "Customer";
+
+    this.staffAlerts.notify({
+      kind: "TICKET_REPLY",
+      title: "Müştəri ticket-ə cavab verdi",
+      lines: [
+        `Müştəri: ${customerName}`,
+        customer.email ? `Email: ${customer.email}` : "",
+        `Mövzu: ${ticket.subject}`,
+        `Cavab: ${dto.message.trim()}`,
+      ],
+      url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/tickets/${ticket.id}`,
     });
 
     return mapMessage(message);

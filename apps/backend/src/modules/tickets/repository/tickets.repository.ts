@@ -21,6 +21,7 @@ export class TicketsRepository {
     return this.prisma.ticket.findFirst({
       where: { id, userId },
       include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
         messages: {
           orderBy: { createdAt: "asc" },
           include: {

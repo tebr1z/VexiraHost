@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" role="img" aria-label="B2B">
+  <defs>
+    <linearGradient id="b2b" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#312E81"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="32" rx="6" fill="url(#b2b)"/>
+  <rect x="9" y="8" width="12" height="9" rx="2" fill="#fff" fill-opacity=".92"/>
+  <rect x="27" y="8" width="12" height="9" rx="2" fill="#fff" fill-opacity=".92"/>
+  <path fill="#fff" fill-opacity=".92" d="M15 17v2.2c0 1.2.9 2.1 2.1 2.1h13.8c1.2 0 2.1-.9 2.1-2.1V17H15Zm3.2 6.4h11.6v1.8H18.2v-1.8Zm2.2-2.4v4.2h1.8v-4.2h-1.8Zm5.4 0v4.2h1.8v-4.2h-1.8Z"/>
+</svg>

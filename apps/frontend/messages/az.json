@@ -1,7 +1,37 @@
 {
   "meta": {
     "title": "Vexira Host | Sürətli Hosting, VPS və Domen",
-    "description": "İnamla başlayın. Premium hosting, VPS, domen və lisenziyalar — aydın qiymət, tez quraşdırma və yanınızda olan dəstək."
+    "description": "İnamla başlayın. Premium hosting, VPS, domen və lisenziyalar — aydın qiymət, tez quraşdırma və yanınızda olan dəstək.",
+    "keywords": [
+      "hosting",
+      "vps",
+      "vds",
+      "domen",
+      "bulud server",
+      "web hosting Azərbaycan",
+      "WhatsApp API",
+      "Vexira Host",
+      "ucuz VPS",
+      "NVMe hosting"
+    ]
+  },
+  "seoPages": {
+    "aboutTitle": "Haqqımızda",
+    "aboutDescription": "Vexira Labs LLC — 2021-dən texnologiya, 2023-dən Vexira Host. Hosting, VPS və rəqəmsal xidmətlər.",
+    "blogTitle": "Blog",
+    "blogDescription": "Hosting, VPS/VDS və WhatsApp API haqqında bələdçilər və praktik məsləhətlər.",
+    "faqTitle": "Tez-tez verilən suallar",
+    "faqDescription": "Hosting, VPS, ödəniş, domen və dəstək haqqında cavablar.",
+    "hostingTitle": "Web Hosting",
+    "hostingDescription": "NVMe, SSL və sabit uptime ilə peşəkar web hosting planları.",
+    "vpsTitle": "VPS / VDS Serverlər",
+    "vpsDescription": "Root girişli, yüksək performanslı VPS və VDS planları.",
+    "termsTitle": "İstifadə şərtləri",
+    "termsDescription": "Vexira Host xidmətlərinin istifadə qaydaları və şərtləri.",
+    "privacyTitle": "Məxfilik siyasəti",
+    "privacyDescription": "Şəxsi məlumatların toplanması, istifadəsi və qorunması haqqında siyasət.",
+    "cookiesTitle": "Kuki siyasəti",
+    "cookiesDescription": "Saytda kukilərin necə istifadə olunduğu haqqında məlumat."
   },
   "nav": {
     "infrastructure": "İnfrastruktur",
@@ -1262,8 +1292,10 @@
       "loginFailed": "Giriş uğursuz oldu. E-poçt və şifrəni yoxlayın."
     },
     "header": {
+      "title": "Admin paneli",
       "openMenu": "Menyunu aç",
-      "closeMenu": "Menyunu bağla"
+      "closeMenu": "Menyunu bağla",
+      "logout": "Çıxış"
     },
     "breadcrumb": {
       "admin": "Admin",
@@ -1341,7 +1373,7 @@
           "billingAmount": "Qiymət",
           "billingCurrency": "Valyuta",
           "createInvoiceNow": "İndi faktura yarat",
-          "createInvoiceHint": "7 gün müddətli açıq faktura yaradır. Domain bitəndə yenilənmə fakturası da avtomatik göndərilir.",
+          "createInvoiceHint": "15 gün müddətli açıq faktura yaradır. Domain bitəndə yenilənmə fakturası, 1% əməliyyat haqqı və xatırlatma e-poçtları avtomatik göndərilir.",
           "savePrice": "Qiyməti saxla",
           "createInvoiceAction": "Faktura yarat",
           "invoiceLinked": "Açıq yenilənmə fakturası bağlıdır",
@@ -2277,7 +2309,7 @@
       "headline": "Bu marşrut mövcud deyil",
       "description": "URL səhv yaza bilər, vaxtı bitib və ya səhifə köçürülüb.",
       "hint1": "URL yazılışını yoxlayın.",
-      "hint2": "Dashboard yan panelindən istifadə edin.",
+      "hint2": "Müştəri panelindən davam edin.",
       "hint3": "E-poçtdan link izləmisinizsə dəstəyə yazın.",
       "home": "Ana səhifə",
       "dashboard": "Müştəri paneli",
@@ -2287,15 +2319,15 @@
     "forbidden": {
       "code": "403",
       "title": "Giriş qadağandır",
-      "headline": "İcazəniz yoxdur",
-      "description": "Hesab doğrulanıb, amma bu resurs üçün rol yoxdur.",
-      "hint1": "Müştərilər /t4abriz aça bilməz.",
-      "hint2": "Dayandırılmış hesablar giriş edə bilməz.",
-      "hint3": "Düzgün hesabla daxil olun.",
+      "headline": "Bu əməliyyata icazə yoxdur",
+      "description": "Hesabınız doğrulanıb, amma bu əməliyyat üçün yetərli icazə yoxdur.",
+      "hint1": "Başqa hesabla daxil olmağı yoxlayın.",
+      "hint2": "Müştəri panelindən sifariş və xidmətlərinizi idarə edin.",
+      "hint3": "Davamlı problem varsa dəstəyə yazın.",
       "home": "Ana səhifə",
       "dashboard": "Müştəri paneli",
       "login": "Başqa hesabla giriş",
-      "contact": "Giriş tələb et"
+      "contact": "Dəstəyə yaz"
     },
     "server": {
       "code": "500",

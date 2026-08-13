@@ -104,7 +104,7 @@ function OAuthCallbackHandler(): React.ReactElement {
           },
           { rememberMe: true },
         );
-        goAfterAuth((href) => router.replace(href));
+        goAfterAuth((href) => router.replace(href), null, user?.role);
       })
       .catch(() => setError("OAuth login failed. Please try again."))
       .finally(() => setBootstrapped(true));
@@ -129,7 +129,7 @@ function OAuthCallbackHandler(): React.ReactElement {
         });
       }
       setSession(session, { rememberMe: true });
-      goAfterAuth((href) => router.replace(href));
+      goAfterAuth((href) => router.replace(href), null, session.user?.role);
     } catch (err) {
       const message =
         err && typeof err === "object" && "error" in err

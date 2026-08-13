@@ -20,6 +20,7 @@ import {
 
 import { DomainEmailService } from "./domain-email.service";
 
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { isValidIpAddress } from "@/shared/utils/ip-address.util";
 
 function extractTld(domain: string): string {
@@ -88,6 +89,7 @@ export class DomainsService {
     private readonly domainsRepository: DomainsRepository,
     private readonly registrar: MockRegistrarProvider,
     private readonly domainEmailService: DomainEmailService,
+    private readonly staffAlerts: StaffAlertService,
   ) {}
 
   async search(query: string) {
@@ -239,6 +241,8 @@ export class DomainsService {
         previousData: { records: previousRecords.map(mapDnsRecord) },
         requestedData: { records: records.map(mapDnsRecord) },
       });
+    } else {
+      this.notifyDnsChange(domain.name, userId, "DNS");
     }
 
     return records.map(mapDnsRecord);
@@ -364,6 +368,37 @@ export class DomainsService {
       requestedData: input.requestedData,
     });
 
+    this.staffAlerts.notify({
+      kind: "DNS_CHANGED",
+      title: input.type === "DNS" ? "DNS dəyişikliyi" : "Nameserver dəyişikliyi",
+      lines: [
+        `Domain: ${input.domain.name}`,
+        `Müştəri: ${customerName}`,
+        `Email: ${customerEmail}`,
+        `Növ: ${input.type}`,
+      ],
+      url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/domains/changes`,
+    });
+
     await this.domainsRepository.markChangeRequestNotified(changeRequest.id);
+  }
+
+  private notifyDnsChange(domainName: string, userId: string, type: "DNS" | "NAMESERVER"): void {
+    void this.domainsRepository.findUserBrief(userId).then((user) => {
+      const customerEmail = user?.email ?? "unknown";
+      const customerName =
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || customerEmail;
+      this.staffAlerts.notify({
+        kind: "DNS_CHANGED",
+        title: type === "DNS" ? "DNS dəyişikliyi" : "Nameserver dəyişikliyi",
+        lines: [
+          `Domain: ${domainName}`,
+          `Müştəri: ${customerName}`,
+          `Email: ${customerEmail}`,
+          `Növ: ${type}`,
+        ],
+        url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/domains/changes`,
+      });
+    });
   }
 }

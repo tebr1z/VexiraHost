@@ -1,22 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
-import { ErrorShell } from "@/components/errors/error-shell";
+import { NotFoundView } from "@/components/errors/not-found-view";
 
 export default function NotFoundPage(): React.ReactElement {
-  const t = useTranslations("errors.notFound");
-
-  return (
-    <ErrorShell
-      variant="404"
-      namespace="notFound"
-      actions={[
-        { href: "/", label: t("home"), primary: true },
-        { href: "/dashboard", label: t("dashboard") },
-        { href: "/t4abriz/panel", label: t("admin") },
-        { href: "/dashboard/tickets/new", label: t("support") },
-      ]}
-    />
-  );
+  return <NotFoundView />;
 }

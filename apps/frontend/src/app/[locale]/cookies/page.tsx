@@ -1,7 +1,19 @@
+import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
+
 import { MarketingShell } from "@/components/layout/marketing-shell";
-import { getLocale } from "next-intl/server";
+import { buildPageMetadata } from "@/lib/seo";
 
 const LAST_UPDATED = "07.07.2026";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("seoPages");
+  return buildPageMetadata({
+    title: t("cookiesTitle"),
+    description: t("cookiesDescription"),
+    path: "/cookies",
+  });
+}
 
 type PolicySection = { title: string; items: string[] };
 type PolicyContent = { title: string; updatedAtLabel: string; sections: PolicySection[] };
@@ -208,7 +220,10 @@ export default async function CookiesPolicyPage(): Promise<React.ReactElement> {
 
           <div className="mt-8 space-y-8">
             {policy.sections.map((section) => (
-              <article key={section.title} className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 sm:p-6">
+              <article
+                key={section.title}
+                className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 sm:p-6"
+              >
                 <h2 className="text-xl font-semibold text-[var(--label)]">{section.title}</h2>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--label-secondary)] sm:text-[15px]">
                   {section.items.map((item) => (

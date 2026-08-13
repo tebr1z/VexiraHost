@@ -3,6 +3,8 @@ import type { Decimal } from "@prisma/client/runtime/library";
 
 import { BillingRepository } from "../repository/billing.repository";
 import { buildInvoicePdf } from "../utils/invoice-pdf.util";
+
+import { resolveUserEmailLocale } from "@/modules/auth/email/auth-email.locale";
 function mapInvoiceItem(item: {
   id: string;
   productId: string | null;
@@ -100,19 +102,38 @@ export class BillingService {
     return mapInvoice(invoice);
   }
 
-  async getInvoicePdf(id: string, userId: string): Promise<{ buffer: Buffer; fileName: string }> {
+  async getInvoicePdf(
+    id: string,
+    userId: string,
+    localeHint?: string | null,
+  ): Promise<{ buffer: Buffer; fileName: string }> {
     const invoice = await this.billingRepository.findInvoiceByIdForUser(id, userId);
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
 
     const customerName = [invoice.user.firstName, invoice.user.lastName].filter(Boolean).join(" ");
+    const total = Number(invoice.total);
+    const amountPaid = (invoice.payments ?? [])
+      .filter((payment) => payment.status === "COMPLETED")
+      .reduce((sum, payment) => sum + Number(payment.amount), 0);
+    const amountDue =
+      invoice.status === "PAID" || invoice.status === "VOID"
+        ? 0
+        : Math.max(0, Number((total - amountPaid).toFixed(2)));
+    const locale = resolveUserEmailLocale({
+      locale: localeHint,
+      localeHistory: invoice.user.localeHistory,
+    });
+
     const buffer = buildInvoicePdf({
       invoiceNumber: invoice.invoiceNumber,
       status: invoice.status,
       currency: invoice.currency,
       subtotal: Number(invoice.subtotal),
-      total: Number(invoice.total),
+      total,
+      amountPaid: Number(amountPaid.toFixed(2)),
+      amountDue,
       dueDate: invoice.dueDate,
       paidAt: invoice.paidAt,
       customerEmail: invoice.user.email,
@@ -124,6 +145,7 @@ export class BillingService {
         totalPrice: Number(item.totalPrice),
       })),
       createdAt: invoice.createdAt,
+      locale,
     });
 
     return { buffer, fileName: `${invoice.invoiceNumber}.pdf` };

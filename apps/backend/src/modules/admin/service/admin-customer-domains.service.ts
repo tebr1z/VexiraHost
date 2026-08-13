@@ -13,13 +13,12 @@ import type {
 } from "../dto/manual-domain.dto";
 
 import { PrismaService } from "@/database/database.module";
+import { DOMAIN_GRACE_DAYS } from "@/modules/domains/constants/domain-lifecycle.constants";
 import { DomainsRepository } from "@/modules/domains/repository/domains.repository";
 import { DomainBillingService } from "@/modules/domains/service/domain-billing.service";
 import { normalizeNsGlueEntries, parseNsGlueRecords } from "@/modules/domains/utils/ns-glue.util";
 import { HostingEmailService } from "@/modules/hosting/service/hosting-email.service";
 import { isValidIpAddress } from "@/shared/utils/ip-address.util";
-
-const GRACE_DAYS = 7;
 
 function extractTld(domain: string): string {
   const parts = domain.toLowerCase().split(".");
@@ -142,7 +141,7 @@ export class AdminCustomerDomainsService {
     };
   }) {
     const due = new Date();
-    due.setDate(due.getDate() + GRACE_DAYS);
+    due.setDate(due.getDate() + DOMAIN_GRACE_DAYS);
     const invoice = await this.domainBilling.createDomainInvoice({
       userId: input.userId,
       domainId: input.domainId,
@@ -170,7 +169,7 @@ export class AdminCustomerDomainsService {
       currency: input.currency,
       invoiceNumber: invoice.invoiceNumber,
       dueDate: due,
-      graceDays: GRACE_DAYS,
+      graceDays: DOMAIN_GRACE_DAYS,
     });
 
     return invoice;

@@ -1,8 +1,19 @@
-import { getLocale } from "next-intl/server";
+import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { buildPageMetadata } from "@/lib/seo";
 
 const LAST_UPDATED = "07.07.2026";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("seoPages");
+  return buildPageMetadata({
+    title: t("termsTitle"),
+    description: t("termsDescription"),
+    path: "/terms",
+  });
+}
 
 type PolicySection = { title: string; items: string[] };
 type PolicyContent = { title: string; updatedAtLabel: string; sections: PolicySection[] };

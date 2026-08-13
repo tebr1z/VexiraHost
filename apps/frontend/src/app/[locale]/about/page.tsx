@@ -1,6 +1,9 @@
-import { getLocale } from "next-intl/server";
+import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { JsonLd } from "@/components/seo/json-ld";
+import { breadcrumbJsonLd, buildPageMetadata, organizationJsonLd } from "@/lib/seo";
 
 const WHATSAPP = "994709646466";
 const PHONE = "+994709646466";
@@ -550,13 +553,32 @@ function ContactRow({
   );
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("seoPages");
+  return buildPageMetadata({
+    title: t("aboutTitle"),
+    description: t("aboutDescription"),
+    path: "/about",
+  });
+}
+
 export default async function AboutPage(): Promise<React.ReactElement> {
   const locale = await getLocale();
   const c = CONTENT[(locale in CONTENT ? locale : "en") as keyof typeof CONTENT];
   const whatsappUrl = `https://wa.me/${WHATSAPP}`;
+  const tSeo = await getTranslations("seoPages");
 
   return (
     <MarketingShell>
+      <JsonLd
+        data={[
+          organizationJsonLd(),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: tSeo("aboutTitle"), path: "/about" },
+          ]),
+        ]}
+      />
       <section className="apple-page relative overflow-hidden py-16 sm:py-20">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,color-mix(in_srgb,var(--accent)_12%,transparent),transparent_65%)]"

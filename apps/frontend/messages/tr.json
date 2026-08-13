@@ -1,7 +1,37 @@
 {
   "meta": {
     "title": "Vexira Host | Hızlı Hosting, VPS ve Domain",
-    "description": "Güvenle başlayın. Premium hosting, VPS, domain ve lisanslar — net fiyat, hızlı kurulum ve yanınızda duran destek."
+    "description": "Güvenle başlayın. Premium hosting, VPS, domain ve lisanslar — net fiyat, hızlı kurulum ve yanınızda duran destek.",
+    "keywords": [
+      "hosting",
+      "vps",
+      "vds",
+      "domain",
+      "bulut sunucu",
+      "web hosting",
+      "WhatsApp API",
+      "Vexira Host",
+      "ucuz VPS",
+      "NVMe hosting"
+    ]
+  },
+  "seoPages": {
+    "aboutTitle": "Hakkımızda",
+    "aboutDescription": "Vexira Labs LLC — 2021’den teknoloji, 2023’ten Vexira Host. Hosting, VPS ve dijital hizmetler.",
+    "blogTitle": "Blog",
+    "blogDescription": "Hosting, VPS/VDS ve WhatsApp API hakkında rehberler ve pratik ipuçları.",
+    "faqTitle": "Sıkça sorulan sorular",
+    "faqDescription": "Hosting, VPS, ödeme, domain ve destek hakkında yanıtlar.",
+    "hostingTitle": "Web Hosting",
+    "hostingDescription": "NVMe, SSL ve yüksek uptime ile profesyonel web hosting planları.",
+    "vpsTitle": "VPS / VDS Sunucular",
+    "vpsDescription": "Root erişimli, yüksek performanslı VPS ve VDS planları.",
+    "termsTitle": "Kullanım şartları",
+    "termsDescription": "Vexira Host hizmetlerinin kullanım kuralları ve şartları.",
+    "privacyTitle": "Gizlilik politikası",
+    "privacyDescription": "Kişisel verilerin toplanması, kullanımı ve korunması hakkında politika.",
+    "cookiesTitle": "Çerez politikası",
+    "cookiesDescription": "Sitede çerezlerin nasıl kullanıldığı hakkında bilgi."
   },
   "nav": {
     "infrastructure": "Altyapı",
@@ -1262,8 +1292,10 @@
       "loginFailed": "Giriş başarısız. E-posta ve şifrenizi kontrol edin."
     },
     "header": {
+      "title": "Admin paneli",
       "openMenu": "Menüyü aç",
-      "closeMenu": "Menüyü kapat"
+      "closeMenu": "Menüyü kapat",
+      "logout": "Çıkış yap"
     },
     "breadcrumb": {
       "admin": "Admin",
@@ -1341,7 +1373,7 @@
           "billingAmount": "Fiyat",
           "billingCurrency": "Para birimi",
           "createInvoiceNow": "Şimdi fatura oluştur",
-          "createInvoiceHint": "7 gün vadeli açık fatura oluşturur. Domain süresi dolunca yenileme faturası da otomatik gönderilir.",
+          "createInvoiceHint": "15 gün vadeli açık fatura oluşturur. Domain süresi dolunca yenileme faturası, %1 işlem ücreti ve hatırlatma e-postaları otomatik gönderilir.",
           "savePrice": "Fiyatı kaydet",
           "createInvoiceAction": "Fatura oluştur",
           "invoiceLinked": "Açık yenileme faturası bağlı",
@@ -2278,7 +2310,7 @@
       "headline": "Bu rota mevcut değil",
       "description": "URL yanlış yazılmış, süresi dolmuş veya sayfa taşınmış olabilir. Adresi kontrol edin veya platformun bilinen bir bölümüne dönün.",
       "hint1": "URL çubuğundaki yazım ve slash'ları doğrulayın.",
-      "hint2": "Hizmetlerinize gitmek için dashboard kenar çubuğunu kullanın.",
+      "hint2": "Müşteri panelinden devam edin.",
       "hint3": "E-posta veya faturadan bir link takip ettiyseniz destekle iletişime geçin.",
       "home": "Ana sayfaya dön",
       "dashboard": "Müşteri panelini aç",
@@ -2288,15 +2320,15 @@
     "forbidden": {
       "code": "403",
       "title": "Erişim reddedildi",
-      "headline": "Bu kaynağa izniniz yok",
-      "description": "Hesabınız doğrulanmış ancak bu kaynak için gerekli role veya kapsama sahip değil. Personel ve admin alanları müşteri panelinden ayrı korunur.",
-      "hint1": "Müşteri hesapları /t4abriz admin panelini açamaz.",
-      "hint2": "Askıya alınan hesaplar yönetici tekrar aktifleştirene kadar erişemez.",
-      "hint3": "Doğru hesapla giriş yapın veya kuruluş yöneticinizden yetki isteyin.",
+      "headline": "Bu işlem için izniniz yok",
+      "description": "Hesabınız doğrulanmış ancak bu işlem için yeterli izniniz yok.",
+      "hint1": "Başka bir hesapla giriş yapmayı deneyin.",
+      "hint2": "Sipariş ve hizmetlerinizi müşteri panelinden yönetin.",
+      "hint3": "Sorun sürerse destek ile iletişime geçin.",
       "home": "Ana sayfaya dön",
       "dashboard": "Müşteri paneli",
       "login": "Başka hesapla giriş",
-      "contact": "Erişim talep et"
+      "contact": "Destek yaz"
     },
     "server": {
       "code": "500",

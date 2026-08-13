@@ -27,12 +27,38 @@ export async function fetchExchangeRates(): Promise<ExchangeRates> {
   }
 }
 
+export type PricingCurrency = "USD" | "EUR" | "AZN";
+
 export function convertUsdPreview(
   usdAmount: number,
-  currency: "USD" | "EUR" | "AZN",
+  currency: PricingCurrency,
   rates: Pick<ExchangeRates, "usdToAzn" | "usdToEur">,
 ): number {
   if (currency === "USD") return Math.round(usdAmount * 100) / 100;
   if (currency === "AZN") return Math.round(usdAmount * rates.usdToAzn * 100) / 100;
   return Math.round(usdAmount * rates.usdToEur * 100) / 100;
+}
+
+function toUsd(
+  amount: number,
+  from: PricingCurrency,
+  rates: Pick<ExchangeRates, "usdToAzn" | "usdToEur">,
+): number {
+  if (from === "USD") return amount;
+  if (from === "AZN") return rates.usdToAzn > 0 ? amount / rates.usdToAzn : amount;
+  return rates.usdToEur > 0 ? amount / rates.usdToEur : amount;
+}
+
+/** Display-only FX between USD / EUR / AZN using daily CBAR (or fallback) rates. */
+export function convertAmount(
+  amount: number,
+  from: string,
+  to: PricingCurrency,
+  rates: Pick<ExchangeRates, "usdToAzn" | "usdToEur">,
+): number {
+  const source = (from.toUpperCase() as PricingCurrency) || "USD";
+  const fromCurrency: PricingCurrency =
+    source === "EUR" || source === "AZN" || source === "USD" ? source : "USD";
+  if (fromCurrency === to) return Math.round(amount * 100) / 100;
+  return convertUsdPreview(toUsd(amount, fromCurrency, rates), to, rates);
 }

@@ -4,16 +4,18 @@ import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { ADMIN_PANEL_PATH } from "@/components/admin/admin-nav-config";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { stashAuthNext } from "@/features/auth/lib/auth-redirect";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { isStaffRole } from "@/lib/is-staff-role";
 import { useAuthStore, onAuthStoreHydrated } from "@/stores/auth-store";
 import { isViewingAsImpersonatedUser, useImpersonationStore } from "@/stores/impersonation-store";
 
+/**
+ * Staff-only shell. Anonymous and customer sessions receive a generic 404 —
+ * no login bounce and no 403 copy that would confirm an admin area exists.
+ */
 export function AdminShell({ children }: { children: React.ReactNode }): React.ReactElement {
   const router = useRouter();
   const pathname = usePathname();
@@ -52,14 +54,8 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
 
     if (isImpersonatingAway) {
       router.replace("/dashboard");
-      return;
     }
-
-    if (!isAuthenticated || !user || !accessToken) {
-      stashAuthNext(ADMIN_PANEL_PATH);
-      router.replace(`/login?next=${encodeURIComponent(ADMIN_PANEL_PATH)}`);
-    }
-  }, [hydrated, sessionReady, isAuthenticated, user, accessToken, isImpersonatingAway, router]);
+  }, [hydrated, sessionReady, isImpersonatingAway, router]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -94,7 +90,7 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
     );
   }
 
-  if (!isAuthenticated || !user || !accessToken) {
+  if (isImpersonatingAway) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b1220] text-white/70">
         {t("login.checking")}
@@ -102,7 +98,7 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
     );
   }
 
-  if (!isStaff) {
+  if (!isAuthenticated || !user || !accessToken || !isStaff) {
     notFound();
   }
 
@@ -118,50 +114,53 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
       ) : null}
 
       {mobileOpen ? (
-        <div className="fixed inset-y-0 left-0 z-[70] w-[min(100vw,15rem)] shadow-2xl lg:hidden">
-          <AdminSidebar
-            isAdmin={isAdmin}
-            onLogout={handleLogout}
-            onNavigate={() => setMobileOpen(false)}
-            className="h-full w-full pb-[env(safe-area-inset-bottom)]"
-          />
-        </div>
+        <aside className="fixed inset-y-0 left-0 z-[70] w-[min(18rem,88vw)] lg:hidden">
+          <AdminSidebar isAdmin={isAdmin} onNavigate={() => setMobileOpen(false)} />
+        </aside>
       ) : null}
 
-      <div className="flex min-h-screen">
-        <div className="hidden shrink-0 lg:block">
-          <AdminSidebar
-            isAdmin={isAdmin}
-            onLogout={handleLogout}
-            className="sticky top-0 h-screen"
-          />
+      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+        <div className="sticky top-0 hidden h-screen shrink-0 lg:block">
+          <AdminSidebar isAdmin={isAdmin} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="header-panel sticky top-0 z-30 flex h-14 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
-            <button
-              type="button"
-              className="text-on-surface-variant shrink-0 rounded-md p-2 transition hover:bg-slate-100 lg:hidden dark:hover:bg-white/5"
-              onClick={() => setMobileOpen((open) => !open)}
-              aria-expanded={mobileOpen}
-              aria-label={mobileOpen ? t("header.closeMenu") : t("header.openMenu")}
-            >
-              <span className="material-symbols-outlined">{mobileOpen ? "close" : "menu"}</span>
-            </button>
-            <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
-              <ThemeToggle />
-              <LanguageSwitcher />
-              <div className="min-w-0 text-right">
-                <p className="text-primary max-w-[38vw] truncate text-sm font-medium sm:max-w-[12rem]">
-                  {user.email}
+          <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-white/10 bg-[#0b1220]/80 px-4 py-3 backdrop-blur-xl sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white lg:hidden"
+                aria-label={t("header.openMenu")}
+                onClick={() => setMobileOpen(true)}
+              >
+                <span className="material-symbols-outlined text-[22px]">menu</span>
+              </button>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{t("header.title")}</p>
+                <p className="text-on-surface-variant truncate text-xs">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="hidden text-right sm:block">
+                <p className="text-xs font-medium text-white/90">
+                  {[user.firstName, user.lastName].filter(Boolean).join(" ") || user.email}
                 </p>
                 <p className="text-on-surface-variant text-xs capitalize">{user.role}</p>
               </div>
+              <LanguageSwitcher />
+              <ThemeToggle />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-medium text-white hover:bg-white/10"
+              >
+                <span className="material-symbols-outlined text-[18px]">logout</span>
+                <span className="hidden sm:inline">{t("header.logout")}</span>
+              </button>
             </div>
           </header>
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-            <div className="max-w-container-max mx-auto">{children}</div>
-          </main>
+
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         </div>
       </div>
     </div>

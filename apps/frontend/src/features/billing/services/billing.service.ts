@@ -157,8 +157,13 @@ export async function listPaymentMethods(): Promise<
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 
-export async function downloadInvoicePdf(invoiceId: string, accessToken: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf`, {
+export async function downloadInvoicePdf(
+  invoiceId: string,
+  accessToken: string,
+  locale?: string,
+): Promise<void> {
+  const qs = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+  const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf${qs}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" role="img" aria-label="Bank transfer">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0F766E"/>
+      <stop offset="100%" stop-color="#115E59"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="32" rx="6" fill="url(#bg)"/>
+  <path fill="#fff" fill-opacity=".95" d="M24 7.2 10.5 14.2h27L24 7.2Zm-11.2 8.4v8.2h2.2v-8.2h-2.2Zm5.4 0v8.2h2.2v-8.2h-2.2Zm5.4 0v8.2h2.2v-8.2H23.6Zm5.4 0v8.2h2.2v-8.2h-2.2Zm5.4 0v8.2h2.2v-8.2h-2.2ZM10.5 24.2v1.6h27v-1.6h-27Z"/>
+</svg>

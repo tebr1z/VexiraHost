@@ -1,25 +1,24 @@
 import type { MetadataRoute } from "next";
 
 import { BLOG_SLUGS } from "@/content/blog";
-
-const publicPaths = ["/", "/hosting", "/vps", "/about", "/faq", "/blog", "/terms", "/privacy"];
+import { getSiteUrl, SEO_PUBLIC_PATHS } from "@/lib/seo";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vexirahost.com";
+  const baseUrl = getSiteUrl();
   const lastModified = new Date();
 
-  const staticEntries = publicPaths.map((path) => ({
-    url: new URL(path, baseUrl).toString(),
+  const staticEntries: MetadataRoute.Sitemap = SEO_PUBLIC_PATHS.map((entry) => ({
+    url: entry.path === "/" ? `${baseUrl}/` : `${baseUrl}${entry.path}`,
     lastModified,
-    changeFrequency: (path === "/" ? "weekly" : "monthly") as "weekly" | "monthly",
-    priority: path === "/" ? 1 : 0.7,
+    changeFrequency: entry.changeFrequency,
+    priority: entry.priority,
   }));
 
-  const blogEntries = BLOG_SLUGS.map((slug) => ({
-    url: new URL(`/blog/${slug}`, baseUrl).toString(),
+  const blogEntries: MetadataRoute.Sitemap = BLOG_SLUGS.map((slug) => ({
+    url: `${baseUrl}/blog/${slug}`,
     lastModified,
-    changeFrequency: "monthly" as const,
-    priority: 0.6,
+    changeFrequency: "monthly",
+    priority: 0.65,
   }));
 
   return [...staticEntries, ...blogEntries];

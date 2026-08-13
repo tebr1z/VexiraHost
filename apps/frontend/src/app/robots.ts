@@ -1,17 +1,28 @@
 import type { MetadataRoute } from "next";
 
+import { getSiteUrl } from "@/lib/seo";
+
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vexirahost.com";
+  const baseUrl = getSiteUrl();
+  const disallow = ["/dashboard/", "/auth/", "/payment/", "/cart/", "/api/", "/unsubscribe/"];
+
+  const sharedRule = {
+    allow: "/" as const,
+    disallow,
+  };
 
   return {
     rules: [
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: ["/dashboard/", "/t4abriz/", "/auth/", "/payment/", "/cart/"],
-      },
+      { userAgent: "*", ...sharedRule },
+      { userAgent: "Googlebot", ...sharedRule },
+      { userAgent: "Googlebot-Image", allow: "/" },
+      { userAgent: "Bingbot", ...sharedRule },
+      { userAgent: "Yandex", ...sharedRule },
+      { userAgent: "YandexBot", ...sharedRule },
+      { userAgent: "DuckDuckBot", ...sharedRule },
+      { userAgent: "Slurp", ...sharedRule },
     ],
-    sitemap: new URL("/sitemap.xml", baseUrl).toString(),
+    sitemap: `${baseUrl}/sitemap.xml`,
     host: baseUrl,
   };
 }

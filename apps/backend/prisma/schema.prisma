@@ -442,19 +442,50 @@ model Domain {
   billingCurrency  String               @default("USD")
   graceEndsAt      DateTime?
   renewalInvoiceId String?
+  expiredAt        DateTime?
+  lateFeeAppliedAt DateTime?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  dnsRecords     DnsRecord[]
-  transfers      DomainTransfer[]
-  changeRequests DomainChangeRequest[]
-  invoices       Invoice[]
+  dnsRecords         DnsRecord[]
+  transfers          DomainTransfer[]
+  changeRequests     DomainChangeRequest[]
+  invoices           Invoice[]
+  expiryReminders    DomainExpiryReminder[]
 
   @@index([userId])
   @@index([managementMode])
   @@index([expiresAt])
   @@index([graceEndsAt])
   @@map("domains")
+}
+
+enum DomainExpiryReminderKind {
+  PRE_30
+  PRE_20
+  PRE_15
+  PRE_10
+  PRE_5
+  PRE_3
+  PRE_2
+  PRE_1
+  EXPIRED
+  EXPIRED_7
+  EXPIRED_10
+  EXPIRED_15
+  DELETED
+}
+
+model DomainExpiryReminder {
+  id        String                   @id @default(cuid())
+  domainId  String
+  domain    Domain                   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  kind      DomainExpiryReminderKind
+  sentAt    DateTime                 @default(now())
+
+  @@unique([domainId, kind])
+  @@index([domainId])
+  @@map("domain_expiry_reminders")
 }
 
 model DnsRecord {

@@ -17,6 +17,7 @@ import {
   type PromoCodeLike,
   type PromoEvalResult,
 } from "@/shared/pricing/promo.util";
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 
 function generateInvoiceNumber(): string {
   const suffix = Math.floor(Math.random() * 9000 + 1000);
@@ -152,6 +153,7 @@ export class OrdersService {
     private readonly ordersRepository: OrdersRepository,
     private readonly authRepository: AuthRepository,
     private readonly orderEmailService: OrderEmailService,
+    private readonly staffAlerts: StaffAlertService,
   ) {}
 
   private async buildLineItems(userId: string | null, dto: CheckoutDto | ValidatePromoDto) {
@@ -320,6 +322,18 @@ export class OrdersService {
         quantity: item.quantity,
         totalPrice: Number(item.totalPrice),
       })),
+    });
+
+    this.staffAlerts.notify({
+      kind: "ORDER_PLACED",
+      title: "Yeni sifariş",
+      lines: [
+        `Müştəri: ${customerName}`,
+        `Email: ${user?.email ?? "unknown"}`,
+        `Məbləğ: ${Number(order.total).toFixed(2)} ${order.currency}`,
+        `Məhsul: ${order.items.map((item) => `${item.productName} ×${item.quantity}`).join(", ")}`,
+      ],
+      url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/orders/${order.id}`,
     });
 
     return mapOrder(order);
