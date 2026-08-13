@@ -67,7 +67,80 @@
     "licensesGoogleWorkspace": "Google Workspace",
     "licensesWebmail": "Webmail",
     "whatsappApi": "WhatsApp API",
-    "whatsappApiPackages": "Пакеты сообщений"
+    "whatsappApiPackages": "Пакеты сообщений",
+    "design": "Дизайн"
+  },
+  "design": {
+    "metaTitle": "VexiraDesign — Мы создаём цифровые миры",
+    "metaDescription": "VexiraDesign — студия программного обеспечения и продукта внутри Vexira. ASP.NET, .NET, Kotlin, Next.js, NestJS, React и премиальный интерфейс.",
+    "keywords": [
+      "VexiraDesign",
+      "заказная разработка",
+      "Next.js студия",
+      "NestJS",
+      ".NET разработка",
+      "Kotlin Android",
+      "UI UX дизайн"
+    ],
+    "navHost": "Host",
+    "navBegin": "Начать",
+    "kicker": "VexiraDesign",
+    "heroLine1": "Мы создаём",
+    "heroLine2": "цифровые",
+    "heroLine3": "миры.",
+    "heroLead": "Студия программного обеспечения, продукта и интерфейса — с той же точностью, что и инфраструктура, которая это несёт.",
+    "scroll": "Листайте, чтобы войти",
+    "manifesto": [
+      { "text": "Мы" },
+      { "text": "создаём" },
+      { "text": "софт," },
+      { "text": "который" },
+      { "text": "кажется" },
+      { "text": "неизбежным.", "accent": true }
+    ],
+    "buildWith": "Мы строим на",
+    "tech": [
+      { "name": ".NET", "role": "Тихая сила. Системы, которые держат форму под нагрузкой." },
+      { "name": "React", "role": "Интерфейсы с весом, ритмом и сдержанностью." },
+      { "name": "Next.js", "role": "Поверхность продукта — быстрая, кинематографичная, точная." },
+      { "name": "NestJS", "role": "Архитектура, за которую не нужно извиняться." },
+      { "name": "Kotlin", "role": "Нативный Android с ощущением законченной вещи." },
+      { "name": "ASP.NET", "role": "Корпоративная форма, современная отделка." }
+    ],
+    "workLabel": "Избранные работы",
+    "projects": [
+      {
+        "name": "Aether",
+        "index": "01 — Private banking",
+        "meta": "Закрытый операционный слой для капитала. Тишина как свойство.",
+        "tags": ["Next.js", "NestJS", "UI"]
+      },
+      {
+        "name": "North",
+        "index": "02 — Логистический штаб",
+        "meta": "Одна поверхность для движения, исключений и времени.",
+        "tags": [".NET", "React", "Продукт"]
+      },
+      {
+        "name": "Kivu",
+        "index": "03 — Нативный компаньон",
+        "meta": "Android как инструмент, а не обёртка.",
+        "tags": ["Kotlin", "Mobile"]
+      },
+      {
+        "name": "Helix",
+        "index": "04 — Корпоративное ядро",
+        "meta": "Система, пересобранная так, чтобы организация наконец могла двигаться.",
+        "tags": ["ASP.NET", "Заказная разработка"]
+      }
+    ],
+    "processLabel": "От идеи → к продукту",
+    "process": ["Идея", "Дизайн", "Код", "Сборка", "Запуск", "Масштаб"],
+    "ctaTitle": "Давайте сделаем нечто неожиданное.",
+    "ctaLead": "Если бриф обычный — мы не та студия. Если должно ощущаться неизбежным — начните.",
+    "ctaPrimary": "Начать разговор",
+    "ctaSecondary": "Написать нам",
+    "footerNote": "Студия Vexira Labs"
   },
   "hero": {
     "badge": "ОБЛАКО, КОТОРОЕ РАСТЁТ С ВАМИ",
@@ -625,6 +698,7 @@
     "cookies": "Политика cookies",
     "faq": "Частые вопросы",
     "about": "О нас",
+    "design": "VexiraDesign",
     "globalNetwork": "Глобальная сеть",
     "paymentMethods": "Способы оплаты",
     "paymentMethodsHint": "Карты, банковский перевод, B2B и крипто"

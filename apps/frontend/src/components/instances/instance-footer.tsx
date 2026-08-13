@@ -75,6 +75,14 @@ export function InstanceFooter(): React.ReactElement {
               </li>
               <li>
                 <Link
+                  href="/design"
+                  className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                >
+                  {t("design")}
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/#infrastructure"
                   className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
                 >

@@ -67,7 +67,78 @@
     "licensesGoogleWorkspace": "Google Workspace",
     "licensesWebmail": "Webmail",
     "whatsappApi": "WhatsApp API",
-    "whatsappApiPackages": "Mesaj Paketləri"
+    "whatsappApiPackages": "Mesaj Paketləri",
+    "design": "Dizayn"
+  },
+  "design": {
+    "metaTitle": "VexiraDesign — Rəqəmsal dünyalar dizayn edirik",
+    "metaDescription": "VexiraDesign, Vexira daxilindəki proqram və məhsul studiyası. ASP.NET, .NET, Kotlin, Next.js, NestJS, React və premium interfeys dizaynı.",
+    "keywords": [
+      "VexiraDesign",
+      "xüsusi proqram",
+      "Next.js studiya",
+      "NestJS",
+      ".NET development",
+      "Kotlin Android",
+      "UI UX dizayn"
+    ],
+    "navHost": "Host",
+    "navBegin": "Başla",
+    "kicker": "VexiraDesign",
+    "heroLine1": "Rəqəmsal",
+    "heroLine2": "dünyalar",
+    "heroLine3": "dizayn edirik.",
+    "heroLead": "Proqram, məhsul və interfeys üçün studiya — onu daşıyan infrastrukturla eyni dəqiqliklə.",
+    "scroll": "Daxil olmaq üçün sürüşdür",
+    "manifesto": [
+      { "text": "Qaçılmaz" },
+      { "text": "hiss olunan" },
+      { "text": "proqram" },
+      { "text": "qururuq.", "accent": true }
+    ],
+    "buildWith": "Bunlarla qururuq",
+    "tech": [
+      { "name": ".NET", "role": "Sakit güc. Yük altında belə taraz sistemlər." },
+      { "name": "React", "role": "Çəkisi, ritmi və ölçüsü olan interfeyslər." },
+      { "name": "Next.js", "role": "Məhsulun səthi — sürətli, kinematik, dəqiq." },
+      { "name": "NestJS", "role": "Üzr istəməyə ehtiyac olmayan memarlıq." },
+      { "name": "Kotlin", "role": "Bitmiş obyekt kimi duran native Android." },
+      { "name": "ASP.NET", "role": "Korporativ forma, müasir bitiş." }
+    ],
+    "workLabel": "Seçilmiş işlər",
+    "projects": [
+      {
+        "name": "Aether",
+        "index": "01 — Özəl bankçılıq",
+        "meta": "Sərvət üçün bağlı əməliyyat qatı. Sükut bir xüsusiyyətdir.",
+        "tags": ["Next.js", "NestJS", "UI"]
+      },
+      {
+        "name": "North",
+        "index": "02 — Logistika komandası",
+        "meta": "Hərəkət, istisna və zaman üçün tək səth.",
+        "tags": [".NET", "React", "Məhsul"]
+      },
+      {
+        "name": "Kivu",
+        "index": "03 — Native yoldaş",
+        "meta": "Android örtük deyil, işlənmiş alətdir.",
+        "tags": ["Kotlin", "Mobil"]
+      },
+      {
+        "name": "Helix",
+        "index": "04 — Korporativ nüvə",
+        "meta": "Təşkilatın nəhayət hərəkət edə bilməsi üçün yenidən qurulmuş sistem.",
+        "tags": ["ASP.NET", "Xüsusi proqram"]
+      }
+    ],
+    "processLabel": "İdeyadan məhsula",
+    "process": ["İdeya", "Dizayn", "Kod", "Quruluş", "Yayım", "Miqyas"],
+    "ctaTitle": "Gözlənilməyəni quraq.",
+    "ctaLead": "Brief adi haldırsa, səhv studiyadasınız. Qaçılmaz hiss etməlidirsə — başlayın.",
+    "ctaPrimary": "Söhbətə başla",
+    "ctaSecondary": "Yazın",
+    "footerNote": "Vexira Labs studiyası"
   },
   "hero": {
     "badge": "SİZİNLƏ BÖYÜYƏN BULUD",
@@ -625,6 +696,7 @@
     "cookies": "Cookie Siyasəti",
     "faq": "Tez-tez verilən suallar",
     "about": "Haqqımızda",
+    "design": "VexiraDesign",
     "globalNetwork": "Qlobal Şəbəkə",
     "paymentMethods": "Ödəniş üsulları",
     "paymentMethodsHint": "Kart, bank köçürməsi, B2B və kripto"

@@ -79,7 +79,80 @@
     "licensesGoogleWorkspace": "Google Workspace",
     "licensesWebmail": "Webmail",
     "whatsappApi": "WhatsApp API",
-    "whatsappApiPackages": "Message Packages"
+    "whatsappApiPackages": "Message Packages",
+    "design": "Design"
+  },
+  "design": {
+    "metaTitle": "VexiraDesign — We design digital worlds",
+    "metaDescription": "VexiraDesign is the software and product studio inside Vexira. ASP.NET, .NET, Kotlin, Next.js, NestJS, React, and premium interface design.",
+    "keywords": [
+      "VexiraDesign",
+      "custom software",
+      "Next.js studio",
+      "NestJS",
+      ".NET development",
+      "Kotlin Android",
+      "UI UX design"
+    ],
+    "navHost": "Host",
+    "navBegin": "Begin",
+    "kicker": "VexiraDesign",
+    "heroLine1": "We design",
+    "heroLine2": "digital",
+    "heroLine3": "worlds.",
+    "heroLead": "A studio for software, product, and interface — built with the same precision as the infrastructure that carries it.",
+    "scroll": "Scroll to enter",
+    "manifesto": [
+      { "text": "We" },
+      { "text": "build" },
+      { "text": "software" },
+      { "text": "that" },
+      { "text": "feels" },
+      { "text": "inevitable.", "accent": true }
+    ],
+    "buildWith": "We build with",
+    "tech": [
+      { "name": ".NET", "role": "Quiet power. Systems that stay composed under load." },
+      { "name": "React", "role": "Interfaces with weight, rhythm, and restraint." },
+      { "name": "Next.js", "role": "The surface of the product — fast, cinematic, exact." },
+      { "name": "NestJS", "role": "Architecture you never have to apologise for." },
+      { "name": "Kotlin", "role": "Native Android with the feel of a finished object." },
+      { "name": "ASP.NET", "role": "Enterprise form, contemporary finish." }
+    ],
+    "workLabel": "Selected work",
+    "projects": [
+      {
+        "name": "Aether",
+        "index": "01 — Private banking",
+        "meta": "A sealed operating layer for wealth. Silence as a feature.",
+        "tags": ["Next.js", "NestJS", "UI"]
+      },
+      {
+        "name": "North",
+        "index": "02 — Logistics command",
+        "meta": "One surface for movement, exception, and time.",
+        "tags": [".NET", "React", "Product"]
+      },
+      {
+        "name": "Kivu",
+        "index": "03 — Native companion",
+        "meta": "Android as a crafted instrument, not a wrapper.",
+        "tags": ["Kotlin", "Mobile"]
+      },
+      {
+        "name": "Helix",
+        "index": "04 — Enterprise core",
+        "meta": "A system rebuilt so the organisation can finally move.",
+        "tags": ["ASP.NET", "Custom software"]
+      }
+    ],
+    "processLabel": "From idea → product",
+    "process": ["Idea", "Design", "Code", "Build", "Deploy", "Scale"],
+    "ctaTitle": "Let's build something unexpected.",
+    "ctaLead": "If the brief is ordinary, we are the wrong studio. If it needs to feel inevitable — begin.",
+    "ctaPrimary": "Start a conversation",
+    "ctaSecondary": "Write to us",
+    "footerNote": "A Vexira Labs studio"
   },
   "hero": {
     "badge": "BUILT TO GROW WITH YOU",
@@ -637,6 +710,7 @@
     "cookies": "Cookie Policy",
     "faq": "FAQ",
     "about": "About Us",
+    "design": "VexiraDesign",
     "globalNetwork": "Global Network",
     "paymentMethods": "We accept",
     "paymentMethodsHint": "Cards, bank transfer, B2B and crypto"
