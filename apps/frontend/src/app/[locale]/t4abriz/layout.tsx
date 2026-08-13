@@ -9,6 +9,6 @@ export default function StaffAreaLayout({
   children,
 }: {
   children: React.ReactNode;
-}): React.ReactElement {
+}): React.ReactNode {
   return children;
 }
