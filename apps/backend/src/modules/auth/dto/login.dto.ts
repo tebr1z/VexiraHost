@@ -1,4 +1,12 @@
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from "class-validator";
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 import { AUTH_EMAIL_LOCALES } from "../email/auth-email.locale";
 
@@ -17,4 +25,9 @@ export class LoginDto {
   @IsOptional()
   @IsIn([...AUTH_EMAIL_LOCALES])
   locale?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  turnstileToken?: string;
 }

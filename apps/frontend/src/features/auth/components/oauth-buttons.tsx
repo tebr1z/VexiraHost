@@ -14,30 +14,52 @@ function readNextFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("next");
 }
 
-export function OAuthButtons(): React.ReactElement {
+type OAuthButtonsProps = {
+  disabled?: boolean;
+  turnstileToken?: string;
+  intent?: "login" | "signup";
+};
+
+export function OAuthButtons({
+  disabled = false,
+  turnstileToken,
+  intent = "login",
+}: OAuthButtonsProps): React.ReactElement {
   const t = useTranslations("auth");
   const locale = useLocale();
   const [pendingGoogle, setPendingGoogle] = useState(false);
 
+  const locked = disabled || pendingGoogle;
+
   const startGoogle = (loginHint?: string) => {
+    if (disabled) return;
     stashAuthNext(readNextFromUrl());
     setPendingGoogle(true);
-    window.location.href = buildOAuthUrl("google", { loginHint, locale });
+    window.location.href = buildOAuthUrl("google", {
+      loginHint,
+      locale,
+      turnstileToken: turnstileToken || undefined,
+      intent,
+    });
   };
 
   return (
     <div className="space-y-3">
-      <GoogleAccountPrompt />
+      <GoogleAccountPrompt disabled={disabled} turnstileToken={turnstileToken} intent={intent} />
 
       <button
         type="button"
-        disabled={pendingGoogle}
+        disabled={locked}
         onClick={() => startGoogle()}
-        className="border-outline-variant bg-surface-container-lowest hover:bg-surface-container-low flex h-12 w-full items-center justify-center gap-2 rounded-xl border text-sm font-medium transition disabled:opacity-60"
+        className="border-outline-variant bg-surface-container-lowest hover:bg-surface-container-low flex h-12 w-full items-center justify-center gap-2 rounded-xl border text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
       >
         <GoogleIcon className="h-[18px] w-[18px]" />
         {t("continueGoogle")}
       </button>
+
+      {disabled ? (
+        <p className="text-on-surface-variant text-center text-xs">{t("googleNeedsTurnstile")}</p>
+      ) : null}
     </div>
   );
 }

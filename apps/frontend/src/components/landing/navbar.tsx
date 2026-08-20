@@ -11,11 +11,13 @@ import { CartNavButton } from "@/components/cart/cart-nav-button";
 import { NavPreferencesMenu } from "@/components/layout/nav-preferences-menu";
 import { useAuthHydration } from "@/features/auth/hooks/use-auth";
 import { Link } from "@/i18n/navigation";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 export function Navbar(): React.ReactElement {
   const t = useTranslations("nav");
   const { isReady, isAuthenticated } = useAuthHydration();
   const showSignedIn = isReady && isAuthenticated;
+  const registerEnabled = useMaintenanceStore((s) => s.access.registerEnabled);
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -61,9 +63,11 @@ export function Navbar(): React.ReactElement {
                 >
                   {t("signIn")}
                 </Link>
-                <Link href="/register" className="ios-nav-cta hidden lg:inline-flex">
-                  {t("deployNow")}
-                </Link>
+                {registerEnabled ? (
+                  <Link href="/register" className="ios-nav-cta hidden lg:inline-flex">
+                    {t("deployNow")}
+                  </Link>
+                ) : null}
               </>
             )}
 

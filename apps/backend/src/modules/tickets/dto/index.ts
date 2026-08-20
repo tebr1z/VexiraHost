@@ -1,5 +1,5 @@
-﻿import { IsEnum, IsOptional, IsString, MinLength } from "class-validator";
-import { TicketPriority, TicketRelatedServiceType } from "@prisma/client";
+﻿import { TicketPriority, TicketRelatedServiceType } from "@prisma/client";
+import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 export class CreateTicketDto {
   @IsString()
   @MinLength(3)
@@ -20,6 +20,11 @@ export class CreateTicketDto {
   @IsOptional()
   @IsString()
   relatedServiceId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  turnstileToken?: string;
 }
 
 export class ReplyTicketDto {

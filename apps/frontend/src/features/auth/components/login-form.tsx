@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useAuthHydration } from "../hooks/use-auth";
@@ -20,12 +20,21 @@ import {
 import { AuthField } from "./auth-field";
 import { OAuthButtons } from "./oauth-buttons";
 
+import { AccessClosedNotice } from "@/components/layout/access-closed-notice";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/security/turnstile-widget";
 import { Link, useRouter } from "@/i18n/navigation";
+import { getApiErrorMessage, isAuthChallengeError } from "@/lib/api-error";
+import { pickLocalizedText } from "@/lib/localized-text";
 import { useAuthStore } from "@/stores/auth-store";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 function LoginFormInner(): React.ReactElement {
   const t = useTranslations("auth");
   const tv = useTranslations("validation");
+  const ta = useTranslations("access");
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,6 +48,18 @@ function LoginFormInner(): React.ReactElement {
   const [otpSubmitting, setOtpSubmitting] = useState(false);
   const [otpResending, setOtpResending] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [captchaNeeded, setCaptchaNeeded] = useState(false);
+  const [staffUnlock, setStaffUnlock] = useState(false);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useMaintenanceStore((s) => s.turnstile);
+  const access = useMaintenanceStore((s) => s.access);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("vexira-login-captcha") === "1") {
+      setCaptchaNeeded(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (nextPath) stashAuthNext(nextPath);
@@ -72,7 +93,7 @@ function LoginFormInner(): React.ReactElement {
     try {
       setError(null);
       setRememberMe(Boolean(values.rememberMe));
-      const result = await loginRequest(values, locale);
+      const result = await loginRequest(values, locale, turnstileToken || undefined);
       if (isLoginTwoFactorChallenge(result)) {
         setChallenge(result);
         setOtpCode("");
@@ -90,13 +111,20 @@ function LoginFormInner(): React.ReactElement {
         return;
       }
       setSession(result, { rememberMe: values.rememberMe });
+      sessionStorage.removeItem("vexira-login-captcha");
+      setCaptchaNeeded(false);
       goAfterAuth((href) => router.push(href), nextPath, result.user?.role);
     } catch (err) {
-      const message =
-        err && typeof err === "object" && "error" in err
-          ? (err as { error?: { message?: string } }).error?.message
-          : t("loginFailed");
-      setError(message ?? t("loginFailed"));
+      if (isAuthChallengeError(err)) {
+        sessionStorage.setItem("vexira-login-captcha", "1");
+        setCaptchaNeeded(true);
+      }
+      setError(
+        getApiErrorMessage(err, t("loginFailed"), { turnstileFailed: t("turnstileFailed") }),
+      );
+    } finally {
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     }
   };
 
@@ -158,6 +186,21 @@ function LoginFormInner(): React.ReactElement {
     return (
       <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8">
         <p className="text-on-surface-variant text-center text-sm">{t("signingIn")}</p>
+      </div>
+    );
+  }
+
+  if (!access.loginEnabled && !staffUnlock) {
+    return (
+      <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8">
+        <AccessClosedNotice compact message={pickLocalizedText(access.loginMessage, locale)} />
+        <button
+          type="button"
+          onClick={() => setStaffUnlock(true)}
+          className="text-on-surface-variant mt-6 w-full text-sm hover:underline"
+        >
+          {ta("staffSignIn")}
+        </button>
       </div>
     );
   }
@@ -241,7 +284,17 @@ function LoginFormInner(): React.ReactElement {
         </p>
       </div>
 
-      <OAuthButtons />
+      {turnstile.enabled ? (
+        <div className="mb-4">
+          <TurnstileWidget ref={turnstileRef} action="login" onToken={setTurnstileToken} />
+        </div>
+      ) : null}
+
+      <OAuthButtons
+        intent="login"
+        turnstileToken={turnstileToken}
+        disabled={turnstile.enabled && (!turnstile.ready || !turnstileToken)}
+      />
 
       <div className="my-6 flex items-center gap-3">
         <div className="bg-outline-variant/40 h-px flex-1" />
@@ -295,7 +348,10 @@ function LoginFormInner(): React.ReactElement {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={
+            isSubmitting ||
+            (captchaNeeded && turnstile.enabled && (!turnstile.ready || !turnstileToken))
+          }
           className="bg-primary text-on-primary mt-1 h-12 w-full rounded-2xl font-semibold transition hover:opacity-90 disabled:opacity-60"
         >
           {isSubmitting ? t("signingIn") : t("signIn")}
@@ -304,12 +360,16 @@ function LoginFormInner(): React.ReactElement {
 
       <p className="text-on-surface-variant mt-6 text-center text-sm">
         {t("noAccount")}{" "}
-        <Link
-          href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"}
-          className="text-secondary font-semibold hover:underline"
-        >
-          {t("signUp")}
-        </Link>
+        {access.registerEnabled ? (
+          <Link
+            href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"}
+            className="text-secondary font-semibold hover:underline"
+          >
+            {t("signUp")}
+          </Link>
+        ) : (
+          <span className="text-on-surface-variant">{ta("registerClosedHint")}</span>
+        )}
       </p>
     </div>
   );

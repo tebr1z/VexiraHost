@@ -103,14 +103,14 @@ export class AuthController {
 
   @Public()
   @Post("forgot-password")
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto, { ip: getClientIp(req) });
   }
 
   @Public()
   @Post("reset-password")
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(dto, { ip: getClientIp(req) });
   }
 
   @Get("linked-providers")

@@ -1,4 +1,5 @@
-export type StaffAlertKind = "TICKET_OPENED" | "TICKET_REPLY" | "ORDER_PLACED" | "DNS_CHANGED";
+export type StaffAlertKind =
+  "TICKET_OPENED" | "TICKET_REPLY" | "ORDER_PLACED" | "DNS_CHANGED" | "CONTACT_FORM";
 
 export interface StaffAlertPayload {
   kind: StaffAlertKind;

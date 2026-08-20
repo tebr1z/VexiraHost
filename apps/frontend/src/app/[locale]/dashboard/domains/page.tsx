@@ -27,9 +27,21 @@ export default function DomainsPage(): React.ReactElement | null {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     listDomains()
-      .then(setDomains)
-      .finally(() => setLoading(false));
+      .then((rows) => {
+        if (!cancelled) setDomains(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setDomains([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

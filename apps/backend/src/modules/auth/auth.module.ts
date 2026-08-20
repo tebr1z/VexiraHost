@@ -11,6 +11,8 @@ import { AuthEmailService } from "./service/auth-email.service";
 import { AuthService } from "./service/auth.service";
 import { LoginAttemptService } from "./service/login-attempt.service";
 import { OauthConfigService } from "./service/oauth-config.service";
+import { SiteAccessService } from "./service/site-access.service";
+import { TurnstileService } from "./service/turnstile.service";
 import { GitHubStrategy } from "./strategies/github.strategy";
 import { GoogleStrategy } from "./strategies/google.strategy";
 import { JwtStrategy } from "./strategies/jwt.strategy";
@@ -23,9 +25,13 @@ import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>("jwt.accessSecret"),
+        secret: configService.getOrThrow<string>("jwt.accessSecret"),
         signOptions: {
           expiresIn: configService.get<string>("jwt.accessExpiresIn"),
+          algorithm: "HS256" as const,
+        },
+        verifyOptions: {
+          algorithms: ["HS256" as const],
         },
       }),
     }),
@@ -36,6 +42,8 @@ import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
     AuthEmailService,
     LoginAttemptService,
     OauthConfigService,
+    TurnstileService,
+    SiteAccessService,
     AuthRepository,
     JwtStrategy,
     GoogleStrategy,
@@ -44,6 +52,14 @@ import { JwtAuthGuard } from "@/guards/jwt-auth.guard";
     GitHubAuthGuard,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
-  exports: [AuthService, AuthRepository, AuthEmailService, JwtModule, OauthConfigService],
+  exports: [
+    AuthService,
+    AuthRepository,
+    AuthEmailService,
+    JwtModule,
+    OauthConfigService,
+    TurnstileService,
+    SiteAccessService,
+  ],
 })
 export class AuthModule {}

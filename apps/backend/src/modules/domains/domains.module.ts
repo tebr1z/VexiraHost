@@ -9,11 +9,12 @@ import { DomainEmailService } from "./service/domain-email.service";
 import { DomainExpiryJobService } from "./service/domain-expiry-job.service";
 import { DomainsService } from "./service/domains.service";
 
+import { AuthModule } from "@/modules/auth/auth.module";
 import { HostingModule } from "@/modules/hosting/hosting.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 
 @Module({
-  imports: [HostingModule],
+  imports: [AuthModule, HostingModule],
   controllers: [DomainsController],
   providers: [
     DomainsService,

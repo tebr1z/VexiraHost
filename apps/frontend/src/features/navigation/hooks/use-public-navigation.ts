@@ -7,6 +7,10 @@ import {
   listPublicNavigation,
   type PublicNavGroup,
 } from "@/features/navigation/services/navigation.service";
+import { isStaffRole } from "@/lib/is-staff-role";
+import { isHrefBlocked } from "@/lib/site-access";
+import { useAuthStore } from "@/stores/auth-store";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 function buildFallbackNavigation(
   t: (key: Parameters<ReturnType<typeof useTranslations<"nav">>>[0]) => string,
@@ -124,5 +128,16 @@ export function usePublicNavigation(): PublicNavGroup[] {
     };
   }, [locale, fallbackNav]);
 
-  return groups;
+  const access = useMaintenanceStore((s) => s.access);
+  const role = useAuthStore((s) => s.user?.role);
+
+  return useMemo(() => {
+    if (isStaffRole(role)) return groups;
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !isHrefBlocked(item.href, access)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groups, access, role]);
 }

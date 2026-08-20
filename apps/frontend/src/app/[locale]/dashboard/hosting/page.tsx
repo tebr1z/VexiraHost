@@ -23,9 +23,21 @@ export default function HostingPage(): React.ReactElement | null {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     listHostingAccounts()
-      .then((rows) => setAccounts(rows.filter(isHostingVisible)))
-      .finally(() => setLoading(false));
+      .then((rows) => {
+        if (!cancelled) setAccounts(rows.filter(isHostingVisible));
+      })
+      .catch(() => {
+        if (!cancelled) setAccounts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

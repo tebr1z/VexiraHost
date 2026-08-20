@@ -1,9 +1,12 @@
 "use client";
 
-import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/security/turnstile-widget";
 import { LoadingSkeleton, PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import {
@@ -11,6 +14,9 @@ import {
   listTicketRelatedServices,
   type TicketRelatedServiceOption,
 } from "@/features/tickets";
+import { useRouter } from "@/i18n/navigation";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 export default function NewTicketPage(): React.ReactElement | null {
   useRequireAuth();
@@ -18,6 +24,7 @@ export default function NewTicketPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.tickets");
+  const ta = useTranslations("auth");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -26,6 +33,9 @@ export default function NewTicketPage(): React.ReactElement | null {
   const [servicesLoading, setServicesLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useMaintenanceStore((s) => s.turnstile);
 
   useEffect(() => {
     listTicketRelatedServices()
@@ -55,12 +65,19 @@ export default function NewTicketPage(): React.ReactElement | null {
         priority,
         relatedServiceType,
         relatedServiceId,
+        turnstileToken: turnstileToken || undefined,
       });
       router.push(`/dashboard/tickets/${ticket.id}`);
-    } catch {
-      setError(tc("failedCreateTicket"));
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, tc("failedCreateTicket"), {
+          turnstileFailed: ta("turnstileFailed"),
+        }),
+      );
     } finally {
       setLoading(false);
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     }
   };
 
@@ -81,9 +98,15 @@ export default function NewTicketPage(): React.ReactElement | null {
         ]}
       />
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-outline-variant/50 bg-surface p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="border-outline-variant/50 bg-surface space-y-4 rounded-2xl border p-6"
+      >
         <div>
-          <label htmlFor="related-service" className="mb-1.5 block text-sm font-medium text-primary">
+          <label
+            htmlFor="related-service"
+            className="text-primary mb-1.5 block text-sm font-medium"
+          >
             {tp("relatedService")}
           </label>
           {servicesLoading ? (
@@ -93,17 +116,20 @@ export default function NewTicketPage(): React.ReactElement | null {
               id="related-service"
               value={relatedServiceKey}
               onChange={(e) => setRelatedServiceKey(e.target.value)}
-              className="h-12 w-full rounded-xl border border-outline-variant px-4"
+              className="border-outline-variant h-12 w-full rounded-xl border px-4"
             >
               <option value="">{tp("relatedServiceNone")}</option>
               {services.map((service) => (
-                <option key={`${service.type}:${service.id}`} value={`${service.type}:${service.id}`}>
+                <option
+                  key={`${service.type}:${service.id}`}
+                  value={`${service.type}:${service.id}`}
+                >
                   [{serviceTypeLabel(service.type)}] {service.label}
                 </option>
               ))}
             </select>
           )}
-          <p className="mt-1.5 text-xs text-on-surface-variant">{tp("relatedServiceHint")}</p>
+          <p className="text-on-surface-variant mt-1.5 text-xs">{tp("relatedServiceHint")}</p>
         </div>
 
         <input
@@ -111,12 +137,12 @@ export default function NewTicketPage(): React.ReactElement | null {
           onChange={(e) => setSubject(e.target.value)}
           placeholder={tc("subject")}
           required
-          className="h-12 w-full rounded-xl border border-outline-variant px-4"
+          className="border-outline-variant h-12 w-full rounded-xl border px-4"
         />
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className="h-12 w-full rounded-xl border border-outline-variant px-4"
+          className="border-outline-variant h-12 w-full rounded-xl border px-4"
         >
           <option value="LOW">{tc("priorityLow")}</option>
           <option value="MEDIUM">{tc("priorityMedium")}</option>
@@ -129,13 +155,14 @@ export default function NewTicketPage(): React.ReactElement | null {
           placeholder={tc("describeIssue")}
           required
           rows={6}
-          className="w-full rounded-xl border border-outline-variant px-4 py-3"
+          className="border-outline-variant w-full rounded-xl border px-4 py-3"
         />
-        {error && <p className="text-sm text-error">{error}</p>}
+        {error && <p className="text-error text-sm">{error}</p>}
+        <TurnstileWidget ref={turnstileRef} action="support" onToken={setTurnstileToken} />
         <button
           type="submit"
-          disabled={loading}
-          className="h-12 w-full rounded-xl bg-primary font-semibold text-on-primary disabled:opacity-60"
+          disabled={loading || !turnstile.ready || (turnstile.enabled && !turnstileToken)}
+          className="bg-primary text-on-primary h-12 w-full rounded-xl font-semibold disabled:opacity-60"
         >
           {loading ? tc("submitting") : tc("submitTicket")}
         </button>

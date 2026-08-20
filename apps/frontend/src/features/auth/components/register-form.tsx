@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { useAuthHydration } from "../hooks/use-auth";
@@ -14,11 +14,18 @@ import { AuthField } from "./auth-field";
 import { OAuthButtons } from "./oauth-buttons";
 import { PhoneCountryField } from "./phone-country-field";
 
+import { AccessClosedNotice } from "@/components/layout/access-closed-notice";
 import { PreferredCurrencyPicker } from "@/components/layout/preferred-currency-picker";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/security/turnstile-widget";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { pickLocalizedText } from "@/lib/localized-text";
 import { composePhoneE164, findDialByIso2 } from "@/lib/phone/country-dial-codes";
 import { useAuthStore } from "@/stores/auth-store";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 import { detectGeoCurrency, usePricingStore, type AppCurrency } from "@/stores/pricing-store";
 
 export function RegisterForm(): React.ReactElement {
@@ -34,6 +41,10 @@ export function RegisterForm(): React.ReactElement {
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [azLocked, setAzLocked] = useState(false);
   const [urlNext, setUrlNext] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useMaintenanceStore((s) => s.turnstile);
+  const access = useMaintenanceStore((s) => s.access);
 
   useEffect(() => {
     const next = getSafeNextPath(new URLSearchParams(window.location.search).get("next"));
@@ -108,6 +119,7 @@ export function RegisterForm(): React.ReactElement {
         { ...values, preferredCurrency: currency, phone: phone ?? undefined },
         locale,
         countryCode,
+        turnstileToken || undefined,
       );
       setSession(session);
       setFromUser({
@@ -120,8 +132,12 @@ export function RegisterForm(): React.ReactElement {
       setError(
         getApiErrorMessage(err, t("registerFailed"), {
           accountExists: t("accountExistsLogin"),
+          turnstileFailed: t("turnstileFailed"),
         }),
       );
+    } finally {
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     }
   };
 
@@ -129,6 +145,25 @@ export function RegisterForm(): React.ReactElement {
     return (
       <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8">
         <p className="text-on-surface-variant text-center text-sm">{t("signingIn")}</p>
+      </div>
+    );
+  }
+
+  if (!access.registerEnabled) {
+    return (
+      <div className="card-3d w-full max-w-md rounded-3xl p-6 sm:p-8">
+        <AccessClosedNotice compact message={pickLocalizedText(access.registerMessage, locale)} />
+        {access.loginEnabled ? (
+          <p className="text-on-surface-variant mt-6 text-center text-sm">
+            {t("hasAccount")}{" "}
+            <Link
+              href={urlNext ? `/login?next=${encodeURIComponent(urlNext)}` : "/login"}
+              className="text-secondary font-semibold hover:underline"
+            >
+              {t("signIn")}
+            </Link>
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -144,7 +179,17 @@ export function RegisterForm(): React.ReactElement {
         </p>
       </div>
 
-      <OAuthButtons />
+      {turnstile.enabled ? (
+        <div className="mb-4">
+          <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
+        </div>
+      ) : null}
+
+      <OAuthButtons
+        intent="signup"
+        turnstileToken={turnstileToken}
+        disabled={turnstile.enabled && (!turnstile.ready || !turnstileToken)}
+      />
 
       <div className="my-6 flex items-center gap-3">
         <div className="bg-outline-variant/40 h-px flex-1" />
@@ -258,7 +303,7 @@ export function RegisterForm(): React.ReactElement {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !turnstile.ready || (turnstile.enabled && !turnstileToken)}
           className="bg-primary text-on-primary mt-1 h-12 w-full rounded-2xl font-semibold transition hover:opacity-90 disabled:opacity-60"
         >
           {isSubmitting ? t("signingUp") : t("signUp")}

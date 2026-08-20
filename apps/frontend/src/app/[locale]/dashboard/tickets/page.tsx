@@ -33,9 +33,21 @@ export default function TicketsPage(): React.ReactElement | null {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     listTickets()
-      .then(setTickets)
-      .finally(() => setLoading(false));
+      .then((rows) => {
+        if (!cancelled) setTickets(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setTickets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {

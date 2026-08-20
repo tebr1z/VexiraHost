@@ -6,11 +6,12 @@ import { TicketAutoCloseJobService } from "./service/ticket-auto-close-job.servi
 import { TicketEmailService } from "./service/ticket-email.service";
 import { TicketsService } from "./service/tickets.service";
 
+import { AuthModule } from "@/modules/auth/auth.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 import { StorageModule } from "@/shared/storage/storage.module";
 
 @Module({
-  imports: [StorageModule],
+  imports: [StorageModule, AuthModule],
   controllers: [TicketsController],
   providers: [
     TicketsService,

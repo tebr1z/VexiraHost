@@ -28,6 +28,8 @@ import type { AuthResponse, AuthUserResponse, LoginResult } from "../types";
 
 import { AuthEmailService } from "./auth-email.service";
 import { LoginAttemptService } from "./login-attempt.service";
+import { SiteAccessService } from "./site-access.service";
+import { TurnstileService } from "./turnstile.service";
 
 import { verifyTotpCode } from "@/modules/auth/utils/totp.util";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
@@ -53,12 +55,17 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly authEmailService: AuthEmailService,
     private readonly loginAttemptService: LoginAttemptService,
+    private readonly turnstileService: TurnstileService,
+    private readonly siteAccessService: SiteAccessService,
   ) {}
 
   async register(
     dto: RegisterDto,
     meta?: { userAgent?: string; ip?: string },
   ): Promise<AuthResponse> {
+    await this.siteAccessService.assertRegisterOpen();
+    await this.turnstileService.assertValid(dto.turnstileToken, "signup", meta?.ip);
+
     const existing = await this.authRepository.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException("An account with this email already exists");
@@ -112,9 +119,18 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, meta?: { userAgent?: string; ip?: string }): Promise<LoginResult> {
+    if (this.loginAttemptService.requiresCaptcha(dto.email, meta?.ip)) {
+      await this.turnstileService.assertValid(dto.turnstileToken, "login", meta?.ip);
+    }
     const locale = resolveAuthEmailLocale(dto.locale);
+    if (this.loginAttemptService.isLocked(dto.email)) {
+      throw new UnauthorizedException("Invalid email or password");
+    }
+
     const user = await this.authRepository.findByEmail(dto.email);
+    await this.siteAccessService.assertLoginOpen(user?.role);
     if (!user?.passwordHash) {
+      this.loginAttemptService.recordFailure(dto.email, meta?.ip);
       throw new UnauthorizedException("Invalid email or password");
     }
 
@@ -124,7 +140,7 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
-      const shouldAlert = this.loginAttemptService.recordFailure(user.email);
+      const shouldAlert = this.loginAttemptService.recordFailure(user.email, meta?.ip);
       if (shouldAlert) {
         try {
           await this.authEmailService.sendFailedPasswordAttemptsEmail(
@@ -402,7 +418,11 @@ export class AuthService {
     return { message: "Verification email sent" };
   }
 
-  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(
+    dto: ForgotPasswordDto,
+    meta?: { ip?: string },
+  ): Promise<{ message: string }> {
+    await this.turnstileService.assertValid(dto.turnstileToken, "forgot-password", meta?.ip);
     const user = await this.authRepository.findByEmail(dto.email);
     if (!user) {
       return { message: "If the email exists, a reset link has been sent" };
@@ -429,7 +449,8 @@ export class AuthService {
     return { message: "If the email exists, a reset link has been sent" };
   }
 
-  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+  async resetPassword(dto: ResetPasswordDto, meta?: { ip?: string }): Promise<{ message: string }> {
+    await this.turnstileService.assertValid(dto.turnstileToken, "reset-password", meta?.ip);
     const record = await this.authRepository.findPasswordResetToken(dto.token);
     if (!record) {
       throw new BadRequestException("Invalid or expired reset token");
@@ -457,6 +478,7 @@ export class AuthService {
       if (existingOAuth.user.status === UserStatus.SUSPENDED) {
         throw new UnauthorizedException("Account is suspended");
       }
+      await this.siteAccessService.assertLoginOpen(existingOAuth.user.role);
       const withLocale = await this.recordLocaleQuietly(
         existingOAuth.user.id,
         existingOAuth.user.localeHistory,
@@ -478,6 +500,7 @@ export class AuthService {
       if (existingUser.status === UserStatus.SUSPENDED) {
         throw new UnauthorizedException("Account is suspended");
       }
+      await this.siteAccessService.assertLoginOpen(existingUser.role);
 
       const existingProviderLink = await this.authRepository.findUserOAuthAccount(
         existingUser.id,
@@ -503,6 +526,7 @@ export class AuthService {
         user = existingUser;
       }
     } else {
+      await this.siteAccessService.assertRegisterOpen();
       user = await this.authRepository.createOAuthUser({
         email: profile.email,
         firstName: profile.firstName,
@@ -566,8 +590,9 @@ export class AuthService {
       throw new NotFoundException("User not found");
     }
 
-    if (mapPrismaRoleToApp(target.role) === UserRole.ADMIN) {
-      throw new ForbiddenException("Cannot impersonate administrator accounts");
+    const targetRole = mapPrismaRoleToApp(target.role);
+    if (targetRole === UserRole.ADMIN || targetRole === UserRole.STAFF) {
+      throw new ForbiddenException("Cannot impersonate staff accounts");
     }
 
     if (target.status === UserStatus.SUSPENDED) {
@@ -593,14 +618,20 @@ export class AuthService {
       url.searchParams.set("method", result.method);
       url.searchParams.set("emailHint", result.emailHint);
       url.searchParams.set("expiresIn", String(result.expiresIn));
-    } else {
-      const session = result as AuthResponse;
-      url.searchParams.set("accessToken", session.tokens.accessToken);
-      url.searchParams.set("refreshToken", session.tokens.refreshToken);
+      if (provider) {
+        url.searchParams.set("provider", provider);
+      }
+      return url.toString();
     }
+
+    const session = result as AuthResponse;
+    const fragment = new URLSearchParams();
+    fragment.set("accessToken", session.tokens.accessToken);
+    fragment.set("refreshToken", session.tokens.refreshToken);
     if (provider) {
-      url.searchParams.set("provider", provider);
+      fragment.set("provider", provider);
     }
+    url.hash = fragment.toString();
     return url.toString();
   }
 

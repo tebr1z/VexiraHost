@@ -7,12 +7,15 @@ import type { UpdateSystemSettingsDto } from "../dto/system-settings.dto";
 
 import { PrismaService } from "@/database/database.module";
 import { OauthConfigService } from "@/modules/auth/service/oauth-config.service";
+import { SiteAccessService, SITE_SECTIONS } from "@/modules/auth/service/site-access.service";
+import { TurnstileService } from "@/modules/auth/service/turnstile.service";
 import {
   KapitalConfigService,
   KAPITAL_PRESETS,
   type KapitalEnvironment,
 } from "@/modules/payments/service/kapital-config.service";
 import { DEFAULT_QUEUE } from "@/queue/queue.module";
+import { parseLocalizedText, stringifyLocalizedText } from "@/shared/i18n/localized-text";
 
 const SETTING_KEYS = {
   registrarProvider: "registrar_provider",
@@ -54,6 +57,8 @@ export class AdminSystemService {
     private readonly systemRepository: AdminSystemRepository,
     private readonly kapitalConfigService: KapitalConfigService,
     private readonly oauthConfigService: OauthConfigService,
+    private readonly turnstileService: TurnstileService,
+    private readonly siteAccessService: SiteAccessService,
     @Inject(DEFAULT_QUEUE) private readonly queue: Queue | null,
   ) {}
 
@@ -86,7 +91,7 @@ export class AdminSystemService {
     ]);
     return {
       enabled: enabledRow?.value === "true",
-      message: messageRow?.value?.trim() ?? "",
+      message: parseLocalizedText(messageRow?.value),
     };
   }
 
@@ -98,8 +103,8 @@ export class AdminSystemService {
     ]);
     return {
       enabled: enabledRow?.value === "true",
-      title: titleRow?.value?.trim() ?? "",
-      message: messageRow?.value?.trim() ?? "",
+      title: parseLocalizedText(titleRow?.value),
+      message: parseLocalizedText(messageRow?.value),
     };
   }
 
@@ -144,9 +149,11 @@ export class AdminSystemService {
       kapital: await this.kapitalConfigService.getAdminSettings(),
       kapitalPresets: KAPITAL_PRESETS,
       googleOAuth: await this.oauthConfigService.getGoogleAdminSettings(),
+      turnstile: await this.turnstileService.getAdminSettings(),
+      access: await this.siteAccessService.getConfig(),
       maintenance: await this.resolveMaintenance(),
       announcement: await this.resolveAnnouncement(),
-      note: "Provider, Kapital, and Google OAuth credentials stored in the database override server .env defaults.",
+      note: "Provider, Kapital, Google OAuth, and Turnstile credentials stored in the database override server defaults.",
     };
   }
 
@@ -185,7 +192,7 @@ export class AdminSystemService {
     if (dto.maintenanceMessage !== undefined) {
       await this.systemRepository.upsertSetting(
         SETTING_KEYS.maintenanceMessage,
-        dto.maintenanceMessage.trim(),
+        stringifyLocalizedText(parseLocalizedText(dto.maintenanceMessage)),
       );
     }
 
@@ -198,14 +205,44 @@ export class AdminSystemService {
     if (dto.announcementTitle !== undefined) {
       await this.systemRepository.upsertSetting(
         SETTING_KEYS.announcementTitle,
-        dto.announcementTitle.trim(),
+        stringifyLocalizedText(parseLocalizedText(dto.announcementTitle)),
       );
     }
     if (dto.announcementMessage !== undefined) {
       await this.systemRepository.upsertSetting(
         SETTING_KEYS.announcementMessage,
-        dto.announcementMessage.trim(),
+        stringifyLocalizedText(parseLocalizedText(dto.announcementMessage)),
       );
+    }
+
+    if (
+      dto.loginEnabled !== undefined ||
+      dto.registerEnabled !== undefined ||
+      dto.loginMessage !== undefined ||
+      dto.registerMessage !== undefined ||
+      dto.sectionBlocks !== undefined
+    ) {
+      const sections =
+        dto.sectionBlocks == null
+          ? undefined
+          : Object.fromEntries(
+              SITE_SECTIONS.filter((key) => dto.sectionBlocks?.[key] !== undefined).map((key) => [
+                key,
+                {
+                  blocked: dto.sectionBlocks?.[key]?.blocked,
+                  message: dto.sectionBlocks?.[key]?.message
+                    ? parseLocalizedText(dto.sectionBlocks[key]?.message)
+                    : undefined,
+                },
+              ]),
+            );
+      await this.siteAccessService.save({
+        loginEnabled: dto.loginEnabled,
+        registerEnabled: dto.registerEnabled,
+        loginMessage: dto.loginMessage ? parseLocalizedText(dto.loginMessage) : undefined,
+        registerMessage: dto.registerMessage ? parseLocalizedText(dto.registerMessage) : undefined,
+        sections,
+      });
     }
 
     if (
@@ -220,17 +257,35 @@ export class AdminSystemService {
       });
     }
 
+    if (
+      dto.turnstileEnabled !== undefined ||
+      dto.turnstileSiteKey !== undefined ||
+      dto.turnstileSecret !== undefined ||
+      dto.turnstileHostnames !== undefined
+    ) {
+      await this.turnstileService.saveAdminSettings({
+        enabled: dto.turnstileEnabled,
+        siteKey: dto.turnstileSiteKey,
+        secret: dto.turnstileSecret,
+        hostnames: dto.turnstileHostnames,
+      });
+    }
+
     return this.getSystemStatus();
   }
 
   async getPublicSystemStatus() {
-    const [maintenance, announcement] = await Promise.all([
+    const [maintenance, announcement, turnstile, access] = await Promise.all([
       this.resolveMaintenance(),
       this.resolveAnnouncement(),
+      this.turnstileService.getPublicConfig(),
+      this.siteAccessService.getConfig(),
     ]);
     return {
       maintenance,
       announcement,
+      turnstile,
+      access,
       checkedAt: new Date().toISOString(),
     };
   }

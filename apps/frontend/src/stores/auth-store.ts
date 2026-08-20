@@ -13,6 +13,7 @@ interface AuthState {
   isAuthenticated: boolean;
   sessionReady: boolean;
   setSession: (session: AuthSession, options?: { rememberMe?: boolean }) => void;
+  setUser: (user: AuthSession["user"]) => void;
   clearSession: () => void;
   hydrateToken: () => void;
   setSessionReady: (ready: boolean) => void;
@@ -38,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
         });
       },
+      setUser: (user) => set({ user }),
       clearSession: () => {
         useImpersonationStore.getState().clearImpersonation();
         apiClient.setAccessToken("");

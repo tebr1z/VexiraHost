@@ -1,6 +1,6 @@
 import { ApiClient, ApiClientError } from "@vexira/api-sdk";
-import type { ApiResponse } from "@vexira/types";
 import type { RequestOptions } from "@vexira/api-sdk";
+import type { ApiResponse } from "@vexira/types";
 
 import { refreshAuthSession } from "@/features/auth/services/auth-session.service";
 import { useAuthStore } from "@/stores/auth-store";
@@ -20,11 +20,22 @@ function isUnauthorizedError(err: unknown): boolean {
   return err instanceof ApiClientError && err.payload.error?.code === "UNAUTHORIZED";
 }
 
-/** Network / gateway / server failures → show maintenance-style overlay immediately. */
 function isBackendUnavailableError(err: unknown): boolean {
   if (!(err instanceof ApiClientError)) return true;
 
   const code = (err.payload.error?.code ?? "").toUpperCase();
+
+  // Auth failures are not "backend down" — keep the session flow intact.
+  if (
+    code === "UNAUTHORIZED" ||
+    code === "FORBIDDEN" ||
+    code === "BAD_REQUEST" ||
+    code === "VALIDATION_ERROR" ||
+    code === "NOT_FOUND" ||
+    code === "CONFLICT"
+  ) {
+    return false;
+  }
 
   if (
     code === "NETWORK_ERROR" ||
@@ -32,15 +43,13 @@ function isBackendUnavailableError(err: unknown): boolean {
     code === "TIMEOUT" ||
     code === "REQUEST_TIMEOUT" ||
     code === "SERVICE_UNAVAILABLE" ||
-    code === "INTERNAL_ERROR" ||
-    code === "INTERNAL_SERVER_ERROR" ||
     code === "BAD_GATEWAY" ||
     code === "GATEWAY_TIMEOUT"
   ) {
     return true;
   }
 
-  if (/\b(500|502|503|504)\b/.test(code)) return true;
+  if (/\b(502|503|504)\b/.test(code)) return true;
 
   return false;
 }

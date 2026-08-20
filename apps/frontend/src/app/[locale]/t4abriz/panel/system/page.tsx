@@ -3,17 +3,21 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { LocaleMessageFields } from "@/components/admin/locale-message-fields";
 import { PageHeader } from "@/components/ui";
 import {
   getAdminSystemStatus,
   updateAdminSystemSettings,
   type AdminKapitalSettings,
   type AdminGoogleOAuthSettings,
+  type AdminTurnstileSettings,
   type AdminSystemStatus,
   type KapitalEnvironment,
   type KapitalPreset,
 } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
+import { emptyLocalizedText } from "@/lib/localized-text";
+import { defaultSiteAccess, SITE_SECTION_GROUPS, type SiteAccessConfig } from "@/lib/site-access";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
 
@@ -49,13 +53,14 @@ export default function AdminSystemPage(): React.ReactElement | null {
   > | null>(null);
   const [maintenance, setMaintenance] = useState({
     enabled: false,
-    message: "",
+    message: emptyLocalizedText(),
   });
   const [announcement, setAnnouncement] = useState({
     enabled: false,
-    title: "",
-    message: "",
+    title: emptyLocalizedText(),
+    message: emptyLocalizedText(),
   });
+  const [access, setAccess] = useState<SiteAccessConfig>(defaultSiteAccess());
   const [googleOAuth, setGoogleOAuth] = useState<AdminGoogleOAuthSettings>({
     clientId: "",
     clientSecret: "",
@@ -63,6 +68,14 @@ export default function AdminSystemPage(): React.ReactElement | null {
     configured: false,
     source: "env",
   });
+  const [turnstile, setTurnstile] = useState<AdminTurnstileSettings>({
+    enabled: false,
+    siteKey: "0x4AAAAAAEWxQmtfjmxvrm1J",
+    secretConfigured: false,
+    hostnames: "",
+    source: "default",
+  });
+  const [turnstileSecret, setTurnstileSecret] = useState("");
 
   useEffect(() => {
     if (isAdmin) {
@@ -72,8 +85,25 @@ export default function AdminSystemPage(): React.ReactElement | null {
         setKapital(data.kapital);
         setKapitalPresets(data.kapitalPresets);
         setMaintenance(data.maintenance);
-        setAnnouncement(data.announcement ?? { enabled: false, title: "", message: "" });
+        setAnnouncement(
+          data.announcement ?? {
+            enabled: false,
+            title: emptyLocalizedText(),
+            message: emptyLocalizedText(),
+          },
+        );
+        setAccess(data.access ?? defaultSiteAccess());
         setGoogleOAuth(data.googleOAuth);
+        setTurnstile(
+          data.turnstile ?? {
+            enabled: false,
+            siteKey: "0x4AAAAAAEWxQmtfjmxvrm1J",
+            secretConfigured: false,
+            hostnames: "",
+            source: "default",
+          },
+        );
+        setTurnstileSecret("");
       });
     }
   }, [isAdmin]);
@@ -100,6 +130,11 @@ export default function AdminSystemPage(): React.ReactElement | null {
         announcementEnabled: announcement.enabled,
         announcementTitle: announcement.title,
         announcementMessage: announcement.message,
+        loginEnabled: access.loginEnabled,
+        registerEnabled: access.registerEnabled,
+        loginMessage: access.loginMessage,
+        registerMessage: access.registerMessage,
+        sectionBlocks: access.sections,
       };
 
       if (providers.paymentProvider === "kapital") {
@@ -114,14 +149,38 @@ export default function AdminSystemPage(): React.ReactElement | null {
         payload.googleClientSecret = googleOAuth.clientSecret;
       }
 
+      payload.turnstileEnabled = turnstile.enabled;
+      payload.turnstileSiteKey = turnstile.siteKey.trim();
+      payload.turnstileHostnames = turnstile.hostnames.trim();
+      if (turnstileSecret.trim()) {
+        payload.turnstileSecret = turnstileSecret.trim();
+      }
+
       const updated = await updateAdminSystemSettings(payload);
       setStatus(updated);
       setProviders(updated.providers);
       setKapital(updated.kapital);
       setKapitalPresets(updated.kapitalPresets);
       setMaintenance(updated.maintenance);
-      setAnnouncement(updated.announcement ?? { enabled: false, title: "", message: "" });
+      setAnnouncement(
+        updated.announcement ?? {
+          enabled: false,
+          title: emptyLocalizedText(),
+          message: emptyLocalizedText(),
+        },
+      );
+      setAccess(updated.access ?? defaultSiteAccess());
       setGoogleOAuth(updated.googleOAuth);
+      setTurnstile(
+        updated.turnstile ?? {
+          enabled: false,
+          siteKey: "0x4AAAAAAEWxQmtfjmxvrm1J",
+          secretConfigured: false,
+          hostnames: "",
+          source: "default",
+        },
+      );
+      setTurnstileSecret("");
       toast(tp("saved"), "success");
     } catch {
       toast(tp("saveFailed"), "error");
@@ -175,14 +234,10 @@ export default function AdminSystemPage(): React.ReactElement | null {
           </label>
           <label className="block space-y-1">
             <span className="text-on-surface text-sm font-medium">{tp("maintenance.message")}</span>
-            <textarea
+            <LocaleMessageFields
               value={maintenance.message}
-              onChange={(e) =>
-                setMaintenance((current) => ({ ...current, message: e.target.value }))
-              }
-              rows={3}
+              onChange={(message) => setMaintenance((current) => ({ ...current, message }))}
               placeholder={tp("maintenance.messagePlaceholder")}
-              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
             />
             <span className="text-on-surface-variant text-xs">{tp("maintenance.messageHint")}</span>
           </label>
@@ -209,33 +264,138 @@ export default function AdminSystemPage(): React.ReactElement | null {
             <span className="text-on-surface text-sm font-medium">
               {tp("announcement.heading")}
             </span>
-            <input
-              type="text"
+            <LocaleMessageFields
               value={announcement.title}
-              onChange={(e) =>
-                setAnnouncement((current) => ({ ...current, title: e.target.value }))
-              }
+              onChange={(title) => setAnnouncement((current) => ({ ...current, title }))}
               placeholder={tp("announcement.headingPlaceholder")}
-              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
+              singleLine
             />
           </label>
           <label className="block space-y-1">
             <span className="text-on-surface text-sm font-medium">
               {tp("announcement.message")}
             </span>
-            <textarea
+            <LocaleMessageFields
               value={announcement.message}
-              onChange={(e) =>
-                setAnnouncement((current) => ({ ...current, message: e.target.value }))
-              }
+              onChange={(message) => setAnnouncement((current) => ({ ...current, message }))}
               rows={4}
               placeholder={tp("announcement.messagePlaceholder")}
-              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
             />
             <span className="text-on-surface-variant text-xs">
               {tp("announcement.messageHint")}
             </span>
           </label>
+        </div>
+      </section>
+
+      <section className="card-3d rounded-2xl p-6">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("access.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("access.description")}</p>
+        <div className="mt-4 space-y-5">
+          <label className="text-on-surface flex items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={!access.loginEnabled}
+              onChange={(e) =>
+                setAccess((current) => ({ ...current, loginEnabled: !e.target.checked }))
+              }
+              className="border-outline-variant h-4 w-4 rounded"
+            />
+            {tp("access.closeLogin")}
+          </label>
+          <div className="space-y-1">
+            <span className="text-on-surface text-sm font-medium">{tp("access.loginMessage")}</span>
+            <LocaleMessageFields
+              value={access.loginMessage}
+              onChange={(loginMessage) => setAccess((current) => ({ ...current, loginMessage }))}
+              placeholder={tp("access.messagePlaceholder")}
+            />
+          </div>
+          <p className="text-on-surface-variant text-xs">{tp("access.loginStaffNote")}</p>
+
+          <label className="text-on-surface flex items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={!access.registerEnabled}
+              onChange={(e) =>
+                setAccess((current) => ({ ...current, registerEnabled: !e.target.checked }))
+              }
+              className="border-outline-variant h-4 w-4 rounded"
+            />
+            {tp("access.closeRegister")}
+          </label>
+          <div className="space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("access.registerMessage")}
+            </span>
+            <LocaleMessageFields
+              value={access.registerMessage}
+              onChange={(registerMessage) =>
+                setAccess((current) => ({ ...current, registerMessage }))
+              }
+              placeholder={tp("access.messagePlaceholder")}
+            />
+          </div>
+
+          <div className="border-outline-variant/40 space-y-5 border-t pt-4">
+            <div>
+              <h3 className="text-on-surface text-sm font-semibold">
+                {tp("access.sectionsTitle")}
+              </h3>
+              <p className="text-on-surface-variant mt-1 text-xs">{tp("access.sectionsHint")}</p>
+            </div>
+            {SITE_SECTION_GROUPS.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <h4 className="text-on-surface-variant text-xs font-semibold uppercase tracking-wide">
+                  {tp(`access.groups.${group.key}`)}
+                </h4>
+                {group.items.map((section) => {
+                  const blocked = access.sections[section].blocked;
+                  return (
+                    <div key={section} className="bg-surface-container-low/40 rounded-xl p-3">
+                      <label className="text-on-surface flex items-center gap-3 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          checked={blocked}
+                          onChange={(e) =>
+                            setAccess((current) => ({
+                              ...current,
+                              sections: {
+                                ...current.sections,
+                                [section]: {
+                                  ...current.sections[section],
+                                  blocked: e.target.checked,
+                                },
+                              },
+                            }))
+                          }
+                          className="border-outline-variant h-4 w-4 rounded"
+                        />
+                        {tp(`access.sections.${section}`)}
+                      </label>
+                      {blocked ? (
+                        <div className="mt-3">
+                          <LocaleMessageFields
+                            value={access.sections[section].message}
+                            onChange={(message) =>
+                              setAccess((current) => ({
+                                ...current,
+                                sections: {
+                                  ...current.sections,
+                                  [section]: { ...current.sections[section], message },
+                                },
+                              }))
+                            }
+                            placeholder={tp("access.messagePlaceholder")}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -299,6 +459,83 @@ export default function AdminSystemPage(): React.ReactElement | null {
             {googleOAuth.configured
               ? ` · ${tp("googleOAuth.configured")}`
               : ` · ${tp("googleOAuth.notConfigured")}`}
+          </p>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? tp("saving") : tp("save")}
+          </button>
+        </div>
+      </section>
+
+      <section className="card-3d rounded-2xl p-6">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("turnstile.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("turnstile.description")}</p>
+        <div className="mt-4 space-y-4">
+          <label className="text-on-surface flex items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={turnstile.enabled}
+              onChange={(e) =>
+                setTurnstile((current) => ({ ...current, enabled: e.target.checked }))
+              }
+              className="border-outline-variant h-4 w-4 rounded"
+            />
+            {tp("turnstile.enabled")}
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">{tp("turnstile.siteKey")}</span>
+            <input
+              type="text"
+              value={turnstile.siteKey}
+              onChange={(e) => setTurnstile((current) => ({ ...current, siteKey: e.target.value }))}
+              placeholder="0x4AAAAAAEWxQmtfjmxvrm1J"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">{tp("turnstile.secret")}</span>
+            <input
+              type="password"
+              value={turnstileSecret}
+              onChange={(e) => setTurnstileSecret(e.target.value)}
+              placeholder={
+                turnstile.secretConfigured
+                  ? tp("turnstile.secretKeepPlaceholder")
+                  : tp("turnstile.secretPlaceholder")
+              }
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="new-password"
+            />
+            <span className="text-on-surface-variant text-xs">{tp("turnstile.secretHint")}</span>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">{tp("turnstile.hostnames")}</span>
+            <input
+              type="text"
+              value={turnstile.hostnames}
+              onChange={(e) =>
+                setTurnstile((current) => ({ ...current, hostnames: e.target.value }))
+              }
+              placeholder="vexirahost.com,www.vexirahost.com"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+            <span className="text-on-surface-variant text-xs">{tp("turnstile.hostnamesHint")}</span>
+          </label>
+
+          <p className="text-on-surface-variant text-xs">
+            {tp("turnstile.source")}: {tp(`turnstile.sourceOptions.${turnstile.source}`)}
+            {turnstile.secretConfigured
+              ? ` · ${tp("turnstile.configured")}`
+              : ` · ${tp("turnstile.notConfigured")}`}
           </p>
           <button
             type="button"

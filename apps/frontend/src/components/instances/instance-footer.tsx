@@ -5,9 +5,16 @@ import { useTranslations } from "next-intl";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { FooterPaymentLogos } from "@/components/layout/footer-payment-logos";
 import { Link } from "@/i18n/navigation";
+import { isStaffRole } from "@/lib/is-staff-role";
+import { isHrefBlocked } from "@/lib/site-access";
+import { useAuthStore } from "@/stores/auth-store";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 export function InstanceFooter(): React.ReactElement {
   const t = useTranslations("footer");
+  const access = useMaintenanceStore((s) => s.access);
+  const role = useAuthStore((s) => s.user?.role);
+  const show = (href: string) => isStaffRole(role) || !isHrefBlocked(href, access);
 
   return (
     <footer className="border-t-[0.5px] border-[var(--separator)] bg-[var(--bg)] py-14" id="legal">
@@ -25,14 +32,16 @@ export function InstanceFooter(): React.ReactElement {
               {t("product")}
             </h4>
             <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="/hosting"
-                  className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
-                >
-                  {t("blockStorage")}
-                </Link>
-              </li>
+              {show("/hosting") ? (
+                <li>
+                  <Link
+                    href="/hosting"
+                    className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                  >
+                    {t("blockStorage")}
+                  </Link>
+                </li>
+              ) : null}
               <li>
                 <Link
                   href="/dashboard/servers"
@@ -57,30 +66,36 @@ export function InstanceFooter(): React.ReactElement {
               {t("resources")}
             </h4>
             <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="/faq"
-                  className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
-                >
-                  {t("faq")}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
-                >
-                  {t("about")}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/design"
-                  className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
-                >
-                  {t("design")}
-                </Link>
-              </li>
+              {show("/faq") ? (
+                <li>
+                  <Link
+                    href="/faq"
+                    className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                  >
+                    {t("faq")}
+                  </Link>
+                </li>
+              ) : null}
+              {show("/about") ? (
+                <li>
+                  <Link
+                    href="/about"
+                    className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                  >
+                    {t("about")}
+                  </Link>
+                </li>
+              ) : null}
+              {show("/design") ? (
+                <li>
+                  <Link
+                    href="/design"
+                    className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                  >
+                    {t("design")}
+                  </Link>
+                </li>
+              ) : null}
               <li>
                 <Link
                   href="/#infrastructure"
@@ -89,14 +104,26 @@ export function InstanceFooter(): React.ReactElement {
                   {t("documentation")}
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/dashboard/tickets/new"
-                  className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
-                >
-                  {t("apiStatus")}
-                </Link>
-              </li>
+              {show("/contact") ? (
+                <li>
+                  <Link
+                    href="/contact"
+                    className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                  >
+                    {t("contact")}
+                  </Link>
+                </li>
+              ) : null}
+              {show("/support") ? (
+                <li>
+                  <Link
+                    href="/support"
+                    className="text-[var(--label-secondary)] hover:text-[var(--accent)]"
+                  >
+                    {t("support")}
+                  </Link>
+                </li>
+              ) : null}
               <li>
                 <Link
                   href="/login"

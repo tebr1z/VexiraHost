@@ -1,9 +1,57 @@
-import { Transform } from "class-transformer";
-import { IsBoolean, IsIn, IsOptional, IsString } from "class-validator";
+import { Transform, Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from "class-validator";
 
 const INTEGRATION_PROVIDER_VALUES = ["mock", "real", "stripe", "whm"] as const;
 const PAYMENT_PROVIDER_VALUES = ["mock", "kapital"] as const;
 const KAPITAL_ENVIRONMENT_VALUES = ["test", "production"] as const;
+
+function toBoolean({ value }: { value: unknown }) {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return value;
+}
+
+export class LocalizedTextDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  az?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  en?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  tr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  ru?: string;
+}
+
+export class SectionBlockDto {
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  blocked?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocalizedTextDto)
+  message?: LocalizedTextDto;
+}
 
 export class UpdateSystemSettingsDto {
   @IsOptional()
@@ -40,34 +88,53 @@ export class UpdateSystemSettingsDto {
   kapitalPassword?: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === true || value === "true" || value === 1 || value === "1") return true;
-    if (value === false || value === "false" || value === 0 || value === "0") return false;
-    return value;
-  })
+  @Transform(toBoolean)
   @IsBoolean()
   maintenanceEnabled?: boolean;
 
   @IsOptional()
-  @IsString()
-  maintenanceMessage?: string;
+  @ValidateNested()
+  @Type(() => LocalizedTextDto)
+  maintenanceMessage?: LocalizedTextDto;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === true || value === "true" || value === 1 || value === "1") return true;
-    if (value === false || value === "false" || value === 0 || value === "0") return false;
-    return value;
-  })
+  @Transform(toBoolean)
   @IsBoolean()
   announcementEnabled?: boolean;
 
   @IsOptional()
-  @IsString()
-  announcementTitle?: string;
+  @ValidateNested()
+  @Type(() => LocalizedTextDto)
+  announcementTitle?: LocalizedTextDto;
 
   @IsOptional()
-  @IsString()
-  announcementMessage?: string;
+  @ValidateNested()
+  @Type(() => LocalizedTextDto)
+  announcementMessage?: LocalizedTextDto;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  loginEnabled?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  registerEnabled?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocalizedTextDto)
+  loginMessage?: LocalizedTextDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocalizedTextDto)
+  registerMessage?: LocalizedTextDto;
+
+  @IsOptional()
+  @IsObject()
+  sectionBlocks?: Record<string, SectionBlockDto>;
 
   @IsOptional()
   @IsString()
@@ -80,4 +147,22 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
   googleCallbackUrl?: string;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  turnstileEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  turnstileSiteKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  turnstileSecret?: string;
+
+  @IsOptional()
+  @IsString()
+  turnstileHostnames?: string;
 }

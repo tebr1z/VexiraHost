@@ -1,32 +1,59 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import { ensureValidAccessToken } from "@/features/auth/services/auth-session.service";
 import { onAuthStoreHydrated, useAuthStore } from "@/stores/auth-store";
 
-export function AuthHydrationProvider({ children }: { children: React.ReactNode }): React.ReactElement {
+const BOOTSTRAP_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(null), ms);
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        window.clearTimeout(timer);
+        resolve(null);
+      });
+  });
+}
+
+export function AuthHydrationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.ReactElement {
   const hydrateToken = useAuthStore((s) => s.hydrateToken);
   const setSessionReady = useAuthStore((s) => s.setSessionReady);
-  const startedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
+    let started = false;
+
+    const finish = () => {
+      if (!cancelled) setSessionReady(true);
+    };
 
     const bootstrap = async () => {
-      if (startedRef.current) return;
-      startedRef.current = true;
+      if (started || cancelled) return;
+      started = true;
 
       hydrateToken();
 
-      const { isAuthenticated, refreshToken } = useAuthStore.getState();
-      if (isAuthenticated && refreshToken) {
-        await ensureValidAccessToken();
+      try {
+        const { isAuthenticated, refreshToken } = useAuthStore.getState();
+        if (isAuthenticated && refreshToken) {
+          await withTimeout(ensureValidAccessToken(), BOOTSTRAP_TIMEOUT_MS);
+        }
+      } catch {
+        // Refresh failures clear the session inside ensureValidAccessToken.
       }
 
-      if (!cancelled) {
-        setSessionReady(true);
-      }
+      finish();
     };
 
     const unsub = onAuthStoreHydrated(() => {
@@ -35,6 +62,13 @@ export function AuthHydrationProvider({ children }: { children: React.ReactNode 
 
     if (useAuthStore.persist?.hasHydrated?.()) {
       void bootstrap();
+    } else {
+      // Persist not ready yet — still unblock UI if hydration callback is missed.
+      window.setTimeout(() => {
+        if (!cancelled && !useAuthStore.getState().sessionReady) {
+          void bootstrap();
+        }
+      }, 1500);
     }
 
     return () => {

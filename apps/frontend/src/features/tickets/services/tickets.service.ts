@@ -76,6 +76,7 @@ export async function createTicket(input: {
   priority?: string;
   relatedServiceType?: string;
   relatedServiceId?: string;
+  turnstileToken?: string;
 }): Promise<TicketDetail> {
   const res = await apiClient.request<TicketDetail>("/tickets", {
     method: "POST",

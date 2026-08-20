@@ -15,6 +15,8 @@ import { TicketsRepository } from "../repository/tickets.repository";
 
 import { TicketEmailService } from "./ticket-email.service";
 
+import { SiteAccessService } from "@/modules/auth/service/site-access.service";
+import { TurnstileService } from "@/modules/auth/service/turnstile.service";
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "@/shared/storage/storage.interface";
 
@@ -175,6 +177,8 @@ export class TicketsService {
     private readonly ticketsRepository: TicketsRepository,
     private readonly ticketEmailService: TicketEmailService,
     private readonly staffAlerts: StaffAlertService,
+    private readonly turnstileService: TurnstileService,
+    private readonly siteAccessService: SiteAccessService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
@@ -232,6 +236,9 @@ export class TicketsService {
   }
 
   async create(userId: string, dto: CreateTicketDto, clientIp?: string) {
+    await this.siteAccessService.assertSectionOpen("support");
+    await this.turnstileService.assertValid(dto.turnstileToken, "support", clientIp);
+
     let relatedServiceType: TicketRelatedServiceType | undefined;
     let relatedServiceId: string | undefined;
     let relatedServiceLabel: string | undefined;

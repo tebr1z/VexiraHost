@@ -2,11 +2,16 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/security/turnstile-widget";
 import { resetPasswordRequest } from "@/features/auth/services/auth.service";
 import { Link } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 export default function ResetPasswordPage(): React.ReactElement {
   const t = useTranslations("auth");
@@ -17,6 +22,9 @@ export default function ResetPasswordPage(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useMaintenanceStore((s) => s.turnstile);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,12 +45,18 @@ export default function ResetPasswordPage(): React.ReactElement {
 
     try {
       setLoading(true);
-      await resetPasswordRequest({ token, password });
+      await resetPasswordRequest({ token, password, turnstileToken: turnstileToken || undefined });
       setDone(true);
     } catch (err) {
-      setError(getApiErrorMessage(err, t("resetPasswordFailed")));
+      setError(
+        getApiErrorMessage(err, t("resetPasswordFailed"), {
+          turnstileFailed: t("turnstileFailed"),
+        }),
+      );
     } finally {
       setLoading(false);
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     }
   };
 
@@ -102,9 +116,11 @@ export default function ResetPasswordPage(): React.ReactElement {
           </div>
         )}
 
+        <TurnstileWidget ref={turnstileRef} action="reset-password" onToken={setTurnstileToken} />
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !turnstile.ready || (turnstile.enabled && !turnstileToken)}
           className="bg-primary text-on-primary h-12 w-full rounded-xl font-semibold disabled:opacity-60"
         >
           {loading ? t("processing") : t("resetPasswordCta")}

@@ -1,11 +1,17 @@
+import { ApiClientError } from "@vexira/api-sdk";
+
 /**
  * Extract a user-facing message from API client errors.
  */
 export function getApiErrorMessage(
   err: unknown,
   fallback: string,
-  options?: { accountExists?: string },
+  options?: { accountExists?: string; turnstileFailed?: string },
 ): string {
+  if (options?.turnstileFailed && isTurnstileRejected(err)) {
+    return options.turnstileFailed;
+  }
+
   const mapKnown = (message: string): string => {
     const normalized = message.toLowerCase();
     if (
@@ -36,4 +42,24 @@ export function getApiErrorMessage(
   }
 
   return fallback;
+}
+
+export function isTurnstileRejected(err: unknown): boolean {
+  if (err instanceof ApiClientError) {
+    return err.payload.error?.code === "FORBIDDEN";
+  }
+  if (err && typeof err === "object" && "error" in err) {
+    return (err as { error?: { code?: string } }).error?.code === "FORBIDDEN";
+  }
+  return false;
+}
+
+export function isAuthChallengeError(err: unknown): boolean {
+  const code =
+    err instanceof ApiClientError
+      ? err.payload.error?.code
+      : err && typeof err === "object" && "error" in err
+        ? (err as { error?: { code?: string } }).error?.code
+        : undefined;
+  return code === "UNAUTHORIZED" || code === "FORBIDDEN";
 }

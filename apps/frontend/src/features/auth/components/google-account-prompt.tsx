@@ -8,7 +8,17 @@ import { buildOAuthUrl } from "../lib/oauth-url";
 
 import { getLastGoogleAccount, type LastGoogleAccount } from "@/lib/last-google-account";
 
-export function GoogleAccountPrompt(): React.ReactElement | null {
+type GoogleAccountPromptProps = {
+  disabled?: boolean;
+  turnstileToken?: string;
+  intent?: "login" | "signup";
+};
+
+export function GoogleAccountPrompt({
+  disabled = false,
+  turnstileToken,
+  intent = "login",
+}: GoogleAccountPromptProps): React.ReactElement | null {
   const t = useTranslations("auth");
   const locale = useLocale();
   const [account, setAccount] = useState<LastGoogleAccount | null>(null);
@@ -22,24 +32,36 @@ export function GoogleAccountPrompt(): React.ReactElement | null {
 
   const displayName = account.name?.trim() || account.email;
   const initial = displayName.charAt(0).toUpperCase();
+  const locked = disabled || confirming;
 
   const continueWithAccount = () => {
+    if (disabled) return;
     setConfirming(true);
     stashAuthNext(
       typeof window !== "undefined"
         ? new URLSearchParams(window.location.search).get("next")
         : null,
     );
-    window.location.href = buildOAuthUrl("google", { loginHint: account.email, locale });
+    window.location.href = buildOAuthUrl("google", {
+      loginHint: account.email,
+      locale,
+      turnstileToken: turnstileToken || undefined,
+      intent,
+    });
   };
 
   const useOtherAccount = () => {
+    if (disabled) return;
     stashAuthNext(
       typeof window !== "undefined"
         ? new URLSearchParams(window.location.search).get("next")
         : null,
     );
-    window.location.href = buildOAuthUrl("google", { locale });
+    window.location.href = buildOAuthUrl("google", {
+      locale,
+      turnstileToken: turnstileToken || undefined,
+      intent,
+    });
   };
 
   return (
@@ -59,17 +81,17 @@ export function GoogleAccountPrompt(): React.ReactElement | null {
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
-          disabled={confirming}
+          disabled={locked}
           onClick={continueWithAccount}
-          className="bg-primary text-on-primary flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-60"
+          className="bg-primary text-on-primary flex h-11 items-center justify-center rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {confirming ? t("signingIn") : t("googleAccountConfirm")}
         </button>
         <button
           type="button"
-          disabled={confirming}
+          disabled={locked}
           onClick={useOtherAccount}
-          className="border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low flex h-11 items-center justify-center rounded-xl border text-sm font-medium transition disabled:opacity-60"
+          className="border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low flex h-11 items-center justify-center rounded-xl border text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
         >
           {t("googleAccountOther")}
         </button>

@@ -15,19 +15,32 @@ import { saveLastGoogleAccount } from "@/lib/last-google-account";
 import { apiClient } from "@/services/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 
+function hasCallbackPayload(params: URLSearchParams): boolean {
+  return Boolean(
+    params.get("requiresTwoFactor") || params.get("accessToken") || params.get("challengeId"),
+  );
+}
+
 function readCallbackSearchParams(fallback: URLSearchParams): URLSearchParams {
   // Prefer the real browser URL — useSearchParams can be empty on first paint.
+  // Access tokens live in the hash so they are not sent as query/Referer.
   if (typeof window !== "undefined") {
+    const fromHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (hasCallbackPayload(fromHash)) return fromHash;
+
     const fromWindow = new URLSearchParams(window.location.search);
-    if (
-      fromWindow.get("requiresTwoFactor") ||
-      fromWindow.get("accessToken") ||
-      fromWindow.get("challengeId")
-    ) {
-      return fromWindow;
-    }
+    if (hasCallbackPayload(fromWindow)) return fromWindow;
   }
   return fallback;
+}
+
+function stripCallbackSecretsFromUrl(): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("accessToken");
+  url.searchParams.delete("refreshToken");
+  url.hash = "";
+  window.history.replaceState({}, "", `${url.pathname}${url.search}`);
 }
 
 function parseOAuthChallenge(params: URLSearchParams): LoginTwoFactorChallenge | null {
@@ -66,6 +79,7 @@ function OAuthCallbackHandler(): React.ReactElement {
     const search = readCallbackSearchParams(params);
     const oauthChallenge = parseOAuthChallenge(search);
     if (oauthChallenge) {
+      stripCallbackSecretsFromUrl();
       setChallenge(oauthChallenge);
       setBootstrapped(true);
       return;
@@ -74,6 +88,7 @@ function OAuthCallbackHandler(): React.ReactElement {
     const accessToken = search.get("accessToken");
     const refreshToken = search.get("refreshToken");
     const provider = search.get("provider");
+    stripCallbackSecretsFromUrl();
 
     if (!accessToken || !refreshToken) {
       setError("OAuth login failed. Missing tokens.");

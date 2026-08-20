@@ -20,6 +20,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CmsModule } from "./modules/cms/cms.module";
+import { ContactModule } from "./modules/contact/contact.module";
 import { DomainsModule } from "./modules/domains/domains.module";
 import { GeoModule } from "./modules/geo/geo.module";
 import { HostingModule } from "./modules/hosting/hosting.module";
@@ -87,6 +88,7 @@ import { StorageModule } from "./shared/storage/storage.module";
     CatalogModule,
     NavigationModule,
     CmsModule,
+    ContactModule,
     GeoModule,
     MarketingModule,
     WhatsappModule,

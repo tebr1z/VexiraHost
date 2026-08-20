@@ -8,6 +8,7 @@ import { DashboardNavbar } from "./dashboard-navbar";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { EmailVerificationBanner } from "./email-verification-banner";
 
+import { AccessGate } from "@/components/layout/access-gate";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/auth-store";
@@ -129,7 +130,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }): Rea
           >
             <div className={cn(immersive ? "w-full" : "max-w-container-max mx-auto")}>
               {!immersive && user && !user.emailVerified && <EmailVerificationBanner />}
-              {children}
+              <AccessGate>{children}</AccessGate>
             </div>
           </main>
         </div>

@@ -4,7 +4,10 @@ import { useLocale } from "next-intl";
 
 import { MaterialIcon } from "@/components/landing/material-icon";
 import { Link } from "@/i18n/navigation";
+import { isStaffRole } from "@/lib/is-staff-role";
+import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 const CART_LABEL: Record<string, string> = {
   az: "Səbət",
@@ -13,9 +16,16 @@ const CART_LABEL: Record<string, string> = {
   ru: "Корзина",
 };
 
-export function CartNavButton({ className = "" }: { className?: string }): React.ReactElement {
+export function CartNavButton({
+  className = "",
+}: {
+  className?: string;
+}): React.ReactElement | null {
   const locale = useLocale();
   const cartCount = useCartStore((s) => s.items.length);
+  const cartBlocked = useMaintenanceStore((s) => s.access.sections.cart.blocked);
+  const role = useAuthStore((s) => s.user?.role);
+  if (cartBlocked && !isStaffRole(role)) return null;
   const label = CART_LABEL[locale] ?? CART_LABEL.en!;
 
   return (

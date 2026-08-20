@@ -14,6 +14,7 @@ import { useAuthHydration } from "@/features/auth/hooks/use-auth";
 import { usePublicNavigation } from "@/features/navigation/hooks/use-public-navigation";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 type MobileMenuProps = {
   open: boolean;
@@ -50,6 +51,7 @@ export function MobileMenuDrawer({
   const groups = usePublicNavigation();
   const { isReady, isAuthenticated } = useAuthHydration();
   const showSignedIn = isReady && isAuthenticated;
+  const registerEnabled = useMaintenanceStore((s) => s.access.registerEnabled);
   const [mounted, setMounted] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
@@ -219,13 +221,15 @@ export function MobileMenuDrawer({
                 </Link>
               ) : (
                 <>
-                  <Link
-                    href="/register"
-                    onClick={close}
-                    className="ios-nav-cta flex w-full justify-center"
-                  >
-                    {t("deployNow")}
-                  </Link>
+                  {registerEnabled ? (
+                    <Link
+                      href="/register"
+                      onClick={close}
+                      className="ios-nav-cta flex w-full justify-center"
+                    >
+                      {t("deployNow")}
+                    </Link>
+                  ) : null}
                   <Link
                     href="/login"
                     onClick={close}

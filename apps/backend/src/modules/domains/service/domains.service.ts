@@ -20,6 +20,7 @@ import {
 
 import { DomainEmailService } from "./domain-email.service";
 
+import { SiteAccessService } from "@/modules/auth/service/site-access.service";
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { isValidIpAddress } from "@/shared/utils/ip-address.util";
 
@@ -90,6 +91,7 @@ export class DomainsService {
     private readonly registrar: MockRegistrarProvider,
     private readonly domainEmailService: DomainEmailService,
     private readonly staffAlerts: StaffAlertService,
+    private readonly siteAccessService: SiteAccessService,
   ) {}
 
   async search(query: string) {
@@ -111,6 +113,7 @@ export class DomainsService {
   }
 
   async register(name: string, userId: string) {
+    await this.siteAccessService.assertSectionOpen("domains");
     const normalized = name.trim().toLowerCase();
     const existing = await this.domainsRepository.findByName(normalized);
     if (existing) {

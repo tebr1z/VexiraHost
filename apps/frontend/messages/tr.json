@@ -31,7 +31,11 @@
     "privacyTitle": "Gizlilik politikası",
     "privacyDescription": "Kişisel verilerin toplanması, kullanımı ve korunması hakkında politika.",
     "cookiesTitle": "Çerez politikası",
-    "cookiesDescription": "Sitede çerezlerin nasıl kullanıldığı hakkında bilgi."
+    "cookiesDescription": "Sitede çerezlerin nasıl kullanıldığı hakkında bilgi.",
+    "contactTitle": "İletişim",
+    "contactDescription": "Vexira Host ekibine mesaj gönderin.",
+    "supportTitle": "Destek",
+    "supportDescription": "Hosting, VPS, alan adı ve faturalama için yardım alın."
   },
   "nav": {
     "infrastructure": "Altyapı",
@@ -630,6 +634,9 @@
     "googleAccountOther": "Başka Google hesabı kullan",
     "googleSignInConfirm": "{email} ile giriş yapılsın mı?",
     "loginFailed": "Giriş başarısız",
+    "turnstileFailed": "Doğrulamayı tamamlayın ve tekrar deneyin.",
+    "turnstileRequired": "Devam etmek için doğrulamayı tamamlayın.",
+    "googleNeedsTurnstile": "Google ile giriş için yukarıdaki Cloudflare doğrulamasını tamamlayın.",
     "otpTitle": "E-postanızı kontrol edin",
     "otpSubtitle": "{email} adresine 6 haneli kod gönderdik. Girişi tamamlamak için kodu yazın.",
     "otpCode": "Doğrulama kodu",
@@ -698,6 +705,8 @@
     "faq": "SSS / FAQ",
     "about": "Hakkımızda",
     "design": "VexiraDesign",
+    "contact": "İletişim",
+    "support": "Destek",
     "globalNetwork": "Küresel Ağ",
     "paymentMethods": "Ödeme yöntemleri",
     "paymentMethodsHint": "Kart, banka transferi, B2B ve kripto"
@@ -711,6 +720,23 @@
   },
   "faqPage": {
     "contactNote": "Hâlâ sorunuz mu var? Destek ekibimiz size yardımcı olmaya hazır."
+  },
+  "inquiry": {
+    "contactTitle": "İletişim",
+    "contactSubtitle": "Satış, fatura veya genel sorular — her mesajı okuyoruz.",
+    "supportTitle": "Destek",
+    "supportSubtitle": "Sorunu yazın, en kısa sürede dönüş yapalım.",
+    "supportTicketHint": "Zaten müşteri misiniz?",
+    "supportTicketLink": "Müşteri panelinde ticket açın",
+    "name": "Ad",
+    "email": "E-posta",
+    "subject": "Konu",
+    "message": "Mesaj",
+    "submit": "Gönder",
+    "sending": "Gönderiliyor...",
+    "failed": "Mesaj gönderilemedi. Tekrar deneyin.",
+    "successTitle": "Mesaj gönderildi",
+    "successBody": "Teşekkürler. E-postanıza en kısa sürede dönüş yapacağız."
   },
   "lang": {
     "en": "English",
@@ -1998,6 +2024,25 @@
             "env": "Sunucu .env"
           }
         },
+        "turnstile": {
+          "title": "Cloudflare Turnstile",
+          "description": "Kayıt, şifre unuttum/sıfırlama, iletişim ve destek sayfalarında her zaman zorunlu. Girişte yalnızca başarısız denemelerden sonra çıkar. Secret veritabanında AES-256-GCM ile şifrelenir ve tarayıcıya hiç dönmez. Mevcut secret'i korumak için alanı boş bırakın.",
+          "enabled": "Cloudflare Turnstile açık olsun",
+          "siteKey": "Site key",
+          "secret": "Secret key",
+          "secretPlaceholder": "Cloudflare Turnstile secret'ini yapıştırın",
+          "secretKeepPlaceholder": "Mevcut secret'i korumak için boş bırakın",
+          "secretHint": "Diskte şifreli tutulur. SHA-256 izi tahrifi tespit eder. Açık secret bir daha gösterilmez.",
+          "hostnames": "İzin verilen hostlar",
+          "hostnamesHint": "siteverify'ın döndürdüğü frontend hostlar, virgülle. Boş bırakılırsa APP_URL kullanılır. Production'da localhost yok.",
+          "source": "Kaynak",
+          "configured": "Secret kaydedildi",
+          "notConfigured": "Secret henüz yok",
+          "sourceOptions": {
+            "database": "Admin panel (veritabanı)",
+            "default": "Yerleşik site key"
+          }
+        },
         "adminOnly": "Yalnızca yöneticiler sistem ayarlarını yönetebilir.",
         "maintenance": {
           "title": "Bakım modu",
@@ -2005,7 +2050,7 @@
           "enabled": "Bakım modu açık",
           "message": "Müşteriye gösterilen mesaj",
           "messagePlaceholder": "Boş bırakın — site diline göre otomatik metin gösterilir",
-          "messageHint": "Boş bırakırsanız çok dilli varsayılan metin gösterilir (AZ/EN/TR/RU).",
+          "messageHint": "AZ / EN / TR / RU yazın. Boş diller dolu ilk metne, sonra varsayılan çeviriye düşer.",
           "adminNote": "Admin rolündeki kullanıcılar bakım ekranını görmez ve paneli kullanmaya devam eder."
         },
         "announcement": {
@@ -2016,7 +2061,45 @@
           "headingPlaceholder": "Önemli duyuru",
           "message": "Mesaj",
           "messagePlaceholder": "Ziyaretçilerin göreceği metni yazın…",
-          "messageHint": "Popup tüm sitede görünür. Kapatmak o tarayıcıda 24 saat gizler."
+          "messageHint": "AZ / EN / TR / RU yazın. Boş diller dolu ilk metne düşer."
+        },
+        "access": {
+          "title": "Giriş, kayıt ve bölümler",
+          "description": "Giriş ve kaydı ayrı ayrı kapatın, yalnızca işaretlediğiniz sayfaları bloklayın. Her kutu bağımsızdır — sitenin geri kalanı açık kalır.",
+          "closeLogin": "Müşteri girişini kapat",
+          "closeRegister": "Kaydı kapat",
+          "loginMessage": "Giriş kapalı mesajı",
+          "registerMessage": "Kayıt kapalı mesajı",
+          "loginStaffNote": "Admin ve staff yine giriş yapabilir. Müşteriler mesajı görür; staff giriş sayfasındaki staff girişini kullanır.",
+          "messagePlaceholder": "Teknik çalışma yapılıyor. Lütfen biraz sonra tekrar deneyin.",
+          "sectionsTitle": "Seçilen bölümleri kapat",
+          "sectionsHint": "Yalnızca kapatmak istediğiniz kısımları işaretleyin. İşaretlenmeyenler açık kalır. Mesaj yalnızca işaretlenenlerde görünür.",
+          "groups": {
+            "products": "Ürünler",
+            "pages": "Sayfalar",
+            "help": "Yardım"
+          },
+          "sections": {
+            "hosting": "Hosting",
+            "vps": "VPS / VDS",
+            "domains": "Alan adları",
+            "licenses": "Lisanslar (tümü)",
+            "licensesWindows": "Windows lisansları",
+            "licensesServer": "Sunucu lisansları",
+            "licensesOffice": "Office lisansları",
+            "licensesAntivirus": "Antivirüs lisansları",
+            "email": "E-posta / Google Workspace",
+            "webmail": "Webmail",
+            "whatsapp": "WhatsApp API",
+            "cart": "Sepet / ödeme",
+            "blog": "Blog",
+            "forum": "Forum",
+            "design": "VexiraDesign",
+            "about": "Hakkımızda",
+            "faq": "SSS",
+            "contact": "İletişim",
+            "support": "Destek / ticket"
+          }
         }
       },
       "whatsapp": {
@@ -2305,6 +2388,12 @@
       "viewingAs": "Siteyi {email} olarak görüntülüyorsunuz",
       "returnToAdmin": "Admin panele dön"
     }
+  },
+  "access": {
+    "closedTitle": "Teknik çalışma yapılıyor",
+    "defaultMessage": "Teknik çalışma yapılıyor. Lütfen biraz sonra tekrar deneyin.",
+    "staffSignIn": "Staff girişi",
+    "registerClosedHint": "Kayıt geçici olarak kapalı."
   },
   "maintenance": {
     "title": "Bakım çalışması yapılıyor",

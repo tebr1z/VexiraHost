@@ -7,55 +7,36 @@ import { useEffect, useState } from "react";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { useVerifiedStaffSession } from "@/features/auth/hooks/use-auth";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { isStaffRole } from "@/lib/is-staff-role";
-import { useAuthStore, onAuthStoreHydrated } from "@/stores/auth-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { isViewingAsImpersonatedUser, useImpersonationStore } from "@/stores/impersonation-store";
 
 /**
  * Staff-only shell. Anonymous and customer sessions receive a generic 404 —
  * no login bounce and no 403 copy that would confirm an admin area exists.
+ * Staff access is confirmed from /users/me, not persisted localStorage role.
  */
 export function AdminShell({ children }: { children: React.ReactNode }): React.ReactElement {
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("admin");
   const user = useAuthStore((s) => s.user);
-  const accessToken = useAuthStore((s) => s.accessToken);
-  const sessionReady = useAuthStore((s) => s.sessionReady);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const clearSession = useAuthStore((s) => s.clearSession);
-  const hydrateToken = useAuthStore((s) => s.hydrateToken);
+  const { isReady, isStaff } = useVerifiedStaffSession();
   const adminSession = useImpersonationStore((s) => s.adminSession);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
-  const isStaff = isStaffRole(user?.role);
   const isAdmin = user?.role === "admin";
   const isImpersonatingAway = isViewingAsImpersonatedUser(adminSession, user?.id);
 
   useEffect(() => {
-    hydrateToken();
-
-    const finish = () => {
-      hydrateToken();
-      setHydrated(true);
-    };
-
-    return onAuthStoreHydrated(finish);
-  }, [hydrateToken]);
-
-  useEffect(() => {
-    hydrateToken();
-  }, [hydrateToken, accessToken]);
-
-  useEffect(() => {
-    if (!hydrated || !sessionReady) return;
+    if (!isReady) return;
 
     if (isImpersonatingAway) {
       router.replace("/dashboard");
     }
-  }, [hydrated, sessionReady, isImpersonatingAway, router]);
+  }, [isReady, isImpersonatingAway, router]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -82,7 +63,7 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
     router.push("/login");
   };
 
-  if (!hydrated || !sessionReady) {
+  if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b1220] text-white/70">
         {t("login.checking")}
@@ -98,7 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
     );
   }
 
-  if (!isAuthenticated || !user || !accessToken || !isStaff) {
+  if (!user || !isStaff) {
     notFound();
   }
 

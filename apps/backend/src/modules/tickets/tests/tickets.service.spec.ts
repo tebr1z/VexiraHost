@@ -1,10 +1,13 @@
 ﻿import { Test, TestingModule } from "@nestjs/testing";
 
-import { STORAGE_PROVIDER } from "@/shared/storage/storage.interface";
-
-import { TicketsService } from "../service/tickets.service";
 import { TicketsRepository } from "../repository/tickets.repository";
 import { TicketEmailService } from "../service/ticket-email.service";
+import { TicketsService } from "../service/tickets.service";
+
+import { SiteAccessService } from "@/modules/auth/service/site-access.service";
+import { TurnstileService } from "@/modules/auth/service/turnstile.service";
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
+import { STORAGE_PROVIDER } from "@/shared/storage/storage.interface";
 
 describe("TicketsService", () => {
   let service: TicketsService;
@@ -23,6 +26,9 @@ describe("TicketsService", () => {
           },
         },
         { provide: STORAGE_PROVIDER, useValue: { upload: jest.fn(), download: jest.fn() } },
+        { provide: StaffAlertService, useValue: { notify: jest.fn() } },
+        { provide: TurnstileService, useValue: { assertValid: jest.fn() } },
+        { provide: SiteAccessService, useValue: { assertSectionOpen: jest.fn() } },
       ],
     }).compile();
 

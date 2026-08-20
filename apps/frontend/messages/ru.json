@@ -31,7 +31,11 @@
     "privacyTitle": "Политика конфиденциальности",
     "privacyDescription": "Как мы собираем, используем и защищаем персональные данные.",
     "cookiesTitle": "Политика cookies",
-    "cookiesDescription": "Как используются cookies на этом сайте."
+    "cookiesDescription": "Как используются cookies на этом сайте.",
+    "contactTitle": "Контакты",
+    "contactDescription": "Напишите команде Vexira Host.",
+    "supportTitle": "Поддержка",
+    "supportDescription": "Помощь по хостингу, VPS, доменам и оплате."
   },
   "nav": {
     "infrastructure": "Инфраструктура",
@@ -631,6 +635,9 @@
     "googleAccountOther": "Использовать другой аккаунт Google",
     "googleSignInConfirm": "Войти как {email}?",
     "loginFailed": "Ошибка входа",
+    "turnstileFailed": "Пройдите проверку и попробуйте снова.",
+    "turnstileRequired": "Чтобы продолжить, пройдите проверку.",
+    "googleNeedsTurnstile": "Чтобы войти через Google, пройдите проверку Cloudflare выше.",
     "otpTitle": "Проверьте почту",
     "otpSubtitle": "Мы отправили 6-значный код на {email}. Введите его, чтобы завершить вход.",
     "otpCode": "Код подтверждения",
@@ -699,6 +706,8 @@
     "faq": "Частые вопросы",
     "about": "О нас",
     "design": "VexiraDesign",
+    "contact": "Контакты",
+    "support": "Поддержка",
     "globalNetwork": "Глобальная сеть",
     "paymentMethods": "Способы оплаты",
     "paymentMethodsHint": "Карты, банковский перевод, B2B и крипто"
@@ -712,6 +721,23 @@
   },
   "faqPage": {
     "contactNote": "Остались вопросы? Наша служба поддержки готова помочь."
+  },
+  "inquiry": {
+    "contactTitle": "Контакты",
+    "contactSubtitle": "Продажи, оплата и общие вопросы — читаем каждое сообщение.",
+    "supportTitle": "Поддержка",
+    "supportSubtitle": "Опишите проблему, мы ответим как можно скорее.",
+    "supportTicketHint": "Уже клиент?",
+    "supportTicketLink": "Откройте тикет в кабинете",
+    "name": "Имя",
+    "email": "Email",
+    "subject": "Тема",
+    "message": "Сообщение",
+    "submit": "Отправить",
+    "sending": "Отправка...",
+    "failed": "Не удалось отправить. Попробуйте ещё раз.",
+    "successTitle": "Сообщение отправлено",
+    "successBody": "Спасибо. Ответим на вашу почту как можно скорее."
   },
   "lang": {
     "en": "English",
@@ -1999,6 +2025,25 @@
             "env": "Server .env"
           }
         },
+        "turnstile": {
+          "title": "Cloudflare Turnstile",
+          "description": "Всегда на регистрации, сбросе пароля, контактах и поддержке. На входе появляется только после неудачных попыток. Секрет шифруется в БД AES-256-GCM и никогда не возвращается в браузер. Оставьте поле пустым, чтобы сохранить текущий секрет.",
+          "enabled": "Включить Cloudflare Turnstile",
+          "siteKey": "Site key",
+          "secret": "Secret key",
+          "secretPlaceholder": "Вставьте Turnstile secret из Cloudflare",
+          "secretKeepPlaceholder": "Оставьте пустым, чтобы сохранить текущий секрет",
+          "secretHint": "Хранится зашифрованным. SHA-256 отпечаток выявляет подмену. Открытый секрет больше не показывается.",
+          "hostnames": "Разрешённые хосты",
+          "hostnamesHint": "Frontend-хосты из siteverify через запятую. Пустое поле — APP_URL. В production localhost не допускается.",
+          "source": "Источник",
+          "configured": "Секрет сохранён",
+          "notConfigured": "Секрет ещё не задан",
+          "sourceOptions": {
+            "database": "Admin panel (БД)",
+            "default": "Встроенный site key"
+          }
+        },
         "adminOnly": "Только admin управляет системой.",
         "maintenance": {
           "title": "Режим обслуживания",
@@ -2006,7 +2051,7 @@
           "enabled": "Режим обслуживания включён",
           "message": "Сообщение для клиентов",
           "messagePlaceholder": "Оставьте пустым — текст по языку сайта",
-          "messageHint": "Если поле пустое, показывается стандартный текст на языке сайта (AZ/EN/TR/RU).",
+          "messageHint": "Пишите AZ / EN / TR / RU. Пустые языки берут первый заполненный текст, затем стандартный перевод.",
           "adminNote": "Пользователи с ролью admin не видят экран обслуживания и могут работать в панели."
         },
         "announcement": {
@@ -2017,7 +2062,45 @@
           "headingPlaceholder": "Важное объявление",
           "message": "Сообщение",
           "messagePlaceholder": "Текст, который увидят посетители…",
-          "messageHint": "Окно показывается на всём сайте. Закрытие скрывает его на 24 часа в этом браузере."
+          "messageHint": "Пишите AZ / EN / TR / RU. Пустые языки берут первый заполненный текст."
+        },
+        "access": {
+          "title": "Вход, регистрация и разделы",
+          "description": "Вход и регистрацию закрывайте по отдельности и блокируйте только отмеченные страницы. Каждый пункт независим — остальной сайт остаётся открытым.",
+          "closeLogin": "Закрыть вход клиентов",
+          "closeRegister": "Закрыть регистрацию",
+          "loginMessage": "Сообщение при закрытом входе",
+          "registerMessage": "Сообщение при закрытой регистрации",
+          "loginStaffNote": "Admin и staff по-прежнему входят. Клиенты видят сообщение; staff используют ссылку на странице входа.",
+          "messagePlaceholder": "Ведутся технические работы. Пожалуйста, попробуйте позже.",
+          "sectionsTitle": "Закрыть выбранные разделы",
+          "sectionsHint": "Отмечайте только те части, которые нужно закрыть. Неотмеченные остаются открытыми. Сообщение показывается только у отмеченных.",
+          "groups": {
+            "products": "Продукты",
+            "pages": "Страницы",
+            "help": "Помощь"
+          },
+          "sections": {
+            "hosting": "Хостинг",
+            "vps": "VPS / VDS",
+            "domains": "Домены",
+            "licenses": "Лицензии (все)",
+            "licensesWindows": "Лицензии Windows",
+            "licensesServer": "Серверные лицензии",
+            "licensesOffice": "Лицензии Office",
+            "licensesAntivirus": "Антивирус",
+            "email": "Почта / Google Workspace",
+            "webmail": "Webmail",
+            "whatsapp": "WhatsApp API",
+            "cart": "Корзина / оплата",
+            "blog": "Блог",
+            "forum": "Форум",
+            "design": "VexiraDesign",
+            "about": "О нас",
+            "faq": "FAQ",
+            "contact": "Контакты",
+            "support": "Поддержка / тикеты"
+          }
         }
       },
       "whatsapp": {
@@ -2306,6 +2389,12 @@
       "viewingAs": "Вы просматриваете сайт как {email}",
       "returnToAdmin": "Вернуться в admin-панель"
     }
+  },
+  "access": {
+    "closedTitle": "Ведутся технические работы",
+    "defaultMessage": "Ведутся технические работы. Пожалуйста, попробуйте через несколько минут.",
+    "staffSignIn": "Вход для сотрудников",
+    "registerClosedHint": "Регистрация временно закрыта."
   },
   "maintenance": {
     "title": "Ведутся технические работы",

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { fetchProfile } from "@/features/auth/services/auth.service";
+import { isStaffRole } from "@/lib/is-staff-role";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function useAuthHydration(): { isReady: boolean; isAuthenticated: boolean } {
@@ -31,4 +33,56 @@ export function useRequireAuth(redirectTo = "/login"): { isReady: boolean } {
   }, [isReady, isAuthenticated, redirectTo]);
 
   return { isReady };
+}
+
+/**
+ * Confirms staff access from /users/me after persist hydrate.
+ * localStorage role is never trusted for the admin UI.
+ */
+export function useVerifiedStaffSession(): { isReady: boolean; isStaff: boolean } {
+  const sessionReady = useAuthStore((s) => s.sessionReady);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const setUser = useAuthStore((s) => s.setUser);
+  const [verified, setVerified] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+
+    if (!accessToken) {
+      setIsStaff(false);
+      setVerified(true);
+      return;
+    }
+
+    let cancelled = false;
+    setVerified(false);
+
+    const finish = (staff: boolean) => {
+      if (cancelled) return;
+      setIsStaff(staff);
+      setVerified(true);
+    };
+
+    const timeout = window.setTimeout(() => finish(false), 12_000);
+
+    fetchProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        window.clearTimeout(timeout);
+        setUser(profile);
+        finish(isStaffRole(profile.role));
+      })
+      .catch(() => {
+        window.clearTimeout(timeout);
+        finish(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [sessionReady, accessToken, setUser]);
+
+  return { isReady: sessionReady && verified, isStaff };
 }

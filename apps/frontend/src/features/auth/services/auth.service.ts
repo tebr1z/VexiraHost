@@ -29,10 +29,14 @@ export function isLoginTwoFactorChallenge(value: unknown): value is LoginTwoFact
   );
 }
 
-export async function loginRequest(values: LoginFormValues, locale?: string): Promise<LoginResult> {
+export async function loginRequest(
+  values: LoginFormValues,
+  locale?: string,
+  turnstileToken?: string,
+): Promise<LoginResult> {
   const response = await apiClient.request<LoginResult>("/auth/login", {
     method: "POST",
-    body: { ...values, locale },
+    body: { ...values, locale, turnstileToken },
   });
   return response.data as LoginResult;
 }
@@ -64,6 +68,7 @@ export async function registerRequest(
   values: RegisterFormValues & { phone?: string | null },
   locale?: string,
   countryCode?: string | null,
+  turnstileToken?: string,
 ): Promise<AuthSession> {
   const {
     confirmPassword: _,
@@ -81,6 +86,7 @@ export async function registerRequest(
       marketingOptIn: values.marketingOptIn ?? true,
       locale,
       countryCode: countryCode ?? undefined,
+      turnstileToken,
     },
   });
   return response.data as AuthSession;
@@ -253,22 +259,24 @@ export async function verifyEmailTokenRequest(token: string): Promise<AuthSessio
   return response.data as AuthSession;
 }
 
-export async function forgotPasswordRequest(email: string): Promise<void> {
+export async function forgotPasswordRequest(email: string, turnstileToken?: string): Promise<void> {
   await apiClient.request("/auth/forgot-password", {
     method: "POST",
-    body: { email },
+    body: { email, turnstileToken },
   });
 }
 
 export async function resetPasswordRequest(input: {
   token: string;
   password: string;
+  turnstileToken?: string;
 }): Promise<void> {
   await apiClient.request("/auth/reset-password", {
     method: "POST",
     body: {
       token: input.token,
       password: input.password,
+      turnstileToken: input.turnstileToken,
     },
   });
 }

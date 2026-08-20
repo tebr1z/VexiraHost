@@ -21,8 +21,11 @@ export default function ServersPage(): React.ReactElement | null {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     Promise.all([listServers(), listHostingAccounts()])
       .then(([serverRows, hostingRows]) => {
+        if (cancelled) return;
         setServers(serverRows);
         setManualServers(
           hostingRows.filter(
@@ -31,10 +34,16 @@ export default function ServersPage(): React.ReactElement | null {
         );
       })
       .catch(() => {
+        if (cancelled) return;
         setServers([]);
         setManualServers([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const isEmpty = servers.length === 0 && manualServers.length === 0;

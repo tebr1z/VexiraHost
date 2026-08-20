@@ -1,10 +1,15 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CartYearlyUpsell } from "@/components/cart/cart-yearly-upsell";
+import { AccessClosedNotice } from "@/components/layout/access-closed-notice";
 import { PreferredCurrencyPicker } from "@/components/layout/preferred-currency-picker";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/security/turnstile-widget";
 import { EmptyState } from "@/components/ui";
 import { OAuthButtons } from "@/features/auth/components/oauth-buttons";
 import { stashAuthNext } from "@/features/auth/lib/auth-redirect";
@@ -26,8 +31,10 @@ import {
   resolveCheckoutPeriod,
 } from "@/lib/cart-pricing";
 import { formatMoney } from "@/lib/i18n/format";
+import { pickLocalizedText } from "@/lib/localized-text";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
+import { useMaintenanceStore } from "@/stores/maintenance-store";
 import { detectGeoCurrency, usePricingStore, type AppCurrency } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
@@ -51,6 +58,7 @@ export function CartCheckoutView({
   const locale = useLocale();
   const t = useTranslations("cart");
   const tAuth = useTranslations("auth");
+  const ta = useTranslations("access");
   const tv = useTranslations("validation");
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
@@ -74,6 +82,10 @@ export function CartCheckoutView({
   const [preferredCurrency, setPreferredCurrency] = useState<AppCurrency>("USD");
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const turnstile = useMaintenanceStore((s) => s.turnstile);
+  const access = useMaintenanceStore((s) => s.access);
   const [billingAddress, setBillingAddress] = useState<BillingAddressInput>(EMPTY_BILLING);
   const [editingBilling, setEditingBilling] = useState(false);
   const [skipBillingAddress, setSkipBillingAddress] = useState(false);
@@ -193,6 +205,11 @@ export function CartCheckoutView({
       });
 
       if (quickAccount && !isAuthenticated) {
+        if (!access.registerEnabled) {
+          setError(ta("registerClosedHint"));
+          setLoading(false);
+          return;
+        }
         if (!firstName.trim()) {
           setError(tv("firstNameRequired"));
           setLoading(false);
@@ -223,6 +240,11 @@ export function CartCheckoutView({
           setLoading(false);
           return;
         }
+        if (turnstile.enabled && !turnstileToken) {
+          setError(tAuth("turnstileRequired"));
+          setLoading(false);
+          return;
+        }
         const currency = preferredCurrency;
         const session = await registerRequest(
           {
@@ -239,6 +261,7 @@ export function CartCheckoutView({
           },
           locale,
           countryCode,
+          turnstileToken || undefined,
         );
         setSession(session);
         setFromUser({
@@ -292,11 +315,14 @@ export function CartCheckoutView({
         setError(
           getApiErrorMessage(err, t("checkoutFailed"), {
             accountExists: tAuth("accountExistsLogin"),
+            turnstileFailed: tAuth("turnstileFailed"),
           }),
         );
       }
     } finally {
       setLoading(false);
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     }
   };
 
@@ -543,103 +569,135 @@ export function CartCheckoutView({
       </div>
 
       {quickAccount && !isAuthenticated ? (
-        <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
-          <h2 className="font-jakarta text-primary text-lg font-semibold">
-            {t("quickAccountTitle")}
-          </h2>
-          <p className="text-on-surface-variant mt-1 text-sm">{t("quickAccountDesc")}</p>
-          <div className="mt-4">
-            <OAuthButtons />
-          </div>
-          <p className="text-on-surface-variant mt-4 text-sm">
-            {t("alreadyHaveAccount")}{" "}
-            <Link
-              href="/login?next=%2Fcart"
-              className="text-secondary font-semibold hover:underline"
-            >
-              {t("loginLink")}
-            </Link>
-          </p>
-          <div className="my-4 flex items-center gap-3">
-            <div className="bg-outline-variant/40 h-px flex-1" />
-            <span className="text-on-surface-variant text-xs">{tAuth("orEmail")}</span>
-            <div className="bg-outline-variant/40 h-px flex-1" />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium">{tAuth("firstName")}</label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                autoComplete="given-name"
+        access.registerEnabled ? (
+          <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+            <h2 className="font-jakarta text-primary text-lg font-semibold">
+              {t("quickAccountTitle")}
+            </h2>
+            <p className="text-on-surface-variant mt-1 text-sm">{t("quickAccountDesc")}</p>
+            {turnstile.enabled ? (
+              <div className="mt-4">
+                <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
+              </div>
+            ) : null}
+            <div className="mt-4">
+              <OAuthButtons
+                intent="signup"
+                turnstileToken={turnstileToken}
+                disabled={turnstile.enabled && (!turnstile.ready || !turnstileToken)}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">{tAuth("lastName")}</label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                autoComplete="family-name"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">{tAuth("email")}</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                autoComplete="email"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <PreferredCurrencyPicker value={preferredCurrency} onChange={setPreferredCurrency} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">{tAuth("password")}</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium">{tAuth("confirmPassword")}</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                autoComplete="new-password"
-              />
-            </div>
-          </div>
-          <label className="text-on-surface-variant mt-3 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={acceptedTerms}
-              onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="border-outline-variant mt-0.5 h-4 w-4 rounded"
-            />
-            <span>
-              {tAuth("acceptTermsPrefix")}{" "}
-              <Link href="/terms" className="text-secondary font-semibold hover:underline">
-                {tAuth("acceptTermsLink")}
-              </Link>{" "}
-              {tAuth("acceptTermsAnd")}{" "}
-              <Link href="/privacy" className="text-secondary font-semibold hover:underline">
-                {tAuth("privacyLink")}
+            <p className="text-on-surface-variant mt-4 text-sm">
+              {t("alreadyHaveAccount")}{" "}
+              <Link
+                href="/login?next=%2Fcart"
+                className="text-secondary font-semibold hover:underline"
+              >
+                {t("loginLink")}
               </Link>
-              .
-            </span>
-          </label>
-        </div>
+            </p>
+            <div className="my-4 flex items-center gap-3">
+              <div className="bg-outline-variant/40 h-px flex-1" />
+              <span className="text-on-surface-variant text-xs">{tAuth("orEmail")}</span>
+              <div className="bg-outline-variant/40 h-px flex-1" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium">{tAuth("firstName")}</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">{tAuth("lastName")}</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                  autoComplete="family-name"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium">{tAuth("email")}</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                  autoComplete="email"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <PreferredCurrencyPicker
+                  value={preferredCurrency}
+                  onChange={setPreferredCurrency}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium">{tAuth("password")}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium">{tAuth("confirmPassword")}</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+            <label className="text-on-surface-variant mt-3 flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="border-outline-variant mt-0.5 h-4 w-4 rounded"
+              />
+              <span>
+                {tAuth("acceptTermsPrefix")}{" "}
+                <Link href="/terms" className="text-secondary font-semibold hover:underline">
+                  {tAuth("acceptTermsLink")}
+                </Link>{" "}
+                {tAuth("acceptTermsAnd")}{" "}
+                <Link href="/privacy" className="text-secondary font-semibold hover:underline">
+                  {tAuth("privacyLink")}
+                </Link>
+                .
+              </span>
+            </label>
+          </div>
+        ) : (
+          <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+            <AccessClosedNotice
+              compact
+              message={pickLocalizedText(access.registerMessage, locale)}
+            />
+            {access.loginEnabled ? (
+              <p className="text-on-surface-variant mt-4 text-center text-sm">
+                {t("alreadyHaveAccount")}{" "}
+                <Link
+                  href="/login?next=/cart"
+                  className="text-secondary font-semibold hover:underline"
+                >
+                  {tAuth("signIn")}
+                </Link>
+              </p>
+            ) : null}
+          </div>
+        )
       ) : (
         isAuthenticated &&
         user && (
@@ -782,7 +840,12 @@ export function CartCheckoutView({
 
       <button
         type="button"
-        disabled={loading}
+        disabled={
+          loading ||
+          (quickAccount &&
+            !isAuthenticated &&
+            (!turnstile.ready || (turnstile.enabled && !turnstileToken)))
+        }
         onClick={handleCheckout}
         className="bg-primary text-on-primary h-12 w-full rounded-xl font-semibold disabled:opacity-60"
       >

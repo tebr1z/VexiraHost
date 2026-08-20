@@ -8,6 +8,7 @@ import { OrdersRepository } from "../repository/orders.repository";
 import { OrderEmailService } from "./order-email.service";
 
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
+import { SiteAccessService } from "@/modules/auth/service/site-access.service";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { resolveProductPrice } from "@/shared/pricing/product-price.util";
@@ -154,6 +155,7 @@ export class OrdersService {
     private readonly authRepository: AuthRepository,
     private readonly orderEmailService: OrderEmailService,
     private readonly staffAlerts: StaffAlertService,
+    private readonly siteAccessService: SiteAccessService,
   ) {}
 
   private async buildLineItems(userId: string | null, dto: CheckoutDto | ValidatePromoDto) {
@@ -255,6 +257,7 @@ export class OrdersService {
 
   async checkout(userId: string, dto: CheckoutDto) {
     const { lineItems, subtotal, currency } = await this.buildLineItems(userId, dto);
+    await this.siteAccessService.assertCheckoutOpen(lineItems.map((item) => item.category));
 
     let discountAmount = new Decimal(0);
     let promoCodeId: string | null = null;

@@ -1,7 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+
+import { parseLocalizedText, pickLocalizedText } from "@/lib/localized-text";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 const STORAGE_KEY = "vexira-site-announcement-dismiss";
@@ -52,6 +54,7 @@ function shouldShow(announcement: Announcement): boolean {
 
 export function SiteAnnouncement(): React.ReactElement | null {
   const t = useTranslations("announcement");
+  const locale = useLocale();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -66,15 +69,15 @@ export function SiteAnnouncement(): React.ReactElement | null {
         });
         if (!res.ok || cancelled) return;
         const payload = (await res.json().catch(() => null)) as {
-          data?: { announcement?: Announcement };
-          announcement?: Announcement;
+          data?: { announcement?: { enabled?: boolean; title?: unknown; message?: unknown } };
+          announcement?: { enabled?: boolean; title?: unknown; message?: unknown };
         } | null;
         const next = payload?.data?.announcement ?? payload?.announcement;
         if (!next || cancelled) return;
         const normalized: Announcement = {
           enabled: Boolean(next.enabled),
-          title: typeof next.title === "string" ? next.title : "",
-          message: typeof next.message === "string" ? next.message : "",
+          title: pickLocalizedText(parseLocalizedText(next.title), locale),
+          message: pickLocalizedText(parseLocalizedText(next.message), locale),
         };
         setAnnouncement(normalized);
         setOpen(shouldShow(normalized));
@@ -87,7 +90,7 @@ export function SiteAnnouncement(): React.ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   if (!open || !announcement) return null;
 

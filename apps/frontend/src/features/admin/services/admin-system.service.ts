@@ -1,3 +1,5 @@
+import { parseLocalizedText, type LocalizedText } from "@/lib/localized-text";
+import { parseSiteAccess, type SiteAccessConfig } from "@/lib/site-access";
 import { apiClient } from "@/services/api-client";
 
 export type KapitalEnvironment = "test" | "production";
@@ -20,13 +22,13 @@ export interface AdminKapitalSettings {
 
 export interface AdminMaintenanceSettings {
   enabled: boolean;
-  message: string;
+  message: LocalizedText;
 }
 
 export interface AdminAnnouncementSettings {
   enabled: boolean;
-  title: string;
-  message: string;
+  title: LocalizedText;
+  message: LocalizedText;
 }
 
 export interface AdminGoogleOAuthSettings {
@@ -35,6 +37,14 @@ export interface AdminGoogleOAuthSettings {
   callbackUrl: string;
   configured: boolean;
   source: "database" | "env";
+}
+
+export interface AdminTurnstileSettings {
+  enabled: boolean;
+  siteKey: string;
+  secretConfigured: boolean;
+  hostnames: string;
+  source: "database" | "default";
 }
 
 export interface AdminSystemStatus {
@@ -61,6 +71,8 @@ export interface AdminSystemStatus {
   kapital: AdminKapitalSettings;
   kapitalPresets: Record<KapitalEnvironment, KapitalPreset>;
   googleOAuth: AdminGoogleOAuthSettings;
+  turnstile: AdminTurnstileSettings;
+  access: SiteAccessConfig;
   maintenance: AdminMaintenanceSettings;
   announcement: AdminAnnouncementSettings;
   note: string;
@@ -75,18 +87,27 @@ export interface UpdateSystemSettingsInput {
   kapitalUsername?: string;
   kapitalPassword?: string;
   maintenanceEnabled?: boolean;
-  maintenanceMessage?: string;
+  maintenanceMessage?: LocalizedText;
   announcementEnabled?: boolean;
-  announcementTitle?: string;
-  announcementMessage?: string;
+  announcementTitle?: LocalizedText;
+  announcementMessage?: LocalizedText;
+  loginEnabled?: boolean;
+  registerEnabled?: boolean;
+  loginMessage?: LocalizedText;
+  registerMessage?: LocalizedText;
+  sectionBlocks?: SiteAccessConfig["sections"];
   googleClientId?: string;
   googleClientSecret?: string;
   googleCallbackUrl?: string;
+  turnstileEnabled?: boolean;
+  turnstileSiteKey?: string;
+  turnstileSecret?: string;
+  turnstileHostnames?: string;
 }
 
 export async function getAdminSystemStatus(): Promise<AdminSystemStatus> {
   const res = await apiClient.request<AdminSystemStatus>("/admin/system");
-  return res.data as AdminSystemStatus;
+  return normalizeAdminSystemStatus(res.data as AdminSystemStatus);
 }
 
 export async function updateAdminSystemSettings(
@@ -96,5 +117,21 @@ export async function updateAdminSystemSettings(
     method: "PATCH",
     body: input,
   });
-  return res.data as AdminSystemStatus;
+  return normalizeAdminSystemStatus(res.data as AdminSystemStatus);
+}
+
+function normalizeAdminSystemStatus(data: AdminSystemStatus): AdminSystemStatus {
+  return {
+    ...data,
+    maintenance: {
+      enabled: Boolean(data.maintenance?.enabled),
+      message: parseLocalizedText(data.maintenance?.message),
+    },
+    announcement: {
+      enabled: Boolean(data.announcement?.enabled),
+      title: parseLocalizedText(data.announcement?.title),
+      message: parseLocalizedText(data.announcement?.message),
+    },
+    access: parseSiteAccess(data.access),
+  };
 }

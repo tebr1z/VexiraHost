@@ -484,27 +484,31 @@ async function main(): Promise<void> {
     });
   }
 
-  const adminPasswordHash = await bcrypt.hash("3865606Rt.", 12);
-  await prisma.user.upsert({
-    where: { email: "admin@vexirahost.com" },
-    update: {
-      passwordHash: adminPasswordHash,
-      role: UserRole.ADMIN,
-      status: UserStatus.ACTIVE,
-      emailVerifiedAt: new Date(),
-      firstName: "Admin",
-      lastName: "Vexira",
-    },
-    create: {
-      email: "admin@vexirahost.com",
-      passwordHash: adminPasswordHash,
-      role: UserRole.ADMIN,
-      status: UserStatus.ACTIVE,
-      emailVerifiedAt: new Date(),
-      firstName: "Admin",
-      lastName: "Vexira",
-    },
-  });
+  const adminEmail = "admin@vexirahost.com";
+  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (existingAdmin) {
+    console.log("[seed] Admin user exists; password and role left unchanged.");
+  } else {
+    const seedPassword = process.env.ADMIN_SEED_PASSWORD?.trim() ?? "";
+    if (seedPassword.length < 12) {
+      console.warn(
+        "[seed] Skip admin user: set ADMIN_SEED_PASSWORD (min 12 chars) to create it. Existing production passwords are never overwritten.",
+      );
+    } else {
+      await prisma.user.create({
+        data: {
+          email: adminEmail,
+          passwordHash: await bcrypt.hash(seedPassword, 12),
+          role: UserRole.ADMIN,
+          status: UserStatus.ACTIVE,
+          emailVerifiedAt: new Date(),
+          firstName: "Admin",
+          lastName: "Vexira",
+        },
+      });
+      console.log("[seed] Created admin user from ADMIN_SEED_PASSWORD.");
+    }
+  }
 
   const navGroups = [
     {

@@ -1,5 +1,13 @@
 import { Transform } from "class-transformer";
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from "class-validator";
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 import { AUTH_EMAIL_LOCALES } from "../email/auth-email.locale";
 
@@ -50,4 +58,9 @@ export class RegisterDto {
   })
   @IsBoolean()
   marketingOptIn?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  turnstileToken?: string;
 }

@@ -2,13 +2,21 @@ import type { ExecutionContext } from "@nestjs/common";
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
+import type { Request, Response } from "express";
 
 import { resolveAuthEmailLocale } from "../email/auth-email.locale";
 import { OauthConfigService } from "../service/oauth-config.service";
+import { TurnstileService } from "../service/turnstile.service";
+
+import { getClientIp } from "@/utils/client-ip.util";
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard("google") {
-  constructor(private readonly oauthConfigService: OauthConfigService) {
+  constructor(
+    private readonly oauthConfigService: OauthConfigService,
+    private readonly turnstileService: TurnstileService,
+    private readonly configService: ConfigService,
+  ) {
     super();
   }
 
@@ -19,6 +27,39 @@ export class GoogleAuthGuard extends AuthGuard("google") {
         "Google OAuth is not configured. Set Client ID and Client Secret in Admin → System.",
       );
     }
+
+    const request = context.switchToHttp().getRequest<
+      Request & {
+        query?: {
+          login_hint?: string;
+          locale?: string;
+          code?: string;
+          turnstileToken?: string;
+          intent?: string;
+        };
+      }
+    >();
+
+    // Initial /auth/google hop only — callback already has `code` from Google.
+    if (!request.query?.code) {
+      const intent = request.query?.intent === "signup" ? "signup" : "login";
+      const token =
+        typeof request.query?.turnstileToken === "string"
+          ? request.query.turnstileToken
+          : undefined;
+      try {
+        await this.turnstileService.assertValid(token, intent, getClientIp(request));
+      } catch {
+        const response = context.switchToHttp().getResponse<Response>();
+        const appUrl = this.configService
+          .get<string>("APP_URL", "http://localhost:3000")
+          .replace(/\/$/, "");
+        const path = intent === "signup" ? "register" : "login";
+        response.redirect(`${appUrl}/${path}?oauthError=turnstile`);
+        return false;
+      }
+    }
+
     return super.canActivate(context) as boolean | Promise<boolean>;
   }
 
