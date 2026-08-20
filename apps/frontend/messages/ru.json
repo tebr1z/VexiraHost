@@ -637,7 +637,7 @@
     "loginFailed": "Ошибка входа",
     "turnstileFailed": "Пройдите проверку и попробуйте снова.",
     "turnstileRequired": "Чтобы продолжить, пройдите проверку.",
-    "googleNeedsTurnstile": "Чтобы войти через Google, пройдите проверку Cloudflare выше.",
+    "googleNeedsTurnstile": "Чтобы войти через Google, пройдите проверку Cloudflare ниже.",
     "otpTitle": "Проверьте почту",
     "otpSubtitle": "Мы отправили 6-значный код на {email}. Введите его, чтобы завершить вход.",
     "otpCode": "Код подтверждения",

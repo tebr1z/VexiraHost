@@ -179,12 +179,6 @@ export function RegisterForm(): React.ReactElement {
         </p>
       </div>
 
-      {turnstile.enabled ? (
-        <div className="mb-4">
-          <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
-        </div>
-      ) : null}
-
       <OAuthButtons
         intent="signup"
         turnstileToken={turnstileToken}
@@ -300,6 +294,10 @@ export function RegisterForm(): React.ReactElement {
             {error}
           </div>
         )}
+
+        {turnstile.enabled ? (
+          <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
+        ) : null}
 
         <button
           type="submit"

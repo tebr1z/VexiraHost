@@ -649,7 +649,7 @@
     "loginFailed": "Login failed",
     "turnstileFailed": "Complete the verification and try again.",
     "turnstileRequired": "Complete the verification to continue.",
-    "googleNeedsTurnstile": "Complete the Cloudflare check above to enable Google sign-in.",
+    "googleNeedsTurnstile": "Complete the Cloudflare check below to enable Google sign-in.",
     "otpTitle": "Check your email",
     "otpSubtitle": "We sent a 6-digit code to {email}. Enter it to finish signing in.",
     "otpCode": "Verification code",

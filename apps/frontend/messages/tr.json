@@ -636,7 +636,7 @@
     "loginFailed": "Giriş başarısız",
     "turnstileFailed": "Doğrulamayı tamamlayın ve tekrar deneyin.",
     "turnstileRequired": "Devam etmek için doğrulamayı tamamlayın.",
-    "googleNeedsTurnstile": "Google ile giriş için yukarıdaki Cloudflare doğrulamasını tamamlayın.",
+    "googleNeedsTurnstile": "Google ile giriş için aşağıdaki Cloudflare doğrulamasını tamamlayın.",
     "otpTitle": "E-postanızı kontrol edin",
     "otpSubtitle": "{email} adresine 6 haneli kod gönderdik. Girişi tamamlamak için kodu yazın.",
     "otpCode": "Doğrulama kodu",

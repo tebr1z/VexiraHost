@@ -284,12 +284,6 @@ function LoginFormInner(): React.ReactElement {
         </p>
       </div>
 
-      {turnstile.enabled ? (
-        <div className="mb-4">
-          <TurnstileWidget ref={turnstileRef} action="login" onToken={setTurnstileToken} />
-        </div>
-      ) : null}
-
       <OAuthButtons
         intent="login"
         turnstileToken={turnstileToken}
@@ -345,6 +339,10 @@ function LoginFormInner(): React.ReactElement {
             {error}
           </div>
         )}
+
+        {turnstile.enabled ? (
+          <TurnstileWidget ref={turnstileRef} action="login" onToken={setTurnstileToken} />
+        ) : null}
 
         <button
           type="submit"

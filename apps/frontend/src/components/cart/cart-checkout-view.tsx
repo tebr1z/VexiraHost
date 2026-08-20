@@ -575,11 +575,6 @@ export function CartCheckoutView({
               {t("quickAccountTitle")}
             </h2>
             <p className="text-on-surface-variant mt-1 text-sm">{t("quickAccountDesc")}</p>
-            {turnstile.enabled ? (
-              <div className="mt-4">
-                <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
-              </div>
-            ) : null}
             <div className="mt-4">
               <OAuthButtons
                 intent="signup"
@@ -678,6 +673,11 @@ export function CartCheckoutView({
                 .
               </span>
             </label>
+            {turnstile.enabled ? (
+              <div className="mt-4">
+                <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
