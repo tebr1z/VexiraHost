@@ -15,6 +15,7 @@ import {
   type PleskMailbox,
 } from "@/features/hosting/services/hosting-mail.service";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { toast } from "@/stores/toast-store";
 
 function formatBytes(bytes: number | null | undefined, locale: string): string {
   if (bytes == null || bytes < 0) return "—";

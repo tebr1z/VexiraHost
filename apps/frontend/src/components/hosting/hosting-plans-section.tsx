@@ -36,20 +36,32 @@ export function HostingPlansSection(): React.ReactElement {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    listCatalogCategories(locale)
-      .then((categories) => {
+
+    void (async () => {
+      try {
+        const categories = await listCatalogCategories(locale);
         const categoryRef = resolveHostingCategoryRef(categories);
-        return Promise.all([
-          listHostingPlans(),
-          listCatalogProducts({ category: categoryRef, currency, period }),
-        ]);
-      })
-      .then(([planList, productList]) => {
-        setPlanEntries(mergePlansWithCatalogProducts(planList, productList));
-      })
-      .catch(() => setPlanEntries([]))
-      .finally(() => setLoading(false));
+        const planList = await listHostingPlans();
+        const productList = await listCatalogProducts({
+          category: categoryRef,
+          currency,
+          period,
+        });
+        if (!cancelled) {
+          setPlanEntries(mergePlansWithCatalogProducts(planList, productList));
+        }
+      } catch {
+        if (!cancelled) setPlanEntries([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [currency, period, locale]);
 
   const popularIndex = planEntries.length >= 2 ? 1 : -1;
