@@ -118,7 +118,7 @@ function isBenignPleskError(message: string): boolean {
   );
 }
 
-async function pleskXmlRequest(
+export async function pleskXmlRequest(
   server: PleskServerCredentials,
   endpoint: PanelEndpoint,
   packetBody: string,
@@ -152,6 +152,7 @@ export async function createPleskUserSession(
   login: string,
   clientIp = "127.0.0.1",
   sourceOrigin?: string,
+  redirectPath = "/smb/web/view",
 ): Promise<{ sessionId: string; loginUrl: string; expiresAt: Date; endpoint: PanelEndpoint }> {
   const endpoint = resolvePanelEndpoint(server);
   const userIpB64 = encodeUserIp(clientIp);
@@ -185,7 +186,7 @@ export async function createPleskUserSession(
 
   return {
     sessionId,
-    loginUrl: buildPleskSessionLoginUrl(endpoint, sessionId),
+    loginUrl: buildPleskSessionLoginUrl(endpoint, sessionId, redirectPath),
     expiresAt,
     endpoint,
   };

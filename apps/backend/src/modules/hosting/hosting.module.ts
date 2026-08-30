@@ -12,6 +12,7 @@ import { HostingServersService } from "./service/hosting-servers.service";
 import { HostingService } from "./service/hosting.service";
 import { OrderFulfillmentService } from "./service/order-fulfillment.service";
 import { PanelSessionService } from "./service/panel-session.service";
+import { PleskMailService } from "./service/plesk-mail.service";
 import { PleskPanelService } from "./service/plesk-panel.service";
 
 import { LicensesModule } from "@/modules/licenses/licenses.module";
@@ -37,6 +38,8 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     PanelSessionService,
 
     PleskPanelService,
+
+    PleskMailService,
 
     HostingProvisionRunner,
 

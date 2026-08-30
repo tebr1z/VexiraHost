@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { HostingMailSection } from "@/components/hosting/hosting-mail-section";
 import { ProvisionProgress } from "@/components/hosting/provision-progress";
 import { EmptyState, LoadingSkeletonList, PageHeader, StatusBadge } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
@@ -290,6 +291,13 @@ export default function HostingDetailPage(): React.ReactElement | null {
               <p className="text-on-surface-variant text-sm">{tp("pleskUnavailable")}</p>
             )}
           </section>
+        )}
+
+      {account.panel === "PLESK" &&
+        account.status === "ACTIVE" &&
+        account.server &&
+        account.managementMode !== "MANUAL" && (
+          <HostingMailSection accountId={account.id} domain={account.primaryDomain} enabled />
         )}
 
       {account.panelUrl && account.status === "ACTIVE" && (

@@ -16,6 +16,7 @@ interface PanelOpenTicket {
   accountId: string;
   userId: string;
   clientIp?: string;
+  redirectPath?: string;
   expiresAt: number;
 }
 
@@ -33,7 +34,12 @@ export class PanelSessionService implements OnModuleDestroy {
     this.tickets.clear();
   }
 
-  createOpenTicket(accountId: string, userId: string, preferredClientIp?: string): string {
+  createOpenTicket(
+    accountId: string,
+    userId: string,
+    preferredClientIp?: string,
+    redirectPath?: string,
+  ): string {
     const ticket = randomBytes(24).toString("hex");
     const clientIp =
       preferredClientIp && isValidClientIp(preferredClientIp) ? preferredClientIp : undefined;
@@ -42,6 +48,7 @@ export class PanelSessionService implements OnModuleDestroy {
       accountId,
       userId,
       clientIp,
+      redirectPath,
       expiresAt: Date.now() + TICKET_TTL_MS,
     });
 
@@ -60,13 +67,14 @@ export class PanelSessionService implements OnModuleDestroy {
     this.tickets.delete(ticket);
 
     const clientIp = entry.clientIp ?? requestIp;
-    return this.getOrCreateLoginResult(entry.accountId, entry.userId, clientIp);
+    return this.getOrCreateLoginResult(entry.accountId, entry.userId, clientIp, entry.redirectPath);
   }
 
   async getOrCreateLoginResult(
     accountId: string,
     userId: string,
     clientIp: string,
+    redirectPath?: string,
   ): Promise<string | { html: string }> {
     const account = await this.hostingRepository.findByIdForUser(accountId, userId);
     if (!account) {
@@ -94,6 +102,7 @@ export class PanelSessionService implements OnModuleDestroy {
         server: account.server,
         panelUsername: panelLogin,
         panelRef: account.panelRef,
+        redirectPath,
       },
       clientIp,
       sourceOrigin,

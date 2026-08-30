@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { HostingMailCountBadge } from "@/components/hosting/hosting-mail-count-badge";
 import { StatusBadge } from "@/components/ui";
 import {
   EyeIcon,
@@ -104,6 +105,9 @@ export function HostingAccountCard({
               <p className="mt-1 text-sm text-[var(--label-secondary)]">
                 {tc("expires")}: {formatDate(account.expiresAt, locale)}
               </p>
+            ) : null}
+            {account.panel === "PLESK" && account.status === "ACTIVE" && !isManual ? (
+              <HostingMailCountBadge accountId={account.id} />
             ) : null}
             {account.billingAmount != null && account.billingAmount > 0 ? (
               <p className="mt-1 text-sm text-[var(--label-secondary)]">

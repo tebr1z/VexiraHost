@@ -32,6 +32,7 @@ export interface ControlPanelSessionInput {
   >;
   panelUsername: string;
   panelRef?: string | null;
+  redirectPath?: string;
 }
 
 export interface ControlPanelTestInput {
