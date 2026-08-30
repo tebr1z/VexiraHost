@@ -76,6 +76,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
     source: "default",
   });
   const [turnstileSecret, setTurnstileSecret] = useState("");
+  const [ticketAutoCloseHours, setTicketAutoCloseHours] = useState(12);
 
   useEffect(() => {
     if (isAdmin) {
@@ -103,6 +104,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
             source: "default",
           },
         );
+        setTicketAutoCloseHours(data.ticketAutoCloseHours ?? 12);
         setTurnstileSecret("");
       });
     }
@@ -155,6 +157,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
       if (turnstileSecret.trim()) {
         payload.turnstileSecret = turnstileSecret.trim();
       }
+      payload.ticketAutoCloseHours = ticketAutoCloseHours;
 
       const updated = await updateAdminSystemSettings(payload);
       setStatus(updated);
@@ -180,6 +183,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
           source: "default",
         },
       );
+      setTicketAutoCloseHours(updated.ticketAutoCloseHours ?? 12);
       setTurnstileSecret("");
       toast(tp("saved"), "success");
     } catch {
@@ -537,6 +541,44 @@ export default function AdminSystemPage(): React.ReactElement | null {
               ? ` · ${tp("turnstile.configured")}`
               : ` · ${tp("turnstile.notConfigured")}`}
           </p>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? tp("saving") : tp("save")}
+          </button>
+        </div>
+      </section>
+
+      <section className="card-3d rounded-2xl p-6">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("tickets.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("tickets.description")}</p>
+        <div className="mt-4 space-y-4">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("tickets.autoCloseHours")}
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={720}
+              value={ticketAutoCloseHours}
+              onChange={(e) => {
+                const next = Number.parseInt(e.target.value, 10);
+                if (!Number.isFinite(next)) {
+                  setTicketAutoCloseHours(12);
+                  return;
+                }
+                setTicketAutoCloseHours(Math.min(720, Math.max(1, next)));
+              }}
+              className="border-outline-variant bg-surface h-11 w-full max-w-xs rounded-xl border px-4 text-sm"
+            />
+            <span className="text-on-surface-variant text-xs">
+              {tp("tickets.autoCloseHoursHint")}
+            </span>
+          </label>
           <button
             type="button"
             disabled={saving}

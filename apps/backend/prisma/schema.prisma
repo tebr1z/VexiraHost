@@ -1091,7 +1091,7 @@ model HostingAccount {
   server                HostingServer?         @relation(fields: [serverId], references: [id], onDelete: SetNull)
   orderId               String?
   order                 Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  primaryDomain         String                 @unique
+  primaryDomain         String
   username              String                 @unique
   panel                 HostingPanel
   managementMode        HostingManagementMode  @default(AUTOMATED)
@@ -1117,7 +1117,9 @@ model HostingAccount {
 
   invoices Invoice[]
 
+  @@unique([userId, primaryDomain])
   @@index([userId])
+  @@index([primaryDomain])
   @@index([planId])
   @@index([serverId])
   @@index([orderId])

@@ -3,9 +3,15 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { StatusBadge } from "@/components/ui";
 import { AdminImpersonateButton } from "@/components/admin/admin-impersonate-button";
-import { updateAdminUserRole, updateAdminUserStatus, type AdminUser } from "@/features/admin";
+import { StatusBadge } from "@/components/ui";
+import {
+  deleteAdminUser,
+  updateAdminUserRole,
+  updateAdminUserStatus,
+  type AdminUser,
+} from "@/features/admin";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
 
@@ -14,9 +20,11 @@ const ROLES = ["customer", "staff", "admin"] as const;
 export function AdminUserActions({
   user,
   onUpdated,
+  onDeleted,
 }: {
   user: AdminUser;
   onUpdated: (updated: AdminUser) => void;
+  onDeleted?: (userId: string) => void;
 }): React.ReactElement {
   const tu = useTranslations("admin.users");
   const tt = useTranslations("admin.toasts");
@@ -52,8 +60,23 @@ export function AdminUserActions({
     }
   };
 
+  const handleDelete = async () => {
+    const label = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+    if (!confirm(tu("deleteConfirm", { name: label }))) return;
+    setSaving(true);
+    try {
+      await deleteAdminUser(user.id);
+      toast(tt("userDeleted"), "success");
+      onDeleted?.(user.id);
+    } catch (err) {
+      toast(getApiErrorMessage(err, tt("userDeleteFailed")), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (isSelf) {
-    return <span className="text-xs text-on-surface-variant">{tu("currentAccount")}</span>;
+    return <span className="text-on-surface-variant text-xs">{tu("currentAccount")}</span>;
   }
 
   return (
@@ -63,7 +86,7 @@ export function AdminUserActions({
         value={user.role}
         disabled={saving}
         onChange={(e) => handleRoleChange(e.target.value)}
-        className="h-9 rounded-lg border border-outline-variant bg-surface px-2 text-sm capitalize"
+        className="border-outline-variant bg-surface h-9 rounded-lg border px-2 text-sm capitalize"
       >
         {ROLES.map((role) => (
           <option key={role} value={role}>
@@ -82,6 +105,14 @@ export function AdminUserActions({
         }`}
       >
         {user.status === "SUSPENDED" ? tu("activate") : tu("suspend")}
+      </button>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={handleDelete}
+        className="border-error/40 text-error hover:bg-error-container h-9 rounded-lg border px-3 text-sm font-medium disabled:opacity-60"
+      >
+        {tu("delete")}
       </button>
       <StatusBadge status={user.status} className="scale-90" />
     </div>

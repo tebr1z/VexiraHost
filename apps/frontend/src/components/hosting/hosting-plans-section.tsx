@@ -80,10 +80,10 @@ export function HostingPlansSection(): React.ReactElement {
             subtitle={t("plansSubtitle")}
             guarantees={[t("guarantee1"), t("guarantee2"), t("guarantee3")]}
             controls={
-              <>
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
                 <CurrencySwitcher variant="segmented" />
-              </>
+              </div>
             }
           />
 

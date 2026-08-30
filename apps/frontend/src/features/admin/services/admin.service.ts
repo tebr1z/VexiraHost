@@ -218,6 +218,10 @@ export async function updateAdminUserStatus(
   return res.data as AdminUser;
 }
 
+export async function deleteAdminUser(userId: string): Promise<void> {
+  await apiClient.request(`/admin/users/${userId}`, { method: "DELETE" });
+}
+
 export async function creditAdminUserBalance(
   userId: string,
   input: { amount: number; currency?: string; note?: string },

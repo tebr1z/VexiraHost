@@ -387,6 +387,9 @@ export class TicketsService {
     if (ticket.userId !== userId) {
       throw new ForbiddenException("Access denied");
     }
+    if (ticket.status === TicketStatus.CLOSED || ticket.status === TicketStatus.RESOLVED) {
+      throw new BadRequestException("This ticket is closed and cannot be reopened");
+    }
 
     const message = await this.ticketsRepository.addReply({
       ticketId: id,
@@ -478,6 +481,12 @@ export class TicketsService {
     }
     if (!isStaff && ticket.userId !== userId) {
       throw new ForbiddenException("Access denied");
+    }
+    if (
+      !isStaff &&
+      (ticket.status === TicketStatus.CLOSED || ticket.status === TicketStatus.RESOLVED)
+    ) {
+      throw new BadRequestException("This ticket is closed and cannot accept new attachments");
     }
 
     const storageKey = `tickets/${ticketId}/${randomUUID()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_")}`;

@@ -102,9 +102,12 @@ export class HostingRepository {
     });
   }
 
-  findByPrimaryDomain(primaryDomain: string) {
-    return this.prisma.hostingAccount.findUnique({
-      where: { primaryDomain: primaryDomain.toLowerCase() },
+  findByPrimaryDomainOwnedByOther(userId: string, primaryDomain: string) {
+    return this.prisma.hostingAccount.findFirst({
+      where: {
+        primaryDomain: primaryDomain.toLowerCase(),
+        userId: { not: userId },
+      },
     });
   }
 

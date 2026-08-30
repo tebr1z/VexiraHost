@@ -11,9 +11,10 @@ import { AdminUserForm } from "@/components/admin/admin-user-form";
 import { AdminUserHostingSection } from "@/components/admin/admin-user-hosting-section";
 import { AdminUserWhatsappApiSection } from "@/components/admin/admin-user-whatsapp-api-section";
 import { PageHeader } from "@/components/ui";
-import { getAdminUser, updateAdminUser, type AdminUser } from "@/features/admin";
+import { deleteAdminUser, getAdminUser, updateAdminUser, type AdminUser } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
 import { Link, useRouter } from "@/i18n/navigation";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
@@ -31,6 +32,7 @@ export default function AdminUserEditPage(): React.ReactElement | null {
   const tp = useTranslations("admin.pages.users");
   const tf = useTranslations("admin.forms");
   const tt = useTranslations("admin.toasts");
+  const tUsers = useTranslations("admin.users");
   const tu = useTranslations("ui");
   const currentUser = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -40,6 +42,7 @@ export default function AdminUserEditPage(): React.ReactElement | null {
   const userId = typeof params.id === "string" ? params.id : "";
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [tab, setTab] = useState<UserTab>("profile");
 
   useEffect(() => {
@@ -55,6 +58,21 @@ export default function AdminUserEditPage(): React.ReactElement | null {
   if (!user) return <p className="text-on-surface-variant">{tp("notFound")}</p>;
 
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+  const isSelf = currentUser?.id === user.id;
+
+  const handleDelete = async () => {
+    if (!confirm(tUsers("deleteConfirm", { name: displayName }))) return;
+    setDeleting(true);
+    try {
+      await deleteAdminUser(user.id);
+      toast(tt("userDeleted"), "success");
+      router.push("/t4abriz/panel/users");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tt("userDeleteFailed")), "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const tabs: { id: UserTab; label: string }[] = [
     { id: "profile", label: tp("tabs.profile") },
@@ -76,6 +94,16 @@ export default function AdminUserEditPage(): React.ReactElement | null {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <AdminImpersonateButton user={user} />
+            {!isSelf ? (
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDelete}
+                className="border-error/40 text-error hover:bg-error-container rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+              >
+                {deleting ? tUsers("deleting") : tUsers("delete")}
+              </button>
+            ) : null}
             <Link
               href="/t4abriz/panel/users"
               className="border-outline-variant hover:bg-surface-container-low rounded-xl border px-4 py-2 text-sm font-medium"

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
+import { ProductCategory } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 import type { CheckoutDto, ValidatePromoDto } from "../dto";
@@ -9,6 +10,7 @@ import { OrderEmailService } from "./order-email.service";
 
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
 import { SiteAccessService } from "@/modules/auth/service/site-access.service";
+import { HostingRepository } from "@/modules/hosting/repository/hosting.repository";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { resolveProductPrice } from "@/shared/pricing/product-price.util";
@@ -156,7 +158,30 @@ export class OrdersService {
     private readonly orderEmailService: OrderEmailService,
     private readonly staffAlerts: StaffAlertService,
     private readonly siteAccessService: SiteAccessService,
+    private readonly hostingRepository: HostingRepository,
   ) {}
+
+  private async assertHostingDomainsAvailable(
+    userId: string,
+    lineItems: { category: string; metadata: Prisma.InputJsonValue }[],
+  ): Promise<void> {
+    for (const item of lineItems) {
+      if (item.category !== ProductCategory.HOSTING) continue;
+      const domain = (item.metadata as { primaryDomain?: string } | undefined)?.primaryDomain
+        ?.trim()
+        .toLowerCase();
+      if (!domain) continue;
+
+      const taken = await this.hostingRepository.findByPrimaryDomainOwnedByOther(userId, domain);
+      if (taken) {
+        throw new BadRequestException({
+          message: "This domain is already in use by another account",
+          messageKey: "hosting_domain_taken",
+          messageParams: { domain },
+        });
+      }
+    }
+  }
 
   private async buildLineItems(userId: string | null, dto: CheckoutDto | ValidatePromoDto) {
     const merged = new Map<string, number>();
@@ -258,6 +283,7 @@ export class OrdersService {
   async checkout(userId: string, dto: CheckoutDto) {
     const { lineItems, subtotal, currency } = await this.buildLineItems(userId, dto);
     await this.siteAccessService.assertCheckoutOpen(lineItems.map((item) => item.category));
+    await this.assertHostingDomainsAvailable(userId, lineItems);
 
     let discountAmount = new Decimal(0);
     let promoCodeId: string | null = null;

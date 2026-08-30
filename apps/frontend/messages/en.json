@@ -508,7 +508,16 @@
     "hostingNote": "Hosting accounts are created automatically after payment.",
     "processing": "Processing...",
     "checkoutPay": "Create account & pay",
-    "checkoutPayNow": "Pay with Kapital Bank",
+    "checkoutPayCard": "Pay by card (Kapital Bank)",
+    "checkoutPayBalance": "Pay with balance",
+    "paymentMethodTitle": "Payment method",
+    "paymentMethodDesc": "Use your account balance or pay by bank card.",
+    "paymentMethodCard": "Pay by card",
+    "paymentMethodCardDesc": "You will be redirected to Kapital Bank to complete payment.",
+    "paymentMethodBalance": "Pay with balance",
+    "paymentMethodBalanceDesc": "Available balance: {balance}",
+    "paymentMethodBalanceUnavailable": "Could not load balance.",
+    "domainTakenByOther": "This domain is already used by another customer.",
     "domainRequired": "Enter a primary domain for {name}",
     "domainInvalid": "Invalid domain for {name}",
     "paymentSuccess": "Payment successful — redirecting to your panel",
@@ -788,9 +797,11 @@
       "title": "Setting up your hosting",
       "inProgressHint": "We are creating your account on the Plesk server. This usually takes under a minute.",
       "completeHint": "Your hosting account is ready.",
-      "failedHint": "Provisioning could not be completed. Check the error below and retry.",
+      "failedHint": "A temporary error occurred. Please contact support.",
       "pleaseWait": "In progress…",
-      "errorTitle": "Provisioning error",
+      "errorTitle": "Setup could not be completed",
+      "supportMessage": "Your hosting account could not be created automatically. This is a temporary issue — our support team will help you.",
+      "contactSupport": "Contact support",
       "retry": "Retry provisioning",
       "retrying": "Retrying…",
       "stages": {
@@ -1181,6 +1192,8 @@
         "uploading": "Uploading...",
         "uploadFailed": "Upload failed",
         "maxFileSize": "Max 5 MB — images, PDF, or text",
+        "closedTitle": "Ticket closed",
+        "closedNotice": "This ticket is closed. You cannot reply or reopen it. Open a new ticket if you still need help.",
         "conversation": "Conversation",
         "relatedService": "Related service",
         "relatedServiceNone": "General support (no service selected)",
@@ -2055,6 +2068,12 @@
             "default": "Built-in site key"
           }
         },
+        "tickets": {
+          "title": "Support tickets",
+          "description": "Auto-close waiting tickets when the customer does not reply after staff.",
+          "autoCloseHours": "Auto-close after (hours)",
+          "autoCloseHoursHint": "After a staff reply, if the customer does not answer within this many hours, the ticket closes automatically. Closed tickets cannot be reopened by the customer. Range: 1–720."
+        },
         "adminOnly": "Only administrators can manage system settings.",
         "maintenance": {
           "title": "Maintenance mode",
@@ -2375,6 +2394,8 @@
       "userActivated": "User activated",
       "statusUpdateFailed": "Failed to update status",
       "userUpdated": "User updated",
+      "userDeleted": "User deleted",
+      "userDeleteFailed": "Could not delete user",
       "userLoadFailed": "Could not load user",
       "impersonateFailed": "Could not sign in as this user",
       "connectionOk": "Connection successful",
@@ -2394,7 +2415,10 @@
         "admin": "Admin"
       },
       "activate": "Activate",
-      "suspend": "Suspend"
+      "suspend": "Suspend",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "deleteConfirm": "Permanently delete {name}? Orders, tickets, and related data will also be removed."
     },
     "impersonation": {
       "viewingAs": "You are viewing the site as {email}",

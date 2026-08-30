@@ -77,11 +77,17 @@ export function validateBillingAddress(
   return normalized;
 }
 
+export type CheckoutPaymentMethod = "balance" | "card";
+
 export async function performCheckout(
   items: CartItem[],
   billingAddress: BillingAddressInput | null | undefined,
   billingAddressRequiredMessage: string,
-  options?: { requireBillingAddress?: boolean; promoCode?: string | null },
+  options?: {
+    requireBillingAddress?: boolean;
+    promoCode?: string | null;
+    paymentMethod?: CheckoutPaymentMethod;
+  },
 ): Promise<{
   orderId: string;
   hasHosting: boolean;
@@ -135,6 +141,29 @@ export async function performCheckout(
 
   if (!order?.invoice?.id) {
     throw new Error("No invoice created");
+  }
+
+  const paymentMethod = options?.paymentMethod ?? "card";
+
+  if (paymentMethod === "balance") {
+    const invoiceTotal = Number(order.invoice.total ?? 0);
+    const payment = await chargeInvoice(order.invoice.id, {
+      useBalance: true,
+      amount: invoiceTotal,
+    });
+
+    if (payment?.mode === "redirect" && payment.redirectUrl) {
+      return {
+        orderId: order.id,
+        hasHosting: items.some((item) => item.category === "HOSTING"),
+        redirectUrl: payment.redirectUrl,
+      };
+    }
+
+    return {
+      orderId: order.id,
+      hasHosting: items.some((item) => item.category === "HOSTING"),
+    };
   }
 
   let methods = await listPaymentMethods();

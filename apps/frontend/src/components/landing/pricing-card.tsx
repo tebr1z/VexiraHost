@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useLocale, useTranslations } from "next-intl";
 
+import { CATALOG_CATEGORY_ICONS } from "@/components/landing/catalog-category-nav";
 import { MaterialIcon } from "@/components/landing/material-icon";
 import type { CatalogProduct } from "@/features/catalog";
 import { cn } from "@/lib/cn";
@@ -18,18 +19,6 @@ const CATEGORY_FEATURES: Record<string, string[]> = {
   LICENSE: ["f1", "f2", "f3"],
   BACKUP: ["f1", "f2"],
   WHATSAPP_API: ["f1", "f2", "f3"],
-};
-
-const CATEGORY_ICONS: Record<string, string> = {
-  HOSTING: "language",
-  VPS: "memory",
-  DEDICATED: "dns",
-  DOMAIN: "public",
-  WHATSAPP_API: "chat",
-  SSL: "verified_user",
-  EMAIL: "mail",
-  LICENSE: "key",
-  BACKUP: "backup",
 };
 
 function billingLabel(cycle: string, t: ReturnType<typeof useTranslations<"pricing">>): string {
@@ -54,7 +43,7 @@ export function PricingCard({
   const tCat = useTranslations("dashboard.pages.products.categories");
   const reduceMotion = useReducedMotion();
   const featureKeys = CATEGORY_FEATURES[product.category] ?? ["f1", "f2"];
-  const categoryIcon = CATEGORY_ICONS[product.category] ?? "deployed_code";
+  const categoryIcon = CATALOG_CATEGORY_ICONS[product.category] ?? "deployed_code";
   const descriptionLines =
     product.description
       ?.split(/\n|•/)
@@ -63,60 +52,66 @@ export function PricingCard({
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 16 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.4, delay: index * 0.06 }}
-      whileHover={reduceMotion ? undefined : { y: -6 }}
+      transition={{ duration: 0.4, delay: index * 0.05 }}
+      whileHover={reduceMotion ? undefined : { y: -4 }}
       className={cn(
-        "hover:shadow-apple-md group relative flex h-full flex-col overflow-hidden p-6 transition-shadow duration-300 sm:p-7",
-        "rounded-[26px] border border-[var(--separator)] bg-[var(--bg-elevated)]",
+        "group relative flex h-full flex-col overflow-hidden rounded-[28px] border bg-[var(--bg-elevated)] p-6 transition-[border-color,box-shadow,transform] duration-300 sm:p-7",
         featured
-          ? "shadow-[0_18px_45px_color-mix(in_srgb,var(--accent)_14%,transparent)] ring-1 ring-[var(--accent)]"
-          : "shadow-apple",
+          ? "border-[color-mix(in_srgb,var(--accent)_45%,var(--separator))] shadow-[0_20px_50px_color-mix(in_srgb,var(--accent)_10%,transparent)]"
+          : "border-[var(--separator)] shadow-[0_10px_30px_rgba(0,0,0,0.04)] hover:border-[color-mix(in_srgb,var(--accent)_28%,var(--separator))]",
       )}
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-28 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(ellipse 75% 90% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%)",
-        }}
-      />
+      {featured ? (
+        <div
+          className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,transparent,var(--accent),transparent)]"
+          aria-hidden
+        />
+      ) : null}
 
-      <div className="relative flex items-start justify-between gap-4">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]">
-          <MaterialIcon name={categoryIcon} className="text-[22px]" />
-        </span>
-        {featured && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent)]">
-            <MaterialIcon name="workspace_premium" className="text-[15px]" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className={cn(
+              "flex h-12 w-12 items-center justify-center rounded-2xl",
+              featured
+                ? "bg-[var(--accent)] text-white"
+                : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]",
+            )}
+          >
+            <MaterialIcon name={categoryIcon} className="text-[22px]" />
+          </span>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--label-tertiary)]">
+              {tCat(product.category as never)}
+            </p>
+            <h3 className="mt-0.5 text-xl font-semibold tracking-tight text-[var(--label)] sm:text-[1.35rem]">
+              {product.name}
+            </h3>
+          </div>
+        </div>
+        {featured ? (
+          <span className="shrink-0 rounded-md bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)]">
             {t("popular")}
           </span>
-        )}
+        ) : null}
       </div>
 
-      <div className="relative mt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--label-tertiary)]">
-          {tCat(product.category as never)}
-        </p>
-        <h3 className="mt-1.5 text-2xl font-semibold tracking-tight text-[var(--label)]">
-          {product.name}
-        </h3>
-      </div>
-
-      {product.description && (
-        <p className="relative mt-2 min-h-[2.5rem] text-sm leading-relaxed text-[var(--label-secondary)]">
+      {product.description ? (
+        <p className="relative mt-4 min-h-[2.75rem] text-sm leading-relaxed text-[var(--label-secondary)]">
           {descriptionLines[0] ?? product.description}
         </p>
+      ) : (
+        <div className="mt-4 min-h-[2.75rem]" />
       )}
 
-      <div className="relative my-6 flex items-end gap-1">
-        <span className="text-4xl font-semibold tracking-tight text-[var(--label)]">
+      <div className="relative mt-6 flex items-baseline gap-1.5">
+        <span className="text-[2.35rem] font-semibold leading-none tracking-[-0.04em] text-[var(--label)] sm:text-[2.6rem]">
           {formatMoney(product.price, product.currency, locale)}
         </span>
-        <span className="mb-1 text-sm text-[var(--label-secondary)]">
+        <span className="text-sm text-[var(--label-secondary)]">
           {billingLabel(product.billingCycle, t)}
         </span>
       </div>
@@ -124,7 +119,10 @@ export function PricingCard({
       <button
         type="button"
         onClick={onSelect}
-        className="apple-btn apple-btn-primary relative w-full"
+        className={cn(
+          "apple-btn relative mt-6 w-full",
+          featured ? "apple-btn-primary" : "apple-btn-secondary",
+        )}
       >
         {t("selectPlan")}
         <MaterialIcon
@@ -133,20 +131,20 @@ export function PricingCard({
         />
       </button>
 
-      <ul className="relative mt-6 space-y-2.5 border-t-[0.5px] border-[var(--separator)] pt-5">
+      <ul className="relative mt-6 space-y-2.5 border-t border-[var(--separator)] pt-5">
         {descriptionLines.slice(1).map((line) => (
-          <li key={line} className="flex items-start gap-2 text-sm text-[var(--label-secondary)]">
+          <li key={line} className="flex items-start gap-2.5 text-sm text-[var(--label-secondary)]">
             <MaterialIcon
-              name="check"
+              name="check_circle"
               className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]"
             />
             <span>{line}</span>
           </li>
         ))}
         {featureKeys.map((key) => (
-          <li key={key} className="flex items-start gap-2 text-sm text-[var(--label-secondary)]">
+          <li key={key} className="flex items-start gap-2.5 text-sm text-[var(--label-secondary)]">
             <MaterialIcon
-              name="check"
+              name="check_circle"
               className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]"
             />
             <span>{t(`categoryFeatures.${product.category}.${key}` as never)}</span>

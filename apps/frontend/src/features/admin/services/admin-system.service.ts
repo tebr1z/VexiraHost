@@ -75,6 +75,7 @@ export interface AdminSystemStatus {
   access: SiteAccessConfig;
   maintenance: AdminMaintenanceSettings;
   announcement: AdminAnnouncementSettings;
+  ticketAutoCloseHours: number;
   note: string;
 }
 
@@ -103,6 +104,7 @@ export interface UpdateSystemSettingsInput {
   turnstileSiteKey?: string;
   turnstileSecret?: string;
   turnstileHostnames?: string;
+  ticketAutoCloseHours?: number;
 }
 
 export async function getAdminSystemStatus(): Promise<AdminSystemStatus> {
@@ -121,8 +123,10 @@ export async function updateAdminSystemSettings(
 }
 
 function normalizeAdminSystemStatus(data: AdminSystemStatus): AdminSystemStatus {
+  const hours = Number(data.ticketAutoCloseHours);
   return {
     ...data,
+    ticketAutoCloseHours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 720) : 12,
     maintenance: {
       enabled: Boolean(data.maintenance?.enabled),
       message: parseLocalizedText(data.maintenance?.message),

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import type { HostingPanel, HostingServer, ServiceStatus } from "@prisma/client";
@@ -112,6 +113,8 @@ function mapAccount(account: {
 
 @Injectable()
 export class HostingServersService {
+  private readonly logger = new Logger(HostingServersService.name);
+
   constructor(
     private readonly hostingServersRepository: HostingServersRepository,
     private readonly controlPanel: MockControlPanelProvider,
@@ -282,8 +285,9 @@ export class HostingServersService {
           panelRef: account.panelRef,
         });
       } catch (error) {
-        throw new BadRequestException(
-          error instanceof Error ? error.message : "Failed to delete account on panel",
+        const message = error instanceof Error ? error.message : "Panel delete failed";
+        this.logger.warn(
+          `Panel delete skipped for hosting ${id} (${account.primaryDomain}): ${message}`,
         );
       }
     }

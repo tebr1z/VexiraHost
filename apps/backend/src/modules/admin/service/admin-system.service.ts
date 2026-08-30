@@ -27,7 +27,10 @@ const SETTING_KEYS = {
   announcementEnabled: "announcement_enabled",
   announcementTitle: "announcement_title",
   announcementMessage: "announcement_message",
+  ticketAutoCloseHours: "ticket_auto_close_hours",
 } as const;
+
+const DEFAULT_TICKET_AUTO_CLOSE_HOURS = 12;
 
 @Injectable()
 export class AdminSystemRepository {
@@ -108,6 +111,13 @@ export class AdminSystemService {
     };
   }
 
+  private async resolveTicketAutoCloseHours(): Promise<number> {
+    const row = await this.systemRepository.findSetting(SETTING_KEYS.ticketAutoCloseHours);
+    const parsed = Number.parseInt(row?.value ?? "", 10);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 720) return parsed;
+    return DEFAULT_TICKET_AUTO_CLOSE_HOURS;
+  }
+
   async getSystemStatus() {
     const providers = await this.resolveProviders();
     const envDefaults = this.envDefaults();
@@ -153,6 +163,7 @@ export class AdminSystemService {
       access: await this.siteAccessService.getConfig(),
       maintenance: await this.resolveMaintenance(),
       announcement: await this.resolveAnnouncement(),
+      ticketAutoCloseHours: await this.resolveTicketAutoCloseHours(),
       note: "Provider, Kapital, Google OAuth, and Turnstile credentials stored in the database override server defaults.",
     };
   }
@@ -269,6 +280,13 @@ export class AdminSystemService {
         secret: dto.turnstileSecret,
         hostnames: dto.turnstileHostnames,
       });
+    }
+
+    if (dto.ticketAutoCloseHours !== undefined) {
+      await this.systemRepository.upsertSetting(
+        SETTING_KEYS.ticketAutoCloseHours,
+        String(dto.ticketAutoCloseHours),
+      );
     }
 
     return this.getSystemStatus();

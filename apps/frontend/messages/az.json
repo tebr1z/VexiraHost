@@ -494,7 +494,16 @@
     "hostingNote": "Hosting hesabları ödənişdən sonra avtomatik yaradılır.",
     "processing": "Emal edilir...",
     "checkoutPay": "Hesab aç və ödə",
-    "checkoutPayNow": "Kapital Bank ilə ödə",
+    "checkoutPayCard": "Kartla ödə (Kapital Bank)",
+    "checkoutPayBalance": "Balansla ödə",
+    "paymentMethodTitle": "Ödəniş üsulu",
+    "paymentMethodDesc": "Balansınız varsa ondan istifadə edin və ya bank kartı ilə ödəyin.",
+    "paymentMethodCard": "Kartla ödə",
+    "paymentMethodCardDesc": "Kapital Bank ödəniş səhifəsinə yönləndiriləcəksiniz.",
+    "paymentMethodBalance": "Balansla ödə",
+    "paymentMethodBalanceDesc": "Mövcud balans: {balance}",
+    "paymentMethodBalanceUnavailable": "Balans məlumatı yüklənmədi.",
+    "domainTakenByOther": "Bu domen başqa müştəri tərəfindən istifadə olunur.",
     "domainRequired": "{name} üçün əsas domen daxil edin",
     "domainInvalid": "{name} üçün etibarsız domen",
     "paymentSuccess": "Ödəniş uğurlu — panelə yönləndirilirsiniz",
@@ -774,9 +783,11 @@
       "title": "Hosting qurulur",
       "inProgressHint": "Plesk serverində hesabınız yaradılır. Bu adətən bir dəqiqədən az çəkir.",
       "completeHint": "Hosting hesabınız hazırdır.",
-      "failedHint": "Quraşdırma tamamlanmadı. Xətaya baxın və yenidən cəhd edin.",
+      "failedHint": "Müvəqqəti xəta yarandı. Zəhmət olmasa dəstək ilə əlaqə saxlayın.",
       "pleaseWait": "Davam edir…",
-      "errorTitle": "Quraşdırma xətası",
+      "errorTitle": "Quraşdırma tamamlanmadı",
+      "supportMessage": "Hosting hesabı avtomatik yaradıla bilmədi. Bu müvəqqəti xətadır — dəstək komandası sizə kömək edəcək.",
+      "contactSupport": "Dəstək ilə əlaqə",
       "retry": "Yenidən cəhd et",
       "retrying": "Yenidən cəhd edilir…",
       "stages": {
@@ -1167,6 +1178,8 @@
         "uploading": "Yüklənir...",
         "uploadFailed": "Yükləmə uğursuz",
         "maxFileSize": "Maksimum 5 MB — şəkil, PDF və ya mətn",
+        "closedTitle": "Ticket bağlıdır",
+        "closedNotice": "Bu ticket bağlıdır. Cavab yaza və ya yenidən aça bilməzsiniz. Yenə kömək lazımdırsa yeni ticket açın.",
         "conversation": "Söhbət",
         "relatedService": "Əlaqəli xidmət",
         "relatedServiceNone": "Ümumi dəstək (xidmət seçilməyib)",
@@ -2041,6 +2054,12 @@
             "default": "Daxili site key"
           }
         },
+        "tickets": {
+          "title": "Dəstək ticketləri",
+          "description": "Staff cavabından sonra müştəri cavab verməzsə ticket avtomatik bağlanır.",
+          "autoCloseHours": "Avtomatik bağlanma (saat)",
+          "autoCloseHoursHint": "Staff cavabından sonra müştəri bu qədər saat ərzində cavab verməsə ticket bağlanır. Bağlı ticketi müştəri yenidən aça bilməz. Aralıq: 1–720."
+        },
         "adminOnly": "Yalnız admin sistem ayarlarını idarə edə bilər.",
         "maintenance": {
           "title": "Bakım rejimi",
@@ -2359,6 +2378,8 @@
       "roleUpdateFailed": "Rol yenilənmədi",
       "userSuspended": "İstifadəçi dayandırıldı",
       "userActivated": "İstifadəçi aktivləşdirildi",
+      "userDeleted": "İstifadəçi silindi",
+      "userDeleteFailed": "İstifadəçi silinə bilmədi",
       "statusUpdateFailed": "Status yenilənmədi",
       "userUpdated": "İstifadəçi yeniləndi",
       "userLoadFailed": "İstifadəçi yüklənmədi",
@@ -2380,7 +2401,10 @@
         "admin": "Admin"
       },
       "activate": "Aktivləşdir",
-      "suspend": "Dayandır"
+      "suspend": "Dayandır",
+      "delete": "Sil",
+      "deleting": "Silinir...",
+      "deleteConfirm": "{name} həmişəlik silinsin? Sifarişlər, ticketlər və əlaqəli məlumatlar da silinəcək."
     },
     "impersonation": {
       "viewingAs": "Saytı {email} kimi görürsünüz",

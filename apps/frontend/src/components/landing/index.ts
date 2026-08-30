@@ -1,5 +1,6 @@
 export { DomainSearch } from "./domain-search";
 export { DataTransferSection } from "./data-transfer-section";
+export { CatalogCategoryNav, CATALOG_CATEGORY_ICONS } from "./catalog-category-nav";
 export { HeroSection } from "./hero-section";
 export { HomeJourney } from "./home-journey";
 export { InfrastructureSection } from "./infrastructure-section";

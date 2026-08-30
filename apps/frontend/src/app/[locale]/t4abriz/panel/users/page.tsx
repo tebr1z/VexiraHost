@@ -35,6 +35,10 @@ export default function AdminUsersPage(): React.ReactElement | null {
     setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
   };
 
+  const handleUserDeleted = (userId: string) => {
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -124,7 +128,11 @@ export default function AdminUsersPage(): React.ReactElement | null {
               return (
                 <TableRowActions>
                   <EditIconLink href={`/t4abriz/panel/users/${u.id}`} label={tu("edit")} />
-                  <AdminUserActions user={u} onUpdated={handleUserUpdated} />
+                  <AdminUserActions
+                    user={u}
+                    onUpdated={handleUserUpdated}
+                    onDeleted={handleUserDeleted}
+                  />
                 </TableRowActions>
               );
             },

@@ -195,8 +195,13 @@ export class HostingService {
     }
 
     const primaryDomain = dto.primaryDomain.trim().toLowerCase();
-    const existingDomain = await this.hostingRepository.findByPrimaryDomain(primaryDomain);
-    if (existingDomain) throw new ConflictException("Primary domain is already in use");
+    const existingDomain = await this.hostingRepository.findByPrimaryDomainOwnedByOther(
+      userId,
+      primaryDomain,
+    );
+    if (existingDomain) {
+      throw new ConflictException("Primary domain is already in use by another account");
+    }
 
     let username = (dto.username ?? deriveUsername(primaryDomain)).toLowerCase();
     const existingUsername = await this.hostingRepository.findByUsername(username);

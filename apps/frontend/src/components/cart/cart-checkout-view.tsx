@@ -20,8 +20,9 @@ import {
   performCheckout,
   validateCartDomains,
   type BillingAddressInput,
+  type CheckoutPaymentMethod,
 } from "@/features/billing/lib/perform-checkout";
-import { validatePromoCode } from "@/features/billing/services/billing.service";
+import { getAccountBalance, validatePromoCode } from "@/features/billing/services/billing.service";
 import { getCatalogProduct } from "@/features/catalog";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -106,11 +107,47 @@ export function CartCheckoutView({
     currency: string;
   } | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>("card");
+  const [balance, setBalance] = useState<{ balance: number; currency: string } | null>(null);
   const pricingCurrency = usePricingStore((s) => s.currency);
   const pricingPeriod = usePricingStore((s) => s.period);
   const hasSavedBilling = isCompleteBillingAddress(user?.billingAddress ?? null);
   const showBillingForm = !skipBillingAddress && (!hasSavedBilling || editingBilling);
   const showBillingSection = isAuthenticated;
+
+  const checkoutTotal = Math.max(0, total() - (appliedPromo?.discountAmount ?? 0));
+  const cartCurrency = items[0]?.currency ?? pricingCurrency;
+  const canPayWithBalance =
+    isAuthenticated &&
+    balance != null &&
+    balance.currency.toUpperCase() === cartCurrency.toUpperCase() &&
+    balance.balance >= checkoutTotal &&
+    checkoutTotal > 0;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setBalance(null);
+      setPaymentMethod("card");
+      return;
+    }
+    let cancelled = false;
+    getAccountBalance()
+      .then((bal) => {
+        if (!cancelled) setBalance(bal);
+      })
+      .catch(() => {
+        if (!cancelled) setBalance(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    if (paymentMethod === "balance" && !canPayWithBalance) {
+      setPaymentMethod("card");
+    }
+  }, [paymentMethod, canPayWithBalance]);
 
   useEffect(() => {
     setAppliedPromo(null);
@@ -278,6 +315,7 @@ export function CartCheckoutView({
         {
           requireBillingAddress: isAuthenticated && !skipBillingAddress,
           promoCode: appliedPromo?.code ?? null,
+          paymentMethod: isAuthenticated ? paymentMethod : "card",
         },
       );
 
@@ -316,6 +354,7 @@ export function CartCheckoutView({
           getApiErrorMessage(err, t("checkoutFailed"), {
             accountExists: tAuth("accountExistsLogin"),
             turnstileFailed: tAuth("turnstileFailed"),
+            domainTaken: t("domainTakenByOther"),
           }),
         );
       }
@@ -832,6 +871,56 @@ export function CartCheckoutView({
         </div>
       ) : null}
 
+      {isAuthenticated ? (
+        <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+          <h2 className="font-jakarta text-primary text-lg font-semibold">
+            {t("paymentMethodTitle")}
+          </h2>
+          <p className="text-on-surface-variant mt-1 text-sm">{t("paymentMethodDesc")}</p>
+          <div className="mt-4 space-y-3">
+            <label className="border-outline-variant hover:bg-surface-container-low flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition">
+              <input
+                type="radio"
+                name="cart-payment-method"
+                checked={paymentMethod === "card"}
+                onChange={() => setPaymentMethod("card")}
+                className="mt-1"
+              />
+              <div>
+                <p className="font-medium">{t("paymentMethodCard")}</p>
+                <p className="text-on-surface-variant text-sm">{t("paymentMethodCardDesc")}</p>
+              </div>
+            </label>
+            <label
+              className={`border-outline-variant flex items-start gap-3 rounded-xl border p-4 transition ${
+                canPayWithBalance
+                  ? "hover:bg-surface-container-low cursor-pointer"
+                  : "cursor-not-allowed opacity-60"
+              }`}
+            >
+              <input
+                type="radio"
+                name="cart-payment-method"
+                checked={paymentMethod === "balance"}
+                onChange={() => canPayWithBalance && setPaymentMethod("balance")}
+                disabled={!canPayWithBalance}
+                className="mt-1"
+              />
+              <div>
+                <p className="font-medium">{t("paymentMethodBalance")}</p>
+                <p className="text-on-surface-variant text-sm">
+                  {balance
+                    ? t("paymentMethodBalanceDesc", {
+                        balance: formatMoney(balance.balance, balance.currency, locale),
+                      })
+                    : t("paymentMethodBalanceUnavailable")}
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+      ) : null}
+
       {error && (
         <p className="border-error/20 bg-error-container text-error rounded-xl border px-4 py-3 text-sm">
           {error}
@@ -853,7 +942,9 @@ export function CartCheckoutView({
           ? t("processing")
           : quickAccount && !isAuthenticated
             ? t("checkoutPay")
-            : t("checkoutPayNow")}
+            : paymentMethod === "balance"
+              ? t("checkoutPayBalance")
+              : t("checkoutPayCard")}
       </button>
     </div>
   );

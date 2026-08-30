@@ -1,6 +1,5 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +15,7 @@ import {
   type TicketAttachment,
   type TicketDetail,
 } from "@/features/tickets";
+import { Link } from "@/i18n/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 
 export default function TicketDetailPage(): React.ReactElement | null {
@@ -45,7 +45,8 @@ export default function TicketDetailPage(): React.ReactElement | null {
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reply.trim()) return;
+    if (!reply.trim() || !ticket) return;
+    if (ticket.status === "CLOSED" || ticket.status === "RESOLVED") return;
     setSending(true);
     try {
       await replyTicket(id, reply.trim());
@@ -58,7 +59,8 @@ export default function TicketDetailPage(): React.ReactElement | null {
 
   const handleUpload = async (file: File) => {
     const token = useAuthStore.getState().accessToken;
-    if (!token) return;
+    if (!token || !ticket) return;
+    if (ticket.status === "CLOSED" || ticket.status === "RESOLVED") return;
     setUploading(true);
     setUploadError(null);
     try {
@@ -92,6 +94,8 @@ export default function TicketDetailPage(): React.ReactElement | null {
     );
   }
 
+  const isClosed = ticket.status === "CLOSED" || ticket.status === "RESOLVED";
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
@@ -107,14 +111,16 @@ export default function TicketDetailPage(): React.ReactElement | null {
       {ticket.relatedService?.label && (
         <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-4 py-3">
           <p className="text-xs font-medium text-[var(--label-tertiary)]">{tp("relatedService")}</p>
-          <p className="mt-1 text-sm font-medium text-[var(--label-primary)]">{ticket.relatedService.label}</p>
+          <p className="mt-1 text-sm font-medium text-[var(--label-primary)]">
+            {ticket.relatedService.label}
+          </p>
         </div>
       )}
 
       <TicketMessageThread messages={ticket.messages} locale={locale} viewer="customer" />
 
-      <section className="rounded-2xl border border-outline-variant/50 bg-surface p-5">
-        <h2 className="mb-3 font-semibold text-primary">{tp("attachments")}</h2>
+      <section className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+        <h2 className="text-primary mb-3 font-semibold">{tp("attachments")}</h2>
         {(ticket.attachments?.length ?? 0) > 0 && (
           <ul className="mb-3 space-y-2">
             {ticket.attachments!.map((attachment) => (
@@ -131,46 +137,60 @@ export default function TicketDetailPage(): React.ReactElement | null {
             ))}
           </ul>
         )}
-        <p className="mb-3 text-xs text-on-surface-variant">{tp("maxFileSize")}</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.pdf,.txt"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleUpload(file);
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
-          className="rounded-xl border border-outline-variant px-4 py-2 text-sm font-semibold disabled:opacity-60"
-        >
-          {uploading ? tp("uploading") : tp("uploadAttachment")}
-        </button>
-        {uploadError && <p className="mt-2 text-sm text-error">{uploadError}</p>}
+        {!isClosed ? (
+          <>
+            <p className="text-on-surface-variant mb-3 text-xs">{tp("maxFileSize")}</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.txt"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUpload(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="border-outline-variant rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+            >
+              {uploading ? tp("uploading") : tp("uploadAttachment")}
+            </button>
+            {uploadError && <p className="text-error mt-2 text-sm">{uploadError}</p>}
+          </>
+        ) : null}
       </section>
 
-      <form onSubmit={handleReply} className="space-y-3 rounded-2xl border border-outline-variant/50 bg-surface p-5">
-        <h2 className="font-semibold text-primary">{tc("reply")}</h2>
-        <textarea
-          value={reply}
-          onChange={(e) => setReply(e.target.value)}
-          rows={4}
-          placeholder={tc("replyPlaceholder")}
-          className="w-full rounded-xl border border-outline-variant px-4 py-3"
-        />
-        <button
-          type="submit"
-          disabled={sending}
-          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary disabled:opacity-60"
+      {isClosed ? (
+        <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+          <p className="text-on-surface text-sm font-semibold">{tp("closedTitle")}</p>
+          <p className="text-on-surface-variant mt-1 text-sm">{tp("closedNotice")}</p>
+        </div>
+      ) : (
+        <form
+          onSubmit={handleReply}
+          className="border-outline-variant/50 bg-surface space-y-3 rounded-2xl border p-5"
         >
-          {sending ? tc("sending") : tc("sendReply")}
-        </button>
-      </form>
+          <h2 className="text-primary font-semibold">{tc("reply")}</h2>
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            rows={4}
+            placeholder={tc("replyPlaceholder")}
+            className="border-outline-variant w-full rounded-xl border px-4 py-3"
+          />
+          <button
+            type="submit"
+            disabled={sending}
+            className="bg-primary text-on-primary rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
+          >
+            {sending ? tc("sending") : tc("sendReply")}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

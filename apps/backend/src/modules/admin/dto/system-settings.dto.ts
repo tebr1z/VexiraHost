@@ -2,10 +2,13 @@ import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from "class-validator";
 
@@ -165,4 +168,12 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
   turnstileHostnames?: string;
+
+  /** Hours after last staff reply with no customer response before auto-close. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  ticketAutoCloseHours?: number;
 }

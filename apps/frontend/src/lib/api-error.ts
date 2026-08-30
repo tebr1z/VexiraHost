@@ -6,7 +6,7 @@ import { ApiClientError } from "@vexira/api-sdk";
 export function getApiErrorMessage(
   err: unknown,
   fallback: string,
-  options?: { accountExists?: string; turnstileFailed?: string },
+  options?: { accountExists?: string; turnstileFailed?: string; domainTaken?: string },
 ): string {
   if (options?.turnstileFailed && isTurnstileRejected(err)) {
     return options.turnstileFailed;
@@ -19,6 +19,13 @@ export function getApiErrorMessage(
       (normalized.includes("already exists") || normalized.includes("already registered"))
     ) {
       return options.accountExists;
+    }
+    if (
+      options?.domainTaken &&
+      (normalized.includes("already in use by another account") ||
+        normalized.includes("already assigned to another customer"))
+    ) {
+      return options.domainTaken;
     }
     return message;
   };

@@ -495,7 +495,16 @@
     "hostingNote": "Hosting hesapları ödeme sonrası otomatik oluşturulur.",
     "processing": "İşleniyor...",
     "checkoutPay": "Hesap aç ve öde",
-    "checkoutPayNow": "Kapital Bank ile öde",
+    "checkoutPayCard": "Kartla öde (Kapital Bank)",
+    "checkoutPayBalance": "Bakiyeden öde",
+    "paymentMethodTitle": "Ödeme yöntemi",
+    "paymentMethodDesc": "Bakiyenizi kullanın veya banka kartı ile ödeyin.",
+    "paymentMethodCard": "Kartla öde",
+    "paymentMethodCardDesc": "Ödeme için Kapital Bank sayfasına yönlendirileceksiniz.",
+    "paymentMethodBalance": "Bakiyeden öde",
+    "paymentMethodBalanceDesc": "Mevcut bakiye: {balance}",
+    "paymentMethodBalanceUnavailable": "Bakiye bilgisi yüklenemedi.",
+    "domainTakenByOther": "Bu alan adı başka bir müşteri tarafından kullanılıyor.",
     "domainRequired": "{name} için ana domain girin",
     "domainInvalid": "{name} için geçersiz domain",
     "paymentSuccess": "Ödeme başarılı — panele yönlendiriliyorsunuz",
@@ -775,9 +784,11 @@
       "title": "Hosting kuruluyor",
       "inProgressHint": "Plesk sunucusunda hesabınız oluşturuluyor. Bu genelde bir dakikadan kısa sürer.",
       "completeHint": "Hosting hesabınız hazır.",
-      "failedHint": "Kurulum tamamlanamadı. Hatayı kontrol edip tekrar deneyin.",
+      "failedHint": "Geçici bir hata oluştu. Lütfen destek ile iletişime geçin.",
       "pleaseWait": "Devam ediyor…",
-      "errorTitle": "Kurulum hatası",
+      "errorTitle": "Kurulum tamamlanamadı",
+      "supportMessage": "Hosting hesabınız otomatik oluşturulamadı. Bu geçici bir sorundur — destek ekibimiz size yardımcı olacaktır.",
+      "contactSupport": "Destek ile iletişim",
       "retry": "Tekrar dene",
       "retrying": "Tekrar deneniyor…",
       "stages": {
@@ -1168,6 +1179,8 @@
         "uploading": "Yükleniyor...",
         "uploadFailed": "Yükleme başarısız",
         "maxFileSize": "En fazla 5 MB — görsel, PDF veya metin",
+        "closedTitle": "Ticket kapalı",
+        "closedNotice": "Bu ticket kapalı. Yanıt yazamaz veya yeniden açamazsınız. Hâlâ yardıma ihtiyacınız varsa yeni ticket açın.",
         "conversation": "Sohbet",
         "relatedService": "İlgili hizmet",
         "relatedServiceNone": "Genel destek (hizmet seçilmedi)",
@@ -2043,6 +2056,12 @@
             "default": "Yerleşik site key"
           }
         },
+        "tickets": {
+          "title": "Destek ticketleri",
+          "description": "Personel yanıtından sonra müşteri cevap vermezse ticket otomatik kapanır.",
+          "autoCloseHours": "Otomatik kapanma (saat)",
+          "autoCloseHoursHint": "Personel yanıtından sonra müşteri bu kadar saat içinde cevap vermezse ticket kapanır. Kapalı ticketi müşteri yeniden açamaz. Aralık: 1–720."
+        },
         "adminOnly": "Yalnızca yöneticiler sistem ayarlarını yönetebilir.",
         "maintenance": {
           "title": "Bakım modu",
@@ -2361,6 +2380,8 @@
       "roleUpdateFailed": "Rol güncellenemedi",
       "userSuspended": "Kullanıcı askıya alındı",
       "userActivated": "Kullanıcı etkinleştirildi",
+      "userDeleted": "Kullanıcı silindi",
+      "userDeleteFailed": "Kullanıcı silinemedi",
       "statusUpdateFailed": "Durum güncellenemedi",
       "userUpdated": "Kullanıcı güncellendi",
       "userLoadFailed": "Kullanıcı yüklenemedi",
@@ -2382,7 +2403,10 @@
         "admin": "Admin"
       },
       "activate": "Etkinleştir",
-      "suspend": "Askıya al"
+      "suspend": "Askıya al",
+      "delete": "Sil",
+      "deleting": "Siliniyor...",
+      "deleteConfirm": "{name} kalıcı olarak silinsin mi? Siparişler, ticketlar ve ilişkili veriler de kaldırılır."
     },
     "impersonation": {
       "viewingAs": "Siteyi {email} olarak görüntülüyorsunuz",

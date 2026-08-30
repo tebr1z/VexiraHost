@@ -191,9 +191,12 @@ export class AdminCustomerHostingService {
     }
 
     const primaryDomain = label.includes(".") ? label : `${label}.manual`;
-    const existingDomain = await this.hostingRepository.findByPrimaryDomain(primaryDomain);
+    const existingDomain = await this.hostingRepository.findByPrimaryDomainOwnedByOther(
+      userId,
+      primaryDomain,
+    );
     if (existingDomain) {
-      throw new ConflictException("A service with this label already exists");
+      throw new ConflictException("This domain is already assigned to another customer");
     }
 
     const serviceCategory = dto.serviceCategory;

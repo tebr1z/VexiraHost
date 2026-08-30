@@ -107,7 +107,14 @@ function isBenignPleskError(message: string): boolean {
     lower.includes("already exists") ||
     lower.includes("already exist") ||
     lower.includes("duplicate") ||
-    lower.includes("login name is already used")
+    lower.includes("login name is already used") ||
+    lower.includes("not found") ||
+    lower.includes("does not exist") ||
+    lower.includes("doesn't exist") ||
+    lower.includes("unknown object") ||
+    lower.includes("no such") ||
+    lower.includes("cannot find") ||
+    lower.includes("object not found")
   );
 }
 

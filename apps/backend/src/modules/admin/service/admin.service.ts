@@ -248,6 +248,25 @@ export class AdminService {
     return this.updateUser(actor, userId, { status: dto.status });
   }
 
+  async deleteUser(actor: AuthUser, userId: string) {
+    const user = await this.adminRepository.findUserById(userId);
+    if (!user) throw new NotFoundException("User not found");
+
+    if (actor.id === userId) {
+      throw new ForbiddenException("You cannot delete your own account");
+    }
+
+    if (user.role === "ADMIN") {
+      const adminCount = await this.adminRepository.countAdmins();
+      if (adminCount <= 1) {
+        throw new ForbiddenException("Cannot delete the last admin account");
+      }
+    }
+
+    await this.adminRepository.deleteUser(userId);
+    return { deleted: true, id: userId };
+  }
+
   impersonateUser(
     actor: AuthUser,
     targetUserId: string,

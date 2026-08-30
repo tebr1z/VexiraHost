@@ -130,6 +130,17 @@ export class AdminRepository {
     return this.updateUser(id, { status });
   }
 
+  countAdmins() {
+    return this.prisma.user.count({ where: { role: "ADMIN" } });
+  }
+
+  deleteUser(id: string) {
+    return this.prisma.user.delete({
+      where: { id },
+      select: { id: true },
+    });
+  }
+
   listOrders(filters: AdminOrdersFilter = {}) {
     const where: {
       status?: OrderStatus;

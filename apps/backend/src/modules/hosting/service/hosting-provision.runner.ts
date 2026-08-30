@@ -1,14 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ServiceStatus } from "@prisma/client";
 
-import { encryptSecret } from "@/utils/crypto.util";
-
 import { testPleskApiAuth } from "../clients/plesk-api.client";
 import { MockControlPanelProvider } from "../providers/mock-control-panel.provider";
-import { HostingRepository } from "../repository/hosting.repository";
 import { HostingServersRepository } from "../repository/hosting-servers.repository";
+import { HostingRepository } from "../repository/hosting.repository";
 import { PROVISION_STAGES } from "../types/provision-stage";
 import { isMockPanelServer } from "../utils/panel-endpoint.util";
+
+import { encryptSecret } from "@/utils/crypto.util";
+
+/** Stored in provisionError — UI maps to a support contact message. */
+export const PROVISION_SUPPORT_ERROR = "SUPPORT_REQUIRED";
 
 @Injectable()
 export class HostingProvisionRunner {
@@ -54,11 +57,7 @@ export class HostingProvisionRunner {
     try {
       await this.setStage(accountId, PROVISION_STAGES.CONNECTING_PANEL, null);
 
-      if (
-        server.panel === "PLESK" &&
-        !isMockPanelServer(server) &&
-        server.whmPasswordEnc
-      ) {
+      if (server.panel === "PLESK" && !isMockPanelServer(server) && server.whmPasswordEnc) {
         const auth = await testPleskApiAuth({
           hostname: server.hostname,
           ipAddress: server.ipAddress,
@@ -115,7 +114,7 @@ export class HostingProvisionRunner {
       await this.hostingRepository.updateAccount(accountId, {
         status: ServiceStatus.FAILED,
         provisionStage: PROVISION_STAGES.FAILED,
-        provisionError: message,
+        provisionError: PROVISION_SUPPORT_ERROR,
       });
     }
   }

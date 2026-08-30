@@ -95,6 +95,12 @@ export class AdminController {
     return this.adminService.updateUserStatus(actor, id, dto);
   }
 
+  @Delete("users/:id")
+  @Roles(UserRole.ADMIN)
+  deleteUser(@User() actor: AuthUser, @Param("id") id: string) {
+    return this.adminService.deleteUser(actor, id);
+  }
+
   @Post("users/:id/impersonate")
   @Roles(UserRole.ADMIN)
   impersonateUser(@User() actor: AuthUser, @Param("id") id: string, @Req() req: Request) {
