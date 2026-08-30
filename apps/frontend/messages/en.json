@@ -261,6 +261,7 @@
     "getStarted": "Get started",
     "addedToCart": "Added to cart",
     "emptyPlans": "No hosting plans available yet.",
+    "priceUnavailable": "Price is not available at the moment.",
     "priceNote": "Prices shown are monthly. Taxes calculated at checkout.",
     "priceNoteYearly": "Prices shown are yearly. Taxes calculated at checkout.",
     "includedTitle": "Included at no extra cost",

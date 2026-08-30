@@ -247,6 +247,7 @@
     "getStarted": "Başla",
     "addedToCart": "Səbətə əlavə edildi",
     "emptyPlans": "Hələ hosting planı yoxdur.",
+    "priceUnavailable": "Qiymət hazırda mövcud deyil.",
     "priceNote": "Göstərilən qiymətlər aylıqdır. Vergilər ödəniş zamanı hesablanır.",
     "priceNoteYearly": "Göstərilən qiymətlər illikdir. Vergilər ödəniş zamanı hesablanır.",
     "includedTitle": "Əlavə ödənişsiz daxildir",

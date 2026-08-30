@@ -34,13 +34,20 @@ export function HostingPlanCard({
   const period = usePricingStore((s) => s.period);
   const isYearly = period === "YEARLY";
 
-  const price = product?.price ?? plan.price;
-  const currency = product?.currency ?? plan.currency;
-  const discount = isYearly
-    ? (product?.discountPercent ?? 0)
-    : (product?.yearlySavingsPercent ?? 0);
+  if (!product) {
+    return (
+      <article className="relative flex h-full flex-col rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 opacity-60 sm:p-5">
+        <h3 className="text-xl font-bold tracking-tight text-[var(--label)]">{plan.name}</h3>
+        <p className="mt-4 text-sm text-[var(--label-secondary)]">{t("priceUnavailable")}</p>
+      </article>
+    );
+  }
+
+  const price = product.price;
+  const currency = product.currency;
+  const discount = isYearly ? (product.discountPercent ?? 0) : (product.yearlySavingsPercent ?? 0);
   const originalPrice =
-    product?.originalPrice && product.originalPrice > price
+    product.originalPrice && product.originalPrice > price
       ? product.originalPrice
       : discount > 0
         ? price / (1 - discount / 100)

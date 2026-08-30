@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { HostingPageHero } from "@/components/hosting/hosting-page-hero";
@@ -10,62 +10,58 @@ import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
 import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
-import { listCatalogProducts, type CatalogProduct } from "@/features/catalog";
+import {
+  listCatalogCategories,
+  listCatalogProducts,
+  type CatalogProduct,
+} from "@/features/catalog";
 import { listHostingPlans, type HostingPlan } from "@/features/hosting";
-import { useRouter } from "@/i18n/navigation";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
+import { mergePlansWithCatalogProducts, resolveHostingCategoryRef } from "@/lib/hosting-catalog";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
 export function HostingPlansSection(): React.ReactElement {
-  const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("publicHosting");
   const addItem = useCartStore((s) => s.addItem);
   const continueAfterAdd = useAddToCartNavigation();
   const currency = usePricingStore((s) => s.currency);
   const period = usePricingStore((s) => s.period);
-  const [plans, setPlans] = useState<HostingPlan[]>([]);
-  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [planEntries, setPlanEntries] = useState<
+    Array<{ plan: HostingPlan; product: CatalogProduct }>
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      listHostingPlans(),
-      listCatalogProducts({ category: "HOSTING", currency, period }),
-    ])
-      .then(([planList, productList]) => {
-        setPlans(planList);
-        setProducts(productList);
+    listCatalogCategories(locale)
+      .then((categories) => {
+        const categoryRef = resolveHostingCategoryRef(categories);
+        return Promise.all([
+          listHostingPlans(),
+          listCatalogProducts({ category: categoryRef, currency, period }),
+        ]);
       })
+      .then(([planList, productList]) => {
+        setPlanEntries(mergePlansWithCatalogProducts(planList, productList));
+      })
+      .catch(() => setPlanEntries([]))
       .finally(() => setLoading(false));
-  }, [currency, period]);
+  }, [currency, period, locale]);
 
-  const productBySlug = useMemo(() => {
-    const map = new Map<string, CatalogProduct>();
-    for (const product of products) {
-      if (product.hostingPlanSlug) map.set(product.hostingPlanSlug, product);
-    }
-    return map;
-  }, [products]);
-
-  const popularIndex = plans.length >= 2 ? 1 : -1;
+  const popularIndex = planEntries.length >= 2 ? 1 : -1;
   const maxYearlySavings = useMemo(() => {
-    if (products.length === 0) return 0;
-    return Math.max(...products.map((p) => p.yearlySavingsPercent ?? 0));
-  }, [products]);
+    if (planEntries.length === 0) return 0;
+    return Math.max(...planEntries.map(({ product }) => product.yearlySavingsPercent ?? 0));
+  }, [planEntries]);
 
-  const handleSelect = (plan: HostingPlan) => {
-    const product = productBySlug.get(plan.slug);
-    if (product) {
-      addItem(buildCartItemFromProduct(product));
-      toast(t("addedToCart"), "success");
-      continueAfterAdd();
-      return;
-    }
-    router.push("/register");
+  const handleSelect = (product: CatalogProduct) => {
+    addItem(buildCartItemFromProduct(product));
+    toast(t("addedToCart"), "success");
+    continueAfterAdd();
   };
 
   return (
@@ -93,25 +89,25 @@ export function HostingPlansSection(): React.ReactElement {
                 <LoadingSkeleton key={i} className="h-[28rem] rounded-2xl" />
               ))}
             </div>
-          ) : plans.length === 0 ? (
+          ) : planEntries.length === 0 ? (
             <p className="text-center text-[var(--label-secondary)]">{t("emptyPlans")}</p>
           ) : (
             <div
               className={cn(
                 "grid gap-3 sm:gap-4",
-                plans.length === 1 && "mx-auto max-w-sm",
-                plans.length === 2 && "mx-auto max-w-3xl sm:grid-cols-2",
-                plans.length === 3 && "mx-auto max-w-5xl sm:grid-cols-2 xl:grid-cols-3",
-                plans.length >= 4 && "sm:grid-cols-2 xl:grid-cols-4",
+                planEntries.length === 1 && "mx-auto max-w-sm",
+                planEntries.length === 2 && "mx-auto max-w-3xl sm:grid-cols-2",
+                planEntries.length === 3 && "mx-auto max-w-5xl sm:grid-cols-2 xl:grid-cols-3",
+                planEntries.length >= 4 && "sm:grid-cols-2 xl:grid-cols-4",
               )}
             >
-              {plans.map((plan, index) => (
+              {planEntries.map(({ plan, product }, index) => (
                 <HostingPlanCard
                   key={plan.id}
                   plan={plan}
-                  product={productBySlug.get(plan.slug)}
+                  product={product}
                   featured={index === popularIndex}
-                  onSelect={() => handleSelect(plan)}
+                  onSelect={() => handleSelect(product)}
                 />
               ))}
             </div>
