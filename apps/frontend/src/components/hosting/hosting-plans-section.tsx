@@ -50,7 +50,7 @@ export function HostingPlansSection(): React.ReactElement {
           period,
         });
         if (!cancelled) {
-          setPlanEntries(mergePlansWithCatalogProducts(planList, productList));
+          setPlanEntries(mergePlansWithCatalogProducts(planList, productList, period));
         }
       } catch {
         if (!cancelled) setPlanEntries([]);
@@ -115,7 +115,7 @@ export function HostingPlansSection(): React.ReactElement {
             >
               {planEntries.map(({ plan, product }, index) => (
                 <HostingPlanCard
-                  key={plan.id}
+                  key={product.id}
                   plan={plan}
                   product={product}
                   featured={index === popularIndex}

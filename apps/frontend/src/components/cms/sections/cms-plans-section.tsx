@@ -56,7 +56,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
           period,
         });
         if (!cancelled) {
-          setPlanEntries(mergePlansWithCatalogProducts(planList, productList));
+          setPlanEntries(mergePlansWithCatalogProducts(planList, productList, period));
         }
       } catch {
         if (!cancelled) setPlanEntries([]);
@@ -122,7 +122,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
           >
             {planEntries.map(({ plan, product }, index) => (
               <HostingPlanCard
-                key={plan.id}
+                key={product.id}
                 plan={plan}
                 product={product}
                 featured={index === popularIndex}

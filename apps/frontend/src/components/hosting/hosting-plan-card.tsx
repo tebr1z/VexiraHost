@@ -7,7 +7,6 @@ import type { CatalogProduct } from "@/features/catalog";
 import type { HostingPlan } from "@/features/hosting/services/hosting.service";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/i18n/format";
-import { usePricingStore } from "@/stores/pricing-store";
 
 const FEATURE_BADGES = [
   { key: "ssl", icon: "lock" },
@@ -31,8 +30,6 @@ export function HostingPlanCard({
 }): React.ReactElement {
   const locale = useLocale();
   const t = useTranslations("publicHosting");
-  const period = usePricingStore((s) => s.period);
-  const isYearly = period === "YEARLY";
 
   if (!product) {
     return (
@@ -42,6 +39,8 @@ export function HostingPlanCard({
       </article>
     );
   }
+
+  const isYearly = product.billingCycle.toUpperCase() === "YEARLY";
 
   const price = product.price;
   const currency = product.currency;

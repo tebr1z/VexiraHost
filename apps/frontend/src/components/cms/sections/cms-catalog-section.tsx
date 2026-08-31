@@ -14,6 +14,7 @@ import { listCatalogProducts, type CatalogProduct } from "@/features/catalog";
 import type { PublicCmsSection } from "@/features/cms/types";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
+import { filterCatalogProductsForPeriod } from "@/lib/hosting-catalog";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
@@ -40,12 +41,13 @@ export function CmsCatalogSection({ section }: { section: PublicCmsSection }): R
     setLoading(true);
     listCatalogProducts({ category: categorySlug, currency, period })
       .then((items) => {
+        const filtered = filterCatalogProductsForPeriod(items, period);
         if (productSlugs.length === 0) {
-          setProducts(items);
+          setProducts(filtered);
           return;
         }
         const allowed = new Set(productSlugs);
-        setProducts(items.filter((p) => allowed.has(p.slug)));
+        setProducts(filtered.filter((p) => allowed.has(p.slug)));
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));

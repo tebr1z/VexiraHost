@@ -3,6 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
+import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { EmptyState, LoadingSkeletonList, PageHeader } from "@/components/ui";
 import { claimFreeAddon } from "@/features/addons";
 import { useRequireAuth } from "@/features/auth";
@@ -12,6 +14,7 @@ import { useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
+import { filterCatalogProductsForPeriod } from "@/lib/hosting-catalog";
 import { formatMoney } from "@/lib/i18n/format";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
@@ -36,6 +39,7 @@ export default function DashboardProductsPage(): React.ReactElement | null {
   const locale = useLocale();
   const t = useTranslations("dashboard");
   const tp = useTranslations("dashboard.pages.products");
+  const tPricing = useTranslations("pricing");
   const th = useTranslations("dashboard.home");
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,9 +53,14 @@ export default function DashboardProductsPage(): React.ReactElement | null {
   useEffect(() => {
     setLoading(true);
     listCatalogProducts({ currency, period })
-      .then(setProducts)
+      .then((items) => setProducts(filterCatalogProductsForPeriod(items, period)))
       .finally(() => setLoading(false));
   }, [currency, period]);
+
+  const maxYearlySavings = useMemo(() => {
+    if (products.length === 0) return 0;
+    return Math.max(...products.map((product) => product.yearlySavingsPercent ?? 0));
+  }, [products]);
 
   const categories = useMemo(() => {
     const present = new Set(products.map((p) => p.category));
@@ -96,6 +105,15 @@ export default function DashboardProductsPage(): React.ReactElement | null {
           </Link>
         }
       />
+
+      {!loading && products.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+            <CurrencySwitcher variant="segmented" />
+          </div>
+        </div>
+      )}
 
       {!loading && products.length > 0 && (
         <div className="flex flex-wrap gap-2 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-2 shadow-sm">
@@ -150,7 +168,12 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                   : `${formatMoney(product.price, product.currency, locale)}`}
                 {!product.isFree && (
                   <span className="ml-1 text-sm font-normal text-[var(--label-secondary)]">
-                    / {product.billingCycle.toLowerCase()}
+                    /{" "}
+                    {product.billingCycle.toUpperCase() === "YEARLY"
+                      ? tPricing("yearly")
+                      : product.billingCycle.toUpperCase() === "ONE_TIME"
+                        ? tPricing("oneTime")
+                        : tPricing("monthly")}
                   </span>
                 )}
               </p>

@@ -20,6 +20,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
+import { filterCatalogProductsForPeriod } from "@/lib/hosting-catalog";
 import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
@@ -54,7 +55,7 @@ export default function CategoryProductsPage(): React.ReactElement {
     if (!categorySlug) return;
     setLoading(true);
     listCatalogProducts({ category: categorySlug, currency, period })
-      .then(setProducts)
+      .then((items) => setProducts(filterCatalogProductsForPeriod(items, period)))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
   }, [categorySlug, currency, period]);
