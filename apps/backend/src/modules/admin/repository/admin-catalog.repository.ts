@@ -15,6 +15,7 @@ export class AdminCatalogRepository {
           select: {
             id: true,
             name: true,
+            hostname: true,
             ipAddress: true,
             panel: true,
             isActive: true,
@@ -29,6 +30,7 @@ export class AdminCatalogRepository {
               select: {
                 id: true,
                 name: true,
+                hostname: true,
                 ipAddress: true,
                 panel: true,
                 isActive: true,
@@ -51,6 +53,7 @@ export class AdminCatalogRepository {
           select: {
             id: true,
             name: true,
+            hostname: true,
             ipAddress: true,
             panel: true,
             isActive: true,
@@ -65,6 +68,7 @@ export class AdminCatalogRepository {
               select: {
                 id: true,
                 name: true,
+                hostname: true,
                 ipAddress: true,
                 panel: true,
                 isActive: true,

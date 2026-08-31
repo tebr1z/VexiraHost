@@ -29,6 +29,12 @@ function resolvePlanServerIds(serverIds?: string[], serverId?: string): string[]
   return [...new Set(ordered)];
 }
 
+function assertAutoDeployPlan(panel: HostingPanel, autoDeployEnabled?: boolean) {
+  if (autoDeployEnabled && panel !== HostingPanel.PLESK) {
+    throw new BadRequestException("Auto-deploy can only be enabled on Plesk hosting plans");
+  }
+}
+
 function mapHostingPlan(plan: {
   id: string;
   slug: string;
@@ -40,6 +46,7 @@ function mapHostingPlan(plan: {
   server?: {
     id: string;
     name: string;
+    hostname: string;
     ipAddress: string;
     panel: string;
     isActive: boolean;
@@ -52,6 +59,7 @@ function mapHostingPlan(plan: {
     server: {
       id: string;
       name: string;
+      hostname: string;
       ipAddress: string;
       panel: string;
       isActive: boolean;
@@ -70,6 +78,7 @@ function mapHostingPlan(plan: {
   isActive: boolean;
   sortOrder: number;
   pleskPlanName?: string | null;
+  autoDeployEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
   _count?: { accounts: number };
@@ -78,6 +87,7 @@ function mapHostingPlan(plan: {
     plan.planServers?.map((link) => ({
       id: link.server.id,
       name: link.server.name,
+      hostname: link.server.hostname,
       ipAddress: link.server.ipAddress,
       panel: link.server.panel,
       isActive: link.server.isActive,
@@ -92,6 +102,7 @@ function mapHostingPlan(plan: {
           {
             id: plan.server.id,
             name: plan.server.name,
+            hostname: plan.server.hostname,
             ipAddress: plan.server.ipAddress,
             panel: plan.server.panel,
             isActive: plan.server.isActive,
@@ -117,6 +128,7 @@ function mapHostingPlan(plan: {
       ? {
           id: plan.server.id,
           name: plan.server.name,
+          hostname: plan.server.hostname,
           ipAddress: plan.server.ipAddress,
           panel: plan.server.panel,
           isActive: plan.server.isActive,
@@ -134,6 +146,7 @@ function mapHostingPlan(plan: {
     isActive: plan.isActive,
     sortOrder: plan.sortOrder,
     pleskPlanName: plan.pleskPlanName ?? null,
+    autoDeployEnabled: plan.autoDeployEnabled ?? false,
     accountCount: plan._count?.accounts ?? 0,
     createdAt: plan.createdAt,
     updatedAt: plan.updatedAt,
@@ -322,6 +335,7 @@ export class AdminCatalogService {
     for (const serverId of serverIds) {
       await this.assertHostingServer(serverId, dto.panel);
     }
+    assertAutoDeployPlan(dto.panel, dto.autoDeployEnabled);
 
     const slug = dto.slug?.trim()
       ? await resolveUniqueSlug(slugify(dto.slug), (candidate) => this.slugTaken(candidate))
@@ -345,6 +359,7 @@ export class AdminCatalogService {
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
       pleskPlanName: dto.pleskPlanName?.trim() || null,
+      autoDeployEnabled: dto.autoDeployEnabled ?? false,
     });
     await this.catalogRepository.replacePlanServers(plan.id, serverIds);
     const created = await this.catalogRepository.findHostingPlanById(plan.id);
@@ -370,6 +385,10 @@ export class AdminCatalogService {
       await this.assertHostingServer(serverId, nextPanel);
     }
 
+    const nextAutoDeploy =
+      dto.autoDeployEnabled !== undefined ? dto.autoDeployEnabled : current.autoDeployEnabled;
+    assertAutoDeployPlan(nextPanel, nextAutoDeploy);
+
     await this.catalogRepository.updateHostingPlan(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
@@ -389,6 +408,7 @@ export class AdminCatalogService {
       ...(dto.pleskPlanName !== undefined
         ? { pleskPlanName: dto.pleskPlanName?.trim() || null }
         : {}),
+      ...(dto.autoDeployEnabled !== undefined ? { autoDeployEnabled: dto.autoDeployEnabled } : {}),
     });
     if (dto.serverIds || dto.serverId) {
       await this.catalogRepository.replacePlanServers(id, serverIds);

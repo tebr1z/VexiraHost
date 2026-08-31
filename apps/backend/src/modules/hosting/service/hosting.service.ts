@@ -34,6 +34,7 @@ function mapPlan(plan: HostingPlan) {
     name: plan.name,
     description: plan.description,
     panel: plan.panel,
+    autoDeployEnabled: plan.autoDeployEnabled,
     diskGb: plan.diskGb,
     bandwidthGb: plan.bandwidthGb,
     maxDomains: plan.maxDomains,

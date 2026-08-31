@@ -11,6 +11,10 @@ export interface HostingServerFormValues {
   whmUsername: string;
   whmPassword: string;
   apiToken: string;
+  osVersion: string;
+  sshUsername: string;
+  sshPassword: string;
+  sshPort: string;
   isDefault: boolean;
   isActive: boolean;
   maxAccounts: string;
@@ -24,6 +28,10 @@ const DEFAULT_VALUES: HostingServerFormValues = {
   whmUsername: "root",
   whmPassword: "",
   apiToken: "",
+  osVersion: "",
+  sshUsername: "",
+  sshPassword: "",
+  sshPort: "22",
   isDefault: false,
   isActive: true,
   maxAccounts: "",
@@ -89,82 +97,144 @@ export function HostingServerForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-outline-variant/50 bg-surface p-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={tf("serverName")}>
-          <input
-            value={values.name}
-            onChange={(e) => update("name", e.target.value)}
-            required
-            className={inputClass}
-            placeholder={tf("serverNamePlaceholder")}
-          />
-        </Field>
-        <Field label={tf("ipAddress")}>
-          <input
-            value={values.ipAddress}
-            onChange={(e) => update("ipAddress", e.target.value)}
-            required
-            className={inputClass}
-            placeholder={tf("ipPlaceholder")}
-          />
-        </Field>
-        <Field label={tf("hostname")}>
-          <input
-            value={values.hostname}
-            onChange={(e) => update("hostname", e.target.value)}
-            required
-            className={inputClass}
-            placeholder={tf("hostnamePlaceholder")}
-          />
-        </Field>
-        <Field label={tf("panel")}>
-          <select
-            value={values.panel}
-            onChange={(e) => update("panel", e.target.value as "CPANEL" | "PLESK")}
-            className={inputClass}
-          >
-            <option value="CPANEL">cPanel / WHM</option>
-            <option value="PLESK">Plesk</option>
-          </select>
-        </Field>
-        <Field label={tf("whmUsername")}>
-          <input
-            value={values.whmUsername}
-            onChange={(e) => update("whmUsername", e.target.value)}
-            required
-            className={inputClass}
-          />
-        </Field>
-        <Field label={tf("whmPassword")}>
-          <input
-            type="password"
-            value={values.whmPassword}
-            onChange={(e) => update("whmPassword", e.target.value)}
-            required={!initialValues}
-            className={inputClass}
-            placeholder={initialValues ? tf("whmPasswordKeep") : ""}
-          />
-        </Field>
-        <Field label={tf("apiTokenOptional")}>
-          <input
-            value={values.apiToken}
-            onChange={(e) => update("apiToken", e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label={tf("maxAccountsOptional")}>
-          <input
-            type="number"
-            min={1}
-            value={values.maxAccounts}
-            onChange={(e) => update("maxAccounts", e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-      </div>
+    <form
+      onSubmit={handleSubmit}
+      className="border-outline-variant/50 bg-surface space-y-6 rounded-2xl border p-6"
+    >
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-on-surface text-sm font-semibold">{tf("serverGeneralSection")}</h2>
+          <p className="text-on-surface-variant mt-1 text-xs">{tf("hostingServerDescription")}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={tf("serverName")}>
+            <input
+              value={values.name}
+              onChange={(e) => update("name", e.target.value)}
+              required
+              className={inputClass}
+              placeholder={tf("serverNamePlaceholder")}
+            />
+          </Field>
+          <Field label={tf("ipAddress")}>
+            <input
+              value={values.ipAddress}
+              onChange={(e) => update("ipAddress", e.target.value)}
+              required
+              className={inputClass}
+              placeholder={tf("ipPlaceholder")}
+            />
+          </Field>
+          <Field label={tf("hostname")}>
+            <input
+              value={values.hostname}
+              onChange={(e) => update("hostname", e.target.value)}
+              required
+              className={inputClass}
+              placeholder={tf("hostnamePlaceholder")}
+            />
+          </Field>
+          <Field label={tf("panel")}>
+            <select
+              value={values.panel}
+              onChange={(e) => update("panel", e.target.value as "CPANEL" | "PLESK")}
+              className={inputClass}
+            >
+              <option value="CPANEL">cPanel / WHM</option>
+              <option value="PLESK">Plesk</option>
+            </select>
+          </Field>
+          <Field label={tf("osVersion")}>
+            <input
+              value={values.osVersion}
+              onChange={(e) => update("osVersion", e.target.value)}
+              className={inputClass}
+              placeholder={tf("osVersionPlaceholder")}
+            />
+          </Field>
+          <Field label={tf("maxAccountsOptional")}>
+            <input
+              type="number"
+              min={1}
+              value={values.maxAccounts}
+              onChange={(e) => update("maxAccounts", e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </section>
 
-      <div className="flex flex-wrap gap-4">
+      <section className="border-outline-variant/40 space-y-4 border-t pt-6">
+        <div>
+          <h2 className="text-on-surface text-sm font-semibold">{tf("panelApiSection")}</h2>
+          <p className="text-on-surface-variant mt-1 text-xs">{tf("panelApiSectionHint")}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={values.panel === "PLESK" ? tf("pleskAdminUsername") : tf("whmUsername")}>
+            <input
+              value={values.whmUsername}
+              onChange={(e) => update("whmUsername", e.target.value)}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field label={values.panel === "PLESK" ? tf("pleskAdminPassword") : tf("whmPassword")}>
+            <input
+              type="password"
+              value={values.whmPassword}
+              onChange={(e) => update("whmPassword", e.target.value)}
+              required={!initialValues}
+              className={inputClass}
+              placeholder={initialValues ? tf("whmPasswordKeep") : ""}
+            />
+          </Field>
+          <Field label={tf("apiTokenOptional")}>
+            <input
+              value={values.apiToken}
+              onChange={(e) => update("apiToken", e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className="border-outline-variant/40 space-y-4 border-t pt-6">
+        <div>
+          <h2 className="text-on-surface text-sm font-semibold">{tf("deploySshSection")}</h2>
+          <p className="text-on-surface-variant mt-1 text-xs">{tf("deploySshSectionHint")}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={tf("sshUsername")}>
+            <input
+              value={values.sshUsername}
+              onChange={(e) => update("sshUsername", e.target.value)}
+              className={inputClass}
+              placeholder={tf("sshUsernamePlaceholder")}
+            />
+          </Field>
+          <Field label={tf("sshPassword")}>
+            <input
+              type="password"
+              value={values.sshPassword}
+              onChange={(e) => update("sshPassword", e.target.value)}
+              className={inputClass}
+              placeholder={initialValues ? tf("sshPasswordKeep") : tf("sshPasswordPlaceholder")}
+            />
+          </Field>
+          <Field label={tf("sshPort")}>
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={values.sshPort}
+              onChange={(e) => update("sshPort", e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <div className="border-outline-variant/40 flex flex-wrap gap-4 border-t pt-4">
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -183,8 +253,8 @@ export function HostingServerForm({
         </label>
       </div>
 
-      {error && <p className="text-sm text-error">{error}</p>}
-      {testMessage && <p className="text-sm text-on-surface-variant">{testMessage}</p>}
+      {error && <p className="text-error text-sm">{error}</p>}
+      {testMessage && <p className="text-on-surface-variant text-sm">{testMessage}</p>}
 
       <div className="flex flex-wrap gap-3">
         {onTest && (
@@ -192,7 +262,7 @@ export function HostingServerForm({
             type="button"
             disabled={testing}
             onClick={handleTest}
-            className="h-11 rounded-xl border border-outline-variant px-5 text-sm font-semibold hover:bg-surface-container-low disabled:opacity-60"
+            className="border-outline-variant hover:bg-surface-container-low h-11 rounded-xl border px-5 text-sm font-semibold disabled:opacity-60"
           >
             {testing ? tf("testing") : tf("testConnection")}
           </button>
@@ -200,7 +270,7 @@ export function HostingServerForm({
         <button
           type="submit"
           disabled={loading}
-          className="h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary disabled:opacity-60"
+          className="bg-primary text-on-primary h-11 rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
         >
           {loading ? tf("saving") : submitLabel}
         </button>
@@ -240,6 +310,10 @@ export function toServerPayload(values: HostingServerFormValues, isEdit = false)
 
   if (values.apiToken.trim()) payload.apiToken = values.apiToken.trim();
   if (values.maxAccounts.trim()) payload.maxAccounts = Number(values.maxAccounts);
+  if (values.osVersion.trim()) payload.osVersion = values.osVersion.trim();
+  if (values.sshUsername.trim()) payload.sshUsername = values.sshUsername.trim();
+  if (values.sshPassword.trim()) payload.sshPassword = values.sshPassword;
+  if (values.sshPort.trim()) payload.sshPort = Number(values.sshPort);
 
   return payload;
 }

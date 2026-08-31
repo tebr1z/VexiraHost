@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { HostingDeploySection } from "@/components/hosting/hosting-deploy-section";
 import { HostingMailSection } from "@/components/hosting/hosting-mail-section";
 import { ProvisionProgress } from "@/components/hosting/provision-progress";
 import { MaterialIcon } from "@/components/landing/material-icon";
@@ -532,6 +533,16 @@ export function HostingDetailView({
           ) : null}
         </div>
       </div>
+
+      {isPleskManaged && account.status === "ACTIVE" && account.plan.autoDeployEnabled ? (
+        <div id="hosting-deploy">
+          <HostingDeploySection
+            accountId={account.id}
+            primaryDomain={account.primaryDomain}
+            enabled
+          />
+        </div>
+      ) : null}
 
       {isPleskManaged ? (
         <div id="hosting-mail">

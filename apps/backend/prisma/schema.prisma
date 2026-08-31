@@ -88,6 +88,7 @@ model User {
   domainChangeRequests    DomainChangeRequest[]
   servers                 Server[]
   hostingAccounts         HostingAccount[]
+  appDeployments          AppDeployment[]
   addonServices           AddonService[]
   orders                  Order[]
   invoices                Invoice[]
@@ -1004,6 +1005,12 @@ model HostingServer {
   whmUsername      String
   whmPasswordEnc   String
   apiTokenEnc      String?
+  /** e.g. Ubuntu 22.04, AlmaLinux 9 — shown in admin, optional. */
+  osVersion        String?
+  /** SSH login for auto-deploy; falls back to whmUsername when unset. */
+  sshUsername      String?
+  sshPasswordEnc   String?
+  sshPort          Int          @default(22)
   isDefault        Boolean      @default(false)
   isActive         Boolean      @default(true)
   maxAccounts      Int?
@@ -1046,6 +1053,10 @@ model HostingPlan {
    */
   serverId         String?
   pleskPlanName    String?
+  /**
+   * When true, customers on this plan can use Git/Docker auto-deploy (Plesk plans only).
+   */
+  autoDeployEnabled Boolean                 @default(false)
   /**
    * FAILOVER = fill servers in priority order; BALANCED = prefer least-loaded.
    */
@@ -1115,7 +1126,8 @@ model HostingAccount {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
-  invoices Invoice[]
+  invoices     Invoice[]
+  appDeployments AppDeployment[]
 
   @@unique([userId, primaryDomain])
   @@index([userId])
@@ -1128,6 +1140,73 @@ model HostingAccount {
   @@index([expiresAt])
   @@index([graceEndsAt])
   @@map("hosting_accounts")
+}
+
+enum DeployStack {
+  NEXTJS
+  NESTJS
+}
+
+enum DeployStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum DeployDomainMode {
+  PRIMARY
+  SUBDOMAIN
+}
+
+model AppDeployment {
+  id               String           @id @default(cuid())
+  hostingAccountId String
+  hostingAccount   HostingAccount   @relation(fields: [hostingAccountId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  stack            DeployStack
+  domainMode       DeployDomainMode @default(SUBDOMAIN)
+  subdomain        String?
+  deployDomain     String
+  repoUrl          String
+  branch           String           @default("main")
+  rootDirectory    String?
+  containerPort    Int              @default(3000)
+  hostPort         Int
+  envVarsEnc       String?
+  status           DeployStatus     @default(PENDING)
+  stage            String?
+  lastError        String?
+  pleskSiteId      String?
+  containerName    String?
+  deployPath       String?
+  lastDeployedAt   DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  runs DeploymentRun[]
+
+  @@unique([hostingAccountId, name])
+  @@index([hostingAccountId])
+  @@index([userId])
+  @@index([hostPort])
+  @@map("app_deployments")
+}
+
+model DeploymentRun {
+  id           String        @id @default(cuid())
+  deploymentId String
+  deployment   AppDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  status       DeployStatus  @default(RUNNING)
+  stage        String?
+  log          String        @default("") @db.Text
+  startedAt    DateTime      @default(now())
+  finishedAt   DateTime?
+
+  @@index([deploymentId])
+  @@map("deployment_runs")
 }
 
 model NavGroup {

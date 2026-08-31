@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   MinLength,
 } from "class-validator";
@@ -49,6 +50,26 @@ export class CreateHostingServerDto {
   @IsInt()
   @Min(1)
   maxAccounts?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  osVersion?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  sshUsername?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  sshPassword?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sshPort?: number;
 }
 
 export class UpdateHostingServerDto {
@@ -96,4 +117,23 @@ export class UpdateHostingServerDto {
   @IsInt()
   @Min(1)
   maxAccounts?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  osVersion?: string | null;
+
+  @IsOptional()
+  @IsString()
+  sshUsername?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  sshPassword?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sshPort?: number;
 }

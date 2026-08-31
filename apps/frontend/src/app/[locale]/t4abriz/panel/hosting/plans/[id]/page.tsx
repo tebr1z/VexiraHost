@@ -67,6 +67,7 @@ export default function EditHostingPlanPage(): React.ReactElement | null {
           isActive: plan.isActive,
           sortOrder: String(plan.sortOrder),
           pleskPlanName: plan.pleskPlanName ?? "",
+          autoDeployEnabled: plan.autoDeployEnabled,
         }}
         onSubmit={async (values) => {
           await updateAdminHostingPlan(id, toHostingPlanPayload(values));

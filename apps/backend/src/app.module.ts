@@ -6,6 +6,7 @@ import { AppCoreModule } from "./common/app-core.module";
 import { HealthController } from "./common/health/health.controller";
 import { appConfig } from "./config/app.config";
 import { databaseConfig } from "./config/database.config";
+import { deployConfig } from "./config/deploy.config";
 import { jwtConfig } from "./config/jwt.config";
 import { oauthConfig } from "./config/oauth.config";
 import { paymentConfig } from "./config/payment.config";
@@ -21,6 +22,7 @@ import { BillingModule } from "./modules/billing/billing.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { CmsModule } from "./modules/cms/cms.module";
 import { ContactModule } from "./modules/contact/contact.module";
+import { DeployModule } from "./modules/deploy/deploy.module";
 import { DomainsModule } from "./modules/domains/domains.module";
 import { GeoModule } from "./modules/geo/geo.module";
 import { HostingModule } from "./modules/hosting/hosting.module";
@@ -54,6 +56,7 @@ import { StorageModule } from "./shared/storage/storage.module";
         registrarConfig,
         proxmoxConfig,
         paymentConfig,
+        deployConfig,
       ],
       envFilePath: [".env.local", ".env"],
     }),
@@ -76,6 +79,7 @@ import { StorageModule } from "./shared/storage/storage.module";
     UsersModule,
     OrdersModule,
     HostingModule,
+    DeployModule,
     DomainsModule,
     BillingModule,
     PaymentsModule,

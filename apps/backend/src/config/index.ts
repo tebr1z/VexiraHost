@@ -7,3 +7,4 @@ export * from "./graphql.config";
 export * from "./oauth.config";
 export * from "./registrar.config";
 export * from "./proxmox.config";
+export * from "./deploy.config";

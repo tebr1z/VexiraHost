@@ -89,6 +89,10 @@ export class CreateHostingPlanDto {
   @IsOptional()
   @IsString()
   pleskPlanName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  autoDeployEnabled?: boolean;
 }
 
 export class UpdateHostingPlanDto {
@@ -169,4 +173,8 @@ export class UpdateHostingPlanDto {
   @IsOptional()
   @IsString()
   pleskPlanName?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  autoDeployEnabled?: boolean;
 }

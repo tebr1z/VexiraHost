@@ -171,6 +171,21 @@ export default function AdminHostingPlansPage(): React.ReactElement | null {
           { key: "slug", header: "Slug", sortable: true },
           { key: "panel", header: "Panel" },
           {
+            key: "autoDeploy",
+            header: tp("autoDeployColumn"),
+            render: (row) => {
+              const p = row as unknown as AdminHostingPlan;
+              if (p.panel !== "PLESK") return "—";
+              return p.autoDeployEnabled ? (
+                <span className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 text-xs font-medium">
+                  {tp("autoDeployBadge")}
+                </span>
+              ) : (
+                <span className="text-on-surface-variant text-xs">—</span>
+              );
+            },
+          },
+          {
             key: "server",
             header: tp("assignServer"),
             render: (row) => {

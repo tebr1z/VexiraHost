@@ -6,6 +6,7 @@ export interface HostingPlan {
   name: string;
   description: string | null;
   panel: "CPANEL" | "PLESK";
+  autoDeployEnabled?: boolean;
   diskGb: number;
   bandwidthGb: number;
   maxDomains: number;

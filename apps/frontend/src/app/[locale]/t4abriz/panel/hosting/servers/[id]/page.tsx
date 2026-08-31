@@ -63,6 +63,10 @@ export default function EditHostingServerPage(): React.ReactElement | null {
     panel: server.panel,
     whmUsername: server.whmUsername,
     whmPassword: "",
+    osVersion: server.osVersion ?? "",
+    sshUsername: server.sshUsername ?? "",
+    sshPassword: "",
+    sshPort: String(server.sshPort ?? 22),
     isDefault: server.isDefault,
     isActive: server.isActive,
     maxAccounts: server.maxAccounts ? String(server.maxAccounts) : "",
@@ -72,7 +76,20 @@ export default function EditHostingServerPage(): React.ReactElement | null {
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title={server.name}
-        description={`${server.ipAddress} · ${server.panel}`}
+        description={
+          [
+            server.ipAddress,
+            server.panel,
+            server.osVersion,
+            server.sshUsername
+              ? `SSH: ${server.sshUsername}@${server.sshPort}`
+              : server.sshPasswordConfigured
+                ? `SSH: ${server.sshPort}`
+                : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined
+        }
         breadcrumbs={[
           { label: ta("breadcrumb.admin"), href: "/t4abriz/panel" },
           { label: ta("nav.hostingServers"), href: "/t4abriz/panel/hosting/servers" },

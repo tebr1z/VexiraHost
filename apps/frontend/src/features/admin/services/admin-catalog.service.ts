@@ -3,6 +3,7 @@ import { apiClient } from "@/services/api-client";
 export interface AdminHostingPlanServer {
   id: string;
   name: string;
+  hostname: string;
   ipAddress: string;
   panel: "CPANEL" | "PLESK";
   isActive: boolean;
@@ -23,6 +24,7 @@ export interface AdminHostingPlan {
   server: {
     id: string;
     name: string;
+    hostname: string;
     ipAddress: string;
     panel: "CPANEL" | "PLESK";
     isActive: boolean;
@@ -40,6 +42,7 @@ export interface AdminHostingPlan {
   sortOrder: number;
   accountCount: number;
   pleskPlanName: string | null;
+  autoDeployEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }

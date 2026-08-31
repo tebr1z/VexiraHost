@@ -25,6 +25,7 @@ export interface HostingPlanFormValues {
   isActive: boolean;
   sortOrder: string;
   pleskPlanName: string;
+  autoDeployEnabled: boolean;
 }
 
 const DEFAULT: HostingPlanFormValues = {
@@ -42,6 +43,7 @@ const DEFAULT: HostingPlanFormValues = {
   isActive: true,
   sortOrder: "0",
   pleskPlanName: "",
+  autoDeployEnabled: false,
 };
 
 function formatServerCapacity(server: HostingServer): string {
@@ -67,6 +69,7 @@ export function toHostingPlanPayload(values: HostingPlanFormValues) {
     isActive: values.isActive,
     sortOrder: Number(values.sortOrder) || 0,
     pleskPlanName: values.pleskPlanName.trim() || null,
+    autoDeployEnabled: values.autoDeployEnabled,
   };
 }
 
@@ -140,6 +143,10 @@ export function HostingPlanForm({
     e.preventDefault();
     if (values.serverIds.length === 0) {
       setError(tf("hostingServerRequired"));
+      return;
+    }
+    if (values.autoDeployEnabled && values.panel !== "PLESK") {
+      setError(tf("autoDeployRequiresPlesk"));
       return;
     }
 
@@ -216,8 +223,12 @@ export function HostingPlanForm({
 
       <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-3 rounded-xl border p-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">{tf("hostingServers")}</label>
-          <p className="text-on-surface-variant mb-3 text-xs">{tf("hostingServersHelp")}</p>
+          <label className="mb-1 block text-sm font-medium">
+            {values.panel === "PLESK" ? tf("pleskServers") : tf("hostingServers")}
+          </label>
+          <p className="text-on-surface-variant mb-3 text-xs">
+            {values.panel === "PLESK" ? tf("pleskServersHelp") : tf("hostingServersHelp")}
+          </p>
           {matchingServers.length === 0 ? (
             <p className="text-error text-xs">{tf("noHostingServersForPanel")}</p>
           ) : (
@@ -236,8 +247,12 @@ export function HostingPlanForm({
                         onChange={() => toggleServer(server.id)}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="text-on-surface font-medium">
-                          {server.name} · {server.ipAddress}
+                        <span className="text-on-surface font-medium">{server.name}</span>
+                        <span className="text-on-surface-variant mt-0.5 block break-all text-xs">
+                          {values.panel === "PLESK"
+                            ? tf("pleskPanelUrl", { url: server.hostname })
+                            : server.hostname}{" "}
+                          · {server.ipAddress}
                         </span>
                         <span className="text-on-surface-variant mt-0.5 block text-xs">
                           {tf("serverCapacity", { capacity: formatServerCapacity(server) })}
@@ -335,6 +350,26 @@ export function HostingPlanForm({
           <p className="text-on-surface-variant mt-1 text-xs">{tf("pleskPlanNameHelp")}</p>
         </div>
       )}
+
+      {values.panel === "PLESK" ? (
+        <div className="border-outline-variant/60 bg-surface-container-low/40 rounded-xl border p-4">
+          <label className="flex cursor-pointer items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={values.autoDeployEnabled}
+              onChange={(e) => set("autoDeployEnabled", e.target.checked)}
+            />
+            <span>
+              <span className="font-medium">{tf("autoDeployEnabled")}</span>
+              <span className="text-on-surface-variant mt-1 block text-xs">
+                {tf("autoDeployEnabledHelp")}
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-3">
         {numericFields.map(([key, label]) => (
           <div key={key}>

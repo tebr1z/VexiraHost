@@ -48,6 +48,10 @@ function mapServer(
     panel: server.panel,
     whmUsername: server.whmUsername,
     whmPassword: includeSecrets ? maskSecret(decryptSecret(server.whmPasswordEnc)) : undefined,
+    osVersion: server.osVersion,
+    sshUsername: server.sshUsername,
+    sshPort: server.sshPort,
+    sshPasswordConfigured: Boolean(server.sshPasswordEnc),
     isDefault: server.isDefault,
     isActive: server.isActive,
     maxAccounts: server.maxAccounts,
@@ -144,6 +148,10 @@ export class HostingServersService {
     isDefault?: boolean;
     isActive?: boolean;
     maxAccounts?: number;
+    osVersion?: string;
+    sshUsername?: string;
+    sshPassword?: string;
+    sshPort?: number;
   }) {
     const server = await this.hostingServersRepository.create({
       name: dto.name.trim(),
@@ -153,6 +161,10 @@ export class HostingServersService {
       whmUsername: dto.whmUsername.trim(),
       whmPasswordEnc: encryptSecret(dto.whmPassword),
       apiTokenEnc: dto.apiToken ? encryptSecret(dto.apiToken) : undefined,
+      osVersion: dto.osVersion?.trim() || undefined,
+      sshUsername: dto.sshUsername?.trim() || undefined,
+      sshPasswordEnc: dto.sshPassword ? encryptSecret(dto.sshPassword) : undefined,
+      sshPort: dto.sshPort ?? 22,
       isDefault: dto.isDefault,
       isActive: dto.isActive ?? true,
       maxAccounts: dto.maxAccounts,
@@ -174,6 +186,10 @@ export class HostingServersService {
       isDefault: boolean;
       isActive: boolean;
       maxAccounts: number | null;
+      osVersion: string | null;
+      sshUsername: string | null;
+      sshPassword: string;
+      sshPort: number;
     }>,
   ) {
     const existing = await this.hostingServersRepository.findById(id);
@@ -191,6 +207,10 @@ export class HostingServersService {
       whmPasswordEnc: dto.whmPassword ? encryptSecret(dto.whmPassword) : undefined,
       apiTokenEnc:
         dto.apiToken === null ? null : dto.apiToken ? encryptSecret(dto.apiToken) : undefined,
+      osVersion: dto.osVersion === null ? null : dto.osVersion?.trim(),
+      sshUsername: dto.sshUsername === null ? null : dto.sshUsername?.trim(),
+      sshPasswordEnc: dto.sshPassword ? encryptSecret(dto.sshPassword) : undefined,
+      sshPort: dto.sshPort,
       isDefault: dto.isDefault,
       isActive: dto.isActive,
       maxAccounts: dto.maxAccounts,

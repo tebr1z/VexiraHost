@@ -186,7 +186,17 @@ export class HostingRepository {
   findById(id: string) {
     return this.prisma.hostingAccount.findUnique({
       where: { id },
-      include: { plan: true, server: true },
+      include: {
+        plan: {
+          include: {
+            planServers: {
+              where: { isActive: true },
+              select: { serverId: true },
+            },
+          },
+        },
+        server: true,
+      },
     });
   }
 }

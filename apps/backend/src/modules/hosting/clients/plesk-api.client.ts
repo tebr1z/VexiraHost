@@ -530,3 +530,91 @@ export async function testPleskApiAuth(
     return { ok: false, message: `Plesk API unreachable on ${endpoint.apiOrigin}: ${message}` };
   }
 }
+
+function buildSiteFilter(filter: { id?: string; name?: string }): string {
+  if (filter.id) {
+    return `<filter><id>${escapeXml(filter.id)}</id></filter>`;
+  }
+  if (filter.name) {
+    return `<filter><name>${escapeXml(filter.name)}</name></filter>`;
+  }
+  throw new BadRequestException("Plesk site filter requires id or name");
+}
+
+/**
+ * Plesk XML API: site/get — resolve site id for a domain/subdomain FQDN.
+ * @see https://docs.plesk.com/en-US/obsidian/api-rpc/about-xml-api/reference/managing-sites-domains/
+ */
+export async function getPleskSiteIdByName(
+  server: PleskServerCredentials,
+  domainName: string,
+): Promise<string | null> {
+  const endpoint = resolvePanelEndpoint(server);
+  const packetBody = `  <site>
+    <get>
+      ${buildSiteFilter({ name: domainName })}
+      <dataset>
+        <gen_info/>
+      </dataset>
+    </get>
+  </site>`;
+
+  const response = await pleskXmlRequest(server, endpoint, packetBody);
+  const apiError = extractXmlError(response.body);
+  if (apiError && isBenignPleskError(apiError)) {
+    return null;
+  }
+  if (apiError) {
+    throw new BadRequestException(`Plesk site get error: ${apiError}`);
+  }
+
+  const getBlock = extractXmlBlock(response.body, "get") ?? response.body;
+  const results = extractAllXmlBlocks(getBlock, "result");
+  for (const result of results) {
+    const status = extractXmlTag(result, "status");
+    if (status?.toLowerCase() === "error") continue;
+    const id = extractXmlId(result) ?? extractXmlTag(result, "id");
+    if (id) return id;
+  }
+
+  return extractXmlId(response.body);
+}
+
+/**
+ * Plesk XML API: site/add — create subdomain under an existing subscription.
+ * @see https://docs.plesk.com/en-US/obsidian/api-rpc/about-xml-api/reference/managing-sites-domains/creating-a-site.66574/
+ */
+export async function createPleskSubdomainSite(
+  server: PleskServerCredentials,
+  input: {
+    fqdn: string;
+    webspaceId: string;
+    parentSiteId: string;
+  },
+): Promise<{ siteId: string }> {
+  const endpoint = resolvePanelEndpoint(server);
+  const packetBody = `  <site>
+    <add>
+      <gen_setup>
+        <name>${escapeXml(input.fqdn)}</name>
+        <webspace-id>${escapeXml(input.webspaceId)}</webspace-id>
+        <parent-site-id>${escapeXml(input.parentSiteId)}</parent-site-id>
+      </gen_setup>
+    </add>
+  </site>`;
+
+  const response = await pleskXmlRequest(server, endpoint, packetBody);
+  const apiError = extractXmlError(response.body);
+  if (apiError && !isBenignPleskError(apiError)) {
+    throw new BadRequestException(`Plesk subdomain error: ${apiError}`);
+  }
+
+  const siteId = extractXmlId(response.body);
+  if (!siteId) {
+    const existing = await getPleskSiteIdByName(server, input.fqdn);
+    if (existing) return { siteId: existing };
+    throw new BadRequestException("Plesk did not return a site id for the new subdomain");
+  }
+
+  return { siteId };
+}

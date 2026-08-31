@@ -7,6 +7,10 @@ export interface HostingServer {
   ipAddress: string;
   panel: "CPANEL" | "PLESK";
   whmUsername: string;
+  osVersion: string | null;
+  sshUsername: string | null;
+  sshPort: number;
+  sshPasswordConfigured: boolean;
   isDefault: boolean;
   isActive: boolean;
   maxAccounts: number | null;
@@ -61,6 +65,10 @@ export async function createHostingServer(input: {
   whmUsername: string;
   whmPassword: string;
   apiToken?: string;
+  osVersion?: string;
+  sshUsername?: string;
+  sshPassword?: string;
+  sshPort?: number;
   isDefault?: boolean;
   isActive?: boolean;
   maxAccounts?: number;
@@ -82,6 +90,10 @@ export async function updateHostingServer(
     whmUsername: string;
     whmPassword: string;
     apiToken: string | null;
+    osVersion: string | null;
+    sshUsername: string | null;
+    sshPassword: string;
+    sshPort: number;
     isDefault: boolean;
     isActive: boolean;
     maxAccounts: number | null;

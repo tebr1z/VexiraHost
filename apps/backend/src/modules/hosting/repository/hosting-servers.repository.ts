@@ -59,6 +59,10 @@ export class HostingServersRepository {
     isDefault?: boolean;
     isActive?: boolean;
     maxAccounts?: number;
+    osVersion?: string;
+    sshUsername?: string;
+    sshPasswordEnc?: string;
+    sshPort?: number;
   }) {
     return this.prisma.$transaction(async (tx) => {
       const count = await tx.hostingServer.count();
@@ -93,6 +97,10 @@ export class HostingServersRepository {
       isDefault: boolean;
       isActive: boolean;
       maxAccounts: number | null;
+      osVersion: string | null;
+      sshUsername: string | null;
+      sshPasswordEnc: string | null;
+      sshPort: number;
       lastCheckedAt: Date;
       lastConnectionOk: boolean | null;
     }>,

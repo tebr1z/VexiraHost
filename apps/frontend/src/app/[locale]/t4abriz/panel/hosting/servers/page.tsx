@@ -151,7 +151,13 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                     </div>
                     <p className="text-on-surface-variant mt-1 text-sm">
                       {server.hostname} · {server.ipAddress} · {server.panel}
+                      {server.osVersion ? ` · ${server.osVersion}` : ""}
                     </p>
+                    {(server.sshUsername || server.sshPasswordConfigured) && (
+                      <p className="text-on-surface-variant mt-0.5 text-xs">
+                        SSH: {server.sshUsername ?? server.whmUsername}:{server.sshPort}
+                      </p>
+                    )}
                   </div>
 
                   <div>
