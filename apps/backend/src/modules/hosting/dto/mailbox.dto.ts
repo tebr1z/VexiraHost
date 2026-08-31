@@ -43,4 +43,9 @@ export class WebmailLoginDto {
   @IsOptional()
   @IsString()
   clientIp?: string;
+
+  /** Mailbox local part or full email — opens Roundcube with username prefilled. */
+  @IsOptional()
+  @IsString()
+  mailbox?: string;
 }

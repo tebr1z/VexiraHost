@@ -100,7 +100,7 @@ export class HostingController {
     @Req() req: Request,
   ) {
     const clientIp = dto.clientIp ?? getClientIp(req);
-    return this.pleskMailService.createWebmailLoginUrl(id, user.id, clientIp);
+    return this.pleskMailService.createWebmailLoginUrl(id, user.id, clientIp, dto.mailbox);
   }
 
   @Get(":id")

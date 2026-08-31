@@ -9,10 +9,13 @@ export interface PleskMailbox {
   enabled: boolean;
   forwarding: string | null;
   autoresponder: boolean;
+  webmailUrl?: string;
 }
 
 export interface PleskMailSummary {
   domain: string;
+  webmailHost?: string;
+  webmailUrl?: string;
   count: number;
   maxMailboxes: number | null;
   mailboxes: PleskMailbox[];

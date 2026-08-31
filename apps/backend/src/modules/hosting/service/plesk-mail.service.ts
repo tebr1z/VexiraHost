@@ -15,8 +15,9 @@ import {
 } from "../clients/plesk-mail-api.client";
 import type { CreateMailboxDto, UpdateMailboxDto } from "../dto/mailbox.dto";
 import { HostingRepository } from "../repository/hosting.repository";
-import type { PleskMailSummary } from "../types/plesk-mail.types";
+import type { PleskMailSummary, PleskMailbox } from "../types/plesk-mail.types";
 import { isMockPanelServer } from "../utils/panel-endpoint.util";
+import { buildRoundcubeWebmailUrl, resolveWebmailHost } from "../utils/webmail-url.util";
 
 import { PanelSessionService } from "./panel-session.service";
 import { PleskPanelService } from "./plesk-panel.service";
@@ -50,13 +51,36 @@ export class PleskMailService {
     return account;
   }
 
-  private mockSummary(domain: string, maxMailboxes: number | null): PleskMailSummary {
+  private enrichSummary(
+    domain: string,
+    summary: {
+      domain: string;
+      count: number;
+      maxMailboxes: number | null;
+      mailboxes: PleskMailbox[];
+    },
+  ): PleskMailSummary {
+    const webmailHost = resolveWebmailHost(domain);
+    const mailboxes = summary.mailboxes.map((mailbox) => ({
+      ...mailbox,
+      webmailUrl: buildRoundcubeWebmailUrl(domain, mailbox.address),
+    }));
+
     return {
+      ...summary,
+      webmailHost,
+      webmailUrl: buildRoundcubeWebmailUrl(domain),
+      mailboxes,
+    };
+  }
+
+  private mockSummary(domain: string, maxMailboxes: number | null): PleskMailSummary {
+    return this.enrichSummary(domain, {
       domain,
       count: 0,
       maxMailboxes,
       mailboxes: [],
-    };
+    });
   }
 
   async getMailSummary(accountId: string, userId: string): Promise<PleskMailSummary> {
@@ -72,7 +96,8 @@ export class PleskMailService {
     const maxMailboxes = pleskInfo?.maxMailboxes ?? maxFromPlan;
 
     const credentials = this.pleskPanel.toCredentials(account.server!);
-    return listPleskMailboxes(credentials, domain, pleskXmlRequest, maxMailboxes);
+    const raw = await listPleskMailboxes(credentials, domain, pleskXmlRequest, maxMailboxes);
+    return this.enrichSummary(domain, raw);
   }
 
   async createMailbox(accountId: string, userId: string, dto: CreateMailboxDto) {
@@ -91,12 +116,17 @@ export class PleskMailService {
     }
 
     const credentials = this.pleskPanel.toCredentials(account.server!);
-    return createPleskMailbox(
+    const created = await createPleskMailbox(
       credentials,
       domain,
       { name: localPart, password: dto.password, quotaMb: dto.quotaMb },
       pleskXmlRequest,
     );
+
+    return {
+      ...created,
+      webmailUrl: buildRoundcubeWebmailUrl(domain, created.address),
+    };
   }
 
   async updateMailbox(accountId: string, userId: string, localPart: string, dto: UpdateMailboxDto) {
@@ -134,10 +164,27 @@ export class PleskMailService {
     return { deleted: true };
   }
 
-  async createWebmailLoginUrl(accountId: string, userId: string, clientIp: string) {
+  async createWebmailLoginUrl(
+    accountId: string,
+    userId: string,
+    clientIp: string,
+    mailbox?: string,
+  ) {
     const account = await this.resolveManagedPleskAccount(accountId, userId);
     if (account.panel !== HostingPanel.PLESK) {
       throw new ForbiddenException("Webmail login is only available for Plesk");
+    }
+
+    const domain = account.primaryDomain;
+    const webmailHost = resolveWebmailHost(domain);
+
+    if (mailbox?.trim()) {
+      const directUrl = buildRoundcubeWebmailUrl(domain, mailbox.trim());
+      return {
+        mode: "direct" as const,
+        directUrl,
+        webmailHost,
+      };
     }
 
     const ticket = this.panelSession.createOpenTicket(accountId, userId, clientIp, "/smb/webmail");
@@ -145,6 +192,11 @@ export class PleskMailService {
       process.env.API_PUBLIC_URL?.replace(/\/$/, "") ??
       `http://localhost:${process.env.PORT ?? 4000}/api/v1`;
 
-    return { openUrl: `${apiBase}/hosting/panel-open/${ticket}` };
+    return {
+      mode: "sso" as const,
+      openUrl: `${apiBase}/hosting/panel-open/${ticket}`,
+      directUrl: buildRoundcubeWebmailUrl(domain),
+      webmailHost,
+    };
   }
 }

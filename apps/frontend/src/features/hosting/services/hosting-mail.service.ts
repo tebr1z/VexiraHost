@@ -9,10 +9,13 @@ export interface PleskMailbox {
   enabled: boolean;
   forwarding: string | null;
   autoresponder: boolean;
+  webmailUrl: string;
 }
 
 export interface PleskMailSummary {
   domain: string;
+  webmailHost: string;
+  webmailUrl: string;
   count: number;
   maxMailboxes: number | null;
   mailboxes: PleskMailbox[];
@@ -51,31 +54,48 @@ export async function deleteHostingMailbox(accountId: string, name: string): Pro
   });
 }
 
-export async function openHostingWebmail(accountId: string): Promise<void> {
+function openInNewTab(url: string, popup: Window | null): void {
+  if (popup && !popup.closed) {
+    try {
+      popup.opener = null;
+    } catch {
+      /* ignore */
+    }
+    popup.location.replace(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+export async function openHostingWebmail(
+  accountId: string,
+  options?: { mailbox?: string; directUrl?: string },
+): Promise<void> {
   const popup = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
 
+  if (options?.directUrl) {
+    openInNewTab(options.directUrl, popup);
+    return;
+  }
+
   try {
-    const res = await apiClient.request<{ openUrl: string }>(
-      `/hosting/${accountId}/webmail-login`,
-      {
-        method: "POST",
-        body: {},
-      },
-    );
-    const openUrl = res.data?.openUrl;
-    if (!openUrl) throw new Error("Webmail URL missing");
+    const res = await apiClient.request<{
+      mode: "direct" | "sso";
+      openUrl?: string;
+      directUrl?: string;
+    }>(`/hosting/${accountId}/webmail-login`, {
+      method: "POST",
+      body: options?.mailbox ? { mailbox: options.mailbox } : {},
+    });
 
-    if (popup && !popup.closed) {
-      try {
-        popup.opener = null;
-      } catch {
-        /* ignore */
-      }
-      popup.location.replace(openUrl);
-      return;
-    }
+    const data = res.data;
+    if (!data) throw new Error("Webmail URL missing");
 
-    window.location.assign(openUrl);
+    const target = data.mode === "direct" ? data.directUrl : (data.openUrl ?? data.directUrl);
+
+    if (!target) throw new Error("Webmail URL missing");
+
+    openInNewTab(target, popup);
   } catch (error) {
     popup?.close();
     throw error;
