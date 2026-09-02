@@ -48,9 +48,7 @@ export class GitHubDeployService {
   async assertConfigured(): Promise<void> {
     const config = await this.oauthConfigService.resolveGitHub();
     if (!config.clientId || !config.clientSecret) {
-      throw new BadRequestException(
-        "GitHub OAuth is not configured. Set credentials in Admin → System.",
-      );
+      throw new BadRequestException("GitHub connection is temporarily unavailable");
     }
   }
 

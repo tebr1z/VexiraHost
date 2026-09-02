@@ -1,5 +1,12 @@
 import { ApiClientError } from "@vexira/api-sdk";
 
+const INTERNAL_ADMIN_MESSAGE =
+  /admin\s*[→->]|admin panel|hosting plans|not configured\. set|set credentials in/i;
+
+function isInternalAdminMessage(message: string): boolean {
+  return INTERNAL_ADMIN_MESSAGE.test(message);
+}
+
 /**
  * Extract a user-facing message from API client errors.
  */
@@ -13,6 +20,10 @@ export function getApiErrorMessage(
   }
 
   const mapKnown = (message: string): string => {
+    if (isInternalAdminMessage(message)) {
+      return fallback;
+    }
+
     const normalized = message.toLowerCase();
     if (
       options?.accountExists &&
@@ -26,6 +37,24 @@ export function getApiErrorMessage(
         normalized.includes("already assigned to another customer"))
     ) {
       return options.domainTaken;
+    }
+    if (
+      normalized.includes("auto-deploy is not included") ||
+      normalized.includes("not included in your hosting plan")
+    ) {
+      return fallback;
+    }
+    if (
+      normalized.includes("deploy is not available") ||
+      normalized.includes("github connection is temporarily unavailable")
+    ) {
+      return fallback;
+    }
+    if (
+      normalized.includes("auto-deploy is available for plesk") ||
+      normalized.includes("requires a plesk hosting")
+    ) {
+      return fallback;
     }
     return message;
   };

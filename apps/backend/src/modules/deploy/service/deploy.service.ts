@@ -263,10 +263,10 @@ export class DeployService {
     account: NonNullable<Awaited<ReturnType<HostingRepository["findById"]>>>,
   ) {
     if (!account.plan.autoDeployEnabled) {
-      throw new BadRequestException("Auto-deploy is not included in your hosting plan");
+      throw new BadRequestException("Deploy is not available on this hosting plan");
     }
     if (account.panel !== "PLESK") {
-      throw new BadRequestException("Auto-deploy is available for Plesk hosting only");
+      throw new BadRequestException("Deploy is not available for this hosting type");
     }
     if (!account.serverId || !account.server) {
       throw new BadRequestException("Hosting server is not assigned");

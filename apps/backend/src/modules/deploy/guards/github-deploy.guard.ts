@@ -13,9 +13,7 @@ export class GitHubDeployAuthGuard extends AuthGuard("github-deploy") {
   async canActivate(context: ExecutionContext) {
     const config = await this.oauthConfigService.resolveGitHub();
     if (!config.clientId || !config.clientSecret) {
-      throw new ServiceUnavailableException(
-        "GitHub OAuth is not configured. Set Client ID and Client Secret in Admin → System.",
-      );
+      throw new ServiceUnavailableException("GitHub connection is temporarily unavailable");
     }
     return super.canActivate(context) as boolean | Promise<boolean>;
   }
