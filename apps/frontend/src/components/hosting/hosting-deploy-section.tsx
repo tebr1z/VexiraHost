@@ -58,10 +58,12 @@ export function HostingDeploySection({
   accountId,
   primaryDomain,
   enabled,
+  embedded = false,
 }: {
   accountId: string;
   primaryDomain: string;
   enabled: boolean;
+  embedded?: boolean;
 }): React.ReactElement | null {
   const locale = useLocale();
   const t = useTranslations("dashboard.pages.hosting.deploy");
@@ -76,8 +78,10 @@ export function HostingDeploySection({
   const [envEditText, setEnvEditText] = useState("");
   const [savingEnvId, setSavingEnvId] = useState<string | null>(null);
   const [healthById, setHealthById] = useState<Record<string, DeployHealthResult>>({});
-  const [healthOpenId, setHealthOpenId] = useState<string | null>(null);
   const [checkingHealthId, setCheckingHealthId] = useState<string | null>(null);
+  const [activePanelById, setActivePanelById] = useState<
+    Record<string, "logs" | "env" | "health" | null>
+  >({});
   const logScrollRef = useRef<HTMLDivElement>(null);
   const stickLogToBottomRef = useRef(true);
 
@@ -165,6 +169,9 @@ export function HostingDeploySection({
           if (!focusId) return prev;
           const row = data.find((i) => i.id === focusId);
           if (row?.latestRun?.log) setExpandedLog(row.latestRun.log);
+          if (running && !prev) {
+            setActivePanelById((panels) => ({ ...panels, [running.id]: "logs" }));
+          }
           return focusId;
         });
       } catch {
@@ -275,8 +282,9 @@ export function HostingDeploySection({
     }
   };
 
-  const onExpand = async (id: string) => {
-    if (expandedId === id) {
+  const onExpand = async (id: string, forceOpen?: boolean) => {
+    const shouldClose = forceOpen === false || (forceOpen !== true && expandedId === id);
+    if (shouldClose) {
       setExpandedId(null);
       setExpandedLog("");
       return;
@@ -295,6 +303,7 @@ export function HostingDeploySection({
     setRedeployingId(id);
     setExpandedId(id);
     setExpandedLog("");
+    setActivePanelById((prev) => ({ ...prev, [id]: "logs" }));
     try {
       await redeployApplication(accountId, id);
       toast(t("redeployQueued"), "success");
@@ -306,8 +315,9 @@ export function HostingDeploySection({
     }
   };
 
-  const onOpenEnv = async (id: string) => {
-    if (envEditId === id) {
+  const onOpenEnv = async (id: string, forceOpen?: boolean) => {
+    const shouldClose = forceOpen === false || (forceOpen !== true && envEditId === id);
+    if (shouldClose) {
       setEnvEditId(null);
       return;
     }
@@ -340,7 +350,6 @@ export function HostingDeploySection({
 
   const onCheckHealth = async (id: string) => {
     setCheckingHealthId(id);
-    setHealthOpenId(id);
     try {
       const result = await checkDeploymentHealth(accountId, id);
       setHealthById((prev) => ({ ...prev, [id]: result }));
@@ -352,31 +361,47 @@ export function HostingDeploySection({
     }
   };
 
+  const togglePanel = (id: string, panel: "logs" | "env" | "health") => {
+    const isOpen = activePanelById[id] === panel;
+    const next = isOpen ? null : panel;
+    setActivePanelById((prev) => ({ ...prev, [id]: next }));
+
+    if (next === "logs") {
+      void onExpand(id, true);
+      setEnvEditId((current) => (current === id ? null : current));
+      return;
+    }
+    if (next === "env") {
+      void onOpenEnv(id, true);
+      setExpandedId((current) => (current === id ? null : current));
+      return;
+    }
+    if (next === "health") {
+      void onCheckHealth(id);
+      setExpandedId((current) => (current === id ? null : current));
+      setEnvEditId((current) => (current === id ? null : current));
+      return;
+    }
+
+    setExpandedId((current) => (current === id ? null : current));
+    setEnvEditId((current) => (current === id ? null : current));
+  };
+
   if (!enabled) return null;
 
-  return (
-    <DashboardSectionCard
-      title={
-        <span className="inline-flex flex-wrap items-center gap-2">
-          {t("title")}
-          <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-            {t("betaBadge")}
-          </span>
-        </span>
-      }
-      description={t("subtitle", { domain: primaryDomain })}
-      icon="rocket_launch"
-      actions={
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="inline-flex h-9 items-center gap-1 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white"
-        >
-          <MaterialIcon name={showForm ? "close" : "add"} className="text-[18px]" />
-          {showForm ? t("cancel") : t("newDeploy")}
-        </button>
-      }
+  const newDeployButton = (
+    <button
+      type="button"
+      onClick={() => setShowForm((v) => !v)}
+      className="inline-flex h-9 items-center gap-1 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white"
     >
+      <MaterialIcon name={showForm ? "close" : "add"} className="text-[18px]" />
+      {showForm ? t("cancel") : t("newDeploy")}
+    </button>
+  );
+
+  const body = (
+    <>
       {showForm ? (
         <div className="mb-6 space-y-4 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -590,120 +615,128 @@ export function HostingDeploySection({
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--label-secondary)]">{t("empty")}</p>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {items.map((item) => {
             const isRunning = item.status === "RUNNING" || item.status === "PENDING";
-            const isExpanded = expandedId === item.id;
-            const showLogs = isExpanded;
+            const activePanel = activePanelById[item.id] ?? null;
+            const showLogs = activePanel === "logs";
+            const showEnv = activePanel === "env";
+            const showHealth = activePanel === "health";
             return (
               <li
                 key={item.id}
                 className={cn(
-                  "rounded-2xl border bg-[var(--bg-elevated)] p-4 transition-colors",
+                  "overflow-hidden rounded-2xl border bg-[var(--bg-elevated)]",
                   isRunning ? "border-[var(--accent)]/40" : "border-[var(--separator)]",
                 )}
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-[var(--label-primary)]">{item.name}</p>
-                      <StatusBadge status={item.status} />
-                      <span className="rounded-lg bg-[var(--bg-secondary)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
-                        {t(`stack_${item.stack}`)}
-                      </span>
-                      {isRunning ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--accent)]">
-                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
-                          {t("liveLogs")}
+                <div className="p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-[var(--label-primary)]">{item.name}</p>
+                        <StatusBadge status={item.status} />
+                        <span className="rounded-md bg-[var(--bg-secondary)] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--label-tertiary)]">
+                          {t(`stack_${item.stack}`)}
                         </span>
+                      </div>
+                      <a
+                        href={`https://${item.deployDomain}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-sm text-[var(--accent)] hover:underline"
+                      >
+                        {item.deployDomain}
+                        <MaterialIcon name="open_in_new" className="text-[14px]" />
+                      </a>
+                      <p className="mt-1 text-xs text-[var(--label-tertiary)]">
+                        {stageLabel(item.stage, t)}
+                        {item.lastDeployedAt
+                          ? ` · ${t("lastDeployed", { date: formatDate(item.lastDeployedAt, locale) })}`
+                          : null}
+                        {isRunning ? (
+                          <span className="ml-2 inline-flex items-center gap-1 text-[var(--accent)]">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
+                            {t("liveLogs")}
+                          </span>
+                        ) : null}
+                      </p>
+                      {item.lastError ? (
+                        <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-[var(--danger)]">
+                          {item.lastError}
+                        </p>
                       ) : null}
                     </div>
-                    <a
-                      href={`https://${item.deployDomain}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-sm text-[var(--accent)] hover:underline"
-                    >
-                      {item.deployDomain}
-                      <MaterialIcon name="open_in_new" className="text-[14px]" />
-                    </a>
-                    <p className="mt-1 text-xs text-[var(--label-tertiary)]">
-                      {stageLabel(item.stage, t)}
-                      {item.lastDeployedAt
-                        ? ` · ${t("lastDeployed", { date: formatDate(item.lastDeployedAt, locale) })}`
-                        : null}
-                    </p>
-                    {item.lastError ? (
-                      <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-[var(--danger)]">
-                        {item.lastError}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {item.status === "SUCCESS" ? (
+
+                    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                       <button
                         type="button"
-                        disabled={checkingHealthId === item.id || isRunning}
-                        onClick={() => void onCheckHealth(item.id)}
-                        className={cn(
-                          "inline-flex h-9 items-center gap-1 rounded-lg border px-3 text-xs font-medium",
-                          healthOpenId === item.id && healthById[item.id]?.ok
-                            ? "border-emerald-500/50 text-emerald-600"
-                            : healthOpenId === item.id &&
-                                healthById[item.id] &&
-                                !healthById[item.id]?.ok
-                              ? "border-amber-500/50 text-amber-600"
-                              : "border-[var(--separator)]",
-                        )}
+                        disabled={isRunning || redeployingId === item.id}
+                        onClick={() => void onRedeploy(item.id)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
                       >
                         <MaterialIcon
-                          name="monitor_heart"
-                          className={cn(
-                            "text-[16px]",
-                            checkingHealthId === item.id && "animate-pulse",
-                          )}
+                          name="refresh"
+                          className={cn("text-[16px]", redeployingId === item.id && "animate-spin")}
                         />
-                        {checkingHealthId === item.id ? t("healthChecking") : t("healthCheck")}
+                        {t("redeploy")}
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => void onOpenEnv(item.id)}
-                      className={cn(
-                        "inline-flex h-9 items-center gap-1 rounded-lg border px-3 text-xs font-medium",
-                        envEditId === item.id
-                          ? "border-[var(--accent)] text-[var(--accent)]"
-                          : "border-[var(--separator)]",
-                      )}
-                    >
-                      <MaterialIcon name="tune" className="text-[16px]" />
-                      {t("editEnv")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void onExpand(item.id)}
-                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium"
-                    >
-                      <MaterialIcon name="terminal" className="text-[16px]" />
-                      {isExpanded ? t("hideLogs") : t("viewLogs")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isRunning || redeployingId === item.id}
-                      onClick={() => void onRedeploy(item.id)}
-                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium disabled:opacity-50"
-                    >
-                      <MaterialIcon
-                        name="refresh"
-                        className={cn("text-[16px]", redeployingId === item.id && "animate-spin")}
-                      />
-                      {t("redeploy")}
-                    </button>
+                      <div className="flex rounded-lg border border-[var(--separator)] p-0.5">
+                        {item.status === "SUCCESS" ? (
+                          <button
+                            type="button"
+                            disabled={checkingHealthId === item.id || isRunning}
+                            onClick={() => togglePanel(item.id, "health")}
+                            title={t("healthCheck")}
+                            className={cn(
+                              "inline-flex h-8 w-8 items-center justify-center rounded-md",
+                              showHealth
+                                ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                                : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
+                            )}
+                          >
+                            <MaterialIcon
+                              name="monitor_heart"
+                              className={cn(
+                                "text-[17px]",
+                                checkingHealthId === item.id && "animate-pulse",
+                              )}
+                            />
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => togglePanel(item.id, "env")}
+                          title={t("editEnv")}
+                          className={cn(
+                            "inline-flex h-8 w-8 items-center justify-center rounded-md",
+                            showEnv
+                              ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                              : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
+                          )}
+                        >
+                          <MaterialIcon name="tune" className="text-[17px]" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => togglePanel(item.id, "logs")}
+                          title={showLogs ? t("hideLogs") : t("viewLogs")}
+                          className={cn(
+                            "inline-flex h-8 w-8 items-center justify-center rounded-md",
+                            showLogs
+                              ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                              : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
+                          )}
+                        >
+                          <MaterialIcon name="terminal" className="text-[17px]" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {envEditId === item.id ? (
-                  <div className="mt-4 space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
+                {showEnv ? (
+                  <div className="border-t border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
                     <div>
                       <p className="text-sm font-medium text-[var(--label-primary)]">
                         {t("envVars")}
@@ -740,64 +773,72 @@ export function HostingDeploySection({
                   </div>
                 ) : null}
 
-                {healthOpenId === item.id && healthById[item.id] ? (
-                  <div className="mt-4 space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-[var(--label-primary)]">
-                        {t("healthTitle")}
-                      </p>
-                      <span
-                        className={cn(
-                          "rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase",
-                          healthById[item.id].ok
-                            ? "bg-emerald-500/15 text-emerald-600"
-                            : "bg-amber-500/15 text-amber-600",
-                        )}
-                      >
-                        {healthById[item.id].ok ? t("healthPass") : t("healthWarn")}
-                      </span>
-                    </div>
-                    <p className="font-mono text-[11px] text-[var(--label-tertiary)]">
-                      {t("healthPortInfo", {
-                        hostPort: healthById[item.id].hostPort,
-                        containerPort: healthById[item.id].containerPort,
-                      })}
-                    </p>
-                    <ul className="space-y-2">
-                      {healthById[item.id].checks.map((check) => (
-                        <li
-                          key={check.id}
-                          className={cn(
-                            "rounded-lg border px-3 py-2 text-xs",
-                            check.ok
-                              ? "border-emerald-500/30 bg-emerald-500/5"
-                              : "border-amber-500/30 bg-amber-500/5",
-                          )}
-                        >
-                          <div className="flex items-center gap-2 font-medium text-[var(--label-primary)]">
-                            <MaterialIcon
-                              name={check.ok ? "check_circle" : "error"}
+                {showHealth ? (
+                  <div className="space-y-3 border-t border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
+                    {checkingHealthId === item.id && !healthById[item.id] ? (
+                      <p className="text-sm text-[var(--label-secondary)]">{t("healthChecking")}</p>
+                    ) : healthById[item.id] ? (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-[var(--label-primary)]">
+                            {t("healthTitle")}
+                          </p>
+                          <span
+                            className={cn(
+                              "rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase",
+                              healthById[item.id].ok
+                                ? "bg-emerald-500/15 text-emerald-600"
+                                : "bg-amber-500/15 text-amber-600",
+                            )}
+                          >
+                            {healthById[item.id].ok ? t("healthPass") : t("healthWarn")}
+                          </span>
+                        </div>
+                        <p className="font-mono text-[11px] text-[var(--label-tertiary)]">
+                          {t("healthPortInfo", {
+                            hostPort: healthById[item.id].hostPort,
+                            containerPort: healthById[item.id].containerPort,
+                          })}
+                        </p>
+                        <ul className="space-y-2">
+                          {healthById[item.id].checks.map((check) => (
+                            <li
+                              key={check.id}
                               className={cn(
-                                "text-[16px]",
-                                check.ok ? "text-emerald-500" : "text-amber-500",
+                                "rounded-lg border px-3 py-2 text-xs",
+                                check.ok
+                                  ? "border-emerald-500/30 bg-emerald-500/5"
+                                  : "border-amber-500/30 bg-amber-500/5",
                               )}
-                            />
-                            {healthCheckLabel(check.id, t)}
-                          </div>
-                          <p className="mt-1 pl-6 text-[var(--label-secondary)]">{check.detail}</p>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-[10px] text-[var(--label-tertiary)]">
-                      {t("healthCheckedAt", {
-                        date: formatDate(healthById[item.id].checkedAt, locale),
-                      })}
-                    </p>
+                            >
+                              <div className="flex items-center gap-2 font-medium text-[var(--label-primary)]">
+                                <MaterialIcon
+                                  name={check.ok ? "check_circle" : "error"}
+                                  className={cn(
+                                    "text-[16px]",
+                                    check.ok ? "text-emerald-500" : "text-amber-500",
+                                  )}
+                                />
+                                {healthCheckLabel(check.id, t)}
+                              </div>
+                              <p className="mt-1 pl-6 text-[var(--label-secondary)]">
+                                {check.detail}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-[10px] text-[var(--label-tertiary)]">
+                          {t("healthCheckedAt", {
+                            date: formatDate(healthById[item.id].checkedAt, locale),
+                          })}
+                        </p>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
 
                 {showLogs ? (
-                  <div className="mt-4 overflow-hidden rounded-xl border border-[#27272a] bg-[#0f1117]">
+                  <div className="border-t border-[#27272a] bg-[#0f1117]">
                     <div className="flex items-center justify-between border-b border-[#27272a] px-3 py-2">
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
                         {t("deployLogs")}
@@ -809,14 +850,12 @@ export function HostingDeploySection({
                       ) : null}
                     </div>
                     <div
-                      ref={isExpanded ? logScrollRef : undefined}
-                      onScroll={isExpanded ? onLogScroll : undefined}
-                      className="max-h-72 overflow-auto p-3"
+                      ref={showLogs ? logScrollRef : undefined}
+                      onScroll={showLogs ? onLogScroll : undefined}
+                      className="max-h-64 overflow-auto p-3"
                     >
                       <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#d4d4d8]">
-                        {isExpanded && expandedId === item.id
-                          ? expandedLog || t("logWaiting")
-                          : t("logWaiting")}
+                        {expandedId === item.id ? expandedLog || t("logWaiting") : t("logWaiting")}
                       </pre>
                     </div>
                   </div>
@@ -826,6 +865,46 @@ export function HostingDeploySection({
           })}
         </ul>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="dashboard-section-card space-y-5 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-jakarta inline-flex flex-wrap items-center gap-2 text-lg font-bold text-[var(--label-primary)]">
+              {t("title")}
+              <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                {t("betaBadge")}
+              </span>
+            </h2>
+            <p className="mt-1 text-sm text-[var(--label-secondary)]">
+              {t("subtitle", { domain: primaryDomain })}
+            </p>
+          </div>
+          {newDeployButton}
+        </div>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <DashboardSectionCard
+      title={
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {t("title")}
+          <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            {t("betaBadge")}
+          </span>
+        </span>
+      }
+      description={t("subtitle", { domain: primaryDomain })}
+      icon="rocket_launch"
+      actions={newDeployButton}
+    >
+      {body}
     </DashboardSectionCard>
   );
 }

@@ -39,10 +39,12 @@ export function HostingMailSection({
   accountId,
   domain,
   enabled,
+  compact = false,
 }: {
   accountId: string;
   domain: string;
   enabled: boolean;
+  compact?: boolean;
 }): React.ReactElement | null {
   const locale = useLocale();
   const t = useTranslations("dashboard.pages.hosting.mail");
@@ -185,44 +187,65 @@ export function HostingMailSection({
   ] as const;
 
   return (
-    <section className="panel-card overflow-hidden rounded-2xl">
-      <div className="border-b border-[color-mix(in_srgb,var(--separator)_80%,transparent)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_10%,transparent),transparent)] px-5 py-5 sm:px-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)]">
-              <MaterialIcon name="alternate_email" className="text-[24px]" />
-            </span>
-            <div>
-              <h2 className="font-jakarta text-primary text-xl font-semibold">{t("title")}</h2>
-              <p className="text-on-surface-variant mt-1 max-w-xl text-sm leading-relaxed">
-                {t("subtitle", { domain })}
-              </p>
+    <section
+      className={cn(
+        "overflow-hidden rounded-2xl",
+        compact ? "dashboard-section-card" : "panel-card",
+      )}
+    >
+      {!compact ? (
+        <div className="border-b border-[color-mix(in_srgb,var(--separator)_80%,transparent)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_10%,transparent),transparent)] px-5 py-5 sm:px-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] text-[var(--accent)]">
+                <MaterialIcon name="alternate_email" className="text-[24px]" />
+              </span>
+              <div>
+                <h2 className="font-jakarta text-primary text-xl font-semibold">{t("title")}</h2>
+                <p className="text-on-surface-variant mt-1 max-w-xl text-sm leading-relaxed">
+                  {t("subtitle", { domain })}
+                </p>
+              </div>
             </div>
+            <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-[var(--accent)] shadow-sm dark:bg-white/10">
+              {loadingSummary && !summary ? t("loading") : limitLabel}
+            </span>
           </div>
-          <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-[var(--accent)] shadow-sm dark:bg-white/10">
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--separator)] px-5 py-4">
+          <div>
+            <h2 className="font-jakarta text-base font-bold text-[var(--label-primary)]">
+              {t("title")}
+            </h2>
+            <p className="text-xs text-[var(--label-secondary)]">{t("subtitle", { domain })}</p>
+          </div>
+          <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
             {loadingSummary && !summary ? t("loading") : limitLabel}
           </span>
         </div>
-      </div>
+      )}
 
       <div className="space-y-6 px-5 py-5 sm:px-6">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {guideSteps.map((step, index) => (
-            <div
-              key={step.icon}
-              className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4"
-            >
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-white">
-                  {index + 1}
-                </span>
-                <MaterialIcon name={step.icon} className="text-[18px] text-[var(--accent)]" />
+        {!compact ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {guideSteps.map((step, index) => (
+              <div
+                key={step.icon}
+                className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-white">
+                    {index + 1}
+                  </span>
+                  <MaterialIcon name={step.icon} className="text-[18px] text-[var(--accent)]" />
+                </div>
+                <p className="mt-3 text-sm font-semibold text-[var(--label)]">{step.title}</p>
+                <p className="text-on-surface-variant mt-1 text-xs leading-relaxed">{step.desc}</p>
               </div>
-              <p className="mt-3 text-sm font-semibold text-[var(--label)]">{step.title}</p>
-              <p className="text-on-surface-variant mt-1 text-xs leading-relaxed">{step.desc}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="rounded-2xl border border-[color-mix(in_srgb,var(--accent)_22%,var(--separator))] bg-[color-mix(in_srgb,var(--accent)_5%,var(--bg-elevated))] p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">

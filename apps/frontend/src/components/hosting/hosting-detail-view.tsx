@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { HostingDeploySection } from "@/components/hosting/hosting-deploy-section";
@@ -14,6 +14,8 @@ import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/i18n/format";
 import { toast } from "@/stores/toast-store";
+
+type HostingTab = "overview" | "deploy" | "mail";
 
 function formatBytes(bytes: number | null | undefined, locale: string): string {
   if (bytes == null || bytes < 0) return "—";
@@ -51,31 +53,29 @@ function UsageMeter({
   const isHigh = percent != null && percent > 85;
 
   return (
-    <div className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 shadow-sm">
+    <div className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--label-secondary)]">
-            {label}
-          </p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-[var(--label-primary)]">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-[var(--label-secondary)]">{label}</p>
+          <p className="mt-1 text-base font-bold tabular-nums text-[var(--label-primary)]">
             {formatBytes(used, locale)}
-            <span className="ml-1 text-sm font-normal text-[var(--label-secondary)]">
+            <span className="ml-1 text-sm font-normal text-[var(--label-tertiary)]">
               / {limit != null && limit > 0 ? formatBytes(limit, locale) : "∞"}
             </span>
           </p>
         </div>
         <span
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
             accentClass,
           )}
         >
-          <MaterialIcon name={icon} className="text-[20px]" />
+          <MaterialIcon name={icon} className="text-[18px]" />
         </span>
       </div>
       {percent != null ? (
         <div className="mt-3">
-          <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-secondary)]">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-secondary)]">
             <div
               className={cn(
                 "h-full rounded-full transition-all",
@@ -84,14 +84,25 @@ function UsageMeter({
               style={{ width: `${percent}%` }}
             />
           </div>
-          <p className="mt-1.5 text-[11px] text-[var(--label-tertiary)]">{percent}%</p>
         </div>
       ) : null}
     </div>
   );
 }
 
-function DetailRow({
+function StatCell({ icon, label, value }: { icon: string; label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-3 text-center">
+      <MaterialIcon name={icon} className="mx-auto text-[20px] text-[var(--accent)]" />
+      <p className="mt-1.5 text-lg font-bold tabular-nums text-[var(--label-primary)]">{value}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--label-tertiary)]">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function InfoItem({
   label,
   value,
   mono,
@@ -107,49 +118,29 @@ function DetailRow({
   copied?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-[var(--separator)] py-3 first:pt-0 last:border-0 last:pb-0">
-      <span className="shrink-0 text-sm text-[var(--label-secondary)]">{label}</span>
-      <div className="flex min-w-0 items-center gap-2 text-right">
-        <span
+    <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-2.5">
+      <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--label-tertiary)]">
+        {label}
+      </p>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <p
           className={cn(
-            "truncate text-sm font-medium text-[var(--label-primary)]",
+            "min-w-0 truncate text-sm font-medium text-[var(--label-primary)]",
             mono && "font-mono text-[13px]",
           )}
         >
           {value}
-        </span>
+        </p>
         {copyValue && onCopy ? (
           <button
             type="button"
             onClick={onCopy}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--separator)] text-[var(--label-secondary)] transition hover:bg-[var(--bg-secondary)]"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--label-secondary)] hover:bg-[var(--bg-elevated)]"
             aria-label={label}
           >
-            <MaterialIcon name={copied ? "check" : "content_copy"} className="text-[16px]" />
+            <MaterialIcon name={copied ? "check" : "content_copy"} className="text-[15px]" />
           </button>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-function CapacityPill({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-2.5">
-      <MaterialIcon name={icon} className="text-[18px] text-[var(--accent)]" />
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--label-tertiary)]">
-          {label}
-        </p>
-        <p className="text-sm font-bold text-[var(--label-primary)]">{value}</p>
       </div>
     </div>
   );
@@ -182,6 +173,7 @@ export function HostingDetailView({
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showTechnical, setShowTechnical] = useState(false);
+  const [activeTab, setActiveTab] = useState<HostingTab>("overview");
 
   const plesk = account.pleskInfo;
   const isPleskManaged =
@@ -189,6 +181,22 @@ export function HostingDetailView({
     account.status === "ACTIVE" &&
     account.server &&
     account.managementMode !== "MANUAL";
+
+  const showDeployTab = account.panel === "PLESK";
+  const showMailTab = Boolean(isPleskManaged);
+
+  const tabs = useMemo(() => {
+    const items: { id: HostingTab; label: string; icon: string; badge?: string }[] = [
+      { id: "overview", label: tp("tabOverview"), icon: "dashboard" },
+    ];
+    if (showDeployTab) {
+      items.push({ id: "deploy", label: tp("tabDeploy"), icon: "rocket_launch", badge: "Beta" });
+    }
+    if (showMailTab) {
+      items.push({ id: "mail", label: tp("tabMail"), icon: "mail" });
+    }
+    return items;
+  }, [showDeployTab, showMailTab, tp]);
 
   const pleskStatusLabel =
     plesk?.status === "active"
@@ -213,12 +221,8 @@ export function HostingDetailView({
     }
   };
 
-  const scrollToMail = () => {
-    document.getElementById("hosting-mail")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title={account.primaryDomain}
         description={[account.plan.name, account.server?.name].filter(Boolean).join(" · ")}
@@ -242,8 +246,8 @@ export function HostingDetailView({
       {account.status === "SUSPENDED" && (
         <div className="from-amber-500/12 overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br to-amber-500/5 p-5">
           <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700">
-              <MaterialIcon name="pause_circle" className="text-[24px]" />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700">
+              <MaterialIcon name="pause_circle" className="text-[22px]" />
             </span>
             <div>
               <p className="font-semibold text-amber-950 dark:text-amber-100">
@@ -263,7 +267,7 @@ export function HostingDetailView({
                     ? `/dashboard/invoices/${account.renewalInvoiceId}`
                     : "/dashboard/invoices"
                 }
-                className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl bg-amber-700 px-4 text-sm font-semibold text-white"
+                className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white"
               >
                 <MaterialIcon name="receipt_long" className="text-[18px]" />
                 {tc("payInvoice")}
@@ -273,117 +277,139 @@ export function HostingDetailView({
         </div>
       )}
 
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--separator)] bg-[var(--bg-elevated)] shadow-sm">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,color-mix(in_srgb,var(--accent)_14%,transparent),transparent_55%)]" />
-        <div className="relative p-5 sm:p-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={account.status} />
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide",
-                    isPlesk
-                      ? "bg-sky-500/12 text-sky-700 dark:text-sky-300"
-                      : "bg-orange-500/12 text-orange-700 dark:text-orange-300",
-                  )}
-                >
-                  <MaterialIcon name={isPlesk ? "dashboard" : "tune"} className="text-[14px]" />
-                  {account.panel}
-                </span>
-                {pleskStatusLabel ? (
-                  <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-[11px] font-semibold text-[var(--label-secondary)]">
-                    {pleskStatusLabel}
-                  </span>
-                ) : null}
-              </div>
+      {/* Compact status bar */}
+      <section className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={account.status} />
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                isPlesk
+                  ? "bg-sky-500/12 text-sky-700 dark:text-sky-300"
+                  : "bg-orange-500/12 text-orange-700 dark:text-orange-300",
+              )}
+            >
+              <MaterialIcon name={isPlesk ? "dashboard" : "tune"} className="text-[13px]" />
+              {account.panel}
+            </span>
+            {pleskStatusLabel ? (
+              <span className="rounded-full bg-[var(--bg-secondary)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--label-secondary)]">
+                {pleskStatusLabel}
+              </span>
+            ) : null}
+            <a
+              href={`https://${account.primaryDomain}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              {account.primaryDomain}
+              <MaterialIcon name="open_in_new" className="text-[14px]" />
+            </a>
+          </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <CapacityPill
-                  icon="language"
-                  label={tp("detailDomains")}
-                  value={account.plan.maxDomains}
-                />
-                <CapacityPill
-                  icon="mail"
-                  label={tp("detailMailboxes")}
-                  value={account.plan.maxEmails}
-                />
-                <CapacityPill
-                  icon="storage"
-                  label={tp("detailStorage")}
-                  value={`${account.plan.diskGb} GB`}
-                />
-                <CapacityPill
-                  icon="swap_vert"
-                  label={tp("detailBandwidth")}
-                  value={`${account.plan.bandwidthGb} GB`}
-                />
-              </div>
-            </div>
-
-            {account.status === "ACTIVE" ? (
-              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[220px]">
-                <button
-                  type="button"
-                  disabled={panelLoading}
-                  onClick={onPanelLogin}
-                  className="bg-primary text-on-primary inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold shadow-md disabled:opacity-60"
-                >
-                  <MaterialIcon name="login" className="text-[20px]" />
-                  {panelLoading ? tc("opening") : tc("panelLogin")}
-                </button>
-                {isPleskManaged ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={syncLoading}
-                      onClick={onSyncPlesk}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-4 text-sm font-medium disabled:opacity-60"
-                    >
-                      <MaterialIcon
-                        name="sync"
-                        className={cn("text-[18px]", syncLoading && "animate-spin")}
-                      />
-                      {syncLoading ? tp("pleskSyncing") : tp("pleskSync")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={scrollToMail}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--accent)_25%,var(--separator))] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] px-4 text-sm font-semibold text-[var(--accent)]"
-                    >
-                      <MaterialIcon name="alternate_email" className="text-[18px]" />
-                      {tp("detailManageMail")}
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            ) : account.status === "FAILED" ? (
+          {account.status === "ACTIVE" ? (
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={retryLoading}
-                onClick={onRetry}
-                className="bg-primary text-on-primary inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+                disabled={panelLoading}
+                onClick={onPanelLogin}
+                className="bg-primary text-on-primary inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
               >
-                <MaterialIcon name="refresh" className="text-[20px]" />
-                {retryLoading ? tprov("retrying") : tprov("retry")}
+                <MaterialIcon name="login" className="text-[18px]" />
+                {panelLoading ? tc("opening") : tc("panelLogin")}
               </button>
-            ) : null}
-          </div>
+              {isPleskManaged ? (
+                <button
+                  type="button"
+                  disabled={syncLoading}
+                  onClick={onSyncPlesk}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--separator)] px-4 text-sm font-medium disabled:opacity-60"
+                >
+                  <MaterialIcon
+                    name="sync"
+                    className={cn("text-[18px]", syncLoading && "animate-spin")}
+                  />
+                  {syncLoading ? tp("pleskSyncing") : tp("pleskSync")}
+                </button>
+              ) : null}
+            </div>
+          ) : account.status === "FAILED" ? (
+            <button
+              type="button"
+              disabled={retryLoading}
+              onClick={onRetry}
+              className="bg-primary text-on-primary inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+            >
+              <MaterialIcon name="refresh" className="text-[18px]" />
+              {retryLoading ? tprov("retrying") : tprov("retry")}
+            </button>
+          ) : null}
         </div>
       </section>
 
-      {/* Usage + account grid */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
+      {/* Tabs */}
+      {tabs.length > 1 ? (
+        <nav
+          className="flex gap-1 overflow-x-auto rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-1"
+          aria-label="Hosting sections"
+        >
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5",
+                activeTab === tab.id
+                  ? "bg-[var(--bg-elevated)] text-[var(--label-primary)] shadow-sm"
+                  : "text-[var(--label-secondary)] hover:text-[var(--label-primary)]",
+              )}
+            >
+              <MaterialIcon name={tab.icon} className="text-[18px]" />
+              <span className="truncate">{tab.label}</span>
+              {tab.badge ? (
+                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                  {tab.badge}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </nav>
+      ) : null}
+
+      {/* Overview */}
+      {activeTab === "overview" ? (
+        <div className="space-y-5">
+          <DashboardSectionCard title={tp("planLimitsTitle")} icon="inventory_2">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCell
+                icon="language"
+                label={tp("detailDomains")}
+                value={account.plan.maxDomains}
+              />
+              <StatCell icon="mail" label={tp("detailMailboxes")} value={account.plan.maxEmails} />
+              <StatCell
+                icon="storage"
+                label={tp("detailStorage")}
+                value={`${account.plan.diskGb} GB`}
+              />
+              <StatCell
+                icon="swap_vert"
+                label={tp("detailBandwidth")}
+                value={`${account.plan.bandwidthGb} GB`}
+              />
+            </div>
+          </DashboardSectionCard>
+
           {plesk ? (
             <DashboardSectionCard
               title={tp("detailUsageTitle")}
               description={tp("detailUsageDesc")}
               icon="monitoring"
             >
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <UsageMeter
                   label={tp("pleskDisk")}
                   used={plesk.diskUsedBytes}
@@ -401,25 +427,6 @@ export function HostingDetailView({
                   accentClass="bg-cyan-500/10 text-cyan-600"
                 />
               </div>
-              {plesk.maxDomains != null || plesk.maxMailboxes != null ? (
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <CapacityPill
-                    icon="language"
-                    label={tp("detailDomains")}
-                    value={plesk.maxDomains ?? "—"}
-                  />
-                  <CapacityPill
-                    icon="mail"
-                    label={tp("detailMailboxes")}
-                    value={plesk.maxMailboxes ?? "—"}
-                  />
-                  <CapacityPill
-                    icon="database"
-                    label={tp("detailDatabases")}
-                    value={plesk.maxDatabases ?? "—"}
-                  />
-                </div>
-              ) : null}
             </DashboardSectionCard>
           ) : isPleskManaged ? (
             <DashboardSectionCard
@@ -441,69 +448,64 @@ export function HostingDetailView({
               </button>
             </DashboardSectionCard>
           ) : null}
-        </div>
 
-        <div className="space-y-6 lg:col-span-2">
           <DashboardSectionCard title={tp("detailAccountTitle")} icon="badge">
-            <DetailRow
-              label={tc("username")}
-              value={username}
-              mono
-              copyValue={username}
-              copied={copiedField === "username"}
-              onCopy={() => void copyText("username", username)}
-            />
-            <DetailRow label={tc("panel")} value={account.panel} />
-            <DetailRow
-              label={tc("server")}
-              value={account.server?.name ?? account.server?.ipAddress ?? "—"}
-            />
-            {plesk?.ipAddress ? (
-              <DetailRow
-                label={tp("pleskIp")}
-                value={plesk.ipAddress}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <InfoItem
+                label={tc("username")}
+                value={username}
                 mono
-                copyValue={plesk.ipAddress}
-                copied={copiedField === "ip"}
-                onCopy={() => void copyText("ip", plesk.ipAddress!)}
+                copyValue={username}
+                copied={copiedField === "username"}
+                onCopy={() => void copyText("username", username)}
               />
-            ) : null}
-            <DetailRow label={tc("created")} value={formatDate(account.createdAt, locale)} />
-            <DetailRow
-              label={tc("provisionedAt")}
-              value={account.provisionedAt ? formatDate(account.provisionedAt, locale) : "—"}
-            />
-            {account.expiresAt ? (
-              <DetailRow label={ts("expires")} value={formatDate(account.expiresAt, locale)} />
-            ) : null}
-            {account.status === "PROVISIONING" ? (
-              <p className="mt-3 text-xs text-[var(--label-tertiary)]">{tc("autoRefreshing")}</p>
-            ) : null}
-          </DashboardSectionCard>
+              <InfoItem label={tc("panel")} value={account.panel} />
+              <InfoItem
+                label={tc("server")}
+                value={account.server?.name ?? account.server?.ipAddress ?? "—"}
+              />
+              {plesk?.ipAddress ? (
+                <InfoItem
+                  label={tp("pleskIp")}
+                  value={plesk.ipAddress}
+                  mono
+                  copyValue={plesk.ipAddress}
+                  copied={copiedField === "ip"}
+                  onCopy={() => void copyText("ip", plesk.ipAddress!)}
+                />
+              ) : null}
+              <InfoItem label={tc("created")} value={formatDate(account.createdAt, locale)} />
+              <InfoItem
+                label={tc("provisionedAt")}
+                value={account.provisionedAt ? formatDate(account.provisionedAt, locale) : "—"}
+              />
+              {account.expiresAt ? (
+                <InfoItem label={ts("expires")} value={formatDate(account.expiresAt, locale)} />
+              ) : null}
+              {account.panelUrl && account.status === "ACTIVE" ? (
+                <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-2.5 sm:col-span-2">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--label-tertiary)]">
+                    {tc("directPanelUrl")}
+                  </p>
+                  <a
+                    href={account.panelUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 break-all text-sm font-medium text-[var(--accent)] hover:underline"
+                  >
+                    <MaterialIcon name="open_in_new" className="shrink-0 text-[15px]" />
+                    {account.panelUrl}
+                  </a>
+                </div>
+              ) : null}
+            </div>
 
-          {account.panelUrl && account.status === "ACTIVE" ? (
-            <DashboardSectionCard title={tc("directPanelUrl")} icon="link">
-              <a
-                href={account.panelUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 break-all text-sm font-medium text-[var(--accent)] hover:underline"
-              >
-                <MaterialIcon name="open_in_new" className="shrink-0 text-[16px]" />
-                {account.panelUrl}
-              </a>
-            </DashboardSectionCard>
-          ) : null}
-
-          {plesk && isPleskManaged ? (
-            <DashboardSectionCard
-              title={tp("detailTechnicalTitle")}
-              icon="code"
-              actions={
+            {plesk && isPleskManaged ? (
+              <div className="mt-4 border-t border-[var(--separator)] pt-4">
                 <button
                   type="button"
                   onClick={() => setShowTechnical((v) => !v)}
-                  className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--label-secondary)] hover:text-[var(--label-primary)]"
                 >
                   <MaterialIcon
                     name={showTechnical ? "expand_less" : "expand_more"}
@@ -511,70 +513,88 @@ export function HostingDetailView({
                   />
                   {showTechnical ? tp("detailHideTechnical") : tp("detailShowTechnical")}
                 </button>
-              }
-            >
-              {showTechnical ? (
-                <>
-                  <DetailRow
-                    label={tp("pleskSubscriptionId")}
-                    value={plesk.subscriptionId ?? "—"}
-                    mono
-                  />
-                  <DetailRow label={tp("pleskFtpLogin")} value={plesk.ftpLogin ?? username} mono />
-                  <DetailRow label={tp("pleskHostingType")} value={plesk.hostingType ?? "—"} />
-                  {plesk.syncedAt ? (
-                    <DetailRow
-                      label={tp("detailLastSync")}
-                      value={formatDate(plesk.syncedAt, locale)}
+                {showTechnical ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <InfoItem
+                      label={tp("pleskSubscriptionId")}
+                      value={plesk.subscriptionId ?? "—"}
+                      mono
                     />
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-sm text-[var(--label-secondary)]">{tp("detailTechnicalHint")}</p>
-              )}
-            </DashboardSectionCard>
-          ) : null}
-        </div>
-      </div>
+                    <InfoItem label={tp("pleskFtpLogin")} value={plesk.ftpLogin ?? username} mono />
+                    <InfoItem label={tp("pleskHostingType")} value={plesk.hostingType ?? "—"} />
+                    {plesk.syncedAt ? (
+                      <InfoItem
+                        label={tp("detailLastSync")}
+                        value={formatDate(plesk.syncedAt, locale)}
+                      />
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-[var(--label-tertiary)]">
+                    {tp("detailTechnicalHint")}
+                  </p>
+                )}
+              </div>
+            ) : null}
 
-      {isPleskManaged && account.status === "ACTIVE" && account.plan.autoDeployEnabled ? (
-        <div id="hosting-deploy">
-          <HostingDeploySection
-            accountId={account.id}
-            primaryDomain={account.primaryDomain}
-            enabled
-          />
-        </div>
-      ) : account.panel === "PLESK" ? (
-        <div id="hosting-deploy">
-          <DashboardSectionCard
-            title={td("title")}
-            description={td("subtitle", { domain: account.primaryDomain })}
-            icon="rocket_launch"
-          >
-            <p className="text-sm text-[var(--label-secondary)]">
-              {account.status === "FAILED"
-                ? td("unavailableFailed")
-                : account.status === "PROVISIONING"
-                  ? td("unavailableProvisioning")
-                  : !account.plan.autoDeployEnabled
-                    ? td("unavailablePlan")
-                    : account.status !== "ACTIVE"
-                      ? td("unavailableInactive")
-                      : td("unavailableProvisioning")}
-            </p>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-xs text-[var(--label-tertiary)]">
-              <li>{td("featureGitHub")}</li>
-              <li>{td("featureEnv")}</li>
-              <li>{td("featureDocker")}</li>
-            </ul>
+            {account.status === "PROVISIONING" ? (
+              <p className="mt-4 text-xs text-[var(--label-tertiary)]">{tc("autoRefreshing")}</p>
+            ) : null}
           </DashboardSectionCard>
         </div>
       ) : null}
 
-      {isPleskManaged ? (
+      {/* Deploy */}
+      {activeTab === "deploy" && showDeployTab ? (
+        <div id="hosting-deploy">
+          {isPleskManaged && account.status === "ACTIVE" && account.plan.autoDeployEnabled ? (
+            <HostingDeploySection
+              accountId={account.id}
+              primaryDomain={account.primaryDomain}
+              enabled
+              embedded
+            />
+          ) : (
+            <DashboardSectionCard title={td("title")} icon="rocket_launch">
+              <p className="text-sm text-[var(--label-secondary)]">
+                {account.status === "FAILED"
+                  ? td("unavailableFailed")
+                  : account.status === "PROVISIONING"
+                    ? td("unavailableProvisioning")
+                    : !account.plan.autoDeployEnabled
+                      ? td("unavailablePlan")
+                      : account.status !== "ACTIVE"
+                        ? td("unavailableInactive")
+                        : td("unavailableProvisioning")}
+              </p>
+              <ul className="mt-3 space-y-1 text-xs text-[var(--label-tertiary)]">
+                <li className="flex items-center gap-2">
+                  <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
+                  {td("featureGitHub")}
+                </li>
+                <li className="flex items-center gap-2">
+                  <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
+                  {td("featureEnv")}
+                </li>
+                <li className="flex items-center gap-2">
+                  <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
+                  {td("featureDocker")}
+                </li>
+              </ul>
+            </DashboardSectionCard>
+          )}
+        </div>
+      ) : null}
+
+      {/* Mail */}
+      {activeTab === "mail" && showMailTab ? (
         <div id="hosting-mail">
-          <HostingMailSection accountId={account.id} domain={account.primaryDomain} enabled />
+          <HostingMailSection
+            accountId={account.id}
+            domain={account.primaryDomain}
+            enabled
+            compact
+          />
         </div>
       ) : null}
     </div>
