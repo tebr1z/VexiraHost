@@ -11,6 +11,8 @@ import { OrderEmailService } from "./order-email.service";
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
 import { SiteAccessService } from "@/modules/auth/service/site-access.service";
 import { HostingRepository } from "@/modules/hosting/repository/hosting.repository";
+import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
+import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { resolveProductPrice } from "@/shared/pricing/product-price.util";
@@ -159,6 +161,8 @@ export class OrdersService {
     private readonly staffAlerts: StaffAlertService,
     private readonly siteAccessService: SiteAccessService,
     private readonly hostingRepository: HostingRepository,
+    private readonly orderFulfillmentService: OrderFulfillmentService,
+    private readonly paymentsRepository: PaymentsRepository,
   ) {}
 
   private async assertHostingDomainsAvailable(
@@ -320,6 +324,20 @@ export class OrdersService {
       dueDate,
     });
 
+    let checkoutOrder = order;
+    const invoice = order.invoices?.[0];
+    if (total.lte(0) && invoice) {
+      await this.paymentsRepository.completeZeroAmountInvoice({
+        userId,
+        invoiceId: invoice.id,
+        orderId: order.id,
+        currency: order.currency,
+      });
+      await this.orderFulfillmentService.fulfillOrder(order.id);
+      const refreshed = await this.ordersRepository.findByIdForUser(order.id, userId);
+      if (refreshed) checkoutOrder = refreshed;
+    }
+
     const addressFromItems = dto.items
       .map((item) =>
         normalizeBillingAddress(
@@ -338,15 +356,15 @@ export class OrdersService {
       "Customer";
 
     void this.orderEmailService.sendOrderCreatedNotification({
-      orderId: order.id,
+      orderId: checkoutOrder.id,
       customerEmail: user?.email ?? "unknown",
       customerName,
-      currency: order.currency,
-      subtotal: Number(order.subtotal),
-      discountAmount: Number(order.discountAmount ?? 0),
-      total: Number(order.total),
-      promoCode: order.promoCode,
-      items: order.items.map((item) => ({
+      currency: checkoutOrder.currency,
+      subtotal: Number(checkoutOrder.subtotal),
+      discountAmount: Number(checkoutOrder.discountAmount ?? 0),
+      total: Number(checkoutOrder.total),
+      promoCode: checkoutOrder.promoCode,
+      items: checkoutOrder.items.map((item) => ({
         productName: item.productName,
         quantity: item.quantity,
         totalPrice: Number(item.totalPrice),
@@ -359,13 +377,13 @@ export class OrdersService {
       lines: [
         `Müştəri: ${customerName}`,
         `Email: ${user?.email ?? "unknown"}`,
-        `Məbləğ: ${Number(order.total).toFixed(2)} ${order.currency}`,
-        `Məhsul: ${order.items.map((item) => `${item.productName} ×${item.quantity}`).join(", ")}`,
+        `Məbləğ: ${Number(checkoutOrder.total).toFixed(2)} ${checkoutOrder.currency}`,
+        `Məhsul: ${checkoutOrder.items.map((item) => `${item.productName} ×${item.quantity}`).join(", ")}`,
       ],
-      url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/orders/${order.id}`,
+      url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/orders/${checkoutOrder.id}`,
     });
 
-    return mapOrder(order);
+    return mapOrder(checkoutOrder);
   }
 
   async listForUser(userId: string) {

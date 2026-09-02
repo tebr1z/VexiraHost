@@ -3,11 +3,13 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from "@nes
 import type {
   ConfirmTotpDto,
   DisableTotpDto,
+  RequestPhoneVerificationDto,
   UpdateBillingAddressDto,
   UpdateEmailTwoFactorDto,
   UpdatePhoneDto,
   UpdateUserPreferencesDto,
   VerifyEmailTwoFactorDto,
+  VerifyPhoneDto,
 } from "../dto";
 
 import { resolveAuthEmailLocale } from "@/modules/auth/email/auth-email.locale";
@@ -19,6 +21,7 @@ import {
   createTotpSecret,
   verifyTotpCode,
 } from "@/modules/auth/utils/totp.util";
+import { WhatsappService } from "@/modules/whatsapp/service/whatsapp.service";
 import { normalizeWhatsappPhone } from "@/modules/whatsapp/utils/phone.util";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
@@ -28,6 +31,20 @@ import { mapPrismaRoleToApp } from "@/utils/role.util";
 
 const SECURITY_OTP_MINUTES = 10;
 const SECURITY_OTP_EXPIRES_SECONDS = SECURITY_OTP_MINUTES * 60;
+const PHONE_VERIFY_PURPOSE = "PHONE_VERIFY";
+
+function phoneVerificationMessage(locale: string | undefined, code: string): string {
+  if (locale === "az") {
+    return `Vexira Host: WhatsApp əlaqə nömrənizi təsdiqləmək üçün kod: ${code}. Kod ${SECURITY_OTP_MINUTES} dəqiqə etibarlıdır.`;
+  }
+  if (locale === "ru") {
+    return `Vexira Host: код подтверждения номера WhatsApp: ${code}. Действителен ${SECURITY_OTP_MINUTES} мин.`;
+  }
+  if (locale === "en") {
+    return `Vexira Host: your WhatsApp contact verification code is ${code}. Valid for ${SECURITY_OTP_MINUTES} minutes.`;
+  }
+  return `Vexira Host: WhatsApp iletişim doğrulama kodunuz: ${code}. ${SECURITY_OTP_MINUTES} dakika geçerlidir.`;
+}
 
 @Injectable()
 export class UsersService {
@@ -36,6 +53,7 @@ export class UsersService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly authEmailService: AuthEmailService,
+    private readonly whatsapp: WhatsappService,
   ) {}
 
   async getProfile(userId: string) {
@@ -66,17 +84,111 @@ export class UsersService {
     const user = await this.authRepository.findById(userId);
     if (!user) throw new NotFoundException("User not found");
 
-    const normalized = dto.phone?.trim() ? normalizeWhatsappPhone(dto.phone) : null;
-    if (normalized && normalized.length < 8) {
+    if (dto.removePhone) {
+      const updated = await this.authRepository.updatePhone(userId, {
+        phone: null,
+        phoneVerifiedAt: null,
+        whatsappNotificationsEnabled: false,
+      });
+      return this.mapProfile(updated);
+    }
+
+    if (typeof dto.whatsappNotificationsEnabled === "boolean") {
+      if (dto.whatsappNotificationsEnabled && (!user.phone || !user.phoneVerifiedAt)) {
+        throw new BadRequestException("Verify your WhatsApp number before enabling reminders");
+      }
+      const updated = await this.authRepository.updatePhone(userId, {
+        whatsappNotificationsEnabled: dto.whatsappNotificationsEnabled,
+      });
+      return this.mapProfile(updated);
+    }
+
+    throw new BadRequestException("No phone preference changes requested");
+  }
+
+  async requestPhoneVerification(userId: string, dto: RequestPhoneVerificationDto) {
+    const user = await this.authRepository.findById(userId);
+    if (!user) throw new NotFoundException("User not found");
+
+    const normalized = normalizeWhatsappPhone(dto.phone);
+    if (normalized.length < 8) {
       throw new BadRequestException("Phone number is invalid");
     }
 
+    if (!this.whatsapp.isGatewayConnected()) {
+      throw new BadRequestException(
+        "WhatsApp verification is temporarily unavailable. Please try again later.",
+      );
+    }
+
+    await this.authRepository.deleteEmailLoginOtps(userId, PHONE_VERIFY_PURPOSE);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const challenge = await this.authRepository.createEmailLoginOtp({
+      userId,
+      code,
+      purpose: PHONE_VERIFY_PURPOSE,
+      pendingPhone: normalized,
+      desiredEnabled: dto.whatsappNotificationsEnabled ?? null,
+      expiresAt: new Date(Date.now() + SECURITY_OTP_MINUTES * 60 * 1000),
+    });
+
+    const locale = resolveAuthEmailLocale(user.localeHistory?.[0]);
+    this.logger.log(`Phone verify OTP for user ${userId} → ${this.maskPhone(normalized)}: ${code}`);
+    try {
+      await this.whatsapp.sendSystemText({
+        phone: normalized,
+        userId,
+        message: phoneVerificationMessage(locale, code),
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send phone OTP via WhatsApp: ${String(err)}`);
+      throw new BadRequestException(
+        "Could not send verification code on WhatsApp. Check the number and try again.",
+      );
+    }
+
+    return {
+      requiresVerification: true as const,
+      challengeId: challenge.id,
+      expiresIn: SECURITY_OTP_EXPIRES_SECONDS,
+      phoneHint: this.maskPhone(normalized),
+    };
+  }
+
+  async verifyPhone(userId: string, dto: VerifyPhoneDto) {
+    const challenge = await this.authRepository.findEmailLoginOtp(
+      dto.challengeId,
+      PHONE_VERIFY_PURPOSE,
+    );
+    if (!challenge || challenge.userId !== userId) {
+      throw new BadRequestException("Invalid or expired verification code");
+    }
+    if (!challenge.pendingPhone?.trim()) {
+      throw new BadRequestException("Invalid verification session");
+    }
+
+    if (hashToken(dto.code.trim()) !== challenge.codeHash) {
+      throw new BadRequestException("Invalid or expired verification code");
+    }
+
+    await this.authRepository.consumeEmailLoginOtp(challenge.id);
+    await this.authRepository.deleteEmailLoginOtps(userId, PHONE_VERIFY_PURPOSE);
+
+    const whatsappEnabled =
+      typeof challenge.desiredEnabled === "boolean" ? challenge.desiredEnabled : true;
+
     const updated = await this.authRepository.updatePhone(userId, {
-      phone: normalized,
-      whatsappNotificationsEnabled:
-        dto.whatsappNotificationsEnabled ?? user.whatsappNotificationsEnabled,
+      phone: challenge.pendingPhone,
+      phoneVerifiedAt: new Date(),
+      whatsappNotificationsEnabled: whatsappEnabled,
     });
     return this.mapProfile(updated);
+  }
+
+  private maskPhone(digits: string): string {
+    const clean = digits.replace(/\D/g, "");
+    if (clean.length <= 4) return `+${clean}`;
+    return `+${clean.slice(0, Math.min(5, clean.length - 2))}***${clean.slice(-2)}`;
   }
 
   async requestEmailTwoFactorChange(userId: string, dto: UpdateEmailTwoFactorDto) {
@@ -292,6 +404,7 @@ export class UsersService {
     balanceCurrency?: string | null;
     billingAddress?: unknown;
     phone?: string | null;
+    phoneVerifiedAt?: Date | null;
     whatsappNotificationsEnabled?: boolean;
     emailTwoFactorEnabled?: boolean;
     totpEnabled?: boolean;
@@ -318,6 +431,8 @@ export class UsersService {
       nextCurrencyChangeAt: null,
       billingAddress: normalizeBillingAddress(user.billingAddress),
       phone: user.phone ?? null,
+      phoneVerified: Boolean(user.phoneVerifiedAt),
+      phoneVerifiedAt: user.phoneVerifiedAt?.toISOString() ?? null,
       whatsappNotificationsEnabled: user.whatsappNotificationsEnabled ?? true,
       emailTwoFactorEnabled: user.emailTwoFactorEnabled ?? false,
       totpEnabled: user.totpEnabled ?? false,

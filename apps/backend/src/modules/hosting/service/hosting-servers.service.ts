@@ -15,12 +15,14 @@ import type {
 } from "../dto/hosting-account-admin.dto";
 import { MockControlPanelProvider } from "../providers/mock-control-panel.provider";
 import { HostingServersRepository } from "../repository/hosting-servers.repository";
+import { PROVISION_STAGES } from "../types/provision-stage";
 import {
   normalizePanelHostnameForStorage,
   resolvePanelEndpoint,
 } from "../utils/panel-endpoint.util";
 
 import { HostingEmailService } from "./hosting-email.service";
+import { HostingProvisionRunner } from "./hosting-provision.runner";
 
 import { decryptSecret, encryptSecret, maskSecret } from "@/utils/crypto.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
@@ -71,6 +73,8 @@ function mapAccount(account: {
   panel: HostingPanel;
   status: ServiceStatus;
   panelUrl: string | null;
+  provisionStage: string | null;
+  provisionError: string | null;
   provisionedAt: Date | null;
   createdAt: Date;
   plan: { id: string; slug: string; name: string };
@@ -90,6 +94,8 @@ function mapAccount(account: {
     panel: account.panel,
     status: account.status,
     panelUrl: account.panelUrl,
+    provisionStage: account.provisionStage,
+    provisionError: account.provisionError,
     provisionedAt: account.provisionedAt,
     createdAt: account.createdAt,
     plan: {
@@ -123,6 +129,7 @@ export class HostingServersService {
     private readonly hostingServersRepository: HostingServersRepository,
     private readonly controlPanel: MockControlPanelProvider,
     private readonly hostingEmailService: HostingEmailService,
+    private readonly provisionRunner: HostingProvisionRunner,
   ) {}
 
   listServers() {
@@ -330,6 +337,62 @@ export class HostingServersService {
     });
 
     return { deleted: true };
+  }
+
+  async adminRetryProvision(accountId: string) {
+    const account = await this.hostingServersRepository.findAccountById(accountId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (account.status !== "FAILED") {
+      throw new BadRequestException("Only failed hosting accounts can be retried");
+    }
+    if (!account.serverId) {
+      throw new BadRequestException("Hosting account has no server assigned");
+    }
+
+    await this.hostingServersRepository.updateAccount(accountId, {
+      status: "PROVISIONING",
+      provisionStage: PROVISION_STAGES.PAYMENT_CONFIRMED,
+      provisionError: null,
+    });
+    this.provisionRunner.enqueue(accountId);
+
+    const refreshed = await this.hostingServersRepository.findAccountById(accountId);
+    return mapAccount(refreshed!);
+  }
+
+  async adminReassignAndRetryProvision(accountId: string, targetServerId: string) {
+    const account = await this.hostingServersRepository.findAccountById(accountId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (account.panel !== HostingPanelEnum.PLESK) {
+      throw new BadRequestException("Only Plesk accounts can be reassigned");
+    }
+    if (account.status !== "FAILED" && account.status !== "PROVISIONING") {
+      throw new BadRequestException(
+        "Only failed or provisioning accounts can be reassigned for retry",
+      );
+    }
+
+    const target = await this.hostingServersRepository.findById(targetServerId);
+    if (!target) throw new NotFoundException("Target hosting server not found");
+    if (!target.isActive) throw new BadRequestException("Target hosting server is not active");
+    if (target.panel !== HostingPanelEnum.PLESK) {
+      throw new BadRequestException("Target server must be Plesk");
+    }
+    if (target.maxAccounts != null && target.accountCount >= target.maxAccounts) {
+      throw new BadRequestException("Target hosting server capacity reached");
+    }
+
+    const endpoint = resolvePanelEndpoint(target);
+    const panelUrl = `${endpoint.sessionOrigin}/smb/web/view`;
+
+    await this.hostingServersRepository.resetAccountForProvisionRetry(accountId, {
+      serverId: target.id,
+      panelUrl,
+    });
+    this.provisionRunner.enqueue(accountId);
+
+    const refreshed = await this.hostingServersRepository.findAccountById(accountId);
+    return mapAccount(refreshed!);
   }
 
   async migrateAccounts(dto: MigrateHostingAccountsDto) {

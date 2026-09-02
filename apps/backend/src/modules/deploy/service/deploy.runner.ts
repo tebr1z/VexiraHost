@@ -3,11 +3,14 @@ import { ServiceStatus } from "@prisma/client";
 
 import { DeployRepository } from "../repository/deploy.repository";
 import { DEPLOY_STAGES } from "../types/deploy-stage";
+import { resolveHostingServerSshOptions } from "../utils/server-ssh.util";
 
+import { GitHubDeployService } from "./github-deploy.service";
 import { PleskSiteService } from "./plesk-site.service";
 import { PortAllocationService } from "./port-allocation.service";
 import { RemoteDeployService } from "./remote-deploy.service";
 import { ServerBootstrapService } from "./server-bootstrap.service";
+import { formatSshTarget } from "./ssh.service";
 
 import { decryptSecret } from "@/utils/crypto.util";
 
@@ -22,6 +25,7 @@ export class DeployRunner {
     private readonly pleskSite: PleskSiteService,
     private readonly remoteDeploy: RemoteDeployService,
     private readonly serverBootstrap: ServerBootstrapService,
+    private readonly githubDeploy: GitHubDeployService,
   ) {}
 
   enqueue(deploymentId: string): void {
@@ -82,8 +86,13 @@ export class DeployRunner {
 
     try {
       await log(`Deploy started for ${deployment.deployDomain}`);
+      const sshTarget = formatSshTarget(
+        resolveHostingServerSshOptions(server, server.sshPort ?? 22),
+      );
+      await log(`Server SSH target: ${sshTarget}`);
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.ALLOCATING_PORT);
+      await log("Stage: allocating host port…");
       let hostPort = deployment.hostPort;
       if (!hostPort) {
         hostPort = await this.portAllocation.allocate(server.id);
@@ -93,6 +102,7 @@ export class DeployRunner {
 
       if (deployment.domainMode === "SUBDOMAIN") {
         await this.setStage(deploymentId, run.id, DEPLOY_STAGES.CREATING_SUBDOMAIN);
+        await log(`Stage: Plesk subdomain (${deployment.deployDomain})…`);
         const { siteId, created } = await this.pleskSite.ensureSubdomain(
           server,
           account,
@@ -107,7 +117,19 @@ export class DeployRunner {
       }
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.ENSURING_DEPENDENCIES);
-      const bootstrap = await this.serverBootstrap.ensureServerReady(server);
+      const isRedeploy = Boolean(deployment.deployPath && deployment.containerName);
+      await log(
+        isRedeploy
+          ? `Stage: verify server tools (${sshTarget})…`
+          : `Stage: server bootstrap via SSH (${sshTarget})…`,
+      );
+      const bootstrap = await this.serverBootstrap.ensureServerReady(
+        server,
+        async (update) => {
+          if (update.logChunk) await log(update.logChunk.trimEnd());
+        },
+        { skipBootstrapIfReady: true },
+      );
       await log(bootstrap.log);
       if (bootstrap.osVersionSaved) {
         await log(`Detected OS saved: ${bootstrap.detectedOs.prettyName}`);
@@ -119,21 +141,34 @@ export class DeployRunner {
         : {};
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.CLONING_REPO);
+      await log(
+        isRedeploy
+          ? "Stage: pull latest code, rebuild image & restart container…"
+          : "Stage: clone repository, Docker build & start…",
+      );
+      const cloneUrl = await this.githubDeploy.resolveCloneUrl(
+        deployment.userId,
+        deployment.repoUrl,
+      );
       const result = await this.remoteDeploy.deployApplication({
         server,
         account,
         projectName: deployment.name,
         stack: deployment.stack,
         repoUrl: deployment.repoUrl,
+        cloneUrl,
         branch: deployment.branch,
         rootDirectory: deployment.rootDirectory,
         hostPort,
         containerPort: deployment.containerPort,
         envVars,
         deployDomain: deployment.deployDomain,
+        existingDeployPath: isRedeploy ? deployment.deployPath : null,
+        existingContainerName: isRedeploy ? deployment.containerName : null,
+        onLog: async (chunk) => {
+          await log(chunk);
+        },
       });
-
-      await log(result.log);
 
       await this.deployRepository.update(deploymentId, {
         status: "SUCCESS",

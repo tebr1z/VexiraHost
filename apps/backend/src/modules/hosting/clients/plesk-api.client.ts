@@ -69,7 +69,18 @@ function httpsPost(
     req.on("timeout", () => {
       req.destroy(new Error("Plesk API request timed out"));
     });
-    req.on("error", reject);
+    req.on("error", (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("ECONNRESET")) {
+        reject(
+          new Error(
+            `Plesk API connection reset for ${parsed.hostname}. Check panel hostname/IP, port 8443, and firewall.`,
+          ),
+        );
+        return;
+      }
+      reject(error);
+    });
     req.write(body);
     req.end();
   });

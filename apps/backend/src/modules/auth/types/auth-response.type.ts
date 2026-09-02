@@ -23,6 +23,8 @@ export interface AuthUserResponse {
     country: string;
   } | null;
   phone?: string | null;
+  phoneVerified?: boolean;
+  phoneVerifiedAt?: string | null;
   whatsappNotificationsEnabled?: boolean;
   emailTwoFactorEnabled?: boolean;
   totpEnabled?: boolean;

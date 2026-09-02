@@ -4,11 +4,13 @@ import type { AuthUser } from "@vexira/types";
 import {
   ConfirmTotpDto,
   DisableTotpDto,
+  RequestPhoneVerificationDto,
   UpdateBillingAddressDto,
   UpdateEmailTwoFactorDto,
   UpdatePhoneDto,
   UpdateUserPreferencesDto,
   VerifyEmailTwoFactorDto,
+  VerifyPhoneDto,
 } from "../dto";
 import { UsersService } from "../service/users.service";
 
@@ -36,6 +38,16 @@ export class UsersController {
   @Patch("me/phone")
   updatePhone(@User() user: AuthUser, @Body() dto: UpdatePhoneDto) {
     return this.usersService.updatePhone(user.id, dto);
+  }
+
+  @Post("me/phone/request-code")
+  requestPhoneVerification(@User() user: AuthUser, @Body() dto: RequestPhoneVerificationDto) {
+    return this.usersService.requestPhoneVerification(user.id, dto);
+  }
+
+  @Post("me/phone/verify")
+  verifyPhone(@User() user: AuthUser, @Body() dto: VerifyPhoneDto) {
+    return this.usersService.verifyPhone(user.id, dto);
   }
 
   @Patch("me/security/email-2fa")

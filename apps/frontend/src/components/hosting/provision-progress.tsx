@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
+import { MaterialIcon } from "@/components/landing/material-icon";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 
@@ -24,14 +25,18 @@ export function ProvisionProgress({
   stage,
   error,
   status,
+  onRetry,
+  retryLoading,
 }: {
   stage: string | null | undefined;
   error?: string | null;
   status: string;
+  onRetry?: () => void;
+  retryLoading?: boolean;
 }): React.ReactElement {
   const t = useTranslations("dashboard.provision");
-  const failed = status === "FAILED" || stage === "FAILED";
-  const current = failed ? stageIndex(stage) : stageIndex(stage);
+  const failed = status === "FAILED";
+  const current = stageIndex(stage);
   const showSupportMessage = failed || Boolean(error);
 
   return (
@@ -76,15 +81,31 @@ export function ProvisionProgress({
       </ol>
 
       {showSupportMessage ? (
-        <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
           <p className="font-medium">{t("errorTitle")}</p>
           <p className="mt-1">{t("supportMessage")}</p>
-          <Link
-            href="/dashboard/tickets/new"
-            className="mt-2 inline-block font-semibold text-red-900 underline hover:no-underline"
-          >
-            {t("contactSupport")}
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {failed && onRetry ? (
+              <button
+                type="button"
+                disabled={retryLoading}
+                onClick={onRetry}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-red-900 px-3 text-xs font-semibold text-white disabled:opacity-60 dark:bg-red-800"
+              >
+                <MaterialIcon
+                  name="refresh"
+                  className={cn("text-[16px]", retryLoading && "animate-spin")}
+                />
+                {retryLoading ? t("retrying") : t("retry")}
+              </button>
+            ) : null}
+            <Link
+              href="/dashboard/tickets/new"
+              className="inline-flex h-9 items-center rounded-lg border border-red-300 px-3 text-xs font-semibold text-red-900 hover:bg-red-100 dark:border-red-400/40 dark:text-red-100 dark:hover:bg-red-500/20"
+            >
+              {t("contactSupport")}
+            </Link>
+          </div>
         </div>
       ) : null}
     </div>

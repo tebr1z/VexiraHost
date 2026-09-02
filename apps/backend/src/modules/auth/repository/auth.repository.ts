@@ -122,7 +122,11 @@ export class AuthRepository {
 
   updatePhone(
     userId: string,
-    data: { phone: string | null; whatsappNotificationsEnabled: boolean },
+    data: {
+      phone?: string | null;
+      whatsappNotificationsEnabled?: boolean;
+      phoneVerifiedAt?: Date | null;
+    },
   ): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },
@@ -164,6 +168,7 @@ export class AuthRepository {
     rememberMe?: boolean;
     purpose?: string;
     desiredEnabled?: boolean | null;
+    pendingPhone?: string | null;
     expiresAt: Date;
   }) {
     return this.prisma.emailLoginOtp.create({
@@ -173,6 +178,7 @@ export class AuthRepository {
         rememberMe: data.rememberMe ?? false,
         purpose: data.purpose ?? "LOGIN",
         desiredEnabled: data.desiredEnabled ?? null,
+        pendingPhone: data.pendingPhone ?? null,
         expiresAt: data.expiresAt,
       },
     });

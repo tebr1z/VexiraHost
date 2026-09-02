@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { InvoiceStatus, OrderStatus, PaymentStatus, type PaymentMethodType } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import {
+  InvoiceStatus,
+  OrderStatus,
+  PaymentStatus,
+  Prisma,
+  type PaymentMethodType,
+} from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
 
@@ -143,6 +148,22 @@ export class PaymentsRepository {
         status: PaymentStatus.FAILED,
         failureReason,
       },
+    });
+  }
+
+  completeZeroAmountInvoice(data: {
+    userId: string;
+    invoiceId: string;
+    orderId?: string | null;
+    currency: string;
+  }) {
+    return this.completePayment({
+      userId: data.userId,
+      invoiceId: data.invoiceId,
+      orderId: data.orderId,
+      amount: new Prisma.Decimal(0),
+      currency: data.currency,
+      gatewayRef: `zero-amount-${Date.now()}`,
     });
   }
 

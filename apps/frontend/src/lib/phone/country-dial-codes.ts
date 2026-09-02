@@ -283,3 +283,26 @@ export function composePhoneE164(dialCode: string, nationalNumber: string): stri
   if (full.length < 8 || full.length > 15) return null;
   return full;
 }
+
+/** Best-effort split of stored E.164 digits into country + national. Defaults to AZ. */
+export function splitPhoneE164(
+  phone: string | null | undefined,
+  fallbackIso2 = "AZ",
+): { iso2: string; national: string } {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  if (!digits) {
+    return { iso2: fallbackIso2, national: "" };
+  }
+
+  const sorted = [...COUNTRY_DIAL_CODES].sort((a, b) => b.dial.length - a.dial.length);
+  for (const country of sorted) {
+    if (digits.startsWith(country.dial)) {
+      return {
+        iso2: country.iso2,
+        national: digits.slice(country.dial.length),
+      };
+    }
+  }
+
+  return { iso2: fallbackIso2, national: digits };
+}

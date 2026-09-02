@@ -175,11 +175,35 @@ export class HostingServersRepository {
       serverId?: string | null;
       panelUrl?: string | null;
       panelRef?: string | null;
+      provisionStage?: string | null;
+      provisionError?: string | null;
     },
   ) {
     return this.prisma.hostingAccount.update({
       where: { id },
       data,
+      include: {
+        plan: true,
+        server: true,
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+      },
+    });
+  }
+
+  resetAccountForProvisionRetry(id: string, data: { serverId: string; panelUrl: string }) {
+    return this.prisma.hostingAccount.update({
+      where: { id },
+      data: {
+        serverId: data.serverId,
+        panelUrl: data.panelUrl,
+        status: ServiceStatus.PROVISIONING,
+        provisionStage: "PAYMENT_CONFIRMED",
+        provisionError: null,
+        panelUsername: null,
+        panelPasswordEnc: null,
+        panelRef: null,
+        provisionedAt: null,
+      },
       include: {
         plan: true,
         server: true,

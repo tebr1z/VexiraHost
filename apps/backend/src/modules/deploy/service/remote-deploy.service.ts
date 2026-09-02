@@ -1,13 +1,18 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { DeployStack, HostingAccount, HostingServer } from "@prisma/client";
 
 import {
   buildApacheProxyDirectives,
+  buildPleskApacheReloadCommand,
   pleskVhostConfPath,
   pleskVhostSslConfPath,
 } from "../utils/apache-proxy.util";
-import { buildDockerComposeProjectName, buildDockerfile } from "../utils/docker-templates.util";
+import {
+  buildDockerComposeProjectName,
+  buildDockerfile,
+  sanitizeAppSubdir,
+} from "../utils/docker-templates.util";
 import { resolveHostingServerSshOptions } from "../utils/server-ssh.util";
 
 import { SshService, type SshConnectionOptions } from "./ssh.service";
@@ -49,7 +54,7 @@ export class ApacheProxyService {
       `mkdir -p $(dirname ${shellQuote(httpPath)})`,
       `cp ${shellQuote(tmpHttp)} ${shellQuote(httpPath)}`,
       `cp ${shellQuote(tmpHttps)} ${shellQuote(httpsPath)}`,
-      `plesk repair web -domain ${shellQuote(domain)} -y`,
+      buildPleskApacheReloadCommand(domain),
       `rm -f ${shellQuote(tmpHttp)} ${shellQuote(tmpHttps)}`,
     ].join(" && ");
 
@@ -80,12 +85,16 @@ export class RemoteDeployService {
     projectName: string;
     stack: DeployStack;
     repoUrl: string;
+    cloneUrl?: string;
     branch: string;
     rootDirectory?: string | null;
     hostPort: number;
     containerPort: number;
     envVars: Record<string, string>;
     deployDomain: string;
+    existingDeployPath?: string | null;
+    existingContainerName?: string | null;
+    onLog?: (chunk: string) => void | Promise<void>;
   }): Promise<{ deployPath: string; containerName: string; log: string }> {
     const cfg = this.deployConfig;
     if (cfg.mockRemote) {
@@ -98,67 +107,194 @@ export class RemoteDeployService {
     }
 
     const ssh = this.apacheProxy.buildSshOptions(input.server);
-    const deployPath = this.resolveDeployPath(input.account.id, input.projectName);
-    const containerName = buildDockerComposeProjectName(input.account.id, input.projectName);
+    const deployPath =
+      input.existingDeployPath?.trim() ||
+      this.resolveDeployPath(input.account.id, input.projectName);
+    const containerName =
+      input.existingContainerName?.trim() ||
+      buildDockerComposeProjectName(input.account.id, input.projectName);
+    const isRedeploy = Boolean(input.existingDeployPath && input.existingContainerName);
     const logs: string[] = [];
 
-    const append = (label: string, output: string) => {
-      logs.push(`\n--- ${label} ---\n${output.trim()}`);
+    const append = async (label: string, output: string) => {
+      const chunk = `\n--- ${label} ---\n${output.trim()}\n`;
+      logs.push(chunk);
+      if (input.onLog) await input.onLog(chunk);
     };
 
-    await this.ssh.execChecked(
+    await this.ssh.withSession(
       ssh,
-      `mkdir -p ${shellQuote(deployPath)} && rm -rf ${shellQuote(`${deployPath}/repo`)}`,
+      async (session) => {
+        await append("ssh", `Connected to ${session.target}`);
+
+        await session.execChecked(`mkdir -p ${shellQuote(deployPath)}`);
+
+        const repoPath = `${deployPath}/repo`;
+        const repoExists =
+          (await session.exec(`test -d ${shellQuote(`${repoPath}/.git`)}`)).code === 0;
+
+        if (isRedeploy && repoExists) {
+          await append("prepare", `Redeploy — reusing ${deployPath}`);
+          const cloneTarget = input.cloneUrl ?? input.repoUrl;
+          const updateCmd = [
+            `cd ${shellQuote(repoPath)}`,
+            `git remote set-url origin ${shellQuote(cloneTarget)}`,
+            `git fetch --depth 1 origin ${shellQuote(input.branch)}`,
+            `git checkout -B ${shellQuote(input.branch)} FETCH_HEAD`,
+            `git reset --hard FETCH_HEAD`,
+          ].join(" && ");
+          await append("git pull", await session.execChecked(updateCmd, 600_000));
+        } else {
+          await session.execChecked(`rm -rf ${shellQuote(repoPath)}`);
+          await append("prepare", `Deploy path: ${deployPath}`);
+
+          const cloneTarget = input.cloneUrl ?? input.repoUrl;
+          const cloneCmd = [
+            `git clone --depth 1 --branch ${shellQuote(input.branch)} ${shellQuote(cloneTarget)} ${shellQuote(repoPath)}`,
+          ].join(" ");
+          await append("git clone", await session.execChecked(cloneCmd, 600_000));
+        }
+
+        const repoRoot = repoPath;
+        const rootDirRaw = input.rootDirectory?.replace(/^\/+/, "").replace(/\/+$/, "") ?? "";
+        let appSubdir = ".";
+        try {
+          appSubdir = sanitizeAppSubdir(rootDirRaw || ".");
+        } catch {
+          throw new BadRequestException("Invalid monorepo path in root directory");
+        }
+
+        const workspaceProbe = await session.exec(
+          `test -f ${shellQuote(`${repoRoot}/pnpm-workspace.yaml`)}`,
+        );
+        const monorepo = workspaceProbe.code === 0;
+        const dockerContextDir = monorepo
+          ? repoRoot
+          : rootDirRaw
+            ? `${repoRoot}/${rootDirRaw}`
+            : repoRoot;
+
+        if (monorepo && appSubdir === ".") {
+          throw new BadRequestException(
+            "This repository is a pnpm monorepo. Set monorepo path to the app folder (e.g. apps/frontend).",
+          );
+        }
+
+        const envLines = Object.entries(input.envVars)
+          .map(([key, value]) => `${key}=${value}`)
+          .join("\n");
+        const envContent = `${envLines}\nPORT=${input.containerPort}\n`;
+        await session.writeFile(`${deployPath}/.env`, envContent);
+
+        if (input.stack === "NEXTJS") {
+          const nextEnvPath =
+            monorepo && appSubdir !== "."
+              ? `${repoRoot}/${appSubdir}/.env.production`
+              : `${dockerContextDir}/.env.production`;
+          await session.writeFile(nextEnvPath, envContent);
+        }
+
+        const dockerfilePath = `${dockerContextDir}/Dockerfile`;
+        const dockerfile = buildDockerfile(input.stack, { monorepo, appSubdir });
+        await session.writeFile(dockerfilePath, dockerfile);
+
+        const buildCmd = `cd ${shellQuote(dockerContextDir)} && docker build -t ${shellQuote(containerName)} .`;
+        await append("docker build", await session.execChecked(buildCmd, 900_000));
+
+        const containerInspect = await session.exec(
+          `docker ps -a --filter name=^/${containerName}$ --format '{{.Names}}'`,
+        );
+        const containerExists = containerInspect.stdout.trim() === containerName;
+
+        if (containerExists) {
+          await append(
+            "docker",
+            `Updating existing container ${containerName} (stop → replace image → start with same name)…`,
+          );
+          await session.execChecked(`docker stop ${shellQuote(containerName)}`, 120_000);
+          await session.execChecked(`docker rm ${shellQuote(containerName)}`, 60_000);
+        } else {
+          await session.execChecked(
+            `docker rm -f ${shellQuote(containerName)} >/dev/null 2>&1 || true`,
+          );
+        }
+
+        const runCmd = [
+          `docker run -d`,
+          `--name ${shellQuote(containerName)}`,
+          `--restart unless-stopped`,
+          `-p 127.0.0.1:${input.hostPort}:${input.containerPort}`,
+          `--env-file ${shellQuote(`${deployPath}/.env`)}`,
+          shellQuote(containerName),
+        ].join(" ");
+        await append("docker run", await session.execChecked(runCmd));
+      },
+      1_800_000,
     );
 
-    const cloneCmd = [
-      `git clone --depth 1 --branch ${shellQuote(input.branch)} ${shellQuote(input.repoUrl)} ${shellQuote(`${deployPath}/repo`)}`,
-    ].join(" ");
-    append("git clone", await this.ssh.execChecked(ssh, cloneCmd, 600_000));
-
-    const workDir = input.rootDirectory
-      ? `${deployPath}/repo/${input.rootDirectory.replace(/^\/+/, "")}`
-      : `${deployPath}/repo`;
-
-    const envLines = Object.entries(input.envVars)
-      .map(([key, value]) => `${key}=${value}`)
-      .join("\n");
-    const envContent = `${envLines}\nPORT=${input.containerPort}\n`;
-    await this.ssh.writeFile(ssh, `${deployPath}/.env`, envContent);
-
-    const dockerfilePath = `${workDir}/Dockerfile`;
-    const dockerfile = buildDockerfile(input.stack);
-    await this.ssh.writeFile(ssh, dockerfilePath, dockerfile);
-
-    const buildCmd = `cd ${shellQuote(workDir)} && docker build -t ${shellQuote(containerName)} .`;
-    append("docker build", await this.ssh.execChecked(ssh, buildCmd, 900_000));
-
-    await this.ssh.execChecked(
-      ssh,
-      `docker rm -f ${shellQuote(containerName)} >/dev/null 2>&1 || true`,
-    );
-
-    const runCmd = [
-      `docker run -d`,
-      `--name ${shellQuote(containerName)}`,
-      `--restart unless-stopped`,
-      `-p 127.0.0.1:${input.hostPort}:${input.containerPort}`,
-      `--env-file ${shellQuote(`${deployPath}/.env`)}`,
-      shellQuote(containerName),
-    ].join(" ");
-    append("docker run", await this.ssh.execChecked(ssh, runCmd));
-
-    await this.apacheProxy.applyReverseProxy(input.server, input.deployDomain, input.hostPort);
-    append(
-      "apache proxy",
-      `Reverse proxy configured for ${input.deployDomain} → 127.0.0.1:${input.hostPort}`,
-    );
+    if (isRedeploy) {
+      await append(
+        "apache proxy",
+        `Skipped — existing reverse proxy for ${input.deployDomain} unchanged`,
+      );
+    } else {
+      await this.apacheProxy.applyReverseProxy(input.server, input.deployDomain, input.hostPort);
+      await append(
+        "apache proxy",
+        `Reverse proxy configured for ${input.deployDomain} → 127.0.0.1:${input.hostPort}`,
+      );
+    }
 
     return {
       deployPath,
       containerName,
       log: logs.join("\n"),
     };
+  }
+
+  async restartContainer(input: {
+    server: HostingServer;
+    deployPath: string;
+    containerName: string;
+    hostPort: number;
+    containerPort: number;
+    envVars: Record<string, string>;
+  }): Promise<void> {
+    const cfg = this.deployConfig;
+    if (cfg.mockRemote) return;
+
+    const ssh = this.apacheProxy.buildSshOptions(input.server);
+    const envLines = Object.entries(input.envVars)
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+    const envContent = `${envLines}\nPORT=${input.containerPort}\n`;
+    await this.ssh.writeFile(ssh, `${input.deployPath}/.env`, envContent);
+
+    const containerInspect = await this.ssh.exec(
+      ssh,
+      `docker ps -a --filter name=^/${input.containerName}$ --format '{{.Names}}'`,
+    );
+    const containerExists = containerInspect.stdout.trim() === input.containerName;
+
+    if (containerExists) {
+      await this.ssh.execChecked(ssh, `docker stop ${shellQuote(input.containerName)}`, 120_000);
+      await this.ssh.execChecked(ssh, `docker rm ${shellQuote(input.containerName)}`, 60_000);
+    } else {
+      await this.ssh.execChecked(
+        ssh,
+        `docker rm -f ${shellQuote(input.containerName)} >/dev/null 2>&1 || true`,
+      );
+    }
+
+    const runCmd = [
+      `docker run -d`,
+      `--name ${shellQuote(input.containerName)}`,
+      `--restart unless-stopped`,
+      `-p 127.0.0.1:${input.hostPort}:${input.containerPort}`,
+      `--env-file ${shellQuote(`${input.deployPath}/.env`)}`,
+      shellQuote(input.containerName),
+    ].join(" ");
+    await this.ssh.execChecked(ssh, runCmd);
   }
 }
 

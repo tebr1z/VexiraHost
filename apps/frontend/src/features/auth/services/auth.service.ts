@@ -143,11 +143,50 @@ export async function updateBillingAddress(input: {
 }
 
 export async function updatePhone(input: {
-  phone: string | null;
-  whatsappNotificationsEnabled: boolean;
+  whatsappNotificationsEnabled?: boolean;
+  removePhone?: boolean;
 }): Promise<AuthSession["user"]> {
   const response = await apiClient.request<AuthSession["user"]>("/users/me/phone", {
     method: "PATCH",
+    body: input,
+  });
+  return response.data as AuthSession["user"];
+}
+
+export type PhoneVerificationChallenge = {
+  requiresVerification: true;
+  challengeId: string;
+  expiresIn: number;
+  phoneHint: string;
+};
+
+export function isPhoneVerificationChallenge(value: unknown): value is PhoneVerificationChallenge {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "requiresVerification" in value &&
+    (value as PhoneVerificationChallenge).requiresVerification === true &&
+    "phoneHint" in value
+  );
+}
+
+export async function requestPhoneVerification(input: {
+  phone: string;
+  whatsappNotificationsEnabled?: boolean;
+}): Promise<PhoneVerificationChallenge> {
+  const response = await apiClient.request<PhoneVerificationChallenge>(
+    "/users/me/phone/request-code",
+    { method: "POST", body: input },
+  );
+  return response.data as PhoneVerificationChallenge;
+}
+
+export async function verifyPhone(input: {
+  challengeId: string;
+  code: string;
+}): Promise<AuthSession["user"]> {
+  const response = await apiClient.request<AuthSession["user"]>("/users/me/phone/verify", {
+    method: "POST",
     body: input,
   });
   return response.data as AuthSession["user"];

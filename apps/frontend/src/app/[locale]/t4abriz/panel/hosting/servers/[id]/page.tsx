@@ -32,6 +32,7 @@ export default function EditHostingServerPage(): React.ReactElement | null {
   const isAdmin = user?.role === "admin";
   const ta = useTranslations("admin");
   const tp = useTranslations("admin.pages.hostingPlans");
+  const ts = useTranslations("admin.pages.hostingServers");
   const tf = useTranslations("admin.forms");
   const tt = useTranslations("admin.toasts");
   const tc = useTranslations("dashboard.common");
@@ -96,29 +97,37 @@ export default function EditHostingServerPage(): React.ReactElement | null {
           { label: server.name },
         ]}
         actions={
-          server.panel === "PLESK" ? (
-            <button
-              type="button"
-              disabled={syncing}
-              onClick={async () => {
-                setSyncing(true);
-                try {
-                  const result = await syncPleskPlansFromServer(server.id);
-                  toast(
-                    tp("syncSuccess", { created: result.created, updated: result.updated }),
-                    "success",
-                  );
-                } catch (err) {
-                  toast(getApiErrorMessage(err, tp("syncFailed")), "error");
-                } finally {
-                  setSyncing(false);
-                }
-              }}
-              className="border-outline-variant inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold disabled:opacity-50"
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/t4abriz/panel/hosting/servers/${server.id}/setup`}
+              className="border-outline-variant inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold"
             >
-              {syncing ? tp("syncing") : tp("syncFromPlesk")}
-            </button>
-          ) : undefined
+              {ts("setupLink")}
+            </Link>
+            {server.panel === "PLESK" ? (
+              <button
+                type="button"
+                disabled={syncing}
+                onClick={async () => {
+                  setSyncing(true);
+                  try {
+                    const result = await syncPleskPlansFromServer(server.id);
+                    toast(
+                      tp("syncSuccess", { created: result.created, updated: result.updated }),
+                      "success",
+                    );
+                  } catch (err) {
+                    toast(getApiErrorMessage(err, tp("syncFailed")), "error");
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                className="border-outline-variant inline-flex h-10 items-center rounded-xl border px-4 text-sm font-semibold disabled:opacity-50"
+              >
+                {syncing ? tp("syncing") : tp("syncFromPlesk")}
+              </button>
+            ) : null}
+          </div>
         }
       />
 

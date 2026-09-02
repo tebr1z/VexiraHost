@@ -48,7 +48,7 @@ export async function checkout(
 ) {
   const res = await apiClient.request<{
     id: string;
-    invoice: { id: string; invoiceNumber: string; total: number } | null;
+    invoice: { id: string; invoiceNumber: string; total: number; status?: string } | null;
   }>("/orders/checkout", {
     method: "POST",
     body: {

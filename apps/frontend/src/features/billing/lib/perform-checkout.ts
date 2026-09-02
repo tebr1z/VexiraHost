@@ -143,6 +143,16 @@ export async function performCheckout(
     throw new Error("No invoice created");
   }
 
+  const invoiceTotal = Number(order.invoice.total ?? 0);
+  const invoicePaid = order.invoice.status === "PAID";
+
+  if (invoiceTotal <= 0 || invoicePaid) {
+    return {
+      orderId: order.id,
+      hasHosting: items.some((item) => item.category === "HOSTING"),
+    };
+  }
+
   const paymentMethod = options?.paymentMethod ?? "card";
 
   if (paymentMethod === "balance") {

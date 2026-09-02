@@ -24,6 +24,7 @@ import {
   isMockPanelServer,
   resolvePanelEndpoint,
 } from "../utils/panel-endpoint.util";
+import { generatePleskCompliantPassword } from "../utils/plesk-password.util";
 
 function hashSeed(input: string): number {
   let hash = 0;
@@ -33,10 +34,6 @@ function hashSeed(input: string): number {
   }
 
   return hash;
-}
-
-function generatePanelPassword(seed: number, username: string): string {
-  return `Vx${seed}${username.slice(0, 4)}!aA1`;
 }
 
 function testTcpReachable(host: string, port: number, timeoutMs = 5000): Promise<boolean> {
@@ -90,7 +87,7 @@ export class MockControlPanelProvider implements ControlPanelProvider {
 
     const seed = hashSeed(`${input.server.id}:${input.username}:${input.primaryDomain}`);
 
-    const panelPassword = generatePanelPassword(seed, input.username);
+    const panelPassword = generatePleskCompliantPassword(input.username);
 
     if (
       input.panel === HostingPanel.PLESK &&

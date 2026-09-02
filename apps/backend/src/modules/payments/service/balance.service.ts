@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 
 import { getBalanceCreditCopy, getBalancePaymentCopy } from "../email/balance-email.i18n";
+import { PaymentsRepository } from "../repository/payments.repository";
 
 import { BalanceEmailService } from "./balance-email.service";
 
@@ -29,6 +30,7 @@ export class BalanceService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly paymentsRepository: PaymentsRepository,
     private readonly orderFulfillmentService: OrderFulfillmentService,
     private readonly hostingBilling: HostingBillingService,
     private readonly domainBilling: DomainBillingService,
@@ -169,15 +171,47 @@ export class BalanceService {
       },
     });
     if (!invoice) throw new NotFoundException("Invoice not found");
-    if (invoice.status !== InvoiceStatus.OPEN) {
-      throw new BadRequestException("Invoice is not payable");
-    }
 
     const invoiceTotal = Number(invoice.total);
     const alreadyPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
     const amountDue = Math.max(0, Number((invoiceTotal - alreadyPaid).toFixed(2)));
-    if (amountDue <= 0) {
-      throw new BadRequestException("Invoice is already fully paid");
+
+    if (invoice.status === InvoiceStatus.PAID || amountDue <= 0) {
+      if (invoice.status === InvoiceStatus.OPEN && amountDue <= 0) {
+        await this.paymentsRepository.completeZeroAmountInvoice({
+          userId,
+          invoiceId: invoice.id,
+          orderId: invoice.orderId,
+          currency: invoice.currency,
+        });
+      }
+      if (invoice.orderId) {
+        await this.orderFulfillmentService.fulfillOrder(invoice.orderId);
+      } else {
+        await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
+        await this.domainBilling.activateAfterRenewalPayment(invoice.id);
+      }
+      const remaining = await this.getBalance(userId);
+      return {
+        mode: "completed" as const,
+        id: null,
+        status: PaymentStatus.COMPLETED,
+        amount: 0,
+        currency: invoice.currency,
+        gatewayRef: null,
+        invoiceId: invoice.id,
+        orderId: invoice.orderId,
+        paidWithBalance: true,
+        invoiceFullyPaid: true,
+        amountDue: 0,
+        remainingBalance: remaining.balance,
+        balanceCurrency: remaining.currency,
+        referenceNumber: null,
+      };
+    }
+
+    if (invoice.status !== InvoiceStatus.OPEN) {
+      throw new BadRequestException("Invoice is not payable");
     }
 
     const referenceNumber = generateBalanceReference();

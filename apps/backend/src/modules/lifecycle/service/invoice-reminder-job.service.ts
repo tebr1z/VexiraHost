@@ -58,6 +58,7 @@ export class InvoiceReminderJobService {
           reminder1dSentAt: null,
           user: {
             phone: { not: null },
+            phoneVerifiedAt: { not: null },
             whatsappNotificationsEnabled: true,
           },
         },

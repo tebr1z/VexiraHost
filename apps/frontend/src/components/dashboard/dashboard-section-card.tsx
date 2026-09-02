@@ -8,7 +8,7 @@ export function DashboardSectionCard({
   children,
   className,
 }: {
-  title?: string;
+  title?: React.ReactNode;
   description?: string;
   icon?: string;
   actions?: React.ReactNode;

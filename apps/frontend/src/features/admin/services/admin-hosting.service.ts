@@ -29,6 +29,8 @@ export interface AdminHostingAccount {
   panel: string;
   status: string;
   panelUrl: string | null;
+  provisionStage: string | null;
+  provisionError: string | null;
   provisionedAt: string | null;
   createdAt: string;
   plan: { id: string; slug: string; name: string };
@@ -207,4 +209,105 @@ export async function migrateAdminHostingAccounts(
     },
   );
   return res.data as { migrated: number; failed: number };
+}
+
+export async function retryAdminHostingProvision(id: string): Promise<AdminHostingAccount> {
+  const res = await apiClient.request<AdminHostingAccount>(
+    `/admin/hosting/accounts/${id}/retry-provision`,
+    { method: "POST" },
+  );
+  return res.data as AdminHostingAccount;
+}
+
+export async function reassignAdminHostingProvision(
+  id: string,
+  targetServerId: string,
+): Promise<AdminHostingAccount> {
+  const res = await apiClient.request<AdminHostingAccount>(
+    `/admin/hosting/accounts/${id}/reassign-provision`,
+    { method: "POST", body: { targetServerId } },
+  );
+  return res.data as AdminHostingAccount;
+}
+
+export interface ServerSetupStatus {
+  server: {
+    id: string;
+    name: string;
+    hostname: string;
+    ipAddress: string;
+    panel: string;
+    osVersion: string | null;
+    sshUsername: string | null;
+    sshPort: number;
+    sshConfigured: boolean;
+  };
+  mockRemote: boolean;
+  tools: {
+    git: string | null;
+    docker: string | null;
+    compose: string | null;
+    os: string | null;
+    probedAt: string;
+  } | null;
+  lastBootstrapLog: string | null;
+  activeBootstrapJobId: string | null;
+}
+
+export type BootstrapJobStep = {
+  id: string;
+  status: "pending" | "running" | "success" | "failed";
+  message?: string;
+};
+
+export type BootstrapJob = {
+  id: string;
+  serverId: string;
+  status: "running" | "success" | "failed";
+  currentStage: string;
+  steps: BootstrapJobStep[];
+  log: string;
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+};
+
+export async function getServerSetupStatus(serverId: string): Promise<ServerSetupStatus> {
+  const res = await apiClient.request<ServerSetupStatus>(
+    `/admin/hosting/servers/${serverId}/setup`,
+  );
+  return res.data as ServerSetupStatus;
+}
+
+export async function probeServerSetup(serverId: string): Promise<ServerSetupStatus> {
+  const res = await apiClient.request<ServerSetupStatus>(
+    `/admin/hosting/servers/${serverId}/setup/probe`,
+    { method: "POST" },
+  );
+  return res.data as ServerSetupStatus;
+}
+
+export async function testServerSetupSsh(
+  serverId: string,
+): Promise<{ ok: boolean; message: string; output: string }> {
+  const res = await apiClient.request<{ ok: boolean; message: string; output: string }>(
+    `/admin/hosting/servers/${serverId}/setup/test-ssh`,
+    { method: "POST" },
+  );
+  return res.data as { ok: boolean; message: string; output: string };
+}
+
+export async function bootstrapServerSetup(serverId: string): Promise<{ jobId: string }> {
+  const res = await apiClient.request<{ jobId: string }>(
+    `/admin/hosting/servers/${serverId}/setup/bootstrap`,
+    { method: "POST" },
+  );
+  return res.data as { jobId: string };
+}
+
+export async function getBootstrapJob(serverId: string, jobId: string): Promise<BootstrapJob> {
+  const res = await apiClient.request<BootstrapJob>(
+    `/admin/hosting/servers/${serverId}/setup/bootstrap/${jobId}`,
+  );
+  return res.data as BootstrapJob;
 }

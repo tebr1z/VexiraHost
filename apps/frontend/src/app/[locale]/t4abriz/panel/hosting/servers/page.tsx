@@ -215,6 +215,12 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                       href={`/t4abriz/panel/hosting/servers/${server.id}`}
                       label={tu("edit")}
                     />
+                    <Link
+                      href={`/t4abriz/panel/hosting/servers/${server.id}/setup`}
+                      className="border-outline-variant hover:bg-surface-container-low inline-flex h-9 items-center rounded-xl border px-4 text-sm font-semibold"
+                    >
+                      {tp("setupLink")}
+                    </Link>
                   </div>
                 </div>
 

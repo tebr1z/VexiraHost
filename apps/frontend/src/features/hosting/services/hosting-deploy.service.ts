@@ -35,6 +35,7 @@ export interface DeploymentDetail extends DeploymentSummary {
   hostPort: number;
   containerName: string | null;
   deployPath: string | null;
+  envVars: Record<string, string>;
   runs: Array<{
     id: string;
     status: DeployStatus;
@@ -50,7 +51,8 @@ export interface CreateDeploymentInput {
   stack: DeployStack;
   domainMode: DeployDomainMode;
   subdomain?: string;
-  repoUrl: string;
+  repoUrl?: string;
+  githubRepoFullName?: string;
   branch?: string;
   rootDirectory?: string;
   envVars?: Record<string, string>;
@@ -93,4 +95,51 @@ export async function redeployApplication(
     { method: "POST", body: {} },
   );
   return res.data!;
+}
+
+export async function updateDeploymentEnv(
+  accountId: string,
+  deploymentId: string,
+  envVars: Record<string, string>,
+  redeploy = false,
+): Promise<{ id: string; message: string }> {
+  const res = await apiClient.request<{ id: string; message: string }>(
+    `/hosting/${accountId}/deployments/${deploymentId}/env`,
+    { method: "PATCH", body: { envVars, redeploy } },
+  );
+  return res.data!;
+}
+
+export interface DeployHealthCheckItem {
+  id: "container" | "port" | "domain" | "public";
+  ok: boolean;
+  label: string;
+  detail: string;
+}
+
+export interface DeployHealthResult {
+  ok: boolean;
+  checkedAt: string;
+  hostPort: number;
+  containerPort: number;
+  containerName: string | null;
+  deployDomain: string;
+  checks: DeployHealthCheckItem[];
+}
+
+export async function checkDeploymentHealth(
+  accountId: string,
+  deploymentId: string,
+): Promise<DeployHealthResult> {
+  const res = await apiClient.request<DeployHealthResult>(
+    `/hosting/${accountId}/deployments/${deploymentId}/health`,
+    { method: "POST", body: {} },
+  );
+  return res.data as DeployHealthResult;
+}
+
+export function formatEnvVars(env: Record<string, string>): string {
+  return Object.entries(env)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
 }

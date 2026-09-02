@@ -8,11 +8,13 @@ import {
   Post,
   Query,
   UseGuards,
+  BadRequestException,
 } from "@nestjs/common";
 import { UserRole } from "@vexira/types";
 
 import { Roles } from "@/decorators/auth.decorators";
 import { RolesGuard } from "@/guards/roles.guard";
+import { ServerSetupService } from "@/modules/deploy/service/server-setup.service";
 import {
   MigrateHostingAccountsDto,
   UpdateHostingAccountStatusDto,
@@ -26,7 +28,10 @@ import { HostingServersService } from "@/modules/hosting/service/hosting-servers
 @Controller("admin/hosting")
 @UseGuards(RolesGuard)
 export class AdminHostingController {
-  constructor(private readonly hostingServersService: HostingServersService) {}
+  constructor(
+    private readonly hostingServersService: HostingServersService,
+    private readonly serverSetupService: ServerSetupService,
+  ) {}
 
   @Get("servers")
   @Roles(UserRole.ADMIN)
@@ -62,6 +67,36 @@ export class AdminHostingController {
   @Roles(UserRole.ADMIN)
   testServer(@Param("id") id: string) {
     return this.hostingServersService.testServer(id);
+  }
+
+  @Get("servers/:id/setup")
+  @Roles(UserRole.ADMIN)
+  getServerSetup(@Param("id") id: string) {
+    return this.serverSetupService.getStatus(id);
+  }
+
+  @Post("servers/:id/setup/probe")
+  @Roles(UserRole.ADMIN)
+  probeServerSetup(@Param("id") id: string) {
+    return this.serverSetupService.probeTools(id);
+  }
+
+  @Post("servers/:id/setup/test-ssh")
+  @Roles(UserRole.ADMIN)
+  testServerSsh(@Param("id") id: string) {
+    return this.serverSetupService.testSsh(id);
+  }
+
+  @Post("servers/:id/setup/bootstrap")
+  @Roles(UserRole.ADMIN)
+  bootstrapServer(@Param("id") id: string) {
+    return this.serverSetupService.startBootstrap(id);
+  }
+
+  @Get("servers/:id/setup/bootstrap/:jobId")
+  @Roles(UserRole.ADMIN)
+  getBootstrapJob(@Param("id") id: string, @Param("jobId") jobId: string) {
+    return this.serverSetupService.getBootstrapJob(id, jobId);
   }
 
   @Get("servers/:id/plesk-plans")
@@ -104,5 +139,23 @@ export class AdminHostingController {
   @Roles(UserRole.ADMIN)
   migrateAccounts(@Body() dto: MigrateHostingAccountsDto) {
     return this.hostingServersService.migrateAccounts(dto);
+  }
+
+  @Post("accounts/:id/retry-provision")
+  @Roles(UserRole.ADMIN)
+  retryAccountProvision(@Param("id") id: string) {
+    return this.hostingServersService.adminRetryProvision(id);
+  }
+
+  @Post("accounts/:id/reassign-provision")
+  @Roles(UserRole.ADMIN)
+  reassignAccountProvision(@Param("id") id: string, @Body() body: { targetServerId: string }) {
+    if (!body.targetServerId?.trim()) {
+      throw new BadRequestException("targetServerId is required");
+    }
+    return this.hostingServersService.adminReassignAndRetryProvision(
+      id,
+      body.targetServerId.trim(),
+    );
   }
 }

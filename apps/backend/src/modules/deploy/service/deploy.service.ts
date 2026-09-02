@@ -7,15 +7,28 @@ import {
 import { DeployDomainMode, ServiceStatus } from "@prisma/client";
 
 import { CreateDeploymentDto } from "../dto/create-deployment.dto";
+import { UpdateDeploymentEnvDto } from "../dto/update-deployment-env.dto";
 import { DeployRepository } from "../repository/deploy.repository";
 import { defaultContainerPort } from "../utils/docker-templates.util";
 
+import { DeployHealthService } from "./deploy-health.service";
 import { DeployRunner } from "./deploy.runner";
+import { GitHubDeployService } from "./github-deploy.service";
 import { PleskSiteService } from "./plesk-site.service";
 import { PortAllocationService } from "./port-allocation.service";
+import { RemoteDeployService } from "./remote-deploy.service";
 
 import { HostingRepository } from "@/modules/hosting/repository/hosting.repository";
-import { encryptSecret } from "@/utils/crypto.util";
+import { decryptSecret, encryptSecret } from "@/utils/crypto.util";
+
+function parseEnvVars(enc: string | null | undefined): Record<string, string> {
+  if (!enc) return {};
+  try {
+    return JSON.parse(decryptSecret(enc)) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
 
 function serializeDeployment(deployment: Awaited<ReturnType<DeployRepository["findByIdForUser"]>>) {
   if (!deployment) return null;
@@ -41,6 +54,7 @@ function serializeDeployment(deployment: Awaited<ReturnType<DeployRepository["fi
     lastDeployedAt: deployment.lastDeployedAt,
     createdAt: deployment.createdAt,
     updatedAt: deployment.updatedAt,
+    envVars: parseEnvVars(deployment.envVarsEnc),
     runs: deployment.runs?.map((run) => ({
       id: run.id,
       status: run.status,
@@ -60,6 +74,9 @@ export class DeployService {
     private readonly pleskSite: PleskSiteService,
     private readonly portAllocation: PortAllocationService,
     private readonly deployRunner: DeployRunner,
+    private readonly githubDeploy: GitHubDeployService,
+    private readonly remoteDeploy: RemoteDeployService,
+    private readonly deployHealth: DeployHealthService,
   ) {}
 
   async list(accountId: string, userId: string) {
@@ -103,6 +120,11 @@ export class DeployService {
 
     const deployDomain = this.pleskSite.resolveDeployDomain(account, dto.domainMode, dto.subdomain);
 
+    const repoUrl = this.resolveRepoUrl(dto);
+    if (!repoUrl) {
+      throw new BadRequestException("Repository URL or GitHub repository is required");
+    }
+
     const hostPort = await this.portAllocation.allocate(account.serverId!);
     const envVarsEnc =
       dto.envVars && Object.keys(dto.envVars).length > 0
@@ -117,7 +139,7 @@ export class DeployService {
       domainMode: dto.domainMode,
       subdomain: dto.subdomain?.trim().toLowerCase() ?? null,
       deployDomain,
-      repoUrl: dto.repoUrl.trim(),
+      repoUrl,
       branch: dto.branch?.trim() || "main",
       rootDirectory: dto.rootDirectory?.trim() || null,
       containerPort: defaultContainerPort(dto.stack),
@@ -154,6 +176,76 @@ export class DeployService {
     this.deployRunner.enqueue(deploymentId);
 
     return { id: deploymentId, message: "Redeploy queued" };
+  }
+
+  async updateEnv(
+    accountId: string,
+    deploymentId: string,
+    userId: string,
+    dto: UpdateDeploymentEnvDto,
+  ) {
+    const account = await this.assertAccount(accountId, userId);
+    const deployment = await this.deployRepository.findByIdForUser(deploymentId, userId);
+    if (!deployment || deployment.hostingAccountId !== accountId) {
+      throw new NotFoundException("Deployment not found");
+    }
+    if (deployment.status === "RUNNING") {
+      throw new BadRequestException("Wait for the current deploy to finish before changing env");
+    }
+
+    const envVars = dto.envVars ?? {};
+    const envVarsEnc =
+      Object.keys(envVars).length > 0 ? encryptSecret(JSON.stringify(envVars)) : null;
+
+    await this.deployRepository.update(deploymentId, { envVarsEnc });
+
+    if (dto.redeploy) {
+      await this.deployRepository.update(deploymentId, {
+        status: "PENDING",
+        stage: null,
+        lastError: null,
+      });
+      this.deployRunner.enqueue(deploymentId);
+      return { id: deploymentId, message: "Environment saved — full redeploy queued" };
+    }
+
+    const server = account.server ?? deployment.hostingAccount.server;
+    if (
+      deployment.status === "SUCCESS" &&
+      deployment.containerName &&
+      deployment.deployPath &&
+      server
+    ) {
+      await this.remoteDeploy.restartContainer({
+        server,
+        deployPath: deployment.deployPath,
+        containerName: deployment.containerName,
+        hostPort: deployment.hostPort,
+        containerPort: deployment.containerPort,
+        envVars,
+      });
+      return { id: deploymentId, message: "Environment saved and container restarted" };
+    }
+
+    return { id: deploymentId, message: "Environment saved — redeploy to apply" };
+  }
+
+  async checkHealth(accountId: string, deploymentId: string, userId: string) {
+    const account = await this.assertAccount(accountId, userId);
+    const deployment = await this.deployRepository.findByIdForUser(deploymentId, userId);
+    if (!deployment || deployment.hostingAccountId !== accountId) {
+      throw new NotFoundException("Deployment not found");
+    }
+    if (deployment.status !== "SUCCESS") {
+      throw new BadRequestException("Health check is available only for successful deployments");
+    }
+
+    const server = account.server;
+    if (!server) {
+      throw new BadRequestException("Hosting server is not assigned");
+    }
+
+    return this.deployHealth.check(deployment, server);
   }
 
   private async assertAccount(accountId: string, userId: string) {
@@ -193,5 +285,15 @@ export class DeployService {
         "This hosting account is not on a Plesk server linked to its plan",
       );
     }
+  }
+
+  private resolveRepoUrl(dto: CreateDeploymentDto): string | null {
+    const manual = dto.repoUrl?.trim();
+    if (manual) return manual;
+    const fullName = dto.githubRepoFullName?.trim();
+    if (fullName) {
+      return this.githubDeploy.resolveRepoUrlFromSelection(fullName);
+    }
+    return null;
   }
 }

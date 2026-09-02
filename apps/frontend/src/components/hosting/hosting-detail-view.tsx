@@ -176,6 +176,7 @@ export function HostingDetailView({
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.hosting");
+  const td = useTranslations("dashboard.pages.hosting.deploy");
   const ts = useTranslations("dashboard.pages.services");
   const tprov = useTranslations("dashboard.provision");
 
@@ -233,6 +234,8 @@ export function HostingDetailView({
           stage={account.provisionStage}
           error={account.provisionError}
           status={account.status}
+          onRetry={account.status === "FAILED" ? onRetry : undefined}
+          retryLoading={retryLoading}
         />
       )}
 
@@ -541,6 +544,31 @@ export function HostingDetailView({
             primaryDomain={account.primaryDomain}
             enabled
           />
+        </div>
+      ) : account.panel === "PLESK" ? (
+        <div id="hosting-deploy">
+          <DashboardSectionCard
+            title={td("title")}
+            description={td("subtitle", { domain: account.primaryDomain })}
+            icon="rocket_launch"
+          >
+            <p className="text-sm text-[var(--label-secondary)]">
+              {account.status === "FAILED"
+                ? td("unavailableFailed")
+                : account.status === "PROVISIONING"
+                  ? td("unavailableProvisioning")
+                  : !account.plan.autoDeployEnabled
+                    ? td("unavailablePlan")
+                    : account.status !== "ACTIVE"
+                      ? td("unavailableInactive")
+                      : td("unavailableProvisioning")}
+            </p>
+            <ul className="mt-3 list-inside list-disc space-y-1 text-xs text-[var(--label-tertiary)]">
+              <li>{td("featureGitHub")}</li>
+              <li>{td("featureEnv")}</li>
+              <li>{td("featureDocker")}</li>
+            </ul>
+          </DashboardSectionCard>
         </div>
       ) : null}
 

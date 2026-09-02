@@ -8,6 +8,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 
 export class CreateDeploymentDto {
@@ -28,10 +29,17 @@ export class CreateDeploymentDto {
   @Matches(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/)
   subdomain?: string;
 
+  @ValidateIf((dto: CreateDeploymentDto) => !dto.githubRepoFullName?.trim())
   @IsString()
   @MaxLength(500)
   @Matches(/^(https?:\/\/|git@)[^\s]+$/)
-  repoUrl!: string;
+  repoUrl?: string;
+
+  @ValidateIf((dto: CreateDeploymentDto) => !dto.repoUrl?.trim())
+  @IsString()
+  @MaxLength(200)
+  @Matches(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)
+  githubRepoFullName?: string;
 
   @IsOptional()
   @IsString()

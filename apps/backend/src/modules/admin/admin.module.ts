@@ -27,6 +27,7 @@ import { AdminService } from "./service/admin.service";
 
 import { RolesGuard } from "@/guards/roles.guard";
 import { AuthModule } from "@/modules/auth/auth.module";
+import { DeployModule } from "@/modules/deploy/deploy.module";
 import { DomainsModule } from "@/modules/domains/domains.module";
 import { HostingModule } from "@/modules/hosting/hosting.module";
 import { LicensesModule } from "@/modules/licenses/licenses.module";
@@ -38,6 +39,7 @@ import { WhatsappModule } from "@/modules/whatsapp/whatsapp.module";
   imports: [
     AuthModule,
     HostingModule,
+    DeployModule,
     LicensesModule,
     WhatsappModule,
     DomainsModule,

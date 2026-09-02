@@ -60,6 +60,7 @@ model User {
    * E.164-compatible contact number used for WhatsApp service notifications.
    */
   phone                        String?
+  phoneVerifiedAt              DateTime?
   whatsappNotificationsEnabled Boolean    @default(true)
   /**
    * When true, password login requires a one-time code emailed to the user.
@@ -104,6 +105,7 @@ model User {
   whatsappApiAccess       WhatsappApiAccess?
   whatsappApiKeys         WhatsappApiKey[]
   whatsappApiUsages       WhatsappApiUsage[]
+  githubDeployConnection  UserGitHubConnection?
 
   @@map("users")
 }
@@ -232,10 +234,12 @@ model EmailLoginOtp {
   /**
    * LOGIN = password sign-in challenge
    * EMAIL_2FA = confirm enable/disable of email two-factor
+   * PHONE_VERIFY = WhatsApp OTP to confirm contact number
    */
   purpose        String    @default("LOGIN")
   rememberMe     Boolean   @default(false)
   desiredEnabled Boolean?
+  pendingPhone   String?
   expiresAt      DateTime
   consumedAt     DateTime?
   createdAt      DateTime  @default(now())
@@ -255,6 +259,21 @@ model OAuthAccount {
 
   @@unique([provider, providerId])
   @@map("oauth_accounts")
+}
+
+/** GitHub OAuth token for private repo deploy (separate from login OAuth). */
+model UserGitHubConnection {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  githubUserId   String
+  githubLogin    String
+  accessTokenEnc String
+  scope          String?
+  connectedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("user_github_connections")
 }
 
 enum ProductCategory {

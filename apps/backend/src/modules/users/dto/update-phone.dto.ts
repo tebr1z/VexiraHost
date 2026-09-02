@@ -1,12 +1,11 @@
-import { IsBoolean, IsOptional, IsString, MinLength } from "class-validator";
+import { IsBoolean, IsOptional } from "class-validator";
 
 export class UpdatePhoneDto {
   @IsOptional()
-  @IsString()
-  @MinLength(8)
-  phone?: string | null;
+  @IsBoolean()
+  whatsappNotificationsEnabled?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  whatsappNotificationsEnabled?: boolean;
+  removePhone?: boolean;
 }

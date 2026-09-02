@@ -679,6 +679,8 @@ export class AuthService {
       nextCurrencyChangeAt: null,
       billingAddress: normalizeBillingAddress(user.billingAddress),
       phone: user.phone ?? null,
+      phoneVerified: Boolean(user.phoneVerifiedAt),
+      phoneVerifiedAt: user.phoneVerifiedAt?.toISOString() ?? null,
       whatsappNotificationsEnabled: user.whatsappNotificationsEnabled,
       emailTwoFactorEnabled: user.emailTwoFactorEnabled,
       totpEnabled: user.totpEnabled,

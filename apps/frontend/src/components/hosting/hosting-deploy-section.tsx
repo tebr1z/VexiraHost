@@ -1,18 +1,30 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { MaterialIcon } from "@/components/landing/material-icon";
 import { StatusBadge } from "@/components/ui";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import {
+  disconnectGitHub,
+  getGitHubConnectUrl,
+  getGitHubDeployStatus,
+  listGitHubRepos,
+  type GitHubRepoSummary,
+} from "@/features/hosting/services/github-deploy.service";
+import {
   createDeployment,
+  checkDeploymentHealth,
+  formatEnvVars,
   getDeployment,
   listDeployments,
   redeployApplication,
+  updateDeploymentEnv,
   type DeployDomainMode,
+  type DeployHealthResult,
+  type DeployHealthCheckItem,
   type DeployStack,
   type DeploymentSummary,
 } from "@/features/hosting/services/hosting-deploy.service";
@@ -30,6 +42,15 @@ function stageLabel(stage: string | null | undefined, t: (key: string) => string
     return t(key as "stagePending");
   } catch {
     return stage;
+  }
+}
+
+function healthCheckLabel(id: DeployHealthCheckItem["id"], t: (key: string) => string): string {
+  const key = `healthCheck_${id}`;
+  try {
+    return t(key as "healthCheck_container");
+  } catch {
+    return id;
   }
 }
 
@@ -51,12 +72,27 @@ export function HostingDeploySection({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedLog, setExpandedLog] = useState<string>("");
   const [redeployingId, setRedeployingId] = useState<string | null>(null);
+  const [envEditId, setEnvEditId] = useState<string | null>(null);
+  const [envEditText, setEnvEditText] = useState("");
+  const [savingEnvId, setSavingEnvId] = useState<string | null>(null);
+  const [healthById, setHealthById] = useState<Record<string, DeployHealthResult>>({});
+  const [healthOpenId, setHealthOpenId] = useState<string | null>(null);
+  const [checkingHealthId, setCheckingHealthId] = useState<string | null>(null);
+  const logScrollRef = useRef<HTMLDivElement>(null);
+  const stickLogToBottomRef = useRef(true);
 
   const [name, setName] = useState("");
   const [stack, setStack] = useState<DeployStack>("NEXTJS");
   const [domainMode, setDomainMode] = useState<DeployDomainMode>("SUBDOMAIN");
   const [subdomain, setSubdomain] = useState("app");
   const [repoUrl, setRepoUrl] = useState("");
+  const [repoSource, setRepoSource] = useState<"github" | "manual">("github");
+  const [selectedGithubRepo, setSelectedGithubRepo] = useState<GitHubRepoSummary | null>(null);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubLogin, setGithubLogin] = useState<string | null>(null);
+  const [githubRepos, setGithubRepos] = useState<GitHubRepoSummary[]>([]);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubConnecting, setGithubConnecting] = useState(false);
   const [branch, setBranch] = useState("main");
   const [rootDirectory, setRootDirectory] = useState("");
   const [envText, setEnvText] = useState("");
@@ -85,16 +121,116 @@ export function HostingDeploySection({
   }, [enabled, load]);
 
   useEffect(() => {
-    if (!enabled) return;
-    const active = items.some((item) => item.status === "RUNNING" || item.status === "PENDING");
-    if (!active) return;
-    const timer = window.setInterval(() => void load(), 4000);
-    return () => window.clearInterval(timer);
-  }, [enabled, items, load]);
+    if (!enabled || !showForm) return;
+    void (async () => {
+      setGithubLoading(true);
+      try {
+        const status = await getGitHubDeployStatus();
+        setGithubConnected(status.connected);
+        setGithubLogin(status.githubLogin ?? null);
+        if (status.connected) {
+          const { repos } = await listGitHubRepos();
+          setGithubRepos(repos);
+        }
+      } catch {
+        setGithubConnected(false);
+      } finally {
+        setGithubLoading(false);
+      }
+    })();
+  }, [enabled, showForm]);
 
-  const parseEnvVars = (): Record<string, string> => {
+  useEffect(() => {
+    if (!enabled) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("github") === "connected") {
+      toast(t("githubConnected"), "success");
+      params.delete("github");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", next);
+      setShowForm(true);
+    }
+  }, [enabled, t]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const poll = async () => {
+      try {
+        const data = await listDeployments(accountId);
+        setItems(data);
+        const running = data.find((i) => i.status === "RUNNING" || i.status === "PENDING");
+        setExpandedId((prev) => {
+          const focusId = prev ?? running?.id ?? null;
+          if (!focusId) return prev;
+          const row = data.find((i) => i.id === focusId);
+          if (row?.latestRun?.log) setExpandedLog(row.latestRun.log);
+          return focusId;
+        });
+      } catch {
+        /* keep polling */
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 1500);
+    return () => window.clearInterval(timer);
+  }, [enabled, accountId]);
+
+  useEffect(() => {
+    if (expandedId) stickLogToBottomRef.current = true;
+  }, [expandedId]);
+
+  useEffect(() => {
+    const el = logScrollRef.current;
+    if (!el || !stickLogToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [expandedLog]);
+
+  const onLogScroll = () => {
+    const el = logScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickLogToBottomRef.current = distanceFromBottom < 48;
+  };
+
+  const onConnectGitHub = async () => {
+    setGithubConnecting(true);
+    try {
+      const returnTo = window.location.href.split("?")[0];
+      const url = await getGitHubConnectUrl(returnTo);
+      window.location.href = url;
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("githubConnectFailed")), "error");
+      setGithubConnecting(false);
+    }
+  };
+
+  const onDisconnectGitHub = async () => {
+    try {
+      await disconnectGitHub();
+      setGithubConnected(false);
+      setGithubLogin(null);
+      setGithubRepos([]);
+      setSelectedGithubRepo(null);
+      toast(t("githubDisconnected"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("githubDisconnectFailed")), "error");
+    }
+  };
+
+  const onSelectGithubRepo = (fullName: string) => {
+    const repo = githubRepos.find((item) => item.fullName === fullName) ?? null;
+    setSelectedGithubRepo(repo);
+    if (repo) {
+      setBranch(repo.defaultBranch);
+      setRepoUrl(repo.cloneUrl);
+    }
+  };
+
+  const parseEnvText = (text: string): Record<string, string> => {
     const result: Record<string, string> = {};
-    for (const line of envText.split("\n")) {
+    for (const line of text.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) continue;
       const idx = trimmed.indexOf("=");
@@ -104,8 +240,12 @@ export function HostingDeploySection({
     return result;
   };
 
+  const parseEnvVars = (): Record<string, string> => parseEnvText(envText);
+
   const onCreate = async () => {
-    if (!name.trim() || !repoUrl.trim()) {
+    const hasGithubRepo = repoSource === "github" && selectedGithubRepo;
+    const hasManualRepo = repoSource === "manual" && repoUrl.trim();
+    if (!name.trim() || (!hasGithubRepo && !hasManualRepo)) {
       toast(t("validationRequired"), "error");
       return;
     }
@@ -116,13 +256,17 @@ export function HostingDeploySection({
         stack,
         domainMode,
         subdomain: domainMode === "SUBDOMAIN" ? subdomain.trim().toLowerCase() : undefined,
-        repoUrl: repoUrl.trim(),
+        ...(hasGithubRepo
+          ? { githubRepoFullName: selectedGithubRepo!.fullName }
+          : { repoUrl: repoUrl.trim() }),
         branch: branch.trim() || "main",
         rootDirectory: rootDirectory.trim() || undefined,
         envVars: parseEnvVars(),
       });
       toast(t("created", { domain: created.deployDomain }), "success");
       setShowForm(false);
+      setExpandedId(created.id);
+      setExpandedLog("");
       await load();
     } catch (err) {
       toast(getApiErrorMessage(err, t("createFailed")), "error");
@@ -149,6 +293,8 @@ export function HostingDeploySection({
 
   const onRedeploy = async (id: string) => {
     setRedeployingId(id);
+    setExpandedId(id);
+    setExpandedLog("");
     try {
       await redeployApplication(accountId, id);
       toast(t("redeployQueued"), "success");
@@ -160,11 +306,64 @@ export function HostingDeploySection({
     }
   };
 
+  const onOpenEnv = async (id: string) => {
+    if (envEditId === id) {
+      setEnvEditId(null);
+      return;
+    }
+    try {
+      const detail = await getDeployment(accountId, id);
+      setEnvEditText(formatEnvVars(detail.envVars ?? {}));
+      setEnvEditId(id);
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("loadFailed")), "error");
+    }
+  };
+
+  const onSaveEnv = async (id: string, redeploy: boolean) => {
+    setSavingEnvId(id);
+    try {
+      await updateDeploymentEnv(accountId, id, parseEnvText(envEditText), redeploy);
+      toast(redeploy ? t("envSavedRedeploy") : t("envSavedRestart"), "success");
+      setEnvEditId(null);
+      if (redeploy) {
+        setExpandedId(id);
+        setExpandedLog("");
+      }
+      await load();
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("envSaveFailed")), "error");
+    } finally {
+      setSavingEnvId(null);
+    }
+  };
+
+  const onCheckHealth = async (id: string) => {
+    setCheckingHealthId(id);
+    setHealthOpenId(id);
+    try {
+      const result = await checkDeploymentHealth(accountId, id);
+      setHealthById((prev) => ({ ...prev, [id]: result }));
+      toast(result.ok ? t("healthOk") : t("healthFailed"), result.ok ? "success" : "error");
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("healthCheckFailed")), "error");
+    } finally {
+      setCheckingHealthId(null);
+    }
+  };
+
   if (!enabled) return null;
 
   return (
     <DashboardSectionCard
-      title={t("title")}
+      title={
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {t("title")}
+          <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            {t("betaBadge")}
+          </span>
+        </span>
+      }
       description={t("subtitle", { domain: primaryDomain })}
       icon="rocket_launch"
       actions={
@@ -244,15 +443,100 @@ export function HostingDeploySection({
             <span className="font-mono text-[var(--accent)]">https://{previewDomain}</span>
           </p>
 
-          <label className="block space-y-1.5 text-sm">
-            <span className="font-medium text-[var(--label-primary)]">{t("repoUrl")}</span>
-            <input
-              value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/user/repo.git"
-              className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 font-mono text-xs"
-            />
-          </label>
+          <div className="space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-[var(--label-primary)]">
+                {t("repoSource")}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRepoSource("github")}
+                  className={cn(
+                    "h-8 rounded-lg px-3 text-xs font-semibold",
+                    repoSource === "github"
+                      ? "bg-[var(--accent)] text-white"
+                      : "border border-[var(--separator)]",
+                  )}
+                >
+                  GitHub
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRepoSource("manual")}
+                  className={cn(
+                    "h-8 rounded-lg px-3 text-xs font-semibold",
+                    repoSource === "manual"
+                      ? "bg-[var(--accent)] text-white"
+                      : "border border-[var(--separator)]",
+                  )}
+                >
+                  {t("manualRepo")}
+                </button>
+              </div>
+            </div>
+
+            {repoSource === "github" ? (
+              <div className="space-y-3">
+                {githubLoading ? (
+                  <p className="text-xs text-[var(--label-secondary)]">{t("githubLoading")}</p>
+                ) : githubConnected ? (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-[var(--label-secondary)]">
+                        {t("githubConnectedAs", { login: githubLogin ?? "GitHub" })}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void onDisconnectGitHub()}
+                        className="text-xs text-[var(--danger)] hover:underline"
+                      >
+                        {t("githubDisconnect")}
+                      </button>
+                    </div>
+                    <label className="block space-y-1.5 text-sm">
+                      <span className="font-medium text-[var(--label-primary)]">
+                        {t("selectRepo")}
+                      </span>
+                      <select
+                        value={selectedGithubRepo?.fullName ?? ""}
+                        onChange={(e) => onSelectGithubRepo(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 text-sm"
+                      >
+                        <option value="">{t("selectRepoPlaceholder")}</option>
+                        {githubRepos.map((repo) => (
+                          <option key={repo.id} value={repo.fullName}>
+                            {repo.fullName}
+                            {repo.private ? ` (${t("privateRepo")})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={githubConnecting}
+                    onClick={() => void onConnectGitHub()}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--separator)] px-4 text-sm font-semibold disabled:opacity-60"
+                  >
+                    <MaterialIcon name="link" className="text-[18px]" />
+                    {githubConnecting ? t("githubConnecting") : t("connectGitHub")}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium text-[var(--label-primary)]">{t("repoUrl")}</span>
+                <input
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  placeholder="https://github.com/user/repo.git"
+                  className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 font-mono text-xs"
+                />
+              </label>
+            )}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1.5 text-sm">
@@ -276,6 +560,7 @@ export function HostingDeploySection({
 
           <label className="block space-y-1.5 text-sm">
             <span className="font-medium text-[var(--label-primary)]">{t("envVars")}</span>
+            <p className="text-xs text-[var(--label-tertiary)]">{t("envEditHint")}</p>
             <textarea
               value={envText}
               onChange={(e) => setEnvText(e.target.value)}
@@ -305,70 +590,240 @@ export function HostingDeploySection({
       ) : items.length === 0 ? (
         <p className="text-sm text-[var(--label-secondary)]">{t("empty")}</p>
       ) : (
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <li
-              key={item.id}
-              className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-[var(--label-primary)]">{item.name}</p>
-                    <StatusBadge status={item.status} />
-                    <span className="rounded-lg bg-[var(--bg-secondary)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
-                      {t(`stack_${item.stack}`)}
-                    </span>
+        <ul className="space-y-4">
+          {items.map((item) => {
+            const isRunning = item.status === "RUNNING" || item.status === "PENDING";
+            const isExpanded = expandedId === item.id;
+            const showLogs = isExpanded;
+            return (
+              <li
+                key={item.id}
+                className={cn(
+                  "rounded-2xl border bg-[var(--bg-elevated)] p-4 transition-colors",
+                  isRunning ? "border-[var(--accent)]/40" : "border-[var(--separator)]",
+                )}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-[var(--label-primary)]">{item.name}</p>
+                      <StatusBadge status={item.status} />
+                      <span className="rounded-lg bg-[var(--bg-secondary)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
+                        {t(`stack_${item.stack}`)}
+                      </span>
+                      {isRunning ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--accent)]">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
+                          {t("liveLogs")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <a
+                      href={`https://${item.deployDomain}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-sm text-[var(--accent)] hover:underline"
+                    >
+                      {item.deployDomain}
+                      <MaterialIcon name="open_in_new" className="text-[14px]" />
+                    </a>
+                    <p className="mt-1 text-xs text-[var(--label-tertiary)]">
+                      {stageLabel(item.stage, t)}
+                      {item.lastDeployedAt
+                        ? ` · ${t("lastDeployed", { date: formatDate(item.lastDeployedAt, locale) })}`
+                        : null}
+                    </p>
+                    {item.lastError ? (
+                      <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-[var(--danger)]">
+                        {item.lastError}
+                      </p>
+                    ) : null}
                   </div>
-                  <a
-                    href={`https://${item.deployDomain}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-sm text-[var(--accent)] hover:underline"
-                  >
-                    {item.deployDomain}
-                    <MaterialIcon name="open_in_new" className="text-[14px]" />
-                  </a>
-                  <p className="mt-1 text-xs text-[var(--label-tertiary)]">
-                    {stageLabel(item.stage, t)}
-                    {item.lastDeployedAt
-                      ? ` · ${t("lastDeployed", { date: formatDate(item.lastDeployedAt, locale) })}`
-                      : null}
-                  </p>
-                  {item.lastError ? (
-                    <p className="mt-2 text-xs text-[var(--danger)]">{item.lastError}</p>
-                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {item.status === "SUCCESS" ? (
+                      <button
+                        type="button"
+                        disabled={checkingHealthId === item.id || isRunning}
+                        onClick={() => void onCheckHealth(item.id)}
+                        className={cn(
+                          "inline-flex h-9 items-center gap-1 rounded-lg border px-3 text-xs font-medium",
+                          healthOpenId === item.id && healthById[item.id]?.ok
+                            ? "border-emerald-500/50 text-emerald-600"
+                            : healthOpenId === item.id &&
+                                healthById[item.id] &&
+                                !healthById[item.id]?.ok
+                              ? "border-amber-500/50 text-amber-600"
+                              : "border-[var(--separator)]",
+                        )}
+                      >
+                        <MaterialIcon
+                          name="monitor_heart"
+                          className={cn(
+                            "text-[16px]",
+                            checkingHealthId === item.id && "animate-pulse",
+                          )}
+                        />
+                        {checkingHealthId === item.id ? t("healthChecking") : t("healthCheck")}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void onOpenEnv(item.id)}
+                      className={cn(
+                        "inline-flex h-9 items-center gap-1 rounded-lg border px-3 text-xs font-medium",
+                        envEditId === item.id
+                          ? "border-[var(--accent)] text-[var(--accent)]"
+                          : "border-[var(--separator)]",
+                      )}
+                    >
+                      <MaterialIcon name="tune" className="text-[16px]" />
+                      {t("editEnv")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void onExpand(item.id)}
+                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium"
+                    >
+                      <MaterialIcon name="terminal" className="text-[16px]" />
+                      {isExpanded ? t("hideLogs") : t("viewLogs")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isRunning || redeployingId === item.id}
+                      onClick={() => void onRedeploy(item.id)}
+                      className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium disabled:opacity-50"
+                    >
+                      <MaterialIcon
+                        name="refresh"
+                        className={cn("text-[16px]", redeployingId === item.id && "animate-spin")}
+                      />
+                      {t("redeploy")}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void onExpand(item.id)}
-                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium"
-                  >
-                    <MaterialIcon name="terminal" className="text-[16px]" />
-                    {expandedId === item.id ? t("hideLogs") : t("viewLogs")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={item.status === "RUNNING" || redeployingId === item.id}
-                    onClick={() => void onRedeploy(item.id)}
-                    className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--separator)] px-3 text-xs font-medium disabled:opacity-50"
-                  >
-                    <MaterialIcon
-                      name="refresh"
-                      className={cn("text-[16px]", redeployingId === item.id && "animate-spin")}
+
+                {envEditId === item.id ? (
+                  <div className="mt-4 space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--label-primary)]">
+                        {t("envVars")}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--label-tertiary)]">
+                        {t("envEditHint")}
+                      </p>
+                    </div>
+                    <textarea
+                      value={envEditText}
+                      onChange={(e) => setEnvEditText(e.target.value)}
+                      rows={5}
+                      className="w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-xs"
+                      placeholder={"NEXT_PUBLIC_API_URL=https://api.example.com/api/v1\nPORT=3000"}
                     />
-                    {t("redeploy")}
-                  </button>
-                </div>
-              </div>
-              {expandedId === item.id && expandedLog ? (
-                <pre className="mt-3 max-h-64 overflow-auto rounded-xl bg-[#0f1117] p-3 text-[11px] leading-relaxed text-[#d4d4d8]">
-                  {expandedLog}
-                </pre>
-              ) : null}
-            </li>
-          ))}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={savingEnvId === item.id || isRunning}
+                        onClick={() => void onSaveEnv(item.id, false)}
+                        className="inline-flex h-9 items-center rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {savingEnvId === item.id ? t("envSaving") : t("envSaveRestart")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingEnvId === item.id || isRunning}
+                        onClick={() => void onSaveEnv(item.id, true)}
+                        className="inline-flex h-9 items-center rounded-lg border border-[var(--separator)] px-3 text-xs font-semibold disabled:opacity-50"
+                      >
+                        {t("envSaveRedeploy")}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {healthOpenId === item.id && healthById[item.id] ? (
+                  <div className="mt-4 space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-[var(--label-primary)]">
+                        {t("healthTitle")}
+                      </p>
+                      <span
+                        className={cn(
+                          "rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase",
+                          healthById[item.id].ok
+                            ? "bg-emerald-500/15 text-emerald-600"
+                            : "bg-amber-500/15 text-amber-600",
+                        )}
+                      >
+                        {healthById[item.id].ok ? t("healthPass") : t("healthWarn")}
+                      </span>
+                    </div>
+                    <p className="font-mono text-[11px] text-[var(--label-tertiary)]">
+                      {t("healthPortInfo", {
+                        hostPort: healthById[item.id].hostPort,
+                        containerPort: healthById[item.id].containerPort,
+                      })}
+                    </p>
+                    <ul className="space-y-2">
+                      {healthById[item.id].checks.map((check) => (
+                        <li
+                          key={check.id}
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-xs",
+                            check.ok
+                              ? "border-emerald-500/30 bg-emerald-500/5"
+                              : "border-amber-500/30 bg-amber-500/5",
+                          )}
+                        >
+                          <div className="flex items-center gap-2 font-medium text-[var(--label-primary)]">
+                            <MaterialIcon
+                              name={check.ok ? "check_circle" : "error"}
+                              className={cn(
+                                "text-[16px]",
+                                check.ok ? "text-emerald-500" : "text-amber-500",
+                              )}
+                            />
+                            {healthCheckLabel(check.id, t)}
+                          </div>
+                          <p className="mt-1 pl-6 text-[var(--label-secondary)]">{check.detail}</p>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-[10px] text-[var(--label-tertiary)]">
+                      {t("healthCheckedAt", {
+                        date: formatDate(healthById[item.id].checkedAt, locale),
+                      })}
+                    </p>
+                  </div>
+                ) : null}
+
+                {showLogs ? (
+                  <div className="mt-4 overflow-hidden rounded-xl border border-[#27272a] bg-[#0f1117]">
+                    <div className="flex items-center justify-between border-b border-[#27272a] px-3 py-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
+                        {t("deployLogs")}
+                      </span>
+                      {isRunning ? (
+                        <span className="text-[10px] text-[var(--accent)]">
+                          {stageLabel(item.stage, t)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div
+                      ref={isExpanded ? logScrollRef : undefined}
+                      onScroll={isExpanded ? onLogScroll : undefined}
+                      className="max-h-72 overflow-auto p-3"
+                    >
+                      <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#d4d4d8]">
+                        {isExpanded && expandedId === item.id
+                          ? expandedLog || t("logWaiting")
+                          : t("logWaiting")}
+                      </pre>
+                    </div>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </DashboardSectionCard>

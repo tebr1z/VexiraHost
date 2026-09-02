@@ -8,10 +8,8 @@ import { HostingRepository } from "../repository/hosting.repository";
 import { PROVISION_STAGES } from "../types/provision-stage";
 import { isMockPanelServer } from "../utils/panel-endpoint.util";
 
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { encryptSecret } from "@/utils/crypto.util";
-
-/** Stored in provisionError — UI maps to a support contact message. */
-export const PROVISION_SUPPORT_ERROR = "SUPPORT_REQUIRED";
 
 @Injectable()
 export class HostingProvisionRunner {
@@ -22,6 +20,7 @@ export class HostingProvisionRunner {
     private readonly hostingRepository: HostingRepository,
     private readonly hostingServersRepository: HostingServersRepository,
     private readonly controlPanel: MockControlPanelProvider,
+    private readonly staffAlerts: StaffAlertService,
   ) {}
 
   enqueue(accountId: string): void {
@@ -111,10 +110,26 @@ export class HostingProvisionRunner {
       const message = error instanceof Error ? error.message : "Hosting provisioning failed";
       this.logger.warn(`Provisioning failed for ${accountId}: ${message}`);
 
+      const latest = await this.hostingRepository.findById(accountId);
+      const userRecord = await this.hostingRepository.findUserEmail(account.userId);
+
       await this.hostingRepository.updateAccount(accountId, {
         status: ServiceStatus.FAILED,
-        provisionStage: PROVISION_STAGES.FAILED,
-        provisionError: PROVISION_SUPPORT_ERROR,
+        provisionError: message.slice(0, 500),
+      });
+
+      const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+      this.staffAlerts.notify({
+        kind: "HOSTING_PROVISION_FAILED",
+        title: "Hosting quraşdırması uğursuz",
+        lines: [
+          `Domen: ${account.primaryDomain}`,
+          `Müştəri: ${userRecord?.email ?? account.userId}`,
+          `Server: ${server.name} (${server.ipAddress})`,
+          `Mərhələ: ${latest?.provisionStage ?? "—"}`,
+          `Xəta: ${message}`,
+        ],
+        url: `${appUrl}/t4abriz/panel/hosting/accounts`,
       });
     }
   }

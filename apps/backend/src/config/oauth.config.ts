@@ -5,15 +5,16 @@ export const oauthConfig = registerAs("oauth", () => ({
     clientId: process.env.GOOGLE_CLIENT_ID ?? "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     callbackUrl:
-      process.env.GOOGLE_CALLBACK_URL ??
-      "http://localhost:4000/api/v1/auth/google/callback",
+      process.env.GOOGLE_CALLBACK_URL ?? "http://localhost:4000/api/v1/auth/google/callback",
   },
   github: {
     clientId: process.env.GITHUB_CLIENT_ID ?? "",
     clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
     callbackUrl:
-      process.env.GITHUB_CALLBACK_URL ??
-      "http://localhost:4000/api/v1/auth/github/callback",
+      process.env.GITHUB_CALLBACK_URL ?? "http://localhost:4000/api/v1/auth/github/callback",
+    deployCallbackUrl:
+      process.env.GITHUB_DEPLOY_CALLBACK_URL ??
+      "http://localhost:4000/api/v1/deploy/github/oauth/callback",
   },
   frontendCallbackUrl:
     process.env.FRONTEND_AUTH_CALLBACK_URL ?? "http://localhost:3000/auth/callback",

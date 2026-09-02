@@ -1,6 +1,6 @@
 ﻿import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { InvoiceStatus, Prisma } from "@prisma/client";
+import { InvoiceStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import type { ChargePaymentDto, CreatePaymentMethodDto } from "../dto";
 import { KapitalPaymentProvider } from "../providers/kapital-payment.provider";
@@ -97,6 +97,11 @@ export class PaymentsService {
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
+
+    if (invoice.status === InvoiceStatus.PAID) {
+      return this.completeAlreadyPaidInvoice(invoice);
+    }
+
     if (invoice.status !== InvoiceStatus.OPEN) {
       throw new BadRequestException("Invoice is not payable");
     }
@@ -115,7 +120,7 @@ export class PaymentsService {
     const alreadyPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
     const amountDue = Math.max(0, Number((Number(invoice.total) - alreadyPaid).toFixed(2)));
     if (amountDue <= 0) {
-      throw new BadRequestException("Invoice is already fully paid");
+      return this.completeZeroAmountInvoice(userId, invoice);
     }
 
     const provider = await this.resolveProvider();
@@ -125,6 +130,68 @@ export class PaymentsService {
     }
 
     return this.chargeViaMock(userId, invoice, amountDue, dto.methodId);
+  }
+
+  private async completeAlreadyPaidInvoice(invoice: {
+    id: string;
+    orderId: string | null;
+    currency: string;
+  }) {
+    if (invoice.orderId) {
+      await this.orderFulfillmentService.fulfillOrder(invoice.orderId);
+    } else {
+      await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
+      await this.domainBilling.activateAfterRenewalPayment(invoice.id);
+    }
+
+    return {
+      mode: "completed" as const,
+      id: null,
+      status: PaymentStatus.COMPLETED,
+      amount: 0,
+      currency: invoice.currency,
+      gatewayRef: null,
+      invoiceId: invoice.id,
+      orderId: invoice.orderId,
+      method: null,
+      createdAt: new Date(),
+    };
+  }
+
+  private async completeZeroAmountInvoice(
+    userId: string,
+    invoice: {
+      id: string;
+      orderId: string | null;
+      currency: string;
+    },
+  ) {
+    const payment = await this.paymentsRepository.completeZeroAmountInvoice({
+      userId,
+      invoiceId: invoice.id,
+      orderId: invoice.orderId,
+      currency: invoice.currency,
+    });
+
+    if (invoice.orderId) {
+      await this.orderFulfillmentService.fulfillOrder(invoice.orderId);
+    } else {
+      await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
+      await this.domainBilling.activateAfterRenewalPayment(invoice.id);
+    }
+
+    return {
+      mode: "completed" as const,
+      id: payment.id,
+      status: payment.status,
+      amount: 0,
+      currency: payment.currency,
+      gatewayRef: payment.gatewayRef,
+      invoiceId: payment.invoiceId,
+      orderId: invoice.orderId,
+      method: payment.method ? mapPaymentMethod(payment.method) : null,
+      createdAt: payment.createdAt,
+    };
   }
 
   getBalance(userId: string) {

@@ -17,9 +17,10 @@ import { PleskPanelService } from "./service/plesk-panel.service";
 
 import { LicensesModule } from "@/modules/licenses/licenses.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
+import { StaffAlertsModule } from "@/shared/staff-alerts/staff-alerts.module";
 
 @Module({
-  imports: [LicensesModule],
+  imports: [LicensesModule, StaffAlertsModule],
   controllers: [HostingController],
 
   providers: [
@@ -60,6 +61,7 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     HostingBillingService,
     HostingEmailService,
     HostingExpiryJobService,
+    HostingServersRepository,
   ],
 })
 export class HostingModule {}

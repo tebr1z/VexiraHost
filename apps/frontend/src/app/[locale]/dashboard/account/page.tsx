@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { LoadingSkeleton, PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
+import { PhoneCountryField } from "@/features/auth/components/phone-country-field";
 import { signOutToHome } from "@/features/auth/lib/sign-out";
 import {
   cancelTotpSetupRequest,
@@ -13,14 +14,18 @@ import {
   disableTotpRequest,
   fetchProfile,
   isEmailTwoFactorSetupChallenge,
+  requestPhoneVerification,
   setupTotpRequest,
   updateBillingAddress,
   updateEmailTwoFactor,
   updatePhone,
   verifyEmailTwoFactor,
+  verifyPhone,
   type TotpSetupResponse,
 } from "@/features/auth/services/auth.service";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
+import { composePhoneE164, findDialByIso2, splitPhoneE164 } from "@/lib/phone/country-dial-codes";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
@@ -51,9 +56,18 @@ export default function AccountPage(): React.ReactElement | null {
   const [linked, setLinked] = useState<{ provider: string; createdAt: string }[]>([]);
   const [billingForm, setBillingForm] = useState(EMPTY_BILLING);
   const [billingSaving, setBillingSaving] = useState(false);
-  const [phone, setPhone] = useState("");
+  const [phoneDialIso2, setPhoneDialIso2] = useState("AZ");
+  const [phoneNational, setPhoneNational] = useState("");
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneRequesting, setPhoneRequesting] = useState(false);
+  const [phoneVerifying, setPhoneVerifying] = useState(false);
+  const [phoneChallenge, setPhoneChallenge] = useState<{
+    challengeId: string;
+    phoneHint: string;
+  } | null>(null);
+  const [phoneCode, setPhoneCode] = useState("");
+  const [phoneCodeError, setPhoneCodeError] = useState<string | null>(null);
   const [twoFactorSaving, setTwoFactorSaving] = useState(false);
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<{
     challengeId: string;
@@ -85,12 +99,21 @@ export default function AccountPage(): React.ReactElement | null {
       .catch(() => undefined);
   }, []);
 
+  const applyPhoneFromProfile = (profile: {
+    phone?: string | null;
+    whatsappNotificationsEnabled?: boolean;
+  }) => {
+    const split = splitPhoneE164(profile.phone);
+    setPhoneDialIso2(split.iso2);
+    setPhoneNational(split.national);
+    setWhatsappEnabled(profile.whatsappNotificationsEnabled ?? true);
+  };
+
   useEffect(() => {
     if (user?.billingAddress) {
       setBillingForm(user.billingAddress);
     }
-    setPhone(user?.phone ?? "");
-    setWhatsappEnabled(user?.whatsappNotificationsEnabled ?? true);
+    applyPhoneFromProfile(user ?? {});
   }, [user?.billingAddress, user?.phone, user?.whatsappNotificationsEnabled]);
 
   useEffect(() => {
@@ -106,8 +129,7 @@ export default function AccountPage(): React.ReactElement | null {
           if (profile.billingAddress) {
             setBillingForm(profile.billingAddress);
           }
-          setPhone(profile.phone ?? "");
-          setWhatsappEnabled(profile.whatsappNotificationsEnabled ?? true);
+          applyPhoneFromProfile(profile);
           setFromUser({
             preferredCurrency: profile.preferredCurrency,
             billingPeriod: profile.billingPeriod,
@@ -136,12 +158,59 @@ export default function AccountPage(): React.ReactElement | null {
     }
   };
 
-  const handleSavePhone = async () => {
+  const handleSaveWhatsappPref = async () => {
     setPhoneSaving(true);
     try {
-      const profile = await updatePhone({
-        phone: phone.trim() || null,
+      const profile = await updatePhone({ whatsappNotificationsEnabled: whatsappEnabled });
+      if (accessToken && refreshToken) {
+        setSession({
+          user: profile,
+          tokens: { accessToken, refreshToken, expiresIn: "15m" },
+        });
+      }
+      toast(tp("phonePrefsSaved"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("phoneSaveFailed")), "error");
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
+
+  const handleRequestPhoneCode = async () => {
+    const dial = findDialByIso2(phoneDialIso2)?.dial ?? "994";
+    const composed = composePhoneE164(dial, phoneNational);
+    if (!composed) {
+      toast(tp("phoneInvalid"), "error");
+      return;
+    }
+    setPhoneRequesting(true);
+    setPhoneCodeError(null);
+    try {
+      const challenge = await requestPhoneVerification({
+        phone: composed,
         whatsappNotificationsEnabled: whatsappEnabled,
+      });
+      setPhoneChallenge({
+        challengeId: challenge.challengeId,
+        phoneHint: challenge.phoneHint,
+      });
+      setPhoneCode("");
+      toast(tp("phoneCodeSent"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("phoneCodeSendFailed")), "error");
+    } finally {
+      setPhoneRequesting(false);
+    }
+  };
+
+  const handleVerifyPhone = async () => {
+    if (!phoneChallenge) return;
+    setPhoneVerifying(true);
+    setPhoneCodeError(null);
+    try {
+      const profile = await verifyPhone({
+        challengeId: phoneChallenge.challengeId,
+        code: phoneCode.trim(),
       });
       if (accessToken && refreshToken) {
         setSession({
@@ -149,9 +218,33 @@ export default function AccountPage(): React.ReactElement | null {
           tokens: { accessToken, refreshToken, expiresIn: "15m" },
         });
       }
-      toast(tp("phoneSaved"), "success");
+      applyPhoneFromProfile(profile);
+      setPhoneChallenge(null);
+      setPhoneCode("");
+      toast(tp("phoneVerified"), "success");
     } catch {
-      toast(tp("phoneSaveFailed"), "error");
+      setPhoneCodeError(tp("phoneCodeInvalid"));
+    } finally {
+      setPhoneVerifying(false);
+    }
+  };
+
+  const handleRemovePhone = async () => {
+    setPhoneSaving(true);
+    try {
+      const profile = await updatePhone({ removePhone: true });
+      if (accessToken && refreshToken) {
+        setSession({
+          user: profile,
+          tokens: { accessToken, refreshToken, expiresIn: "15m" },
+        });
+      }
+      applyPhoneFromProfile(profile);
+      setPhoneChallenge(null);
+      setPhoneCode("");
+      toast(tp("phoneRemoved"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("phoneSaveFailed")), "error");
     } finally {
       setPhoneSaving(false);
     }
@@ -279,29 +372,129 @@ export default function AccountPage(): React.ReactElement | null {
               {tp("phoneTitle")}
             </h2>
             <p className="text-on-surface-variant mt-1 text-sm">{tp("phoneDescription")}</p>
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+994501234567"
-              className="dashboard-input mt-4 px-4 text-sm"
-            />
+
+            {user.phone && user.phoneVerified ? (
+              <p className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+                <span className="font-medium">+{user.phone}</span>
+                <span className="text-xs uppercase tracking-wide">{tp("phoneVerifiedBadge")}</span>
+              </p>
+            ) : user.phone ? (
+              <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                {tp("phoneUnverifiedHint")}
+              </p>
+            ) : null}
+
+            <div className="mt-4">
+              <PhoneCountryField
+                label={tp("phoneNumberLabel")}
+                dialIso2={phoneDialIso2}
+                nationalNumber={phoneNational}
+                onDialIso2Change={setPhoneDialIso2}
+                onNationalNumberChange={setPhoneNational}
+                disabled={phoneRequesting || phoneVerifying}
+              />
+            </div>
+
             <label className="mt-3 flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={whatsappEnabled}
                 onChange={(event) => setWhatsappEnabled(event.target.checked)}
+                disabled={phoneVerifying}
                 className="mt-1"
               />
               <span>{tp("whatsappReminders")}</span>
             </label>
-            <button
-              type="button"
-              disabled={phoneSaving}
-              onClick={() => void handleSavePhone()}
-              className="dashboard-btn-primary mt-4 disabled:opacity-60"
-            >
-              {phoneSaving ? tp("saving") : tp("savePhone")}
-            </button>
+            <p className="text-on-surface-variant mt-1 text-xs">{tp("phoneVerifyRequired")}</p>
+
+            {!phoneChallenge ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={phoneRequesting || !phoneNational.trim()}
+                  onClick={() => void handleRequestPhoneCode()}
+                  className="dashboard-btn-primary disabled:opacity-60"
+                >
+                  {phoneRequesting ? tp("phoneCodeSending") : tp("phoneSendCode")}
+                </button>
+                {user.phone ? (
+                  <button
+                    type="button"
+                    disabled={phoneSaving}
+                    onClick={() => void handleRemovePhone()}
+                    className="dashboard-btn-secondary disabled:opacity-60"
+                  >
+                    {tp("phoneRemove")}
+                  </button>
+                ) : null}
+                {user.phoneVerified ? (
+                  <button
+                    type="button"
+                    disabled={phoneSaving}
+                    onClick={() => void handleSaveWhatsappPref()}
+                    className="dashboard-btn-secondary disabled:opacity-60"
+                  >
+                    {phoneSaving ? tp("saving") : tp("phoneSavePrefs")}
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <form
+                className="mt-4 space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--fill-secondary)] p-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleVerifyPhone();
+                }}
+              >
+                <p className="text-sm text-[var(--label-secondary)]">
+                  {tp("phoneCodeHint", { phone: phoneChallenge.phoneHint })}
+                </p>
+                <div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={phoneCode}
+                    onChange={(event) => {
+                      setPhoneCodeError(null);
+                      setPhoneCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                    }}
+                    placeholder={tp("phoneCodePlaceholder")}
+                    aria-invalid={Boolean(phoneCodeError)}
+                    className={
+                      phoneCodeError
+                        ? "dashboard-input border-[var(--danger)] px-4 text-sm"
+                        : "dashboard-input px-4 text-sm"
+                    }
+                  />
+                  {phoneCodeError ? (
+                    <p className="mt-1.5 text-sm text-[var(--danger)]">{phoneCodeError}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="submit"
+                    disabled={phoneVerifying || phoneCode.trim().length !== 6}
+                    className="dashboard-btn-primary disabled:opacity-60"
+                  >
+                    {phoneVerifying ? tp("phoneVerifying") : tp("phoneConfirm")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={phoneVerifying}
+                    onClick={() => {
+                      setPhoneChallenge(null);
+                      setPhoneCode("");
+                      setPhoneCodeError(null);
+                    }}
+                    className="dashboard-btn-secondary"
+                  >
+                    {tp("phoneCancel")}
+                  </button>
+                </div>
+              </form>
+            )}
           </section>
 
           <section className="dashboard-section-card p-6">

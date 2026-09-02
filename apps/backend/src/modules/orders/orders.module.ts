@@ -7,10 +7,11 @@ import { OrdersService } from "./service/orders.service";
 
 import { AuthModule } from "@/modules/auth/auth.module";
 import { HostingModule } from "@/modules/hosting/hosting.module";
+import { PaymentsModule } from "@/modules/payments/payments.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 
 @Module({
-  imports: [AuthModule, HostingModule],
+  imports: [AuthModule, HostingModule, PaymentsModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrdersRepository, OrderEmailService, SmtpMailService],
   exports: [OrdersService],
