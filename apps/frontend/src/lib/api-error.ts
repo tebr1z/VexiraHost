@@ -1,7 +1,7 @@
 import { ApiClientError } from "@vexira/api-sdk";
 
 const INTERNAL_ADMIN_MESSAGE =
-  /admin\s*[→->]|admin panel|hosting plans|not configured\. set|set credentials in/i;
+  /admin\s*(?:→|->)|admin panel|hosting plans|not configured\. set|set credentials in/i;
 
 function isInternalAdminMessage(message: string): boolean {
   return INTERNAL_ADMIN_MESSAGE.test(message);
