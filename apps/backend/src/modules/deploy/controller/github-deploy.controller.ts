@@ -22,8 +22,8 @@ export class GitHubDeployController {
   }
 
   @Post("connect-url")
-  connectUrl(@User() user: AuthUser, @Body() body: { returnTo?: string }) {
-    this.githubDeploy.assertConfigured();
+  async connectUrl(@User() user: AuthUser, @Body() body: { returnTo?: string }) {
+    await this.githubDeploy.assertConfigured();
     const appUrl = this.configService
       .get<string>("APP_URL", "http://localhost:3000")
       .replace(/\/$/, "");

@@ -124,25 +124,36 @@ export function HostingDeploySection({
     void load();
   }, [enabled, load]);
 
+  const loadGitHubStatus = useCallback(async () => {
+    setGithubLoading(true);
+    try {
+      const status = await getGitHubDeployStatus();
+      setGithubConnected(status.connected);
+      setGithubLogin(status.githubLogin ?? null);
+      if (status.connected) {
+        const { repos } = await listGitHubRepos();
+        setGithubRepos(repos);
+      } else {
+        setGithubRepos([]);
+      }
+    } catch {
+      setGithubConnected(false);
+      setGithubLogin(null);
+      setGithubRepos([]);
+    } finally {
+      setGithubLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+    void loadGitHubStatus();
+  }, [enabled, loadGitHubStatus]);
+
   useEffect(() => {
     if (!enabled || !showForm) return;
-    void (async () => {
-      setGithubLoading(true);
-      try {
-        const status = await getGitHubDeployStatus();
-        setGithubConnected(status.connected);
-        setGithubLogin(status.githubLogin ?? null);
-        if (status.connected) {
-          const { repos } = await listGitHubRepos();
-          setGithubRepos(repos);
-        }
-      } catch {
-        setGithubConnected(false);
-      } finally {
-        setGithubLoading(false);
-      }
-    })();
-  }, [enabled, showForm]);
+    if (!githubConnected) void loadGitHubStatus();
+  }, [enabled, showForm, githubConnected, loadGitHubStatus]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -153,8 +164,9 @@ export function HostingDeploySection({
       const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
       window.history.replaceState({}, "", next);
       setShowForm(true);
+      void loadGitHubStatus();
     }
-  }, [enabled, t]);
+  }, [enabled, t, loadGitHubStatus]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -402,6 +414,24 @@ export function HostingDeploySection({
 
   const body = (
     <>
+      {githubConnected ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_22%,var(--separator))] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] px-4 py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <MaterialIcon name="link" className="text-[18px] text-[var(--accent)]" />
+            <span className="text-[var(--label-primary)]">
+              {t("githubConnectedAs", { login: githubLogin ?? "GitHub" })}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void onDisconnectGitHub()}
+            className="text-xs font-medium text-[var(--danger)] hover:underline"
+          >
+            {t("githubDisconnect")}
+          </button>
+        </div>
+      ) : null}
+
       {showForm ? (
         <div className="mb-6 space-y-4 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
           <div className="grid gap-4 sm:grid-cols-2">

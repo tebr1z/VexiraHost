@@ -9,6 +9,7 @@ import {
 } from "../utils/github-clone.util";
 
 import { PrismaService } from "@/database/database.module";
+import { OauthConfigService } from "@/modules/auth/service/oauth-config.service";
 import { decryptSecret, encryptSecret } from "@/utils/crypto.util";
 
 export type GitHubDeployState = {
@@ -40,13 +41,15 @@ export class GitHubDeployService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly oauthConfigService: OauthConfigService,
     private readonly configService: ConfigService,
   ) {}
 
-  assertConfigured(): void {
-    if (!this.configService.get<string>("oauth.github.clientId")) {
+  async assertConfigured(): Promise<void> {
+    const config = await this.oauthConfigService.resolveGitHub();
+    if (!config.clientId || !config.clientSecret) {
       throw new BadRequestException(
-        "GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to backend .env",
+        "GitHub OAuth is not configured. Set credentials in Admin → System.",
       );
     }
   }
@@ -71,9 +74,11 @@ export class GitHubDeployService {
   }
 
   buildOAuthStartUrl(state: string): string {
-    const apiBase = this.configService
-      .get<string>("APP_API_URL", "http://localhost:4000/api/v1")
-      .replace(/\/$/, "");
+    const apiBase = (
+      this.configService.get<string>("API_PUBLIC_URL") ??
+      this.configService.get<string>("API_URL") ??
+      "http://localhost:4000/api/v1"
+    ).replace(/\/$/, "");
     return `${apiBase}/deploy/github/oauth?state=${encodeURIComponent(state)}`;
   }
 

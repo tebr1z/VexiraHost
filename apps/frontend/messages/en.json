@@ -2300,6 +2300,26 @@
             "env": "Server .env"
           }
         },
+        "githubOAuth": {
+          "title": "GitHub (login & deploy)",
+          "description": "One GitHub OAuth app for sign-in and private repo deploy. Client secret is encrypted with AES-256-GCM in the database and never returned to the browser. Add both callback URLs in your GitHub app settings.",
+          "clientId": "Client ID",
+          "clientSecret": "Client secret",
+          "secretPlaceholder": "Paste the GitHub OAuth client secret",
+          "secretKeepPlaceholder": "Leave blank to keep the current secret",
+          "secretHint": "Stored encrypted at rest. The plaintext secret is never shown again after save.",
+          "callbackUrl": "Login callback URL",
+          "callbackHint": "GitHub OAuth app → Authorization callback URL (e.g. https://api.yoursite.com/api/v1/auth/github/callback).",
+          "deployCallbackUrl": "Deploy callback URL",
+          "deployCallbackHint": "Second callback for hosting deploy repo access (e.g. https://api.yoursite.com/api/v1/deploy/github/oauth/callback).",
+          "source": "Source",
+          "configured": "Configured",
+          "notConfigured": "Incomplete",
+          "sourceOptions": {
+            "database": "Admin panel (database)",
+            "env": "Server .env"
+          }
+        },
         "turnstile": {
           "title": "Cloudflare Turnstile",
           "description": "Always required on register, forgot/reset password, contact, and support. On login it appears only after failed attempts. The secret is encrypted in the database with AES-256-GCM and never returned to the browser. Leave the secret field empty to keep the current value.",

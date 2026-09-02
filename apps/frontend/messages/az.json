@@ -2286,6 +2286,26 @@
             "env": "Server .env"
           }
         },
+        "githubOAuth": {
+          "title": "GitHub (giriş və deploy)",
+          "description": "Giriş və private repo deploy üçün bir GitHub OAuth app. Client secret AES-256-GCM ilə DB-də şifrələnir və brauzerə qaytarılmır. GitHub app-də hər iki callback URL əlavə edin.",
+          "clientId": "Client ID",
+          "clientSecret": "Client secret",
+          "secretPlaceholder": "GitHub OAuth client secret yapışdırın",
+          "secretKeepPlaceholder": "Mövcud secret-i saxlamaq üçün boş buraxın",
+          "secretHint": "İstirahətdə şifrələnmiş saxlanılır. Saxladıqdan sonra secret bir daha göstərilmir.",
+          "callbackUrl": "Login callback URL",
+          "callbackHint": "GitHub OAuth app → Authorization callback URL (məs. https://api.saytiniz.com/api/v1/auth/github/callback).",
+          "deployCallbackUrl": "Deploy callback URL",
+          "deployCallbackHint": "Hosting deploy üçün ikinci callback (məs. https://api.saytiniz.com/api/v1/deploy/github/oauth/callback).",
+          "source": "Mənbə",
+          "configured": "Konfiqurasiya edilib",
+          "notConfigured": "Natamam",
+          "sourceOptions": {
+            "database": "Admin panel (veritabanı)",
+            "env": "Server .env"
+          }
+        },
         "turnstile": {
           "title": "Cloudflare Turnstile",
           "description": "Qeydiyyat, şifrə unutma/sıfırlama, əlaqə və dəstək səhifələrində həmişə tələb olunur. Login-də yalnız uğursuz cəhdlərdən sonra çıxır. Secret DB-də AES-256-GCM ilə şifrələnir və brauzerə qaytarılmır. Mövcud secret-i saxlamaq üçün xananı boş buraxın.",

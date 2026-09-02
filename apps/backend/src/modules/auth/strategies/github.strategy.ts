@@ -1,21 +1,48 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import type { Request } from "express";
 import { Strategy } from "passport-github2";
 
 import type { OAuthProfile } from "../interfaces";
+import { OauthConfigService } from "../service/oauth-config.service";
 
 @Injectable()
 export class GitHubStrategy extends PassportStrategy(Strategy, "github") {
-  constructor(configService: ConfigService) {
+  constructor(
+    private readonly oauthConfigService: OauthConfigService,
+    configService: ConfigService,
+  ) {
     super({
-      clientID: configService.get<string>("oauth.github.clientId") || "not-configured",
-      clientSecret: configService.get<string>("oauth.github.clientSecret") || "not-configured",
+      clientID: "not-configured",
+      clientSecret: "not-configured",
       callbackURL:
         configService.get<string>("oauth.github.callbackUrl") ??
         "http://localhost:4000/api/v1/auth/github/callback",
       scope: ["user:email"],
     });
+  }
+
+  async authenticate(req: Request, options?: Record<string, unknown>): Promise<void> {
+    try {
+      const config = await this.oauthConfigService.resolveGitHub();
+      if (!config.clientId || !config.clientSecret) {
+        this.fail("GitHub OAuth is not configured", 401);
+        return;
+      }
+
+      const strategy = this as unknown as {
+        _oauth2: { _clientId: string; _clientSecret: string };
+        _callbackURL: string;
+      };
+      strategy._oauth2._clientId = config.clientId;
+      strategy._oauth2._clientSecret = config.clientSecret;
+      strategy._callbackURL = config.callbackUrl;
+
+      Strategy.prototype.authenticate.call(this, req, options);
+    } catch (err) {
+      this.error(err as Error);
+    }
   }
 
   validate(

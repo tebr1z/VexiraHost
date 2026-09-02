@@ -159,12 +159,13 @@ export class AdminSystemService {
       kapital: await this.kapitalConfigService.getAdminSettings(),
       kapitalPresets: KAPITAL_PRESETS,
       googleOAuth: await this.oauthConfigService.getGoogleAdminSettings(),
+      githubOAuth: await this.oauthConfigService.getGitHubAdminSettings(),
       turnstile: await this.turnstileService.getAdminSettings(),
       access: await this.siteAccessService.getConfig(),
       maintenance: await this.resolveMaintenance(),
       announcement: await this.resolveAnnouncement(),
       ticketAutoCloseHours: await this.resolveTicketAutoCloseHours(),
-      note: "Provider, Kapital, Google OAuth, and Turnstile credentials stored in the database override server defaults.",
+      note: "Provider, Kapital, Google/GitHub OAuth, and Turnstile credentials stored in the database override server defaults.",
     };
   }
 
@@ -265,6 +266,20 @@ export class AdminSystemService {
         clientId: dto.googleClientId,
         clientSecret: dto.googleClientSecret,
         callbackUrl: dto.googleCallbackUrl,
+      });
+    }
+
+    if (
+      dto.githubClientId !== undefined ||
+      dto.githubClientSecret !== undefined ||
+      dto.githubCallbackUrl !== undefined ||
+      dto.githubDeployCallbackUrl !== undefined
+    ) {
+      await this.oauthConfigService.saveGitHubAdminSettings({
+        clientId: dto.githubClientId,
+        clientSecret: dto.githubClientSecret,
+        callbackUrl: dto.githubCallbackUrl,
+        deployCallbackUrl: dto.githubDeployCallbackUrl,
       });
     }
 

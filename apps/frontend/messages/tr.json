@@ -2288,6 +2288,26 @@
             "env": "Sunucu .env"
           }
         },
+        "githubOAuth": {
+          "title": "GitHub (giriş ve deploy)",
+          "description": "Giriş ve private repo deploy için tek GitHub OAuth uygulaması. Client secret AES-256-GCM ile veritabanında şifrelenir ve tarayıcıya döndürülmez. GitHub app ayarlarına her iki callback URL'yi ekleyin.",
+          "clientId": "Client ID",
+          "clientSecret": "Client secret",
+          "secretPlaceholder": "GitHub OAuth client secret yapıştırın",
+          "secretKeepPlaceholder": "Mevcut secret'ı korumak için boş bırakın",
+          "secretHint": "Dinamik olarak şifrelenmiş saklanır. Kaydettikten sonra secret bir daha gösterilmez.",
+          "callbackUrl": "Login callback URL",
+          "callbackHint": "GitHub OAuth app → Authorization callback URL (ör. https://api.siteniz.com/api/v1/auth/github/callback).",
+          "deployCallbackUrl": "Deploy callback URL",
+          "deployCallbackHint": "Hosting deploy için ikinci callback (ör. https://api.siteniz.com/api/v1/deploy/github/oauth/callback).",
+          "source": "Kaynak",
+          "configured": "Yapılandırıldı",
+          "notConfigured": "Eksik bilgi",
+          "sourceOptions": {
+            "database": "Admin panel (veritabanı)",
+            "env": "Sunucu .env"
+          }
+        },
         "turnstile": {
           "title": "Cloudflare Turnstile",
           "description": "Kayıt, şifre unuttum/sıfırlama, iletişim ve destek sayfalarında her zaman zorunlu. Girişte yalnızca başarısız denemelerden sonra çıkar. Secret veritabanında AES-256-GCM ile şifrelenir ve tarayıcıya hiç dönmez. Mevcut secret'i korumak için alanı boş bırakın.",

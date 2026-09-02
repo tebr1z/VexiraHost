@@ -1,21 +1,23 @@
 import type { ExecutionContext } from "@nestjs/common";
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+
+import { OauthConfigService } from "@/modules/auth/service/oauth-config.service";
 
 @Injectable()
 export class GitHubDeployAuthGuard extends AuthGuard("github-deploy") {
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly oauthConfigService: OauthConfigService) {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
-    if (!this.configService.get<string>("oauth.github.clientId")) {
-      throw new BadRequestException(
-        "GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to backend .env",
+  async canActivate(context: ExecutionContext) {
+    const config = await this.oauthConfigService.resolveGitHub();
+    if (!config.clientId || !config.clientSecret) {
+      throw new ServiceUnavailableException(
+        "GitHub OAuth is not configured. Set Client ID and Client Secret in Admin → System.",
       );
     }
-    return super.canActivate(context);
+    return super.canActivate(context) as boolean | Promise<boolean>;
   }
 
   getAuthenticateOptions(context: ExecutionContext) {

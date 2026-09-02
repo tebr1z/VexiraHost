@@ -10,6 +10,7 @@ import {
   updateAdminSystemSettings,
   type AdminKapitalSettings,
   type AdminGoogleOAuthSettings,
+  type AdminGitHubOAuthSettings,
   type AdminTurnstileSettings,
   type AdminSystemStatus,
   type KapitalEnvironment,
@@ -68,6 +69,15 @@ export default function AdminSystemPage(): React.ReactElement | null {
     configured: false,
     source: "env",
   });
+  const [githubOAuth, setGithubOAuth] = useState<AdminGitHubOAuthSettings>({
+    clientId: "",
+    callbackUrl: "",
+    deployCallbackUrl: "",
+    secretConfigured: false,
+    configured: false,
+    source: "env",
+  });
+  const [githubClientSecret, setGithubClientSecret] = useState("");
   const [turnstile, setTurnstile] = useState<AdminTurnstileSettings>({
     enabled: false,
     siteKey: "0x4AAAAAAEWxQmtfjmxvrm1J",
@@ -95,6 +105,16 @@ export default function AdminSystemPage(): React.ReactElement | null {
         );
         setAccess(data.access ?? defaultSiteAccess());
         setGoogleOAuth(data.googleOAuth);
+        setGithubOAuth(
+          data.githubOAuth ?? {
+            clientId: "",
+            callbackUrl: "",
+            deployCallbackUrl: "",
+            secretConfigured: false,
+            configured: false,
+            source: "env",
+          },
+        );
         setTurnstile(
           data.turnstile ?? {
             enabled: false,
@@ -106,6 +126,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
         );
         setTicketAutoCloseHours(data.ticketAutoCloseHours ?? 12);
         setTurnstileSecret("");
+        setGithubClientSecret("");
       });
     }
   }, [isAdmin]);
@@ -151,6 +172,13 @@ export default function AdminSystemPage(): React.ReactElement | null {
         payload.googleClientSecret = googleOAuth.clientSecret;
       }
 
+      payload.githubClientId = githubOAuth.clientId.trim();
+      payload.githubCallbackUrl = githubOAuth.callbackUrl.trim();
+      payload.githubDeployCallbackUrl = githubOAuth.deployCallbackUrl.trim();
+      if (githubClientSecret.trim()) {
+        payload.githubClientSecret = githubClientSecret.trim();
+      }
+
       payload.turnstileEnabled = turnstile.enabled;
       payload.turnstileSiteKey = turnstile.siteKey.trim();
       payload.turnstileHostnames = turnstile.hostnames.trim();
@@ -174,6 +202,16 @@ export default function AdminSystemPage(): React.ReactElement | null {
       );
       setAccess(updated.access ?? defaultSiteAccess());
       setGoogleOAuth(updated.googleOAuth);
+      setGithubOAuth(
+        updated.githubOAuth ?? {
+          clientId: "",
+          callbackUrl: "",
+          deployCallbackUrl: "",
+          secretConfigured: false,
+          configured: false,
+          source: "env",
+        },
+      );
       setTurnstile(
         updated.turnstile ?? {
           enabled: false,
@@ -185,6 +223,7 @@ export default function AdminSystemPage(): React.ReactElement | null {
       );
       setTicketAutoCloseHours(updated.ticketAutoCloseHours ?? 12);
       setTurnstileSecret("");
+      setGithubClientSecret("");
       toast(tp("saved"), "success");
     } catch {
       toast(tp("saveFailed"), "error");
@@ -463,6 +502,100 @@ export default function AdminSystemPage(): React.ReactElement | null {
             {googleOAuth.configured
               ? ` · ${tp("googleOAuth.configured")}`
               : ` · ${tp("googleOAuth.notConfigured")}`}
+          </p>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? tp("saving") : tp("save")}
+          </button>
+        </div>
+      </section>
+
+      <section className="card-3d rounded-2xl p-6">
+        <h2 className="text-on-surface text-lg font-semibold">{tp("githubOAuth.title")}</h2>
+        <p className="text-on-surface-variant mt-1 text-sm">{tp("githubOAuth.description")}</p>
+        <div className="mt-4 space-y-4">
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("githubOAuth.clientId")}
+            </span>
+            <input
+              type="text"
+              value={githubOAuth.clientId}
+              onChange={(e) =>
+                setGithubOAuth((current) => ({ ...current, clientId: e.target.value }))
+              }
+              placeholder="Iv1.xxxxxxxxxxxx"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("githubOAuth.clientSecret")}
+            </span>
+            <input
+              type="password"
+              value={githubClientSecret}
+              onChange={(e) => setGithubClientSecret(e.target.value)}
+              placeholder={
+                githubOAuth.secretConfigured
+                  ? tp("githubOAuth.secretKeepPlaceholder")
+                  : tp("githubOAuth.secretPlaceholder")
+              }
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="new-password"
+            />
+            <span className="text-on-surface-variant text-xs">{tp("githubOAuth.secretHint")}</span>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("githubOAuth.callbackUrl")}
+            </span>
+            <input
+              type="url"
+              value={githubOAuth.callbackUrl}
+              onChange={(e) =>
+                setGithubOAuth((current) => ({ ...current, callbackUrl: e.target.value }))
+              }
+              placeholder="https://api.yoursite.com/api/v1/auth/github/callback"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+            <span className="text-on-surface-variant text-xs">
+              {tp("githubOAuth.callbackHint")}
+            </span>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-on-surface text-sm font-medium">
+              {tp("githubOAuth.deployCallbackUrl")}
+            </span>
+            <input
+              type="url"
+              value={githubOAuth.deployCallbackUrl}
+              onChange={(e) =>
+                setGithubOAuth((current) => ({ ...current, deployCallbackUrl: e.target.value }))
+              }
+              placeholder="https://api.yoursite.com/api/v1/deploy/github/oauth/callback"
+              className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 font-mono text-sm"
+              autoComplete="off"
+            />
+            <span className="text-on-surface-variant text-xs">
+              {tp("githubOAuth.deployCallbackHint")}
+            </span>
+          </label>
+
+          <p className="text-on-surface-variant text-xs">
+            {tp("githubOAuth.source")}: {tp(`githubOAuth.sourceOptions.${githubOAuth.source}`)}
+            {githubOAuth.configured
+              ? ` · ${tp("githubOAuth.configured")}`
+              : ` · ${tp("githubOAuth.notConfigured")}`}
           </p>
           <button
             type="button"

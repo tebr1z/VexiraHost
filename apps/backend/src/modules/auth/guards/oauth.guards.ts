@@ -99,17 +99,18 @@ export class GoogleAuthGuard extends AuthGuard("google") {
 
 @Injectable()
 export class GitHubAuthGuard extends AuthGuard("github") {
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly oauthConfigService: OauthConfigService) {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
-    if (!this.configService.get<string>("oauth.github.clientId")) {
+  async canActivate(context: ExecutionContext) {
+    const config = await this.oauthConfigService.resolveGitHub();
+    if (!config.clientId || !config.clientSecret) {
       throw new ServiceUnavailableException(
-        "GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to .env",
+        "GitHub OAuth is not configured. Set Client ID and Client Secret in Admin → System.",
       );
     }
-    return super.canActivate(context);
+    return super.canActivate(context) as boolean | Promise<boolean>;
   }
 
   getAuthenticateOptions() {

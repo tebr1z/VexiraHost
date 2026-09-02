@@ -2289,6 +2289,26 @@
             "env": "Server .env"
           }
         },
+        "githubOAuth": {
+          "title": "GitHub (вход и deploy)",
+          "description": "Одно GitHub OAuth приложение для входа и deploy приватных репозиториев. Client secret шифруется AES-256-GCM в БД и не возвращается в браузер. Добавьте оба callback URL в настройках GitHub app.",
+          "clientId": "Client ID",
+          "clientSecret": "Client secret",
+          "secretPlaceholder": "Вставьте GitHub OAuth client secret",
+          "secretKeepPlaceholder": "Оставьте пустым, чтобы сохранить текущий secret",
+          "secretHint": "Хранится зашифрованным. После сохранения secret больше не показывается.",
+          "callbackUrl": "Login callback URL",
+          "callbackHint": "GitHub OAuth app → Authorization callback URL (напр. https://api.yoursite.com/api/v1/auth/github/callback).",
+          "deployCallbackUrl": "Deploy callback URL",
+          "deployCallbackHint": "Второй callback для hosting deploy (напр. https://api.yoursite.com/api/v1/deploy/github/oauth/callback).",
+          "source": "Источник",
+          "configured": "Настроено",
+          "notConfigured": "Не заполнено",
+          "sourceOptions": {
+            "database": "Admin panel (БД)",
+            "env": "Server .env"
+          }
+        },
         "turnstile": {
           "title": "Cloudflare Turnstile",
           "description": "Всегда на регистрации, сбросе пароля, контактах и поддержке. На входе появляется только после неудачных попыток. Секрет шифруется в БД AES-256-GCM и никогда не возвращается в браузер. Оставьте поле пустым, чтобы сохранить текущий секрет.",

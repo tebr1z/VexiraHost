@@ -39,6 +39,15 @@ export interface AdminGoogleOAuthSettings {
   source: "database" | "env";
 }
 
+export interface AdminGitHubOAuthSettings {
+  clientId: string;
+  callbackUrl: string;
+  deployCallbackUrl: string;
+  secretConfigured: boolean;
+  configured: boolean;
+  source: "database" | "env";
+}
+
 export interface AdminTurnstileSettings {
   enabled: boolean;
   siteKey: string;
@@ -71,6 +80,7 @@ export interface AdminSystemStatus {
   kapital: AdminKapitalSettings;
   kapitalPresets: Record<KapitalEnvironment, KapitalPreset>;
   googleOAuth: AdminGoogleOAuthSettings;
+  githubOAuth: AdminGitHubOAuthSettings;
   turnstile: AdminTurnstileSettings;
   access: SiteAccessConfig;
   maintenance: AdminMaintenanceSettings;
@@ -100,6 +110,10 @@ export interface UpdateSystemSettingsInput {
   googleClientId?: string;
   googleClientSecret?: string;
   googleCallbackUrl?: string;
+  githubClientId?: string;
+  githubClientSecret?: string;
+  githubCallbackUrl?: string;
+  githubDeployCallbackUrl?: string;
   turnstileEnabled?: boolean;
   turnstileSiteKey?: string;
   turnstileSecret?: string;

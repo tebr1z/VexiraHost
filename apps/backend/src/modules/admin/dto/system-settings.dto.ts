@@ -152,6 +152,22 @@ export class UpdateSystemSettingsDto {
   googleCallbackUrl?: string;
 
   @IsOptional()
+  @IsString()
+  githubClientId?: string;
+
+  @IsOptional()
+  @IsString()
+  githubClientSecret?: string;
+
+  @IsOptional()
+  @IsString()
+  githubCallbackUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  githubDeployCallbackUrl?: string;
+
+  @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
   turnstileEnabled?: boolean;
