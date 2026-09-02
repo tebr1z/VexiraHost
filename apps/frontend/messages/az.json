@@ -2224,7 +2224,11 @@
       },
       "system": {
         "title": "Sistem",
-        "description": "Queue və inteqrasiya provayder modları.",
+        "description": "Queue, sayt idarəetməsi, OAuth inteqrasiyaları və provayder modları.",
+        "tabIntegrations": "İnteqrasiyalar",
+        "tabSite": "Sayt",
+        "tabProviders": "Provayderlər",
+        "tabStatus": "Status",
         "queue": "Queue",
         "environment": "Mühit",
         "providers": "Provayder modları",

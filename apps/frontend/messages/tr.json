@@ -2226,7 +2226,11 @@
       },
       "system": {
         "title": "Sistem",
-        "description": "Kuyruk durumu ve entegrasyon sağlayıcı modları.",
+        "description": "Kuyruk, site ayarları, OAuth entegrasyonları ve sağlayıcı modları.",
+        "tabIntegrations": "Entegrasyonlar",
+        "tabSite": "Site",
+        "tabProviders": "Sağlayıcılar",
+        "tabStatus": "Durum",
         "queue": "Kuyruk",
         "environment": "Ortam",
         "providers": "Sağlayıcı modları",

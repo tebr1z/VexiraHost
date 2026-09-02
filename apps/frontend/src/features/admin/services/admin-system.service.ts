@@ -140,6 +140,14 @@ function normalizeAdminSystemStatus(data: AdminSystemStatus): AdminSystemStatus 
   const hours = Number(data.ticketAutoCloseHours);
   return {
     ...data,
+    githubOAuth: data.githubOAuth ?? {
+      clientId: "",
+      callbackUrl: "",
+      deployCallbackUrl: "",
+      secretConfigured: false,
+      configured: false,
+      source: "env",
+    },
     ticketAutoCloseHours: Number.isFinite(hours) && hours >= 1 ? Math.min(hours, 720) : 12,
     maintenance: {
       enabled: Boolean(data.maintenance?.enabled),

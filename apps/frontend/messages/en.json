@@ -2238,7 +2238,11 @@
       },
       "system": {
         "title": "System",
-        "description": "Queue health and integration provider modes.",
+        "description": "Queue health, site controls, OAuth integrations, and provider modes.",
+        "tabIntegrations": "Integrations",
+        "tabSite": "Site",
+        "tabProviders": "Providers",
+        "tabStatus": "Status",
         "queue": "Queue",
         "environment": "Environment",
         "providers": "Provider modes",

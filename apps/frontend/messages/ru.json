@@ -2227,7 +2227,11 @@
       },
       "system": {
         "title": "Система",
-        "description": "Очередь и режимы провайдеров.",
+        "description": "Очередь, настройки сайта, OAuth и режимы провайдеров.",
+        "tabIntegrations": "Интеграции",
+        "tabSite": "Сайт",
+        "tabProviders": "Провайдеры",
+        "tabStatus": "Статус",
         "queue": "Очередь",
         "environment": "Окружение",
         "providers": "Режимы провайдеров",
