@@ -24,6 +24,8 @@ import {
 } from "@/features/billing/lib/perform-checkout";
 import { getAccountBalance, validatePromoCode } from "@/features/billing/services/billing.service";
 import { getCatalogProduct } from "@/features/catalog";
+import { convertAmount } from "@/features/catalog/services/exchange-rates.service";
+import { useExchangeRates } from "@/hooks/use-display-money";
 import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
@@ -117,12 +119,12 @@ export function CartCheckoutView({
 
   const checkoutTotal = Math.max(0, total() - (appliedPromo?.discountAmount ?? 0));
   const cartCurrency = items[0]?.currency ?? pricingCurrency;
+  const rates = useExchangeRates();
+  const settleAzn = convertAmount(checkoutTotal, cartCurrency, "AZN", rates);
+  const balanceInAzn =
+    balance != null ? convertAmount(balance.balance, balance.currency, "AZN", rates) : 0;
   const canPayWithBalance =
-    isAuthenticated &&
-    balance != null &&
-    balance.currency.toUpperCase() === cartCurrency.toUpperCase() &&
-    balance.balance >= checkoutTotal &&
-    checkoutTotal > 0;
+    isAuthenticated && balance != null && balanceInAzn >= settleAzn - 0.01 && settleAzn > 0;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -605,6 +607,22 @@ export function CartCheckoutView({
             )}
           </span>
         </div>
+        {checkoutTotal > 0 ? (
+          <div className="border-outline-variant/40 space-y-1 border-t pt-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-variant">{t("settleAmount")}</span>
+              <span className="font-semibold text-[var(--accent)]">
+                {formatMoney(settleAzn, "AZN", locale)}
+              </span>
+            </div>
+            <p className="text-on-surface-variant text-xs">
+              {t("settleRate", {
+                rate: rates.usdToAzn.toFixed(4),
+                date: rates.date,
+              })}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {quickAccount && !isAuthenticated ? (
@@ -888,7 +906,11 @@ export function CartCheckoutView({
               />
               <div>
                 <p className="font-medium">{t("paymentMethodCard")}</p>
-                <p className="text-on-surface-variant text-sm">{t("paymentMethodCardDesc")}</p>
+                <p className="text-on-surface-variant text-sm">
+                  {t("paymentMethodCardDescAzn", {
+                    amount: formatMoney(settleAzn, "AZN", locale),
+                  })}
+                </p>
               </div>
             </label>
             <label
@@ -915,6 +937,14 @@ export function CartCheckoutView({
                       })
                     : t("paymentMethodBalanceUnavailable")}
                 </p>
+                {balance && cartCurrency.toUpperCase() !== "AZN" ? (
+                  <p className="text-on-surface-variant mt-1 text-xs">
+                    {t("paymentMethodBalanceAzn", {
+                      balance: formatMoney(balanceInAzn, "AZN", locale),
+                      charge: formatMoney(settleAzn, "AZN", locale),
+                    })}
+                  </p>
+                ) : null}
               </div>
             </label>
           </div>

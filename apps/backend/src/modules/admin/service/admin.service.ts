@@ -173,8 +173,8 @@ export class AdminService {
     };
   }
 
-  async listUsers() {
-    const users = await this.adminRepository.listUsers();
+  async listUsers(q?: string) {
+    const users = await this.adminRepository.listUsers(q);
     return users.map(mapAdminUser);
   }
 

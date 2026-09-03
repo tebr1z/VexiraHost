@@ -164,8 +164,11 @@ export async function getAdminDashboard(): Promise<AdminDashboardResponse> {
   return res.data as AdminDashboardResponse;
 }
 
-export async function listAdminUsers(): Promise<AdminUser[]> {
-  const res = await apiClient.request<AdminUser[]>("/admin/users");
+export async function listAdminUsers(params?: { q?: string }): Promise<AdminUser[]> {
+  const qs = new URLSearchParams();
+  if (params?.q?.trim()) qs.set("q", params.q.trim());
+  const query = qs.toString();
+  const res = await apiClient.request<AdminUser[]>(`/admin/users${query ? `?${query}` : ""}`);
   return res.data ?? [];
 }
 

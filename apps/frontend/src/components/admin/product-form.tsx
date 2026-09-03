@@ -552,7 +552,6 @@ export function ProductForm({
               {tf("exchangeRatesHint", {
                 date: exchangeRates.date,
                 usdAzn: exchangeRates.usdToAzn.toFixed(4),
-                usdEur: exchangeRates.usdToEur.toFixed(4),
               })}
             </p>
           </div>

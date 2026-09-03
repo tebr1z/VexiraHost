@@ -74,10 +74,23 @@ export class AdminRepository {
     ]);
   }
 
-  listUsers() {
+  listUsers(q?: string) {
+    const query = q?.trim();
+    const searchable = query && query.length >= 2 ? query : undefined;
+
     return this.prisma.user.findMany({
+      where: searchable
+        ? {
+            OR: [
+              { email: { contains: searchable, mode: "insensitive" } },
+              { firstName: { contains: searchable, mode: "insensitive" } },
+              { lastName: { contains: searchable, mode: "insensitive" } },
+            ],
+          }
+        : undefined,
       orderBy: { createdAt: "desc" },
       select: adminUserSelect,
+      take: 100,
     });
   }
 

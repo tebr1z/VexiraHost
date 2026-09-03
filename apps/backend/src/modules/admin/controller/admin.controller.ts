@@ -59,8 +59,8 @@ export class AdminController {
 
   @Get("users")
   @Roles(UserRole.ADMIN)
-  listUsers() {
-    return this.adminService.listUsers();
+  listUsers(@Query("q") q?: string) {
+    return this.adminService.listUsers(q);
   }
 
   @Get("users/:id")

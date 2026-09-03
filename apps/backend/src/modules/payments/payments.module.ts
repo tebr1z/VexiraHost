@@ -13,9 +13,10 @@ import { DomainsModule } from "@/modules/domains/domains.module";
 import { HostingModule } from "@/modules/hosting/hosting.module";
 import { NotificationsModule } from "@/modules/notifications/notifications.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
+import { PricingModule } from "@/shared/pricing/pricing.module";
 
 @Module({
-  imports: [HostingModule, DomainsModule, NotificationsModule],
+  imports: [HostingModule, DomainsModule, NotificationsModule, PricingModule],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

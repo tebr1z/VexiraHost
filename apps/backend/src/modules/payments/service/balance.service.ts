@@ -19,6 +19,8 @@ import { DomainBillingService } from "@/modules/domains/service/domain-billing.s
 import { HostingBillingService } from "@/modules/hosting/service/hosting-billing.service";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 import { NotificationsService } from "@/modules/notifications/service/notifications.service";
+import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
+import { convertLedgerAmount } from "@/shared/pricing/currency-convert.util";
 
 function generateBalanceReference(): string {
   return `BAL-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -36,6 +38,7 @@ export class BalanceService {
     private readonly domainBilling: DomainBillingService,
     private readonly notificationsService: NotificationsService,
     private readonly balanceEmailService: BalanceEmailService,
+    private readonly cbarExchange: CbarExchangeService,
   ) {}
 
   async getBalance(userId: string) {
@@ -215,37 +218,57 @@ export class BalanceService {
     }
 
     const referenceNumber = generateBalanceReference();
+    const invoiceCurrency = invoice.currency.toUpperCase();
+    const rates = await this.cbarExchange.getRates();
 
     const payment = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException("User not found");
 
       const balance = Number(user.accountBalance);
-      const currency = user.balanceCurrency.toUpperCase();
-      if (currency !== invoice.currency.toUpperCase()) {
-        throw new BadRequestException(
-          `Balance is in ${currency}, but invoice is in ${invoice.currency}`,
-        );
-      }
-      if (balance <= 0) {
+      const balanceCurrency = user.balanceCurrency.toUpperCase();
+      const balanceInInvoiceCurrency = convertLedgerAmount(
+        balance,
+        balanceCurrency,
+        invoiceCurrency,
+        rates,
+      );
+
+      if (balanceInInvoiceCurrency <= 0) {
         throw new BadRequestException("Insufficient account balance");
       }
 
-      const maxPayable = Math.min(balance, amountDue);
-      const amount =
+      const maxPayable = Math.min(balanceInInvoiceCurrency, amountDue);
+      const paymentAmount =
         requestedAmount == null ? maxPayable : Number(Number(requestedAmount).toFixed(2));
 
-      if (!Number.isFinite(amount) || amount <= 0) {
+      if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
         throw new BadRequestException("Amount must be greater than zero");
       }
-      if (amount > maxPayable + 0.001) {
-        throw new BadRequestException(`Amount cannot exceed ${maxPayable.toFixed(2)} ${currency}`);
+      if (paymentAmount > maxPayable + 0.001) {
+        throw new BadRequestException(
+          `Amount cannot exceed ${maxPayable.toFixed(2)} ${invoiceCurrency}`,
+        );
       }
 
-      const debit = new Prisma.Decimal(amount.toFixed(2));
+      const debitAmount = convertLedgerAmount(
+        paymentAmount,
+        invoiceCurrency,
+        balanceCurrency,
+        rates,
+      );
+      if (debitAmount > balance + 0.02) {
+        throw new BadRequestException("Insufficient account balance");
+      }
+
+      const debit = new Prisma.Decimal(debitAmount.toFixed(2));
       const next = new Prisma.Decimal(balance.toFixed(2)).minus(debit);
-      const paidAfter = Number((alreadyPaid + amount).toFixed(2));
+      const paidAfter = Number((alreadyPaid + paymentAmount).toFixed(2));
       const fullyPaid = paidAfter >= invoiceTotal - 0.001;
+      const fxNote =
+        balanceCurrency !== invoiceCurrency
+          ? ` (${debitAmount.toFixed(2)} ${balanceCurrency} → ${paymentAmount.toFixed(2)} ${invoiceCurrency})`
+          : "";
 
       await tx.user.update({
         where: { id: userId },
@@ -257,12 +280,12 @@ export class BalanceService {
           userId,
           amount: debit.negated(),
           balanceAfter: next,
-          currency,
+          currency: balanceCurrency,
           type: BalanceTxnType.INVOICE_PAYMENT,
           referenceNumber,
           note: fullyPaid
-            ? `Paid invoice ${invoice.invoiceNumber}`
-            : `Partial payment for invoice ${invoice.invoiceNumber}`,
+            ? `Paid invoice ${invoice.invoiceNumber}${fxNote}`
+            : `Partial payment for invoice ${invoice.invoiceNumber}${fxNote}`,
           invoiceId: invoice.id,
         },
       });
@@ -271,7 +294,7 @@ export class BalanceService {
         data: {
           userId,
           invoiceId: invoice.id,
-          amount: debit,
+          amount: new Prisma.Decimal(paymentAmount.toFixed(2)),
           currency: invoice.currency,
           status: PaymentStatus.COMPLETED,
           gatewayRef: `balance-${Date.now()}`,
@@ -298,10 +321,11 @@ export class BalanceService {
       return {
         created,
         fullyPaid,
-        amount,
+        amount: paymentAmount,
         paidAfter,
         localeHistory: user.localeHistory,
-        currency,
+        currency: invoiceCurrency,
+        balanceCurrency,
       };
     });
 

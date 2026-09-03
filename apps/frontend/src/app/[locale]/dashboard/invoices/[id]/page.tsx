@@ -14,7 +14,8 @@ import {
   getInvoice,
   type InvoiceDetail,
 } from "@/features/billing";
-import { useDisplayMoney } from "@/hooks/use-display-money";
+import { convertAmount } from "@/features/catalog/services/exchange-rates.service";
+import { useDisplayMoney, useExchangeRates } from "@/hooks/use-display-money";
 import { Link } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/stores/auth-store";
@@ -31,6 +32,7 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.invoices");
   const { format: formatDisplay } = useDisplayMoney();
+  const rates = useExchangeRates();
   const id = params.id as string;
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [balance, setBalance] = useState<{ balance: number; currency: string } | null>(null);
@@ -47,12 +49,6 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
       .then(([inv, bal]) => {
         setInvoice(inv);
         setBalance(bal);
-        const due = inv.amountDue ?? inv.total;
-        const max =
-          bal && bal.currency.toUpperCase() === inv.currency.toUpperCase()
-            ? Math.min(bal.balance, due)
-            : due;
-        setBalanceAmount(max > 0 ? max.toFixed(2) : "");
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -64,9 +60,22 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
 
   const maxBalancePay = useMemo(() => {
     if (!invoice || !balance) return 0;
-    if (balance.currency.toUpperCase() !== invoice.currency.toUpperCase()) return 0;
-    return roundMoney(Math.min(balance.balance, amountDue));
-  }, [invoice, balance, amountDue]);
+    const balanceInInvoice = convertAmount(
+      balance.balance,
+      balance.currency,
+      invoice.currency as "USD" | "EUR" | "AZN",
+      rates,
+    );
+    return roundMoney(Math.min(balanceInInvoice, amountDue));
+  }, [invoice, balance, amountDue, rates]);
+
+  useEffect(() => {
+    if (maxBalancePay > 0) {
+      setBalanceAmount(maxBalancePay.toFixed(2));
+    } else {
+      setBalanceAmount("");
+    }
+  }, [maxBalancePay]);
 
   const canPayWithBalance = invoice?.status === "OPEN" && balance != null && maxBalancePay > 0;
 

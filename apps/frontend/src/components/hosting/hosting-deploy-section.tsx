@@ -401,11 +401,26 @@ export function HostingDeploySection({
 
   if (!enabled) return null;
 
+  const fieldClass =
+    "h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 text-sm outline-none transition focus:border-[var(--accent)]";
+  const pillClass = (active: boolean) =>
+    cn(
+      "h-8 rounded-lg px-3 text-xs font-semibold transition",
+      active
+        ? "bg-[var(--accent)] text-white shadow-sm"
+        : "text-[var(--label-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--label-primary)]",
+    );
+
   const newDeployButton = (
     <button
       type="button"
       onClick={() => setShowForm((v) => !v)}
-      className="inline-flex h-9 items-center gap-1 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white"
+      className={cn(
+        "inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition",
+        showForm
+          ? "border border-[var(--separator)] text-[var(--label-secondary)] hover:text-[var(--label-primary)]"
+          : "bg-[var(--accent)] text-white shadow-sm",
+      )}
     >
       <MaterialIcon name={showForm ? "close" : "add"} className="text-[18px]" />
       {showForm ? t("cancel") : t("newDeploy")}
@@ -414,18 +429,14 @@ export function HostingDeploySection({
 
   const body = (
     <>
-      {githubConnected ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--accent)_22%,var(--separator))] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] px-4 py-3">
-          <div className="flex items-center gap-2 text-sm">
-            <MaterialIcon name="link" className="text-[18px] text-[var(--accent)]" />
-            <span className="text-[var(--label-primary)]">
-              {t("githubConnectedAs", { login: githubLogin ?? "GitHub" })}
-            </span>
-          </div>
+      {!showForm && githubConnected ? (
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs text-[var(--label-secondary)]">
+          <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
+          <span>@{githubLogin ?? "GitHub"}</span>
           <button
             type="button"
             onClick={() => void onDisconnectGitHub()}
-            className="text-xs font-medium text-[var(--danger)] hover:underline"
+            className="ml-1 text-[var(--label-tertiary)] hover:text-[var(--danger)]"
           >
             {t("githubDisconnect")}
           </button>
@@ -433,206 +444,222 @@ export function HostingDeploySection({
       ) : null}
 
       {showForm ? (
-        <div className="mb-6 space-y-4 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-[var(--label-primary)]">{t("projectName")}</span>
+        <div className="mb-6 space-y-5 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[var(--label-primary)]">{t("newDeploy")}</p>
+            <a
+              href={`https://${previewDomain}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1 font-mono text-[11px] font-medium text-[var(--accent)]"
+            >
+              https://{previewDomain}
+              <MaterialIcon name="open_in_new" className="shrink-0 text-[12px]" />
+            </a>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1 text-sm">
+              <span className="text-xs font-medium text-[var(--label-secondary)]">
+                {t("projectName")}
+              </span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="my-app"
-                className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3"
+                className={fieldClass}
               />
             </label>
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-[var(--label-primary)]">{t("stack")}</span>
-              <select
-                value={stack}
-                onChange={(e) => setStack(e.target.value as DeployStack)}
-                className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3"
-              >
+            <div className="space-y-1 text-sm">
+              <span className="text-xs font-medium text-[var(--label-secondary)]">
+                {t("stack")}
+              </span>
+              <div className="flex gap-1.5 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-1">
                 {STACK_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setStack(option)}
+                    className={cn("flex-1", pillClass(stack === option))}
+                  >
                     {t(`stack_${option}`)}
-                  </option>
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-[var(--label-primary)]">{t("domainMode")}</span>
-              <select
-                value={domainMode}
-                onChange={(e) => setDomainMode(e.target.value as DeployDomainMode)}
-                className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3"
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDomainMode("SUBDOMAIN")}
+                className={pillClass(domainMode === "SUBDOMAIN")}
               >
-                <option value="SUBDOMAIN">{t("domainSubdomain")}</option>
-                <option value="PRIMARY">{t("domainPrimary")}</option>
-              </select>
-            </label>
+                {t("domainSubdomain")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDomainMode("PRIMARY")}
+                className={pillClass(domainMode === "PRIMARY")}
+              >
+                {t("domainPrimary")}
+              </button>
+            </div>
             {domainMode === "SUBDOMAIN" ? (
-              <label className="block space-y-1.5 text-sm">
-                <span className="font-medium text-[var(--label-primary)]">{t("subdomain")}</span>
-                <div className="flex h-10 overflow-hidden rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)]">
-                  <input
-                    value={subdomain}
-                    onChange={(e) => setSubdomain(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent px-3"
-                  />
-                  <span className="flex items-center border-l border-[var(--separator)] px-3 text-xs text-[var(--label-secondary)]">
-                    .{primaryDomain}
-                  </span>
-                </div>
-              </label>
-            ) : (
-              <div className="flex items-end text-sm text-[var(--label-secondary)]">
-                {t("primaryDomainHint", { domain: primaryDomain })}
+              <div className="flex h-10 overflow-hidden rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)]">
+                <input
+                  value={subdomain}
+                  onChange={(e) => setSubdomain(e.target.value)}
+                  placeholder="app"
+                  className="min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
+                />
+                <span className="flex items-center border-l border-[var(--separator)] px-3 text-xs text-[var(--label-tertiary)]">
+                  .{primaryDomain}
+                </span>
               </div>
+            ) : (
+              <p className="text-xs text-[var(--label-tertiary)]">
+                {t("primaryDomainHint", { domain: primaryDomain })}
+              </p>
             )}
           </div>
 
-          <p className="text-xs text-[var(--label-tertiary)]">
-            {t("deployUrlPreview")}:{" "}
-            <span className="font-mono text-[var(--accent)]">https://{previewDomain}</span>
-          </p>
-
-          <div className="space-y-3 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium text-[var(--label-primary)]">
-                {t("repoSource")}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRepoSource("github")}
-                  className={cn(
-                    "h-8 rounded-lg px-3 text-xs font-semibold",
-                    repoSource === "github"
-                      ? "bg-[var(--accent)] text-white"
-                      : "border border-[var(--separator)]",
-                  )}
-                >
-                  GitHub
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRepoSource("manual")}
-                  className={cn(
-                    "h-8 rounded-lg px-3 text-xs font-semibold",
-                    repoSource === "manual"
-                      ? "bg-[var(--accent)] text-white"
-                      : "border border-[var(--separator)]",
-                  )}
-                >
-                  {t("manualRepo")}
-                </button>
-              </div>
+          <div className="space-y-3">
+            <div className="flex gap-1.5 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-1">
+              <button
+                type="button"
+                onClick={() => setRepoSource("github")}
+                className={cn("flex-1", pillClass(repoSource === "github"))}
+              >
+                GitHub
+              </button>
+              <button
+                type="button"
+                onClick={() => setRepoSource("manual")}
+                className={cn("flex-1", pillClass(repoSource === "manual"))}
+              >
+                {t("manualRepo")}
+              </button>
             </div>
 
             {repoSource === "github" ? (
-              <div className="space-y-3">
-                {githubLoading ? (
-                  <p className="text-xs text-[var(--label-secondary)]">{t("githubLoading")}</p>
-                ) : githubConnected ? (
-                  <>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs text-[var(--label-secondary)]">
-                        {t("githubConnectedAs", { login: githubLogin ?? "GitHub" })}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => void onDisconnectGitHub()}
-                        className="text-xs text-[var(--danger)] hover:underline"
-                      >
-                        {t("githubDisconnect")}
-                      </button>
-                    </div>
-                    <label className="block space-y-1.5 text-sm">
-                      <span className="font-medium text-[var(--label-primary)]">
-                        {t("selectRepo")}
-                      </span>
-                      <select
-                        value={selectedGithubRepo?.fullName ?? ""}
-                        onChange={(e) => onSelectGithubRepo(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 text-sm"
-                      >
-                        <option value="">{t("selectRepoPlaceholder")}</option>
-                        {githubRepos.map((repo) => (
-                          <option key={repo.id} value={repo.fullName}>
-                            {repo.fullName}
-                            {repo.private ? ` (${t("privateRepo")})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={githubConnecting}
-                    onClick={() => void onConnectGitHub()}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--separator)] px-4 text-sm font-semibold disabled:opacity-60"
+              githubLoading ? (
+                <p className="text-xs text-[var(--label-tertiary)]">{t("githubLoading")}</p>
+              ) : githubConnected ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-xs text-[var(--label-tertiary)]">
+                    <span className="inline-flex items-center gap-1">
+                      <MaterialIcon
+                        name="check_circle"
+                        className="text-[14px] text-[var(--accent)]"
+                      />
+                      @{githubLogin ?? "GitHub"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void onDisconnectGitHub()}
+                      className="hover:text-[var(--danger)]"
+                    >
+                      {t("githubDisconnect")}
+                    </button>
+                  </div>
+                  <select
+                    value={selectedGithubRepo?.fullName ?? ""}
+                    onChange={(e) => onSelectGithubRepo(e.target.value)}
+                    className={fieldClass}
                   >
-                    <MaterialIcon name="link" className="text-[18px]" />
-                    {githubConnecting ? t("githubConnecting") : t("connectGitHub")}
-                  </button>
-                )}
-              </div>
+                    <option value="">{t("selectRepoPlaceholder")}</option>
+                    {githubRepos.map((repo) => (
+                      <option key={repo.id} value={repo.fullName}>
+                        {repo.fullName}
+                        {repo.private ? ` (${t("privateRepo")})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={githubConnecting}
+                  onClick={() => void onConnectGitHub()}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--separator)] text-sm font-semibold text-[var(--label-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+                >
+                  <MaterialIcon name="link" className="text-[18px]" />
+                  {githubConnecting ? t("githubConnecting") : t("connectGitHub")}
+                </button>
+              )
             ) : (
-              <label className="block space-y-1.5 text-sm">
-                <span className="font-medium text-[var(--label-primary)]">{t("repoUrl")}</span>
-                <input
-                  value={repoUrl}
-                  onChange={(e) => setRepoUrl(e.target.value)}
-                  placeholder="https://github.com/user/repo.git"
-                  className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 font-mono text-xs"
-                />
-              </label>
+              <input
+                value={repoUrl}
+                onChange={(e) => setRepoUrl(e.target.value)}
+                placeholder="https://github.com/user/repo.git"
+                className={cn(fieldClass, "font-mono text-xs")}
+              />
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-[var(--label-primary)]">{t("branch")}</span>
-              <input
-                value={branch}
-                onChange={(e) => setBranch(e.target.value)}
-                className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3"
-              />
-            </label>
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-[var(--label-primary)]">{t("rootDirectory")}</span>
-              <input
-                value={rootDirectory}
-                onChange={(e) => setRootDirectory(e.target.value)}
-                placeholder="apps/frontend"
-                className="h-10 w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 font-mono text-xs"
-              />
-            </label>
-          </div>
-
-          <label className="block space-y-1.5 text-sm">
-            <span className="font-medium text-[var(--label-primary)]">{t("envVars")}</span>
-            <p className="text-xs text-[var(--label-tertiary)]">{t("envEditHint")}</p>
-            <textarea
-              value={envText}
-              onChange={(e) => setEnvText(e.target.value)}
-              rows={4}
-              placeholder={"DATABASE_URL=...\nAPI_KEY=..."}
-              className="w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-2 font-mono text-xs"
-            />
-          </label>
+          <details className="group rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)]">
+            <summary className="cursor-pointer list-none px-3.5 py-2.5 text-xs font-semibold text-[var(--label-secondary)] marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-1.5">
+                <MaterialIcon
+                  name="tune"
+                  className="text-[16px] transition group-open:text-[var(--accent)]"
+                />
+                {t("advancedOptions")}
+                <MaterialIcon
+                  name="expand_more"
+                  className="text-[16px] transition group-open:rotate-180"
+                />
+              </span>
+            </summary>
+            <div className="space-y-3 border-t border-[var(--separator)] px-3.5 py-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1 text-sm">
+                  <span className="text-xs font-medium text-[var(--label-secondary)]">
+                    {t("branch")}
+                  </span>
+                  <input
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    className={fieldClass}
+                  />
+                </label>
+                <label className="block space-y-1 text-sm">
+                  <span className="text-xs font-medium text-[var(--label-secondary)]">
+                    {t("rootDirectory")}
+                  </span>
+                  <input
+                    value={rootDirectory}
+                    onChange={(e) => setRootDirectory(e.target.value)}
+                    placeholder="apps/frontend"
+                    className={cn(fieldClass, "font-mono text-xs")}
+                  />
+                </label>
+              </div>
+              <label className="block space-y-1 text-sm">
+                <span className="text-xs font-medium text-[var(--label-secondary)]">
+                  {t("envVars")}
+                </span>
+                <textarea
+                  value={envText}
+                  onChange={(e) => setEnvText(e.target.value)}
+                  rows={3}
+                  placeholder={"DATABASE_URL=...\nAPI_KEY=..."}
+                  className="w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+                />
+              </label>
+            </div>
+          </details>
 
           <button
             type="button"
             disabled={creating}
             onClick={() => void onCreate()}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] text-sm font-semibold text-white shadow-sm disabled:opacity-60"
           >
             <MaterialIcon
-              name="play_arrow"
+              name="rocket_launch"
               className={cn("text-[18px]", creating && "animate-pulse")}
             />
             {creating ? t("creating") : t("startDeploy")}
@@ -643,7 +670,20 @@ export function HostingDeploySection({
       {loading && items.length === 0 ? (
         <LoadingSkeleton className="h-24 w-full rounded-2xl" />
       ) : items.length === 0 ? (
-        <p className="text-sm text-[var(--label-secondary)]">{t("empty")}</p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--separator)] bg-[var(--bg-secondary)] px-4 py-10 text-center">
+          <MaterialIcon name="rocket_launch" className="text-[28px] text-[var(--label-tertiary)]" />
+          <p className="mt-2 text-sm text-[var(--label-secondary)]">{t("empty")}</p>
+          {!showForm ? (
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-4 text-xs font-semibold text-white"
+            >
+              <MaterialIcon name="add" className="text-[18px]" />
+              {t("newDeploy")}
+            </button>
+          ) : null}
+        </div>
       ) : (
         <ul className="space-y-3">
           {items.map((item) => {
@@ -901,18 +941,13 @@ export function HostingDeploySection({
   if (embedded) {
     return (
       <div className="dashboard-section-card space-y-5 p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-jakarta inline-flex flex-wrap items-center gap-2 text-lg font-bold text-[var(--label-primary)]">
-              {t("title")}
-              <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                {t("betaBadge")}
-              </span>
-            </h2>
-            <p className="mt-1 text-sm text-[var(--label-secondary)]">
-              {t("subtitle", { domain: primaryDomain })}
-            </p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-jakarta inline-flex items-center gap-2 text-lg font-bold text-[var(--label-primary)]">
+            {t("title")}
+            <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              Beta
+            </span>
+          </h2>
           {newDeployButton}
         </div>
         {body}
@@ -926,11 +961,10 @@ export function HostingDeploySection({
         <span className="inline-flex flex-wrap items-center gap-2">
           {t("title")}
           <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-            {t("betaBadge")}
+            Beta
           </span>
         </span>
       }
-      description={t("subtitle", { domain: primaryDomain })}
       icon="rocket_launch"
       actions={newDeployButton}
     >

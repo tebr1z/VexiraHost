@@ -121,6 +121,7 @@ export async function performCheckout(
 
   const pricing = usePricingStore.getState();
   const period = resolveCheckoutPeriod(items, pricing.period);
+  // Settlement currency is always AZN (Kapital + balance convert via CBAR).
   const order = await checkout(
     items.map((item) => ({
       productId: item.productId,
@@ -133,7 +134,7 @@ export async function performCheckout(
       },
     })),
     {
-      currency: pricing.currency,
+      currency: "AZN",
       period,
       promoCode: options?.promoCode?.trim() || undefined,
     },

@@ -18,14 +18,17 @@ export default function AdminUsersPage(): React.ReactElement | null {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
-    listAdminUsers()
+    setError(null);
+    listAdminUsers({ q: search || undefined })
       .then(setUsers)
       .catch(() => setError(tp("adminOnly")))
       .finally(() => setLoading(false));
-  }, [tp]);
+  }, [search, tp]);
 
   useEffect(() => {
     load();
@@ -49,6 +52,29 @@ export default function AdminUsersPage(): React.ReactElement | null {
           { label: tp("title") },
         ]}
       />
+
+      <div className="card-3d flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-end">
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSearch(searchInput.trim());
+          }}
+        >
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={tp("searchPlaceholder")}
+            className="border-outline-variant h-10 min-w-[220px] rounded-xl border px-4 text-sm"
+          />
+          <button
+            type="submit"
+            className="bg-surface-container-low text-primary h-10 rounded-xl px-4 text-sm font-medium"
+          >
+            {t("actions.search")}
+          </button>
+        </form>
+      </div>
 
       {error && <p className="text-error">{error}</p>}
 
