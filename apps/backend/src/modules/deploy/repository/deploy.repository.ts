@@ -59,6 +59,10 @@ export class DeployRepository {
     return this.prisma.appDeployment.update({ where: { id }, data });
   }
 
+  delete(id: string) {
+    return this.prisma.appDeployment.delete({ where: { id } });
+  }
+
   createRun(deploymentId: string) {
     return this.prisma.deploymentRun.create({
       data: { deploymentId, status: "RUNNING" },

@@ -17,6 +17,7 @@ import {
 import {
   createDeployment,
   checkDeploymentHealth,
+  deleteDeployment,
   formatEnvVars,
   getDeployment,
   listDeployments,
@@ -74,6 +75,7 @@ export function HostingDeploySection({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedLog, setExpandedLog] = useState<string>("");
   const [redeployingId, setRedeployingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [envEditId, setEnvEditId] = useState<string | null>(null);
   const [envEditText, setEnvEditText] = useState("");
   const [savingEnvId, setSavingEnvId] = useState<string | null>(null);
@@ -324,6 +326,24 @@ export function HostingDeploySection({
       toast(getApiErrorMessage(err, t("redeployFailed")), "error");
     } finally {
       setRedeployingId(null);
+    }
+  };
+
+  const onDelete = async (id: string, domain: string) => {
+    if (!window.confirm(t("deleteConfirm", { domain }))) return;
+    setDeletingId(id);
+    try {
+      await deleteDeployment(accountId, id);
+      toast(t("deleted"), "success");
+      if (expandedId === id) {
+        setExpandedId(null);
+        setExpandedLog("");
+      }
+      await load();
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("deleteFailed")), "error");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -743,13 +763,27 @@ export function HostingDeploySection({
                         type="button"
                         disabled={isRunning || redeployingId === item.id}
                         onClick={() => void onRedeploy(item.id)}
+                        title={t("redeployHint")}
                         className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
                       >
                         <MaterialIcon
                           name="refresh"
                           className={cn("text-[16px]", redeployingId === item.id && "animate-spin")}
                         />
-                        {t("redeploy")}
+                        {item.status === "FAILED" ? t("redeployUpdate") : t("redeploy")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isRunning || deletingId === item.id}
+                        onClick={() => void onDelete(item.id, item.deployDomain)}
+                        title={t("delete")}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
+                      >
+                        <MaterialIcon
+                          name="delete"
+                          className={cn("text-[16px]", deletingId === item.id && "animate-pulse")}
+                        />
+                        {t("delete")}
                       </button>
                       <div className="flex rounded-lg border border-[var(--separator)] p-0.5">
                         {item.status === "SUCCESS" ? (

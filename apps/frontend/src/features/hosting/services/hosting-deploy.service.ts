@@ -97,6 +97,17 @@ export async function redeployApplication(
   return res.data!;
 }
 
+export async function deleteDeployment(
+  accountId: string,
+  deploymentId: string,
+): Promise<{ id: string; message: string }> {
+  const res = await apiClient.request<{ id: string; message: string }>(
+    `/hosting/${accountId}/deployments/${deploymentId}`,
+    { method: "DELETE" },
+  );
+  return res.data!;
+}
+
 export async function updateDeploymentEnv(
   accountId: string,
   deploymentId: string,

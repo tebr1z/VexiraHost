@@ -102,7 +102,7 @@ export class DeployRunner {
 
       if (deployment.domainMode === "SUBDOMAIN") {
         await this.setStage(deploymentId, run.id, DEPLOY_STAGES.CREATING_SUBDOMAIN);
-        await log(`Stage: Plesk subdomain (${deployment.deployDomain})…`);
+        await log(`Stage: Plesk addon domain (${deployment.deployDomain})…`);
         const { siteId, created } = await this.pleskSite.ensureSubdomain(
           server,
           account,
@@ -111,8 +111,8 @@ export class DeployRunner {
         await this.deployRepository.update(deploymentId, { pleskSiteId: siteId });
         await log(
           created
-            ? `Created Plesk subdomain ${deployment.deployDomain} (site ${siteId})`
-            : `Subdomain ${deployment.deployDomain} already exists (site ${siteId})`,
+            ? `Created Plesk domain ${deployment.deployDomain} (site ${siteId})`
+            : `Domain ${deployment.deployDomain} already exists (site ${siteId})`,
         );
       }
 

@@ -560,6 +560,14 @@ export async function getPleskSiteIdByName(
   server: PleskServerCredentials,
   domainName: string,
 ): Promise<string | null> {
+  const info = await getPleskSiteInfoByName(server, domainName);
+  return info?.id ?? null;
+}
+
+export async function getPleskSiteInfoByName(
+  server: PleskServerCredentials,
+  domainName: string,
+): Promise<{ id: string; parentSiteId: string | null } | null> {
   const endpoint = resolvePanelEndpoint(server);
   const packetBody = `  <site>
     <get>
@@ -585,14 +593,22 @@ export async function getPleskSiteIdByName(
     const status = extractXmlTag(result, "status");
     if (status?.toLowerCase() === "error") continue;
     const id = extractXmlId(result) ?? extractXmlTag(result, "id");
-    if (id) return id;
+    if (!id) continue;
+    const data = extractXmlBlock(result, "data") ?? result;
+    const genInfo = extractXmlBlock(data, "gen_info") ?? data;
+    const parentSiteId =
+      extractXmlTag(genInfo, "parent-site-id") ?? extractXmlTag(genInfo, "parent_site_id");
+    return { id, parentSiteId: parentSiteId?.trim() || null };
   }
 
-  return extractXmlId(response.body);
+  const id = extractXmlId(response.body);
+  if (!id) return null;
+  return { id, parentSiteId: null };
 }
 
 /**
- * Plesk XML API: site/add — create subdomain under an existing subscription.
+ * Plesk XML API: site/add — create an additional domain (addon) on a subscription.
+ * Omitting parent-site-id makes it appear as a full domain (hosting), not a mail-only subdomain.
  * @see https://docs.plesk.com/en-US/obsidian/api-rpc/about-xml-api/reference/managing-sites-domains/creating-a-site.66574/
  */
 export async function createPleskSubdomainSite(
@@ -600,32 +616,62 @@ export async function createPleskSubdomainSite(
   input: {
     fqdn: string;
     webspaceId: string;
-    parentSiteId: string;
+    /** @deprecated Ignored — addon domains must not use parent-site-id */
+    parentSiteId?: string;
   },
 ): Promise<{ siteId: string }> {
   const endpoint = resolvePanelEndpoint(server);
+  const wwwRoot = `/${input.fqdn}`;
   const packetBody = `  <site>
     <add>
       <gen_setup>
         <name>${escapeXml(input.fqdn)}</name>
         <webspace-id>${escapeXml(input.webspaceId)}</webspace-id>
-        <parent-site-id>${escapeXml(input.parentSiteId)}</parent-site-id>
       </gen_setup>
+      <hosting>
+        <vrt_hst>
+          <property>
+            <name>www_root</name>
+            <value>${escapeXml(wwwRoot)}</value>
+          </property>
+        </vrt_hst>
+      </hosting>
     </add>
   </site>`;
 
   const response = await pleskXmlRequest(server, endpoint, packetBody);
   const apiError = extractXmlError(response.body);
   if (apiError && !isBenignPleskError(apiError)) {
-    throw new BadRequestException(`Plesk subdomain error: ${apiError}`);
+    throw new BadRequestException(`Plesk domain error: ${apiError}`);
   }
 
   const siteId = extractXmlId(response.body);
   if (!siteId) {
     const existing = await getPleskSiteIdByName(server, input.fqdn);
     if (existing) return { siteId: existing };
-    throw new BadRequestException("Plesk did not return a site id for the new subdomain");
+    throw new BadRequestException("Plesk did not return a site id for the new domain");
   }
 
   return { siteId };
+}
+
+/**
+ * Plesk XML API: site/del — remove an addon domain / site (not the subscription webspace).
+ */
+export async function deletePleskSite(
+  server: PleskServerCredentials,
+  filter: { id?: string; name?: string },
+): Promise<void> {
+  const endpoint = resolvePanelEndpoint(server);
+  const packetBody = `  <site>
+    <del>
+      ${buildSiteFilter(filter)}
+    </del>
+  </site>`;
+
+  const response = await pleskXmlRequest(server, endpoint, packetBody);
+  const apiError = extractXmlError(response.body);
+  if (apiError && !isBenignPleskError(apiError)) {
+    throw new BadRequestException(`Plesk site delete error: ${apiError}`);
+  }
 }

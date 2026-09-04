@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 
 import { CreateDeploymentDto } from "../dto/create-deployment.dto";
@@ -43,12 +43,21 @@ export class DeployController {
     return this.deployService.redeploy(accountId, deploymentId, user.id);
   }
 
+  @Delete(":deploymentId")
+  remove(
+    @Param("accountId") accountId: string,
+    @Param("deploymentId") deploymentId: string,
+    @User() user: AuthUser,
+  ) {
+    return this.deployService.remove(accountId, deploymentId, user.id);
+  }
+
   @Patch(":deploymentId/env")
   updateEnv(
     @Param("accountId") accountId: string,
     @Param("deploymentId") deploymentId: string,
-    @Body() dto: UpdateDeploymentEnvDto,
     @User() user: AuthUser,
+    @Body() dto: UpdateDeploymentEnvDto,
   ) {
     return this.deployService.updateEnv(accountId, deploymentId, user.id, dto);
   }

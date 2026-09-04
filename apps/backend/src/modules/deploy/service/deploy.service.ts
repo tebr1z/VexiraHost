@@ -178,6 +178,38 @@ export class DeployService {
     return { id: deploymentId, message: "Redeploy queued" };
   }
 
+  async remove(accountId: string, deploymentId: string, userId: string) {
+    const account = await this.assertAccount(accountId, userId);
+    const deployment = await this.deployRepository.findByIdForUser(deploymentId, userId);
+    if (!deployment || deployment.hostingAccountId !== accountId) {
+      throw new NotFoundException("Deployment not found");
+    }
+    if (deployment.status === "RUNNING") {
+      throw new BadRequestException("Wait for the current deploy to finish before deleting");
+    }
+
+    const server = account.server ?? deployment.hostingAccount.server;
+    if (server) {
+      await this.remoteDeploy.removeDeployment({
+        server,
+        deployPath: deployment.deployPath,
+        containerName: deployment.containerName,
+        deployDomain: deployment.deployDomain,
+      });
+
+      // Only remove Plesk addon domains we created — never the primary subscription domain.
+      if (deployment.domainMode === DeployDomainMode.SUBDOMAIN) {
+        await this.pleskSite.removeSite(server, {
+          id: deployment.pleskSiteId,
+          name: deployment.deployDomain,
+        });
+      }
+    }
+
+    await this.deployRepository.delete(deploymentId);
+    return { id: deploymentId, message: "Deployment deleted" };
+  }
+
   async updateEnv(
     accountId: string,
     deploymentId: string,

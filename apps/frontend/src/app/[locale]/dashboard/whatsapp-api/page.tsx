@@ -48,7 +48,11 @@ export default function WhatsappApiPage(): React.ReactElement {
     void load();
   }, [load]);
 
-  const endpoint = dashboard?.endpoint ?? "http://localhost:4000/api/v1/whatsapp/messages";
+  const publicEndpoint = "https://api.vexirahost.com/api/v1/whatsapp/messages";
+  const endpoint =
+    dashboard?.endpoint && !dashboard.endpoint.includes("localhost")
+      ? dashboard.endpoint
+      : publicEndpoint;
   const curlExample = useMemo(
     () =>
       `curl -X POST "${endpoint}" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: vxwa_live_your_key" \\\n  -d '{"phone":"+994501234567","message":"Hello from Vexira"}'`,

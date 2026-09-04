@@ -60,6 +60,17 @@ export class ApacheProxyService {
 
     await this.ssh.execChecked(ssh, script, 300_000);
   }
+
+  async clearReverseProxy(server: HostingServer, domain: string): Promise<void> {
+    const ssh = this.buildSshOptions(server);
+    const httpPath = pleskVhostConfPath(domain);
+    const httpsPath = pleskVhostSslConfPath(domain);
+    const script = [
+      `rm -f ${shellQuote(httpPath)} ${shellQuote(httpsPath)}`,
+      buildPleskApacheReloadCommand(domain),
+    ].join("; ");
+    await this.ssh.exec(ssh, script, 300_000);
+  }
 }
 
 @Injectable()
@@ -136,11 +147,15 @@ export class RemoteDeployService {
         if (isRedeploy && repoExists) {
           await append("prepare", `Redeploy — reusing ${deployPath}`);
           const cloneTarget = input.cloneUrl ?? input.repoUrl;
+          // Previous deploys write a generated Dockerfile into the repo; force-clean
+          // so fetch/checkout is not blocked by those local changes.
           const updateCmd = [
             `cd ${shellQuote(repoPath)}`,
             `git remote set-url origin ${shellQuote(cloneTarget)}`,
             `git fetch --depth 1 origin ${shellQuote(input.branch)}`,
-            `git checkout -B ${shellQuote(input.branch)} FETCH_HEAD`,
+            `git reset --hard FETCH_HEAD`,
+            `git clean -fd`,
+            `git checkout -f -B ${shellQuote(input.branch)} FETCH_HEAD`,
             `git reset --hard FETCH_HEAD`,
           ].join(" && ");
           await append("git pull", await session.execChecked(updateCmd, 600_000));
@@ -194,11 +209,18 @@ export class RemoteDeployService {
           await session.writeFile(nextEnvPath, envContent);
         }
 
-        const dockerfilePath = `${dockerContextDir}/Dockerfile`;
+        // Keep generated Dockerfile outside the git worktree so redeploy `git pull`
+        // is never blocked by local Dockerfile edits from a previous deploy.
+        const dockerfilePath = `${deployPath}/Dockerfile`;
         const dockerfile = buildDockerfile(input.stack, { monorepo, appSubdir });
         await session.writeFile(dockerfilePath, dockerfile);
 
-        const buildCmd = `cd ${shellQuote(dockerContextDir)} && docker build -t ${shellQuote(containerName)} .`;
+        const buildCmd = [
+          `docker build`,
+          `-f ${shellQuote(dockerfilePath)}`,
+          `-t ${shellQuote(containerName)}`,
+          shellQuote(dockerContextDir),
+        ].join(" ");
         await append("docker build", await session.execChecked(buildCmd, 900_000));
 
         const containerInspect = await session.exec(
@@ -295,6 +317,38 @@ export class RemoteDeployService {
       shellQuote(input.containerName),
     ].join(" ");
     await this.ssh.execChecked(ssh, runCmd);
+  }
+
+  async removeDeployment(input: {
+    server: HostingServer;
+    deployPath?: string | null;
+    containerName?: string | null;
+    deployDomain?: string | null;
+  }): Promise<void> {
+    const cfg = this.deployConfig;
+    if (cfg.mockRemote) return;
+
+    const ssh = this.apacheProxy.buildSshOptions(input.server);
+
+    await this.ssh.withSession(ssh, async (session) => {
+      if (input.containerName?.trim()) {
+        await session.exec(
+          `docker rm -f ${shellQuote(input.containerName.trim())} >/dev/null 2>&1 || true`,
+          120_000,
+        );
+      }
+      if (input.deployPath?.trim()) {
+        await session.exec(`rm -rf ${shellQuote(input.deployPath.trim())}`);
+      }
+    });
+
+    if (input.deployDomain?.trim()) {
+      try {
+        await this.apacheProxy.clearReverseProxy(input.server, input.deployDomain.trim());
+      } catch {
+        // Best-effort — Plesk site may already be gone
+      }
+    }
   }
 }
 
