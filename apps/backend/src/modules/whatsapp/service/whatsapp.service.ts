@@ -80,16 +80,44 @@ export class WhatsappService {
 
   async listMessages() {
     const rows = await this.repository.listRecentMessages(50);
-    return rows.map((row) => ({
-      id: row.id,
-      toPhone: row.toPhone,
-      userId: row.userId,
-      body: row.body,
-      status: row.status,
-      error: row.error,
-      gatewayAccountId: row.gatewayAccountId,
-      createdAt: row.createdAt,
-    }));
+    const fallbackUserIds = [
+      ...new Set(
+        rows
+          .filter((row) => !row.apiKey?.user && row.userId)
+          .map((row) => row.userId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const users = await this.repository.findUsersByIds(fallbackUserIds);
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    return rows.map((row) => {
+      const apiOwner = row.apiKey?.user ?? null;
+      const fallback = row.userId ? (userById.get(row.userId) ?? null) : null;
+      // Prefer API key owner (whose API was used); fall back to linked userId.
+      const owner = apiOwner ?? (row.apiKeyId ? null : fallback);
+      return {
+        id: row.id,
+        toPhone: row.toPhone,
+        userId: owner?.id ?? row.userId,
+        apiKeyId: row.apiKeyId,
+        body: row.body,
+        status: row.status,
+        error: row.error,
+        gatewayAccountId: row.gatewayAccountId,
+        createdAt: row.createdAt,
+        viaApi: Boolean(row.apiKeyId),
+        apiKeyName: row.apiKey?.name ?? null,
+        user: owner
+          ? {
+              id: owner.id,
+              email: owner.email,
+              firstName: owner.firstName,
+              lastName: owner.lastName,
+            }
+          : null,
+      };
+    });
   }
 
   async sendSystemText(input: {

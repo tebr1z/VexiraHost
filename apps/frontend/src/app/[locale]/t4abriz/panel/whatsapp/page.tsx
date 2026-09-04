@@ -521,6 +521,34 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
                 formatDate(String((row as unknown as WhatsappMessageLog).createdAt), locale),
             },
             {
+              key: "user",
+              header: tp("colSender"),
+              render: (row) => {
+                const msg = row as unknown as WhatsappMessageLog;
+                const user = msg.user;
+                if (!user) {
+                  return (
+                    <span className="text-on-surface-variant text-xs">{tp("senderSystem")}</span>
+                  );
+                }
+                const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+                return (
+                  <div className="min-w-[160px]">
+                    <p className="truncate text-sm font-medium">{name || user.email}</p>
+                    {name ? (
+                      <p className="text-on-surface-variant truncate text-xs">{user.email}</p>
+                    ) : null}
+                    {msg.viaApi ? (
+                      <p className="text-on-surface-variant mt-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                        {tp("senderViaApi")}
+                        {msg.apiKeyName ? ` · ${msg.apiKeyName}` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              },
+            },
+            {
               key: "toPhone",
               header: tp("colPhone"),
               render: (row) => (row as unknown as WhatsappMessageLog).toPhone,

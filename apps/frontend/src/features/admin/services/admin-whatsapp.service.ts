@@ -45,10 +45,19 @@ export interface WhatsappMessageLog {
   id: string;
   toPhone: string;
   userId: string | null;
+  apiKeyId?: string | null;
   body: string;
   status: "PENDING" | "SENT" | "FAILED";
   error: string | null;
   createdAt: string;
+  viaApi?: boolean;
+  apiKeyName?: string | null;
+  user: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
 }
 
 export interface WhatsappApiAccess {

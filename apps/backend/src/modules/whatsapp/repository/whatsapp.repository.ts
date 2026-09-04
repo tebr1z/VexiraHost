@@ -123,6 +123,37 @@ export class WhatsappRepository {
     return this.prisma.whatsappMessageLog.findMany({
       orderBy: { createdAt: "desc" },
       take: limit,
+      include: {
+        apiKey: {
+          select: {
+            id: true,
+            name: true,
+            lastFour: true,
+            userId: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  findUsersByIds(ids: string[]) {
+    if (ids.length === 0) return Promise.resolve([]);
+    return this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
     });
   }
 
