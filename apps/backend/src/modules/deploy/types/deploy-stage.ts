@@ -1,5 +1,6 @@
 export const DEPLOY_STAGES = {
   QUEUED: "queued",
+  WAITING_SERVER: "waiting_server",
   ALLOCATING_PORT: "allocating_port",
   CREATING_SUBDOMAIN: "creating_subdomain",
   PREPARING_SERVER: "preparing_server",

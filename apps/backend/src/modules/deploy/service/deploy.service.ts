@@ -147,14 +147,18 @@ export class DeployService {
       envVarsEnc,
     });
 
-    this.deployRunner.enqueue(deployment.id);
+    const { queuePosition } = await this.deployRunner.enqueue(deployment.id);
 
     return {
       id: deployment.id,
       deployDomain: deployment.deployDomain,
-      status: deployment.status,
-      stage: deployment.stage,
-      message: "Deployment queued",
+      status: "RUNNING",
+      stage: queuePosition > 1 ? "waiting_server" : "queued",
+      queuePosition,
+      message:
+        queuePosition > 1
+          ? "Server is busy — your deploy is queued and will start when the current job finishes"
+          : "Deployment queued",
     };
   }
 
@@ -173,9 +177,16 @@ export class DeployService {
       stage: null,
       lastError: null,
     });
-    this.deployRunner.enqueue(deploymentId);
+    const { queuePosition } = await this.deployRunner.enqueue(deploymentId);
 
-    return { id: deploymentId, message: "Redeploy queued" };
+    return {
+      id: deploymentId,
+      queuePosition,
+      message:
+        queuePosition > 1
+          ? "Server is busy — redeploy queued and will start when the current job finishes"
+          : "Redeploy queued",
+    };
   }
 
   async remove(accountId: string, deploymentId: string, userId: string) {
@@ -184,7 +195,7 @@ export class DeployService {
     if (!deployment || deployment.hostingAccountId !== accountId) {
       throw new NotFoundException("Deployment not found");
     }
-    if (deployment.status === "RUNNING") {
+    if (deployment.status === "RUNNING" && deployment.stage !== "waiting_server") {
       throw new BadRequestException("Wait for the current deploy to finish before deleting");
     }
 
@@ -237,8 +248,15 @@ export class DeployService {
         stage: null,
         lastError: null,
       });
-      this.deployRunner.enqueue(deploymentId);
-      return { id: deploymentId, message: "Environment saved — full redeploy queued" };
+      const { queuePosition } = await this.deployRunner.enqueue(deploymentId);
+      return {
+        id: deploymentId,
+        queuePosition,
+        message:
+          queuePosition > 1
+            ? "Environment saved — redeploy queued (server busy, will start next)"
+            : "Environment saved — full redeploy queued",
+      };
     }
 
     const server = account.server ?? deployment.hostingAccount.server;

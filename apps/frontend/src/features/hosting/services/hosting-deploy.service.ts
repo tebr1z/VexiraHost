@@ -76,11 +76,20 @@ export async function getDeployment(
 export async function createDeployment(
   accountId: string,
   input: CreateDeploymentInput,
-): Promise<{ id: string; deployDomain: string; status: DeployStatus; message: string }> {
+): Promise<{
+  id: string;
+  deployDomain: string;
+  status: DeployStatus;
+  stage?: string | null;
+  queuePosition?: number;
+  message: string;
+}> {
   const res = await apiClient.request<{
     id: string;
     deployDomain: string;
     status: DeployStatus;
+    stage?: string | null;
+    queuePosition?: number;
     message: string;
   }>(`/hosting/${accountId}/deployments`, { method: "POST", body: input });
   return res.data!;
@@ -89,8 +98,8 @@ export async function createDeployment(
 export async function redeployApplication(
   accountId: string,
   deploymentId: string,
-): Promise<{ id: string; message: string }> {
-  const res = await apiClient.request<{ id: string; message: string }>(
+): Promise<{ id: string; message: string; queuePosition?: number }> {
+  const res = await apiClient.request<{ id: string; message: string; queuePosition?: number }>(
     `/hosting/${accountId}/deployments/${deploymentId}/redeploy`,
     { method: "POST", body: {} },
   );

@@ -24,6 +24,13 @@ const RETRYABLE_SSH_ERRORS = [
   "Channel open failure",
 ];
 
+const SSH_TRANSPORT_AUTH_ERRORS = [
+  "All configured authentication methods failed",
+  "Authentication failure",
+  "Permission denied (password)",
+  "Permission denied (publickey,password)",
+];
+
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
@@ -37,6 +44,25 @@ function isRetryableError(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException).code;
   if (code && RETRYABLE_SSH_ERRORS.includes(code)) return true;
   return RETRYABLE_SSH_ERRORS.some((token) => error.message.includes(token));
+}
+
+/** True only for ssh2 connect/transport failures — not remote command stderr (git/docker). */
+function isSshTransportError(error: Error): boolean {
+  const msg = error.message;
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code && ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EPIPE", "ENOTFOUND"].includes(code)) {
+    return true;
+  }
+  if (SSH_TRANSPORT_AUTH_ERRORS.some((token) => msg.includes(token))) return true;
+  return [
+    "Timed out while waiting for handshake",
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "Channel open failure",
+    "Unable to exec",
+    "No response from server",
+    "SSH session timed out",
+  ].some((token) => msg.includes(token));
 }
 
 function wrapSshError(error: unknown, options: SshConnectionOptions, action: string): Error {
@@ -57,7 +83,7 @@ function wrapSshError(error: unknown, options: SshConnectionOptions, action: str
   if (code === "ENOTFOUND" || base.includes("ENOTFOUND")) {
     return new Error(`SSH ${action} failed: host "${options.host}" could not be resolved.`);
   }
-  if (base.includes("Authentication") || base.includes("auth")) {
+  if (SSH_TRANSPORT_AUTH_ERRORS.some((token) => base.includes(token))) {
     return new Error(
       `SSH ${action} failed for ${target}: authentication failed. Check SSH username/password in admin.`,
     );
@@ -290,10 +316,18 @@ export class SshService {
           await delay(1500 * attempt);
           continue;
         }
+        // Keep git/docker command stderr intact — wrapping used to mislabel
+        // "fatal: Authentication failed for 'https://github.com/...'" as server SSH auth.
+        if (!isSshTransportError(lastError)) {
+          throw lastError;
+        }
         throw wrapSshError(lastError, options, "session");
       }
     }
 
+    if (lastError && !isSshTransportError(lastError)) {
+      throw lastError;
+    }
     throw wrapSshError(lastError ?? new Error("SSH session failed"), options, "session");
   }
 

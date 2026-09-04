@@ -284,7 +284,12 @@ export function HostingDeploySection({
         rootDirectory: rootDirectory.trim() || undefined,
         envVars: parseEnvVars(),
       });
-      toast(t("created", { domain: created.deployDomain }), "success");
+      toast(
+        (created.queuePosition ?? 1) > 1
+          ? t("createdQueued", { domain: created.deployDomain })
+          : t("created", { domain: created.deployDomain }),
+        "success",
+      );
       setShowForm(false);
       setExpandedId(created.id);
       setExpandedLog("");
@@ -319,8 +324,11 @@ export function HostingDeploySection({
     setExpandedLog("");
     setActivePanelById((prev) => ({ ...prev, [id]: "logs" }));
     try {
-      await redeployApplication(accountId, id);
-      toast(t("redeployQueued"), "success");
+      const result = await redeployApplication(accountId, id);
+      toast(
+        (result.queuePosition ?? 1) > 1 ? t("redeployQueuedBusy") : t("redeployQueued"),
+        "success",
+      );
       await load();
     } catch (err) {
       toast(getApiErrorMessage(err, t("redeployFailed")), "error");
@@ -754,6 +762,11 @@ export function HostingDeploySection({
                       {item.lastError ? (
                         <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-[var(--danger)]">
                           {item.lastError}
+                        </p>
+                      ) : null}
+                      {item.stage === "waiting_server" ? (
+                        <p className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5 text-xs text-amber-800 dark:text-amber-200">
+                          {t("waitingServerHint")}
                         </p>
                       ) : null}
                     </div>

@@ -158,7 +158,11 @@ export class RemoteDeployService {
             `git checkout -f -B ${shellQuote(input.branch)} FETCH_HEAD`,
             `git reset --hard FETCH_HEAD`,
           ].join(" && ");
-          await append("git pull", await session.execChecked(updateCmd, 600_000));
+          try {
+            await append("git pull", await session.execChecked(updateCmd, 600_000));
+          } catch (error) {
+            throw new Error(formatGitRemoteError(error, "git pull"));
+          }
         } else {
           await session.execChecked(`rm -rf ${shellQuote(repoPath)}`);
           await append("prepare", `Deploy path: ${deployPath}`);
@@ -167,7 +171,11 @@ export class RemoteDeployService {
           const cloneCmd = [
             `git clone --depth 1 --branch ${shellQuote(input.branch)} ${shellQuote(cloneTarget)} ${shellQuote(repoPath)}`,
           ].join(" ");
-          await append("git clone", await session.execChecked(cloneCmd, 600_000));
+          try {
+            await append("git clone", await session.execChecked(cloneCmd, 600_000));
+          } catch (error) {
+            throw new Error(formatGitRemoteError(error, "git clone"));
+          }
         }
 
         const repoRoot = repoPath;
@@ -354,4 +362,25 @@ export class RemoteDeployService {
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function formatGitRemoteError(error: unknown, action: string): string {
+  const raw = (error instanceof Error ? error.message : String(error))
+    // Never leak GitHub tokens that may appear in clone URLs inside stderr.
+    .replace(/x-access-token:[^@\s]+@/gi, "x-access-token:***@")
+    .replace(/\/\/[^:@\s/]+:[^@\s/]+@/g, "//***:***@");
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("authentication failed") ||
+    lower.includes("invalid username or password") ||
+    lower.includes("could not read username") ||
+    lower.includes("403") ||
+    lower.includes("support for password authentication was removed")
+  ) {
+    return `${action} failed: GitHub authentication failed. Reconnect GitHub in the deploy panel or use a repo URL the server can access.`;
+  }
+  if (lower.includes("not found") || lower.includes("repository not found")) {
+    return `${action} failed: repository not found or private — check the repo name and GitHub access.`;
+  }
+  return `${action} failed: ${raw}`;
 }

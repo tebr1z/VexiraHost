@@ -17,7 +17,12 @@ import { decryptSecret } from "@/utils/crypto.util";
 @Injectable()
 export class DeployRunner {
   private readonly logger = new Logger(DeployRunner.name);
-  private readonly running = new Set<string>();
+  /** Deployments currently registered in a server queue (waiting or running). */
+  private readonly registered = new Set<string>();
+  /** Per-server FIFO of deployment ids (active job is index 0). */
+  private readonly queuesByServer = new Map<string, string[]>();
+  /** Promise chain so only one deploy runs per hosting server at a time. */
+  private readonly tailsByServer = new Map<string, Promise<void>>();
 
   constructor(
     private readonly deployRepository: DeployRepository,
@@ -28,10 +33,53 @@ export class DeployRunner {
     private readonly githubDeploy: GitHubDeployService,
   ) {}
 
-  enqueue(deploymentId: string): void {
-    if (this.running.has(deploymentId)) return;
-    this.running.add(deploymentId);
-    void this.run(deploymentId)
+  /**
+   * Queue a deploy behind any in-flight job on the same hosting server.
+   * Returns 1-based position (1 = starts immediately / is active).
+   */
+  async enqueue(deploymentId: string): Promise<{ queuePosition: number }> {
+    if (this.registered.has(deploymentId)) {
+      return { queuePosition: this.getQueuePosition(deploymentId) ?? 1 };
+    }
+
+    const deployment = await this.deployRepository.findById(deploymentId);
+    if (!deployment) {
+      return { queuePosition: 1 };
+    }
+
+    const serverId = deployment.hostingAccount.serverId;
+    if (!serverId) {
+      await this.deployRepository.update(deploymentId, {
+        status: "FAILED",
+        stage: DEPLOY_STAGES.FAILED,
+        lastError: "Hosting server is not assigned",
+      });
+      return { queuePosition: 1 };
+    }
+
+    this.registered.add(deploymentId);
+    const queue = this.queuesByServer.get(serverId) ?? [];
+    queue.push(deploymentId);
+    this.queuesByServer.set(serverId, queue);
+    const queuePosition = queue.length;
+
+    if (queuePosition > 1) {
+      await this.deployRepository.update(deploymentId, {
+        status: "RUNNING",
+        stage: DEPLOY_STAGES.WAITING_SERVER,
+        lastError: null,
+      });
+      this.logger.log(
+        `Deploy ${deploymentId} waiting on server ${serverId} (position ${queuePosition})`,
+      );
+    }
+
+    const previous = this.tailsByServer.get(serverId) ?? Promise.resolve();
+    const job = previous
+      .catch(() => undefined)
+      .then(async () => {
+        await this.run(deploymentId, serverId);
+      })
       .catch((error) => {
         this.logger.error(
           `Unhandled deploy error for ${deploymentId}: ${
@@ -40,8 +88,38 @@ export class DeployRunner {
         );
       })
       .finally(() => {
-        this.running.delete(deploymentId);
+        this.dequeue(serverId, deploymentId);
+        this.registered.delete(deploymentId);
       });
+
+    this.tailsByServer.set(
+      serverId,
+      job.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+
+    return { queuePosition };
+  }
+
+  getQueuePosition(deploymentId: string): number | null {
+    for (const queue of this.queuesByServer.values()) {
+      const index = queue.indexOf(deploymentId);
+      if (index >= 0) return index + 1;
+    }
+    return null;
+  }
+
+  private dequeue(serverId: string, deploymentId: string): void {
+    const queue = this.queuesByServer.get(serverId);
+    if (!queue) return;
+    const index = queue.indexOf(deploymentId);
+    if (index >= 0) queue.splice(index, 1);
+    if (queue.length === 0) {
+      this.queuesByServer.delete(serverId);
+      this.tailsByServer.delete(serverId);
+    }
   }
 
   private async setStage(deploymentId: string, runId: string, stage: string) {
@@ -49,13 +127,16 @@ export class DeployRunner {
     await this.deployRepository.updateRunStage(runId, stage);
   }
 
-  private async run(deploymentId: string): Promise<void> {
+  private async run(deploymentId: string, expectedServerId: string): Promise<void> {
     const deployment = await this.deployRepository.findById(deploymentId);
-    if (!deployment) return;
+    if (!deployment) {
+      this.logger.log(`Deploy ${deploymentId} was cancelled before start — skipping`);
+      return;
+    }
 
     const account = deployment.hostingAccount;
     const server = account.server;
-    if (!server) {
+    if (!server || account.serverId !== expectedServerId) {
       await this.deployRepository.update(deploymentId, {
         status: "FAILED",
         stage: DEPLOY_STAGES.FAILED,
@@ -73,6 +154,7 @@ export class DeployRunner {
       return;
     }
 
+    const wasWaiting = deployment.stage === DEPLOY_STAGES.WAITING_SERVER;
     const run = await this.deployRepository.createRun(deploymentId);
     await this.deployRepository.update(deploymentId, {
       status: "RUNNING",
@@ -86,6 +168,10 @@ export class DeployRunner {
 
     try {
       await log(`Deploy started for ${deployment.deployDomain}`);
+      if (wasWaiting) {
+        await log("Server was busy — previous deploy finished; starting this job now.");
+      }
+
       const sshTarget = formatSshTarget(
         resolveHostingServerSshOptions(server, server.sshPort ?? 22),
       );
