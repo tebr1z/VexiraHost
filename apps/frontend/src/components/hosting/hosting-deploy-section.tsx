@@ -20,6 +20,7 @@ import {
   deleteDeployment,
   formatEnvVars,
   getDeployment,
+  getDeploymentContainerLogs,
   listDeployments,
   redeployApplication,
   updateDeploymentEnv,
@@ -92,8 +93,10 @@ export function HostingDeploySection({
   const [savingEnvId, setSavingEnvId] = useState<string | null>(null);
   const [healthById, setHealthById] = useState<Record<string, DeployHealthResult>>({});
   const [checkingHealthId, setCheckingHealthId] = useState<string | null>(null);
+  const [dockerLogsById, setDockerLogsById] = useState<Record<string, string>>({});
+  const [loadingDockerLogsId, setLoadingDockerLogsId] = useState<string | null>(null);
   const [activePanelById, setActivePanelById] = useState<
-    Record<string, "logs" | "env" | "health" | null>
+    Record<string, "logs" | "env" | "health" | "docker" | null>
   >({});
   const logScrollRef = useRef<HTMLDivElement>(null);
   const stickLogToBottomRef = useRef(true);
@@ -435,7 +438,19 @@ export function HostingDeploySection({
     }
   };
 
-  const togglePanel = (id: string, panel: "logs" | "env" | "health") => {
+  const onLoadDockerLogs = async (id: string) => {
+    setLoadingDockerLogsId(id);
+    try {
+      const result = await getDeploymentContainerLogs(accountId, id, 100);
+      setDockerLogsById((prev) => ({ ...prev, [id]: result.logs }));
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("dockerLogsFailed")), "error");
+    } finally {
+      setLoadingDockerLogsId(null);
+    }
+  };
+
+  const togglePanel = (id: string, panel: "logs" | "env" | "health" | "docker") => {
     const isOpen = activePanelById[id] === panel;
     const next = isOpen ? null : panel;
     setActivePanelById((prev) => ({ ...prev, [id]: next }));
@@ -452,6 +467,12 @@ export function HostingDeploySection({
     }
     if (next === "health") {
       void onCheckHealth(id);
+      setExpandedId((current) => (current === id ? null : current));
+      setEnvEditId((current) => (current === id ? null : current));
+      return;
+    }
+    if (next === "docker") {
+      void onLoadDockerLogs(id);
       setExpandedId((current) => (current === id ? null : current));
       setEnvEditId((current) => (current === id ? null : current));
       return;
@@ -768,6 +789,7 @@ export function HostingDeploySection({
             const showLogs = activePanel === "logs";
             const showEnv = activePanel === "env";
             const showHealth = activePanel === "health";
+            const showDocker = activePanel === "docker";
             const githubAuthFailed =
               item.status === "FAILED" &&
               (isGitHubAuthError(item.lastError) ||
@@ -925,6 +947,26 @@ export function HostingDeploySection({
                         </button>
                         <button
                           type="button"
+                          disabled={loadingDockerLogsId === item.id}
+                          onClick={() => togglePanel(item.id, "docker")}
+                          title={t("dockerLogs")}
+                          className={cn(
+                            "inline-flex h-8 w-8 items-center justify-center rounded-md",
+                            showDocker
+                              ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                              : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
+                          )}
+                        >
+                          <MaterialIcon
+                            name="bug_report"
+                            className={cn(
+                              "text-[17px]",
+                              loadingDockerLogsId === item.id && "animate-pulse",
+                            )}
+                          />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => togglePanel(item.id, "logs")}
                           title={showLogs ? t("hideLogs") : t("viewLogs")}
                           className={cn(
@@ -1040,6 +1082,38 @@ export function HostingDeploySection({
                         </p>
                       </>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {showDocker ? (
+                  <div className="border-t border-[#27272a] bg-[#0f1117]">
+                    <div className="flex items-center justify-between border-b border-[#27272a] px-3 py-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
+                        {t("dockerLogs")}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={loadingDockerLogsId === item.id}
+                        onClick={() => void onLoadDockerLogs(item.id)}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--accent)] disabled:opacity-50"
+                      >
+                        <MaterialIcon
+                          name="refresh"
+                          className={cn(
+                            "text-[14px]",
+                            loadingDockerLogsId === item.id && "animate-spin",
+                          )}
+                        />
+                        {t("dockerLogsRefresh")}
+                      </button>
+                    </div>
+                    <div className="max-h-72 overflow-auto p-3">
+                      <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#d4d4d8]">
+                        {loadingDockerLogsId === item.id && !dockerLogsById[item.id]
+                          ? t("dockerLogsLoading")
+                          : (dockerLogsById[item.id] ?? t("dockerLogsEmpty"))}
+                      </pre>
+                    </div>
                   </div>
                 ) : null}
 

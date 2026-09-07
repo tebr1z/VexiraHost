@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 
 import { CreateDeploymentDto } from "../dto/create-deployment.dto";
@@ -69,5 +69,21 @@ export class DeployController {
     @User() user: AuthUser,
   ) {
     return this.deployService.checkHealth(accountId, deploymentId, user.id);
+  }
+
+  @Get(":deploymentId/container-logs")
+  containerLogs(
+    @Param("accountId") accountId: string,
+    @Param("deploymentId") deploymentId: string,
+    @User() user: AuthUser,
+    @Query("lines") lines?: string,
+  ) {
+    const parsed = lines ? Number.parseInt(lines, 10) : 100;
+    return this.deployService.getContainerLogs(
+      accountId,
+      deploymentId,
+      user.id,
+      Number.isFinite(parsed) ? parsed : 100,
+    );
   }
 }

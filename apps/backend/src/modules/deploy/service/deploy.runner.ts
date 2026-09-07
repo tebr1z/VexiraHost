@@ -179,11 +179,21 @@ export class DeployRunner {
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.ALLOCATING_PORT);
       await log("Stage: allocating host port…");
-      let hostPort = deployment.hostPort;
-      if (!hostPort) {
-        hostPort = await this.portAllocation.allocate(server.id);
+      const resolvedPort = await this.portAllocation.resolveHostPort(server, {
+        prefer: deployment.hostPort,
+        containerName: deployment.containerName,
+      });
+      const hostPort = resolvedPort.port;
+      if (resolvedPort.switchedFrom != null) {
+        await this.deployRepository.update(deploymentId, { hostPort });
+        await log(
+          `Host port ${resolvedPort.switchedFrom} is busy — switched to free port ${hostPort}`,
+        );
+      } else if (!deployment.hostPort || deployment.hostPort !== hostPort) {
         await this.deployRepository.update(deploymentId, { hostPort });
         await log(`Allocated host port ${hostPort}`);
+      } else {
+        await log(`Using host port ${hostPort}`);
       }
 
       if (deployment.domainMode === "SUBDOMAIN") {

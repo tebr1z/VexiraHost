@@ -126,7 +126,9 @@ export class DeployService {
       throw new BadRequestException("Repository URL or GitHub repository is required");
     }
 
-    const hostPort = await this.portAllocation.allocate(account.serverId!);
+    const hostPort = account.server
+      ? (await this.portAllocation.resolveHostPort(account.server, {})).port
+      : await this.portAllocation.allocate(account.serverId!);
     const { env: safeEnvVars, ignoredPort } = stripCustomerPort(dto.envVars);
     const envVarsEnc =
       Object.keys(safeEnvVars).length > 0 ? encryptSecret(JSON.stringify(safeEnvVars)) : null;
@@ -321,6 +323,21 @@ export class DeployService {
     }
 
     return this.deployHealth.check(deployment, server);
+  }
+
+  async getContainerLogs(accountId: string, deploymentId: string, userId: string, lines?: number) {
+    const account = await this.assertAccount(accountId, userId);
+    const deployment = await this.deployRepository.findByIdForUser(deploymentId, userId);
+    if (!deployment || deployment.hostingAccountId !== accountId) {
+      throw new NotFoundException("Deployment not found");
+    }
+
+    const server = account.server ?? deployment.hostingAccount.server;
+    if (!server) {
+      throw new BadRequestException("Hosting server is not assigned");
+    }
+
+    return this.deployHealth.getContainerLogs(deployment, server, lines ?? 100);
   }
 
   private async assertAccount(accountId: string, userId: string) {

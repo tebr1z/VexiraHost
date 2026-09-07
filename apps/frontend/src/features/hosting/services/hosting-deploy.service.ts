@@ -170,6 +170,24 @@ export async function checkDeploymentHealth(
   return res.data as DeployHealthResult;
 }
 
+export interface DeployContainerLogsResult {
+  containerName: string;
+  lines: number;
+  logs: string;
+  checkedAt: string;
+}
+
+export async function getDeploymentContainerLogs(
+  accountId: string,
+  deploymentId: string,
+  lines = 100,
+): Promise<DeployContainerLogsResult> {
+  const res = await apiClient.request<DeployContainerLogsResult>(
+    `/hosting/${accountId}/deployments/${deploymentId}/container-logs?lines=${lines}`,
+  );
+  return res.data as DeployContainerLogsResult;
+}
+
 export function formatEnvVars(env: Record<string, string>): string {
   return Object.entries(env)
     .map(([key, value]) => `${key}=${value}`)

@@ -339,18 +339,12 @@ export class RemoteDeployService {
       1_800_000,
     );
 
-    if (isRedeploy) {
-      await append(
-        "apache proxy",
-        `Skipped — existing reverse proxy for ${input.deployDomain} unchanged`,
-      );
-    } else {
-      await this.apacheProxy.applyReverseProxy(input.server, input.deployDomain, input.hostPort);
-      await append(
-        "apache proxy",
-        `Reverse proxy configured for ${input.deployDomain} → 127.0.0.1:${input.hostPort}`,
-      );
-    }
+    // Always (re)apply proxy so host-port switches after conflict are reflected.
+    await this.apacheProxy.applyReverseProxy(input.server, input.deployDomain, input.hostPort);
+    await append(
+      "apache proxy",
+      `Reverse proxy configured for ${input.deployDomain} → 127.0.0.1:${input.hostPort}`,
+    );
 
     return {
       deployPath,

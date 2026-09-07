@@ -2,6 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { AppDeployment, HostingServer } from "@prisma/client";
 
+import { buildDockerComposeProjectName } from "../utils/docker-templates.util";
+
 import { ApacheProxyService } from "./remote-deploy.service";
 import { SshService } from "./ssh.service";
 
@@ -267,5 +269,48 @@ export class DeployHealthService {
         detail: `Public HTTPS unreachable (${message}) — fix local port & Apache proxy first`,
       };
     }
+  }
+
+  async getContainerLogs(
+    deployment: AppDeployment,
+    server: HostingServer,
+    lines = 100,
+  ): Promise<{ containerName: string; lines: number; logs: string; checkedAt: string }> {
+    const checkedAt = new Date().toISOString();
+    const tail = Math.min(500, Math.max(1, Math.floor(lines) || 100));
+    const containerName =
+      deployment.containerName?.trim() ||
+      buildDockerComposeProjectName(deployment.hostingAccountId, deployment.name);
+
+    if (this.deployConfig.mockRemote) {
+      return {
+        containerName,
+        lines: tail,
+        logs: "[mock] No container logs in DEPLOY_MOCK_REMOTE mode.\n",
+        checkedAt,
+      };
+    }
+
+    const ssh = this.apacheProxy.buildSshOptions(server);
+    const result = await this.ssh.withSession(ssh, async (session) => {
+      return session.exec(
+        [
+          `NAME=${shellQuote(containerName)}`,
+          `if ! docker ps -a --format '{{.Names}}' | grep -Fx "$NAME" >/dev/null 2>&1; then`,
+          `  echo "Container $NAME not found on this server."`,
+          `  exit 0`,
+          `fi`,
+          `docker logs --tail ${tail} "$NAME" 2>&1 || true`,
+        ].join("\n"),
+        60_000,
+      );
+    });
+
+    return {
+      containerName,
+      lines: tail,
+      logs: result.stdout.trimEnd() || "(no log output)",
+      checkedAt,
+    };
   }
 }
