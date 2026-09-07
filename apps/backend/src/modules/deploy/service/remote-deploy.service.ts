@@ -142,14 +142,14 @@ export class RemoteDeployService {
         await session.execChecked(`mkdir -p ${shellQuote(deployPath)}`);
 
         const repoPath = `${deployPath}/repo`;
+        const cloneTarget = input.cloneUrl ?? input.repoUrl;
         const repoExists =
           (await session.exec(`test -d ${shellQuote(`${repoPath}/.git`)}`)).code === 0;
 
-        if (isRedeploy && repoExists) {
-          await append("prepare", `Redeploy — reusing ${deployPath}`);
-          const cloneTarget = input.cloneUrl ?? input.repoUrl;
-          // Previous deploys write a generated Dockerfile into the repo; force-clean
-          // so fetch/checkout is not blocked by those local changes.
+        // Always reuse an existing checkout (including after a failed first deploy).
+        // Only full-clone when the folder is missing — never wipe+reclone on every retry.
+        const pullExistingRepo = async () => {
+          // Force-clean so fetch/checkout is not blocked by leftover local files.
           const updateCmd = [
             `cd ${shellQuote(repoPath)}`,
             `git remote set-url origin ${shellQuote(cloneTarget)}`,
@@ -159,21 +159,41 @@ export class RemoteDeployService {
             `git checkout -f -B ${shellQuote(input.branch)} FETCH_HEAD`,
             `git reset --hard FETCH_HEAD`,
           ].join(" && ");
+          await append("git pull", await session.execChecked(updateCmd, 600_000));
+        };
+
+        const cloneFreshRepo = async () => {
+          await session.execChecked(`rm -rf ${shellQuote(repoPath)}`);
+          const cloneCmd = [
+            `git clone --depth 1 --branch ${shellQuote(input.branch)}`,
+            `${shellQuote(cloneTarget)} ${shellQuote(repoPath)}`,
+          ].join(" ");
+          await append("git clone", await session.execChecked(cloneCmd, 600_000));
+        };
+
+        if (repoExists) {
+          await append(
+            "prepare",
+            `${isRedeploy ? "Redeploy" : "Retry"} — reusing existing repo at ${deployPath}`,
+          );
           try {
-            await append("git pull", await session.execChecked(updateCmd, 600_000));
+            await pullExistingRepo();
           } catch (error) {
-            throw new Error(formatGitRemoteError(error, "git pull"));
+            if (isGitAuthFailure(error)) {
+              throw new Error(formatGitRemoteError(error, "git pull"));
+            }
+            // Corrupt / broken checkout — one fresh clone, then continue.
+            await append("git", "Existing repo update failed — cloning fresh once…");
+            try {
+              await cloneFreshRepo();
+            } catch (cloneError) {
+              throw new Error(formatGitRemoteError(cloneError, "git clone"));
+            }
           }
         } else {
-          await session.execChecked(`rm -rf ${shellQuote(repoPath)}`);
           await append("prepare", `Deploy path: ${deployPath}`);
-
-          const cloneTarget = input.cloneUrl ?? input.repoUrl;
-          const cloneCmd = [
-            `git clone --depth 1 --branch ${shellQuote(input.branch)} ${shellQuote(cloneTarget)} ${shellQuote(repoPath)}`,
-          ].join(" ");
           try {
-            await append("git clone", await session.execChecked(cloneCmd, 600_000));
+            await cloneFreshRepo();
           } catch (error) {
             throw new Error(formatGitRemoteError(error, "git clone"));
           }
@@ -432,17 +452,27 @@ function formatGitRemoteError(error: unknown, action: string): string {
     .replace(/x-access-token:[^@\s]+@/gi, "x-access-token:***@")
     .replace(/\/\/[^:@\s/]+:[^@\s/]+@/g, "//***:***@");
   const lower = raw.toLowerCase();
-  if (
-    lower.includes("authentication failed") ||
-    lower.includes("invalid username or password") ||
-    lower.includes("could not read username") ||
-    lower.includes("403") ||
-    lower.includes("support for password authentication was removed")
-  ) {
+  if (isGitAuthFailureMessage(lower)) {
     return `${action} failed: GitHub authentication failed. Reconnect GitHub in the deploy panel or use a repo URL the server can access.`;
   }
   if (lower.includes("not found") || lower.includes("repository not found")) {
     return `${action} failed: repository not found or private — check the repo name and GitHub access.`;
   }
   return `${action} failed: ${raw}`;
+}
+
+function isGitAuthFailure(error: unknown): boolean {
+  const raw = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return isGitAuthFailureMessage(raw);
+}
+
+function isGitAuthFailureMessage(lower: string): boolean {
+  return (
+    lower.includes("authentication failed") ||
+    lower.includes("invalid username or password") ||
+    lower.includes("could not read username") ||
+    lower.includes(" 403 ") ||
+    lower.includes("status 403") ||
+    lower.includes("support for password authentication was removed")
+  );
 }
