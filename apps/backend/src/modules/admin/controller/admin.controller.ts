@@ -24,6 +24,7 @@ import {
   AdminCreditBalanceDto,
   UpdateManualDomainDto,
 } from "../dto";
+import { AdminFxConvertDto } from "../dto/admin-fx.dto";
 import { AssignManualDomainDto } from "../dto/manual-domain.dto";
 import {
   AssignManualHostingAccountDto,
@@ -218,6 +219,24 @@ export class AdminController {
   @Roles(UserRole.ADMIN, UserRole.STAFF)
   listInvoices() {
     return this.adminService.listInvoices();
+  }
+
+  @Post("invoices/:id/mark-paid")
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  markInvoicePaid(@Param("id") id: string) {
+    return this.adminService.markInvoicePaid(id);
+  }
+
+  @Get("fx/rates")
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  getFxRates() {
+    return this.adminService.getFxRates();
+  }
+
+  @Post("fx/convert")
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  convertFx(@Body() dto: AdminFxConvertDto) {
+    return this.adminService.convertFx(dto);
   }
 
   @Get("tickets")

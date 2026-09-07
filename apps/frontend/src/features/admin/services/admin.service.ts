@@ -145,6 +145,10 @@ export interface AdminInvoice {
   customer: AdminCustomer;
   orderId: string | null;
   orderStatus: string | null;
+  hostingAccountId?: string | null;
+  hostingDomain?: string | null;
+  domainId?: string | null;
+  domainName?: string | null;
   createdAt: string;
 }
 
@@ -292,6 +296,37 @@ export async function getAdminOrder(id: string): Promise<AdminOrderDetail> {
 export async function listAdminInvoices(): Promise<AdminInvoice[]> {
   const res = await apiClient.request<AdminInvoice[]>("/admin/invoices");
   return res.data ?? [];
+}
+
+export async function markAdminInvoicePaid(
+  invoiceId: string,
+): Promise<{ id: string; status: string; message: string }> {
+  const res = await apiClient.request<{ id: string; status: string; message: string }>(
+    `/admin/invoices/${invoiceId}/mark-paid`,
+    { method: "POST", body: {} },
+  );
+  return res.data as { id: string; status: string; message: string };
+}
+
+export interface AdminFxConvertResult {
+  amount: number;
+  from: string;
+  to: string;
+  converted: number;
+  matrix: { USD: number; EUR: number; AZN: number };
+  rates: { asOf: string; source: string; usdToAzn: number; usdToEur: number };
+}
+
+export async function convertAdminFx(input: {
+  amount: number;
+  from: string;
+  to: string;
+}): Promise<AdminFxConvertResult> {
+  const res = await apiClient.request<AdminFxConvertResult>("/admin/fx/convert", {
+    method: "POST",
+    body: input,
+  });
+  return res.data as AdminFxConvertResult;
 }
 
 export async function listAdminTickets(): Promise<AdminTicket[]> {

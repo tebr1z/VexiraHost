@@ -21,10 +21,14 @@ import { AdminRepository } from "../repository/admin.repository";
 import { AdminPaymentsRepository } from "../service/admin-system.service";
 
 import { AuthService } from "@/modules/auth/service/auth.service";
+import { DomainBillingService } from "@/modules/domains/service/domain-billing.service";
+import { HostingBillingService } from "@/modules/hosting/service/hosting-billing.service";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 import { LicensesService } from "@/modules/licenses/service/licenses.service";
 import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
 import { WhatsappApiService } from "@/modules/whatsapp/service/whatsapp-api.service";
+import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
+import { convertLedgerAmount } from "@/shared/pricing/currency-convert.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { mapAppRoleToPrisma, mapPrismaRoleToApp } from "@/utils/role.util";
 
@@ -133,6 +137,9 @@ export class AdminService {
     private readonly whatsappApiService: WhatsappApiService,
     private readonly paymentsRepository: PaymentsRepository,
     private readonly authService: AuthService,
+    private readonly hostingBilling: HostingBillingService,
+    private readonly domainBilling: DomainBillingService,
+    private readonly cbarExchange: CbarExchangeService,
   ) {}
 
   async getDashboard() {
@@ -496,8 +503,98 @@ export class AdminService {
       customer: mapCustomer(invoice.user),
       orderId: invoice.order?.id ?? null,
       orderStatus: invoice.order?.status ?? null,
+      hostingAccountId: invoice.hostingAccountId ?? null,
+      hostingDomain: invoice.hostingAccount?.primaryDomain ?? null,
+      domainId: invoice.domainId ?? null,
+      domainName: invoice.domain?.name ?? null,
       createdAt: invoice.createdAt,
     }));
+  }
+
+  async markInvoicePaid(invoiceId: string) {
+    const invoice = await this.adminRepository.findInvoiceById(invoiceId);
+    if (!invoice) throw new NotFoundException("Invoice not found");
+
+    if (invoice.status === InvoiceStatus.PAID) {
+      return {
+        id: invoice.id,
+        status: invoice.status,
+        message: "Invoice is already paid",
+      };
+    }
+
+    if (invoice.status === InvoiceStatus.VOID || invoice.status === InvoiceStatus.DRAFT) {
+      throw new BadRequestException(`Cannot mark ${invoice.status.toLowerCase()} invoice as paid`);
+    }
+
+    await this.paymentsRepository.markInvoicePaidManually({
+      userId: invoice.userId,
+      invoiceId: invoice.id,
+      orderId: invoice.orderId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      note: `admin_mark_paid:${invoice.id}`,
+    });
+
+    await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
+    await this.domainBilling.activateAfterRenewalPayment(invoice.id);
+
+    if (invoice.orderId && invoice.order?.status !== "COMPLETED") {
+      try {
+        await this.orderFulfillmentService.fulfillOrder(invoice.orderId);
+      } catch {
+        // Renewal invoices may have no fulfillable order items — payment + activate is enough.
+      }
+    }
+
+    return {
+      id: invoice.id,
+      status: InvoiceStatus.PAID,
+      message: "Invoice marked as paid",
+      hostingAccountId: invoice.hostingAccountId,
+      domainId: invoice.domainId,
+      orderId: invoice.orderId,
+    };
+  }
+
+  async getFxRates() {
+    const rates = await this.cbarExchange.getRates();
+    return {
+      asOf: rates.date,
+      fetchedAt: rates.fetchedAt,
+      source: rates.source,
+      usdToAzn: rates.usdToAzn,
+      usdToEur: rates.usdToEur,
+      eurToAzn: rates.eurToAzn,
+    };
+  }
+
+  async convertFx(input: { amount: number; from: string; to: string }) {
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new BadRequestException("Invalid amount");
+    }
+    const from = parseCurrency(input.from);
+    const to = parseCurrency(input.to);
+    const rates = await this.cbarExchange.getRates();
+    const converted = convertLedgerAmount(amount, from, to, rates);
+    return {
+      amount,
+      from,
+      to,
+      converted,
+      rates: {
+        asOf: rates.date,
+        source: rates.source,
+        usdToAzn: rates.usdToAzn,
+        usdToEur: rates.usdToEur,
+      },
+      matrix: {
+        USD: convertLedgerAmount(amount, from, "USD", rates),
+        EUR: convertLedgerAmount(amount, from, "EUR", rates),
+        AZN: convertLedgerAmount(amount, from, "AZN", rates),
+      },
+    };
   }
 
   async listTickets() {

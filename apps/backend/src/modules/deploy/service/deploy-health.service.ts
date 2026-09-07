@@ -37,12 +37,54 @@ function parseHttpStatus(raw: string): string {
   return "000";
 }
 
-function httpOk(code: string): boolean {
-  return code.startsWith("2") || code.startsWith("3");
+/**
+ * Any real HTTP status means the process answered. API-only Nest apps often return 404 on `/`.
+ * 000 = no TCP/HTTP; 502/503/504 = proxy/upstream dead.
+ */
+function httpResponding(code: string): boolean {
+  if (!/^\d{3}$/.test(code) || code === "000") return false;
+  if (code === "502" || code === "503" || code === "504") return false;
+  return true;
+}
+
+function describeHttpReachability(code: string, target: string): string {
+  if (code === "000") return `No HTTP response from ${target}`;
+  if (code === "502" || code === "503" || code === "504") {
+    return `HTTPS ${code} for ${target} — proxy cannot reach the container`;
+  }
+  if (code.startsWith("2") || code.startsWith("3")) {
+    return `HTTP ${code} from ${target}`;
+  }
+  if (code === "404") {
+    return `HTTP 404 from ${target} (app is up; no route on this path — normal for Nest /api apps)`;
+  }
+  return `HTTP ${code} from ${target} (app responded)`;
 }
 
 const CURL_HTTP = (url: string, timeoutSec: number) =>
   `curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time ${timeoutSec} ${shellQuote(url)} 2>/dev/null || true`;
+
+const CURL_HTTPS = (url: string, timeoutSec: number) =>
+  `curl -sk -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time ${timeoutSec} ${shellQuote(url)} 2>/dev/null || true`;
+
+/** Probe common roots so API-only apps are not marked unhealthy for missing `/`. */
+async function probeHttpPaths(
+  exec: (cmd: string, timeout?: number) => Promise<{ stdout: string }>,
+  baseUrl: string,
+  https: boolean,
+): Promise<{ code: string; path: string }> {
+  const paths = ["/", "/api", "/api/v1", "/health", "/api/health"];
+  const curl = https ? CURL_HTTPS : CURL_HTTP;
+  let last = { code: "000", path: "/" };
+  for (const path of paths) {
+    const url = `${baseUrl.replace(/\/$/, "")}${path}`;
+    const result = await exec(curl(url, 8), 30_000);
+    const code = parseHttpStatus(result.stdout);
+    last = { code, path };
+    if (httpResponding(code)) return last;
+  }
+  return last;
+}
 
 @Injectable()
 export class DeployHealthService {
@@ -144,13 +186,16 @@ export class DeployHealthService {
         const portMapped =
           portDetail.includes(`127.0.0.1:${hostPort}`) || portDetail.includes(`:${hostPort}`);
 
-        const localHttp = await session.exec(CURL_HTTP(`http://127.0.0.1:${hostPort}/`, 8), 30_000);
-        const localCode = parseHttpStatus(localHttp.stdout);
-        const localOk = httpOk(localCode);
+        const localProbe = await probeHttpPaths(
+          (cmd, timeout) => session.exec(cmd, timeout),
+          `http://127.0.0.1:${hostPort}`,
+          false,
+        );
+        const localOk = httpResponding(localProbe.code);
 
         let portDetailText = localOk
-          ? `HTTP ${localCode} on 127.0.0.1:${hostPort}${portMapped ? "" : " (port mapping mismatch)"}`
-          : `No HTTP response on 127.0.0.1:${hostPort} (HTTP ${localCode})${portDetail ? ` · map: ${portDetail}` : ""}`;
+          ? `${describeHttpReachability(localProbe.code, `127.0.0.1:${hostPort}${localProbe.path}`)}${portMapped ? "" : " (port mapping mismatch)"}`
+          : `No healthy HTTP from 127.0.0.1:${hostPort} (last HTTP ${localProbe.code} on ${localProbe.path})${portDetail ? ` · map: ${portDetail}` : ""}`;
 
         if (!localOk) {
           const listen = await session.exec(
@@ -177,17 +222,21 @@ export class DeployHealthService {
           detail: portDetailText,
         });
 
-        const domainHttp = await session.exec(CURL_HTTP(`https://${domain}/`, 12), 30_000);
-        domainCode = parseHttpStatus(domainHttp.stdout);
-        domainOk = httpOk(domainCode);
+        const domainProbe = await probeHttpPaths(
+          (cmd, timeout) => session.exec(cmd, timeout),
+          `https://${domain}`,
+          true,
+        );
+        domainCode = domainProbe.code;
+        domainOk = httpResponding(domainCode);
 
         checks.push({
           id: "domain",
           ok: domainOk,
           label: "Domain / Apache",
           detail: domainOk
-            ? `HTTPS ${domainCode} for https://${domain}/`
-            : `HTTPS ${domainCode} for https://${domain}/ — Apache proxy may not reach the container (check vhost.conf)`,
+            ? describeHttpReachability(domainCode, `https://${domain}${domainProbe.path}`)
+            : `${describeHttpReachability(domainCode, `https://${domain}${domainProbe.path}`)} — check vhost/SSL and that Apache proxies to 127.0.0.1:${hostPort}`,
         });
       },
       120_000,
@@ -234,7 +283,9 @@ export class DeployHealthService {
         return {
           ok,
           detail: ok
-            ? `HTTPS ${response.status} from public internet`
+            ? response.status === 404
+              ? `HTTPS 404 from public internet (app up; API may live under /api/v1)`
+              : `HTTPS ${response.status} from public internet`
             : `HTTPS ${response.status} from public internet (server sees ${serverDomainCode})`,
         };
       } catch (error) {
@@ -259,7 +310,9 @@ export class DeployHealthService {
       return {
         ok,
         detail: ok
-          ? `HTTPS ${response.status} from public internet`
+          ? response.status === 404
+            ? `HTTPS 404 from public internet (app up; API may live under /api/v1)`
+            : `HTTPS ${response.status} from public internet`
           : `HTTPS ${response.status} from public internet`,
       };
     } catch (error) {

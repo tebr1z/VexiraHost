@@ -273,28 +273,35 @@ export class HostingServersService {
   async updateAccountStatus(id: string, dto: UpdateHostingAccountStatusDto) {
     const account = await this.hostingServersRepository.findAccountById(id);
     if (!account) throw new NotFoundException("Hosting account not found");
-    if (!account.server) {
-      throw new BadRequestException("Hosting account is not linked to a server");
-    }
-    if (account.status === "CANCELLED" || account.status === "FAILED") {
-      throw new BadRequestException("Cannot change status of a cancelled or failed account");
+    if (account.status === "FAILED") {
+      throw new BadRequestException(
+        "Cannot change status of a failed account — delete or re-provision",
+      );
     }
 
-    const target = {
-      server: account.server,
-      primaryDomain: account.primaryDomain,
-      username: account.username,
-      panelRef: account.panelRef,
-    };
+    // Manual / cancelled accounts may have no server — allow DB reactivation without panel calls.
+    if (account.server && (account.username || account.panelRef)) {
+      const target = {
+        server: account.server,
+        primaryDomain: account.primaryDomain,
+        username: account.username,
+        panelRef: account.panelRef,
+      };
 
-    if (dto.status === "SUSPENDED") {
-      await this.controlPanel.suspendAccount?.(target);
-    } else {
-      await this.controlPanel.unsuspendAccount?.(target);
+      if (dto.status === "SUSPENDED") {
+        await this.controlPanel.suspendAccount?.(target);
+      } else if (
+        account.status === "SUSPENDED" ||
+        account.status === "CANCELLED" ||
+        account.status === "EXPIRED"
+      ) {
+        await this.controlPanel.unsuspendAccount?.(target);
+      }
     }
 
     const updated = await this.hostingServersRepository.updateAccount(id, {
       status: dto.status,
+      ...(dto.status === "ACTIVE" ? { graceEndsAt: null, provisionError: null } : {}),
     });
     return mapAccount(updated);
   }

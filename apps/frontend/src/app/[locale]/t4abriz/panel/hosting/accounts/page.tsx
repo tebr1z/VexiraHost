@@ -65,6 +65,14 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
 
   const failedAccounts = useMemo(() => accounts.filter((a) => a.status === "FAILED"), [accounts]);
 
+  const atRiskAccounts = useMemo(
+    () =>
+      accounts.filter(
+        (a) => a.status === "SUSPENDED" || a.status === "CANCELLED" || a.status === "EXPIRED",
+      ),
+    [accounts],
+  );
+
   const activePleskTargets = useMemo(
     () => servers.filter((s) => s.isActive && s.panel === "PLESK"),
     [servers],
@@ -268,6 +276,52 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
         </div>
       )}
 
+      {isAdmin && atRiskAccounts.length > 0 && (
+        <div className="rounded-2xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+            {tp("atRiskTitle", { count: atRiskAccounts.length })}
+          </h2>
+          <p className="mt-1 text-xs text-amber-900 dark:text-amber-200">{tp("atRiskHint")}</p>
+          <ul className="mt-3 space-y-2">
+            {atRiskAccounts.map((account) => (
+              <li
+                key={account.id}
+                className="dark:bg-surface/60 rounded-xl border border-amber-200/80 bg-white/80 px-3 py-2 dark:border-amber-500/20"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-amber-950 dark:text-amber-50">
+                      {account.primaryDomain}
+                    </p>
+                    <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
+                      {account.customer.email} · {account.status}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleStatus(account, "ACTIVE")}
+                      className="rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {tp("activate")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleDelete(account)}
+                      className="rounded-lg border border-red-400 px-2.5 py-1 text-xs font-semibold text-red-800 disabled:opacity-50 dark:text-red-200"
+                    >
+                      {tp("delete")}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {isAdmin && (
         <div className="border-outline-variant/50 bg-surface-container-low flex flex-wrap items-end gap-3 rounded-2xl border p-4">
           <div className="min-w-[220px] flex-1">
@@ -431,7 +485,9 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                               </button>
                             </>
                           )}
-                          {account.status === "SUSPENDED" ? (
+                          {account.status === "SUSPENDED" ||
+                          account.status === "CANCELLED" ||
+                          account.status === "EXPIRED" ? (
                             <button
                               type="button"
                               disabled={busy}

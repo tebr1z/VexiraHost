@@ -1781,6 +1781,8 @@
           "deleteConfirm": "Remove assigned domain {name}? This cannot be undone.",
           "deleted": "Domain removed",
           "deleteFailed": "Could not remove domain",
+          "activate": "Activate",
+          "activated": "Domain activated",
           "edit": "Edit",
           "cancelEdit": "Cancel",
           "saveChanges": "Save changes",
@@ -1864,7 +1866,16 @@
       },
       "invoices": {
         "title": "Invoices",
-        "description": "All customer billing documents."
+        "description": "All customer billing documents. Mark unpaid renewal invoices as paid to reactivate services.",
+        "loadFailed": "Could not load invoices",
+        "filterUnpaid": "Unpaid",
+        "filterAll": "All",
+        "service": "Service",
+        "markPaid": "Mark paid",
+        "markingPaid": "Saving…",
+        "markPaidConfirm": "Mark invoice {number} as paid?",
+        "markedPaid": "Invoice marked as paid",
+        "markPaidFailed": "Could not mark invoice as paid"
       },
       "tickets": {
         "title": "Support Tickets",
@@ -2100,6 +2111,8 @@
         "migrateFailed": "Migration failed",
         "failedAccountsTitle": "Failed provisioning ({count})",
         "failedAccountsHint": "These accounts could not be created on Plesk. Review the error below, retry on the same server, or select another Plesk server above and reassign.",
+        "atRiskTitle": "Suspended / cancelled / expired ({count})",
+        "atRiskHint": "These services stay suspended until you reactivate or delete them. If you do nothing, grace/expiry jobs may remove unpaid accounts later.",
         "provisionStage": "Stage",
         "provisionError": "Error",
         "retryProvision": "Retry provisioning",

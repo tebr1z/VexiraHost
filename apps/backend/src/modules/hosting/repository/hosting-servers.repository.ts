@@ -177,6 +177,7 @@ export class HostingServersRepository {
       panelRef?: string | null;
       provisionStage?: string | null;
       provisionError?: string | null;
+      graceEndsAt?: Date | null;
     },
   ) {
     return this.prisma.hostingAccount.update({

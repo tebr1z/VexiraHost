@@ -165,6 +165,19 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
     }
   };
 
+  const handleActivate = async (domain: AdminManualDomain) => {
+    setUpdatingId(domain.id);
+    try {
+      const updated = await updateUserManualDomain(userId, domain.id, { status: "ACTIVE" });
+      setDomains((prev) => prev.map((d) => (d.id === domain.id ? updated : d)));
+      toast(tp("activated"), "success");
+    } catch {
+      toast(tp("assignFailed"), "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleEditSave = async (
     domainId: string,
     input: {
@@ -408,6 +421,16 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
                   >
                     {editingId === domain.id ? tp("cancelEdit") : tp("edit")}
                   </button>
+                  {domain.status === "SUSPENDED" || domain.status === "EXPIRED" ? (
+                    <button
+                      type="button"
+                      disabled={updatingId === domain.id}
+                      onClick={() => void handleActivate(domain)}
+                      className="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                    >
+                      {tp("activate")}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     disabled={updatingId === domain.id}
@@ -658,11 +681,43 @@ function DomainBillingRow({
     domain.billingAmount != null ? String(domain.billingAmount) : "",
   );
   const [currency, setCurrency] = useState(domain.billingCurrency || "USD");
+  const [fxHint, setFxHint] = useState("");
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     setAmount(domain.billingAmount != null ? String(domain.billingAmount) : "");
     setCurrency(domain.billingCurrency || "USD");
+    setFxHint("");
   }, [domain.billingAmount, domain.billingCurrency, domain.id]);
+
+  const onCurrencyChange = async (next: string) => {
+    const prev = currency;
+    setCurrency(next);
+    const value = Number(amount);
+    if (
+      !Number.isFinite(value) ||
+      value <= 0 ||
+      prev === next ||
+      !["USD", "EUR", "AZN"].includes(prev) ||
+      !["USD", "EUR", "AZN"].includes(next)
+    ) {
+      setFxHint("");
+      return;
+    }
+    setConverting(true);
+    try {
+      const { convertAdminFx } = await import("@/features/admin");
+      const result = await convertAdminFx({ amount: value, from: prev, to: next });
+      setAmount(String(result.converted));
+      setFxHint(
+        `${value} ${prev} → ${result.converted} ${next} (USD ${result.matrix.USD} · EUR ${result.matrix.EUR} · AZN ${result.matrix.AZN})`,
+      );
+    } catch {
+      setFxHint("");
+    } finally {
+      setConverting(false);
+    }
+  };
 
   return (
     <div className="border-outline-variant/30 bg-surface-container-low/40 space-y-2 rounded-xl border p-3">
@@ -675,19 +730,18 @@ function DomainBillingRow({
               min="0"
               step="0.01"
               value={amount}
-              disabled={disabled}
+              disabled={disabled || converting}
               onChange={(e) => setAmount(e.target.value)}
               className="border-outline-variant/40 bg-surface w-full rounded-xl border px-3 py-2 font-mono text-sm"
             />
             <select
               value={currency}
-              disabled={disabled}
-              onChange={(e) => setCurrency(e.target.value)}
+              disabled={disabled || converting}
+              onChange={(e) => void onCurrencyChange(e.target.value)}
               className="border-outline-variant/40 bg-surface rounded-xl border px-2 py-2 text-sm"
             >
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
-              <option value="TRY">TRY</option>
               <option value="AZN">AZN</option>
             </select>
           </div>
@@ -709,6 +763,7 @@ function DomainBillingRow({
           {labels.createInvoice}
         </button>
       </div>
+      {fxHint ? <p className="text-on-surface-variant font-mono text-[11px]">{fxHint}</p> : null}
       {domain.renewalInvoiceId ? (
         <p className="text-on-surface-variant text-xs">{labels.invoiceLinked}</p>
       ) : null}

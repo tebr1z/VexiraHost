@@ -341,6 +341,8 @@ export class AdminCustomerDomainsService {
               ? dto.billingAmount
               : undefined,
         billingCurrency: dto.billingCurrency?.toUpperCase(),
+        status: dto.status,
+        ...(dto.status === "ACTIVE" ? { graceEndsAt: null, expiredAt: null } : {}),
       },
       include: {
         user: {

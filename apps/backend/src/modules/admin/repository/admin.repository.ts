@@ -226,6 +226,20 @@ export class AdminRepository {
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         order: { select: { id: true, status: true } },
+        hostingAccount: { select: { id: true, primaryDomain: true, status: true } },
+        domain: { select: { id: true, name: true, status: true } },
+      },
+    });
+  }
+
+  findInvoiceById(id: string) {
+    return this.prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        order: { select: { id: true, status: true } },
+        hostingAccount: { select: { id: true, primaryDomain: true, status: true } },
+        domain: { select: { id: true, name: true, status: true } },
       },
     });
   }

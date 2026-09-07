@@ -1769,6 +1769,8 @@
           "deleteConfirm": "{name} domainini silmek istiyor musunuz? Bu işlem geri alınamaz.",
           "deleted": "Domain silindi",
           "deleteFailed": "Domain silinemedi",
+          "activate": "Etkinleştir",
+          "activated": "Domain etkinleştirildi",
           "edit": "Düzenle",
           "cancelEdit": "İptal",
           "saveChanges": "Kaydet",
@@ -1852,7 +1854,16 @@
       },
       "invoices": {
         "title": "Faturalar",
-        "description": "Tüm müşteri fatura belgeleri."
+        "description": "Tüm müşteri fatura belgeleri. Ödenmemiş yenileme faturalarını ödendi işaretleyip hizmeti etkinleştirin.",
+        "loadFailed": "Faturalar yüklenemedi",
+        "filterUnpaid": "Ödenmemiş",
+        "filterAll": "Tümü",
+        "service": "Hizmet",
+        "markPaid": "Ödendi",
+        "markingPaid": "Kaydediliyor…",
+        "markPaidConfirm": "{number} faturasını ödendi işaretlensin mi?",
+        "markedPaid": "Fatura ödendi olarak işaretlendi",
+        "markPaidFailed": "Fatura ödendi işaretlenemedi"
       },
       "tickets": {
         "title": "Destek Talepleri",
@@ -2088,6 +2099,8 @@
         "migrateFailed": "Taşıma başarısız",
         "failedAccountsTitle": "Başarısız provisioning ({count})",
         "failedAccountsHint": "Bu hesaplar Plesk'te oluşturulamadı. Hatayı inceleyin, aynı sunucuda yeniden deneyin veya yukarıdan başka bir Plesk sunucusu seçip taşıyın.",
+        "atRiskTitle": "Askıda / iptal / süresi dolmuş ({count})",
+        "atRiskHint": "Bu hizmetler yeniden etkinleştirene veya silene kadar askıda kalır. Bir şey yapmazsanız, ödenmemişler grace sonrası silinebilir.",
         "provisionStage": "Aşama",
         "provisionError": "Hata",
         "retryProvision": "Yeniden dene",

@@ -682,11 +682,43 @@ function AccountBillingRow({
     account.billingAmount != null ? String(account.billingAmount) : "",
   );
   const [currency, setCurrency] = useState(account.billingCurrency || "USD");
+  const [fxHint, setFxHint] = useState("");
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     setAmount(account.billingAmount != null ? String(account.billingAmount) : "");
     setCurrency(account.billingCurrency || "USD");
+    setFxHint("");
   }, [account.billingAmount, account.billingCurrency, account.id]);
+
+  const onCurrencyChange = async (next: string) => {
+    const prev = currency;
+    setCurrency(next);
+    const value = Number(amount);
+    if (
+      !Number.isFinite(value) ||
+      value <= 0 ||
+      prev === next ||
+      !["USD", "EUR", "AZN"].includes(prev) ||
+      !["USD", "EUR", "AZN"].includes(next)
+    ) {
+      setFxHint("");
+      return;
+    }
+    setConverting(true);
+    try {
+      const { convertAdminFx } = await import("@/features/admin");
+      const result = await convertAdminFx({ amount: value, from: prev, to: next });
+      setAmount(String(result.converted));
+      setFxHint(
+        `${value} ${prev} → ${result.converted} ${next} (USD ${result.matrix.USD} · EUR ${result.matrix.EUR} · AZN ${result.matrix.AZN})`,
+      );
+    } catch {
+      setFxHint("");
+    } finally {
+      setConverting(false);
+    }
+  };
 
   return (
     <div className="border-outline-variant/30 bg-surface-container-low/40 mt-4 space-y-3 rounded-xl border p-3">
@@ -699,19 +731,18 @@ function AccountBillingRow({
               min="0"
               step="0.01"
               value={amount}
-              disabled={disabled}
+              disabled={disabled || converting}
               onChange={(e) => setAmount(e.target.value)}
               className="border-outline-variant/40 bg-surface w-full rounded-xl border px-3 py-2 font-mono text-sm"
             />
             <select
               value={currency}
-              disabled={disabled}
-              onChange={(e) => setCurrency(e.target.value)}
+              disabled={disabled || converting}
+              onChange={(e) => void onCurrencyChange(e.target.value)}
               className="border-outline-variant/40 bg-surface rounded-xl border px-2 py-2 text-sm"
             >
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
-              <option value="TRY">TRY</option>
               <option value="AZN">AZN</option>
             </select>
           </div>
@@ -733,6 +764,7 @@ function AccountBillingRow({
           {labels.createInvoice}
         </button>
       </div>
+      {fxHint ? <p className="text-on-surface-variant font-mono text-[11px]">{fxHint}</p> : null}
       {account.renewalInvoiceId ? (
         <p className="text-on-surface-variant text-xs">{labels.invoiceLinked}</p>
       ) : null}

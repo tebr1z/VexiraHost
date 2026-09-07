@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -112,6 +113,10 @@ export class UpdateManualDomainDto {
   @IsOptional()
   @IsBoolean()
   createInvoiceNow?: boolean;
+
+  @IsOptional()
+  @IsIn(["ACTIVE", "SUSPENDED", "EXPIRED"])
+  status?: "ACTIVE" | "SUSPENDED" | "EXPIRED";
 }
 
 export class UpdateDomainChangeStatusDto {

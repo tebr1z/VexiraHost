@@ -1767,6 +1767,8 @@
           "deleteConfirm": "{name} domainini silmək istəyirsiniz? Bu əməliyyat geri alına bilməz.",
           "deleted": "Domain silindi",
           "deleteFailed": "Domain silinmədi",
+          "activate": "Aktivləşdir",
+          "activated": "Domain aktivləşdirildi",
           "edit": "Redaktə",
           "cancelEdit": "Ləğv et",
           "saveChanges": "Yadda saxla",
@@ -1850,7 +1852,16 @@
       },
       "invoices": {
         "title": "Fakturalar",
-        "description": "Bütün müştəri billing sənədləri."
+        "description": "Bütün müştəri billing sənədləri. Ödənilməmiş yeniləmə fakturalarını ödəndi işarələyib xidməti aktivləşdirin.",
+        "loadFailed": "Fakturalar yüklənmədi",
+        "filterUnpaid": "Ödənilməmiş",
+        "filterAll": "Hamısı",
+        "service": "Xidmət",
+        "markPaid": "Ödəndi",
+        "markingPaid": "Saxlanılır…",
+        "markPaidConfirm": "{number} fakturasını ödəndi işarələmək?",
+        "markedPaid": "Faktura ödəndi işarələndi",
+        "markPaidFailed": "Faktura ödəndi işarələnmədi"
       },
       "tickets": {
         "title": "Dəstək Sorğuları",
@@ -2086,6 +2097,8 @@
         "migrateFailed": "Köçürmə uğursuz oldu",
         "failedAccountsTitle": "Uğursuz provisioning ({count})",
         "failedAccountsHint": "Bu hesablar Plesk-də yaradıla bilmədi. Xətanı yoxlayın, eyni serverdə yenidən cəhd edin və ya yuxarıdan başqa Plesk server seçib köçürün.",
+        "atRiskTitle": "Askıda / ləğv / bitmiş ({count})",
+        "atRiskHint": "Bu xidmətlər aktivləşdirənə və ya silənə qədər askıdadır. Heç nə etməsəniz, ödənilməmişlər grace müddətindən sonra silinə bilər.",
         "provisionStage": "Mərhələ",
         "provisionError": "Xəta",
         "retryProvision": "Yenidən cəhd et",

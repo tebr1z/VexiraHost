@@ -34,6 +34,7 @@ import { LicensesModule } from "@/modules/licenses/licenses.module";
 import { PaymentsModule } from "@/modules/payments/payments.module";
 import { TicketsModule } from "@/modules/tickets/tickets.module";
 import { WhatsappModule } from "@/modules/whatsapp/whatsapp.module";
+import { PricingModule } from "@/shared/pricing/pricing.module";
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { WhatsappModule } from "@/modules/whatsapp/whatsapp.module";
     DomainsModule,
     TicketsModule,
     PaymentsModule,
+    PricingModule,
   ],
   controllers: [
     AdminController,

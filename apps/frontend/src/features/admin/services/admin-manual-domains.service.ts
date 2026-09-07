@@ -77,6 +77,7 @@ export interface UpdateManualDomainInput {
   billingAmount?: number | null;
   billingCurrency?: string;
   createInvoiceNow?: boolean;
+  status?: "ACTIVE" | "SUSPENDED" | "EXPIRED";
 }
 
 export async function listUserManualDomains(userId: string): Promise<AdminManualDomain[]> {
