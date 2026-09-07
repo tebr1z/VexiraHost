@@ -1239,6 +1239,8 @@
           "githubConnectedAs": "Подключён как @{login}",
           "githubDisconnect": "Отключить",
           "githubDisconnected": "GitHub отключён",
+          "githubReconnect": "Подключить GitHub",
+          "githubAuthFailedHint": "Доступ к GitHub истёк или отозван. Отключите и подключите снова, затем повторите deploy.",
           "githubConnectFailed": "Подключение GitHub сейчас недоступно",
           "githubDisconnectFailed": "Не удалось отключить GitHub",
           "githubLoading": "Загрузка GitHub…",

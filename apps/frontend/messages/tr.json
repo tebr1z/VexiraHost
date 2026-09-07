@@ -1238,6 +1238,8 @@
           "githubConnectedAs": "@{login} olarak bağlı",
           "githubDisconnect": "Bağlantıyı kes",
           "githubDisconnected": "GitHub bağlantısı kesildi",
+          "githubReconnect": "GitHub bağla",
+          "githubAuthFailedHint": "GitHub erişimi süresi doldu veya iptal edildi. Bağlantıyı kesip yeniden bağlayın, sonra deployu tekrar deneyin.",
           "githubConnectFailed": "GitHub bağlantısı şu anda kullanılamıyor",
           "githubDisconnectFailed": "GitHub bağlantısı kesilemedi",
           "githubLoading": "GitHub yükleniyor…",

@@ -1254,6 +1254,8 @@
           "githubConnectedAs": "Connected as @{login}",
           "githubDisconnect": "Disconnect",
           "githubDisconnected": "GitHub disconnected",
+          "githubReconnect": "Reconnect GitHub",
+          "githubAuthFailedHint": "GitHub access expired or was revoked. Disconnect and connect again, then retry deploy.",
           "githubConnectFailed": "GitHub connection is not available right now",
           "githubDisconnectFailed": "Could not disconnect GitHub",
           "githubLoading": "Loading GitHub…",

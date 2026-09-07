@@ -55,6 +55,17 @@ function healthCheckLabel(id: DeployHealthCheckItem["id"], t: (key: string) => s
   }
 }
 
+function isGitHubAuthError(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("github authentication failed") ||
+    lower.includes("reconnect github") ||
+    lower.includes("github token expired") ||
+    lower.includes("please reconnect github")
+  );
+}
+
 export function HostingDeploySection({
   accountId,
   primaryDomain,
@@ -237,6 +248,25 @@ export function HostingDeploySection({
       toast(t("githubDisconnected"), "success");
     } catch (err) {
       toast(getApiErrorMessage(err, t("githubDisconnectFailed")), "error");
+    }
+  };
+
+  const onReconnectGitHub = async () => {
+    setGithubConnecting(true);
+    try {
+      if (githubConnected) {
+        await disconnectGitHub();
+        setGithubConnected(false);
+        setGithubLogin(null);
+        setGithubRepos([]);
+        setSelectedGithubRepo(null);
+      }
+      const returnTo = window.location.href.split("?")[0];
+      const url = await getGitHubConnectUrl(returnTo);
+      window.location.href = url;
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("githubConnectFailed")), "error");
+      setGithubConnecting(false);
     }
   };
 
@@ -461,17 +491,31 @@ export function HostingDeploySection({
 
   const body = (
     <>
-      {!showForm && githubConnected ? (
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs text-[var(--label-secondary)]">
-          <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
-          <span>@{githubLogin ?? "GitHub"}</span>
-          <button
-            type="button"
-            onClick={() => void onDisconnectGitHub()}
-            className="ml-1 text-[var(--label-tertiary)] hover:text-[var(--danger)]"
-          >
-            {t("githubDisconnect")}
-          </button>
+      {!showForm ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {githubConnected ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 py-1.5 text-xs text-[var(--label-secondary)]">
+              <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
+              <span>@{githubLogin ?? "GitHub"}</span>
+              <button
+                type="button"
+                onClick={() => void onDisconnectGitHub()}
+                className="ml-1 text-[var(--label-tertiary)] hover:text-[var(--danger)]"
+              >
+                {t("githubDisconnect")}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={githubConnecting || githubLoading}
+              onClick={() => void onConnectGitHub()}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-dashed border-[var(--separator)] px-3 text-xs font-semibold text-[var(--label-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+            >
+              <MaterialIcon name="link" className="text-[16px]" />
+              {githubConnecting ? t("githubConnecting") : t("connectGitHub")}
+            </button>
+          )}
         </div>
       ) : null}
 
@@ -724,6 +768,11 @@ export function HostingDeploySection({
             const showLogs = activePanel === "logs";
             const showEnv = activePanel === "env";
             const showHealth = activePanel === "health";
+            const githubAuthFailed =
+              item.status === "FAILED" &&
+              (isGitHubAuthError(item.lastError) ||
+                isGitHubAuthError(item.latestRun?.log) ||
+                (expandedId === item.id && isGitHubAuthError(expandedLog)));
             return (
               <li
                 key={item.id}
@@ -764,9 +813,34 @@ export function HostingDeploySection({
                         ) : null}
                       </p>
                       {item.lastError ? (
-                        <p className="mt-2 rounded-lg bg-red-500/10 px-2 py-1.5 text-xs text-[var(--danger)]">
-                          {item.lastError}
-                        </p>
+                        <div className="mt-2 space-y-2 rounded-lg bg-red-500/10 px-2 py-1.5">
+                          <p className="text-xs text-[var(--danger)]">{item.lastError}</p>
+                          {githubAuthFailed ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-[11px] text-[var(--label-secondary)]">
+                                {t("githubAuthFailedHint")}
+                              </p>
+                              <button
+                                type="button"
+                                disabled={githubConnecting}
+                                onClick={() => void onReconnectGitHub()}
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--label-primary)] px-3 text-[11px] font-semibold text-[var(--bg-elevated)] disabled:opacity-60"
+                              >
+                                <MaterialIcon name="link" className="text-[14px]" />
+                                {githubConnecting ? t("githubConnecting") : t("githubReconnect")}
+                              </button>
+                              {githubConnected ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void onDisconnectGitHub()}
+                                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-[var(--separator)] px-2.5 text-[11px] font-semibold text-[var(--label-secondary)] hover:text-[var(--danger)]"
+                                >
+                                  {t("githubDisconnect")}
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
                       ) : null}
                       {item.stage === "waiting_server" ? (
                         <p className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5 text-xs text-amber-800 dark:text-amber-200">
@@ -776,6 +850,17 @@ export function HostingDeploySection({
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                      {githubAuthFailed ? (
+                        <button
+                          type="button"
+                          disabled={githubConnecting}
+                          onClick={() => void onReconnectGitHub()}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 text-xs font-semibold text-[var(--label-primary)] disabled:opacity-50"
+                        >
+                          <MaterialIcon name="link" className="text-[16px]" />
+                          {githubConnecting ? t("githubConnecting") : t("githubReconnect")}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         disabled={isRunning || redeployingId === item.id}
