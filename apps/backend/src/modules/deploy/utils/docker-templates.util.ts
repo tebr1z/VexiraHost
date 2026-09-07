@@ -53,6 +53,35 @@ function runBuildInDir(appDir: string, monorepo: boolean): string {
   else npm run build; fi`;
 }
 
+/** Generate Prisma client when a schema exists (common Nest/Next layouts). */
+function prismaGenerateLines(appDir = "."): string {
+  const candidates =
+    appDir === "."
+      ? `prisma/schema.prisma prisma/schema`
+      : `${appDir}/prisma/schema.prisma prisma/schema.prisma ${appDir}/prisma/schema`;
+  return `RUN set -e; \\
+  SCHEMA=""; \\
+  for c in ${candidates}; do \\
+    if [ -f "$c" ]; then SCHEMA="$c"; break; fi; \\
+  done; \\
+  if [ -n "$SCHEMA" ]; then \\
+    echo "prisma generate --schema=$SCHEMA"; \\
+    npx prisma generate --schema="$SCHEMA"; \\
+  else \\
+    echo "No prisma schema found — skip generate"; \\
+  fi`;
+}
+
+function alpinePrismaRuntimeDeps(): string {
+  return `RUN apk add --no-cache openssl libc6-compat >/dev/null`;
+}
+
+/** Copy generated Prisma engine/client into the runtime image after prod install. */
+function copyPrismaClientFromBuilder(): string {
+  return `COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma`;
+}
+
 function appPath(prefix: string, appDir: string, suffix: string): string {
   return appDir === "." ? `${prefix}${suffix}` : `${prefix}/${appDir}${suffix}`;
 }
@@ -65,13 +94,18 @@ COPY . .
 ${installDepsLines()}
 ENV CI=true
 ENV TURBO_TELEMETRY_DISABLED=1
+${prismaGenerateLines(appDir)}
 ${runBuildInDir(appDir, true)}
 
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+${alpinePrismaRuntimeDeps()}
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder ${distPath} ./dist
+${copyPrismaClientFromBuilder()}
 EXPOSE 3000
+ENV PORT=3000
 CMD ["node", "dist/main.js"]
 `;
 }
@@ -83,6 +117,7 @@ COPY package.json ./
 COPY package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 ${installDepsLines()}
 COPY . .
+${prismaGenerateLines(".")}
 RUN if [ -f pnpm-lock.yaml ]; then pnpm run build; \\
   elif [ -f yarn.lock ]; then yarn run build; \\
   else npm run build; fi
@@ -90,11 +125,14 @@ RUN if [ -f pnpm-lock.yaml ]; then pnpm run build; \\
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+${alpinePrismaRuntimeDeps()}
 COPY package.json ./
 COPY package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 ${installProdDepsLines()}
 COPY --from=builder /app/dist ./dist
+${copyPrismaClientFromBuilder()}
 EXPOSE 3000
+ENV PORT=3000
 CMD ["node", "dist/main.js"]
 `;
 }
