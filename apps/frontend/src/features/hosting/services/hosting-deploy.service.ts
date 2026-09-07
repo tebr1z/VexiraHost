@@ -122,11 +122,23 @@ export async function updateDeploymentEnv(
   deploymentId: string,
   envVars: Record<string, string>,
   redeploy = false,
-): Promise<{ id: string; message: string }> {
-  const res = await apiClient.request<{ id: string; message: string }>(
-    `/hosting/${accountId}/deployments/${deploymentId}/env`,
-    { method: "PATCH", body: { envVars, redeploy } },
-  );
+): Promise<{
+  id: string;
+  message: string;
+  containerPort?: number;
+  ignoredPort?: string | null;
+  queuePosition?: number;
+}> {
+  const res = await apiClient.request<{
+    id: string;
+    message: string;
+    containerPort?: number;
+    ignoredPort?: string | null;
+    queuePosition?: number;
+  }>(`/hosting/${accountId}/deployments/${deploymentId}/env`, {
+    method: "PATCH",
+    body: { envVars, redeploy },
+  });
   return res.data!;
 }
 

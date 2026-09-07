@@ -13,6 +13,11 @@ import {
 import { OS_DETECT_COMMAND } from "../utils/server-bootstrap.script";
 import { formatOsVersionLabel, parseDetectedOsOutput } from "../utils/server-os.util";
 import { hasDedicatedSshCredentials } from "../utils/server-ssh.util";
+import {
+  parseStorageProbeOutput,
+  STORAGE_PROBE_COMMAND,
+  type ServerStorageProbe,
+} from "../utils/server-storage.util";
 import { parseProbeLine, TOOLS_PROBE_COMMAND } from "../utils/server-tools.util";
 
 import { ServerBootstrapService } from "./server-bootstrap.service";
@@ -41,6 +46,7 @@ export type ServerSetupStatus = {
     os: string | null;
     probedAt: string;
   } | null;
+  storage: ServerStorageProbe | null;
   lastBootstrapLog: string | null;
   activeBootstrapJobId: string | null;
 };
@@ -96,6 +102,7 @@ export class ServerSetupService {
       },
       mockRemote: this.deployConfig.mockRemote,
       tools: null,
+      storage: null,
       lastBootstrapLog: this.bootstrapLogs.get(server.id) ?? null,
       activeBootstrapJobId: this.activeJobByServer.get(server.id) ?? null,
     };
@@ -115,13 +122,40 @@ export class ServerSetupService {
           os: server.osVersion ?? "Ubuntu 22.04 LTS (mock)",
           probedAt: new Date().toISOString(),
         },
+        storage: {
+          disks: [
+            {
+              mount: "/",
+              sizeBytes: 100 * 1024 ** 3,
+              usedBytes: 42 * 1024 ** 3,
+              availBytes: 58 * 1024 ** 3,
+              usePercent: 42,
+            },
+            {
+              mount: "/var",
+              sizeBytes: 100 * 1024 ** 3,
+              usedBytes: 70 * 1024 ** 3,
+              availBytes: 30 * 1024 ** 3,
+              usePercent: 70,
+            },
+          ],
+          images: [
+            { name: "mock-app:latest", id: "abc123", size: "1.2GB" },
+            { name: "node:22-alpine", id: "def456", size: "180MB" },
+          ],
+          dockerSystemDf: "Images: 2 (mock)\nContainers: 1 (mock)",
+          probedAt: new Date().toISOString(),
+        },
       };
     }
 
     const ssh = this.serverBootstrap.buildSshOptions(server);
     const output = await this.ssh.execChecked(ssh, TOOLS_PROBE_COMMAND, 60_000);
     const osOutput = await this.ssh.execChecked(ssh, OS_DETECT_COMMAND, 60_000);
+    const storageOutput = await this.ssh.execChecked(ssh, STORAGE_PROBE_COMMAND, 120_000);
     const detected = parseDetectedOsOutput(osOutput);
+    const storageParsed = parseStorageProbeOutput(storageOutput);
+    const probedAt = new Date().toISOString();
 
     return {
       ...status,
@@ -130,7 +164,11 @@ export class ServerSetupService {
         docker: parseProbeLine(output, "DOCKER"),
         compose: parseProbeLine(output, "COMPOSE"),
         os: detected ? formatOsVersionLabel(detected) : null,
-        probedAt: new Date().toISOString(),
+        probedAt,
+      },
+      storage: {
+        ...storageParsed,
+        probedAt,
       },
     };
   }

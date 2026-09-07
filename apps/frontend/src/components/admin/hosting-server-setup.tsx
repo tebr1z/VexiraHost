@@ -374,6 +374,96 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
         </div>
       )}
 
+      {status.storage ? (
+        <div className="card-3d border-outline-variant/40 space-y-4 rounded-2xl border p-5">
+          <div>
+            <h3 className="text-primary text-sm font-semibold">{t("storageTitle")}</h3>
+            <p className="text-on-surface-variant mt-1 text-xs">{t("storageHint")}</p>
+          </div>
+
+          <div className="space-y-2">
+            {status.storage.disks.length === 0 ? (
+              <p className="text-on-surface-variant text-sm">{t("storageEmpty")}</p>
+            ) : (
+              status.storage.disks.map((disk) => {
+                const availGb = (disk.availBytes / 1024 ** 3).toFixed(1);
+                const sizeGb = (disk.sizeBytes / 1024 ** 3).toFixed(1);
+                const critical = disk.usePercent >= 90 || disk.availBytes < 2 * 1024 ** 3;
+                return (
+                  <div
+                    key={disk.mount}
+                    className={cn(
+                      "rounded-xl border px-4 py-3",
+                      critical
+                        ? "border-red-500/30 bg-red-500/10"
+                        : "border-[var(--separator)] bg-[var(--bg-secondary)]",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-mono text-sm font-semibold text-[var(--label-primary)]">
+                        {disk.mount}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          critical ? "text-[var(--danger)]" : "text-[var(--label-secondary)]",
+                        )}
+                      >
+                        {t("storageFree", {
+                          free: availGb,
+                          total: sizeGb,
+                          percent: disk.usePercent,
+                        })}
+                      </p>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--fill-tertiary)]">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          critical ? "bg-[var(--danger)]" : "bg-[var(--accent)]",
+                        )}
+                        style={{ width: `${Math.min(100, Math.max(0, disk.usePercent))}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {status.storage.dockerSystemDf ? (
+            <pre className="overflow-x-auto rounded-xl bg-[#0f1117] p-3 text-[11px] leading-relaxed text-[#d4d4d8]">
+              {status.storage.dockerSystemDf}
+            </pre>
+          ) : null}
+
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--label-secondary)]">
+              {t("imagesTitle")}
+            </h4>
+            {status.storage.images.length === 0 ? (
+              <p className="text-on-surface-variant text-sm">{t("imagesEmpty")}</p>
+            ) : (
+              <ul className="max-h-64 space-y-1 overflow-auto">
+                {status.storage.images.map((image) => (
+                  <li
+                    key={`${image.id}-${image.name}`}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-[var(--separator)] px-3 py-2"
+                  >
+                    <span className="min-w-0 truncate font-mono text-xs text-[var(--label-primary)]">
+                      {image.name}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs font-semibold text-[var(--label-secondary)]">
+                      {image.size}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {sshOutput ? (
         <pre className="max-h-32 overflow-auto rounded-xl bg-[#0f1117] p-3 text-[11px] text-[#d4d4d8]">
           {sshOutput}

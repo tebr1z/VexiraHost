@@ -250,6 +250,18 @@ export interface ServerSetupStatus {
     os: string | null;
     probedAt: string;
   } | null;
+  storage: {
+    disks: Array<{
+      mount: string;
+      sizeBytes: number;
+      usedBytes: number;
+      availBytes: number;
+      usePercent: number;
+    }>;
+    images: Array<{ name: string; id: string; size: string }>;
+    dockerSystemDf: string | null;
+    probedAt: string;
+  } | null;
   lastBootstrapLog: string | null;
   activeBootstrapJobId: string | null;
 }

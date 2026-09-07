@@ -8,6 +8,7 @@ import {
   pleskVhostConfPath,
   pleskVhostSslConfPath,
 } from "../utils/apache-proxy.util";
+import { formatDeployBuildError, sanitizeDeployEnvVars } from "../utils/deploy-env.util";
 import {
   buildDockerComposeProjectName,
   buildDockerfile,
@@ -203,10 +204,26 @@ export class RemoteDeployService {
           );
         }
 
-        const envLines = Object.entries(input.envVars)
+        const { env: safeEnv, ignoredPort } = sanitizeDeployEnvVars(
+          input.envVars,
+          input.containerPort,
+        );
+        if (ignoredPort != null) {
+          await append(
+            "env",
+            `Ignored customer PORT=${ignoredPort}. Using managed PORT=${input.containerPort} (host publish ${input.hostPort}).`,
+          );
+        } else {
+          await append(
+            "env",
+            `Using managed PORT=${input.containerPort} (host publish 127.0.0.1:${input.hostPort}).`,
+          );
+        }
+
+        const envLines = Object.entries(safeEnv)
           .map(([key, value]) => `${key}=${value}`)
           .join("\n");
-        const envContent = `${envLines}\nPORT=${input.containerPort}\n`;
+        const envContent = `${envLines}\n`;
         await session.writeFile(`${deployPath}/.env`, envContent);
 
         if (input.stack === "NEXTJS") {
@@ -223,13 +240,22 @@ export class RemoteDeployService {
         const dockerfile = buildDockerfile(input.stack, { monorepo, appSubdir });
         await session.writeFile(dockerfilePath, dockerfile);
 
+        // Quiet podman "Emulate Docker CLI" notice when present.
+        await session.exec(
+          `mkdir -p /etc/containers >/dev/null 2>&1; touch /etc/containers/nodocker >/dev/null 2>&1 || true`,
+        );
+
         const buildCmd = [
           `docker build`,
           `-f ${shellQuote(dockerfilePath)}`,
           `-t ${shellQuote(containerName)}`,
           shellQuote(dockerContextDir),
         ].join(" ");
-        await append("docker build", await session.execChecked(buildCmd, 900_000));
+        try {
+          await append("docker build", await session.execChecked(buildCmd, 900_000));
+        } catch (error) {
+          throw new Error(formatDeployBuildError(error));
+        }
 
         const containerInspect = await session.exec(
           `docker ps -a --filter name=^/${containerName}$ --format '{{.Names}}'`,
@@ -258,6 +284,10 @@ export class RemoteDeployService {
           shellQuote(containerName),
         ].join(" ");
         await append("docker run", await session.execChecked(runCmd));
+        await append(
+          "ports",
+          `App container PORT=${input.containerPort}; reverse proxy target 127.0.0.1:${input.hostPort}. Customer PORT in .env is ignored.`,
+        );
       },
       1_800_000,
     );
@@ -294,10 +324,11 @@ export class RemoteDeployService {
     if (cfg.mockRemote) return;
 
     const ssh = this.apacheProxy.buildSshOptions(input.server);
-    const envLines = Object.entries(input.envVars)
+    const { env: safeEnv } = sanitizeDeployEnvVars(input.envVars, input.containerPort);
+    const envLines = Object.entries(safeEnv)
       .map(([key, value]) => `${key}=${value}`)
       .join("\n");
-    const envContent = `${envLines}\nPORT=${input.containerPort}\n`;
+    const envContent = `${envLines}\n`;
     await this.ssh.writeFile(ssh, `${input.deployPath}/.env`, envContent);
 
     const containerInspect = await this.ssh.exec(

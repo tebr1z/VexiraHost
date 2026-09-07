@@ -373,8 +373,12 @@ export function HostingDeploySection({
   const onSaveEnv = async (id: string, redeploy: boolean) => {
     setSavingEnvId(id);
     try {
-      await updateDeploymentEnv(accountId, id, parseEnvText(envEditText), redeploy);
-      toast(redeploy ? t("envSavedRedeploy") : t("envSavedRestart"), "success");
+      const result = await updateDeploymentEnv(accountId, id, parseEnvText(envEditText), redeploy);
+      if (result.ignoredPort != null && result.containerPort != null) {
+        toast(t("envPortIgnored", { port: String(result.containerPort) }), "success");
+      } else {
+        toast(redeploy ? t("envSavedRedeploy") : t("envSavedRestart"), "success");
+      }
       setEnvEditId(null);
       if (redeploy) {
         setExpandedId(id);

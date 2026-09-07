@@ -9,6 +9,7 @@ import { DeployDomainMode, ServiceStatus } from "@prisma/client";
 import { CreateDeploymentDto } from "../dto/create-deployment.dto";
 import { UpdateDeploymentEnvDto } from "../dto/update-deployment-env.dto";
 import { DeployRepository } from "../repository/deploy.repository";
+import { stripCustomerPort } from "../utils/deploy-env.util";
 import { defaultContainerPort } from "../utils/docker-templates.util";
 
 import { DeployHealthService } from "./deploy-health.service";
@@ -126,10 +127,9 @@ export class DeployService {
     }
 
     const hostPort = await this.portAllocation.allocate(account.serverId!);
+    const { env: safeEnvVars, ignoredPort } = stripCustomerPort(dto.envVars);
     const envVarsEnc =
-      dto.envVars && Object.keys(dto.envVars).length > 0
-        ? encryptSecret(JSON.stringify(dto.envVars))
-        : null;
+      Object.keys(safeEnvVars).length > 0 ? encryptSecret(JSON.stringify(safeEnvVars)) : null;
 
     const deployment = await this.deployRepository.create({
       hostingAccountId: accountId,
@@ -149,16 +149,24 @@ export class DeployService {
 
     const { queuePosition } = await this.deployRunner.enqueue(deployment.id);
 
+    const portNote =
+      ignoredPort != null
+        ? ` Customer PORT=${ignoredPort} was ignored; container uses PORT=${deployment.containerPort}.`
+        : ` Container uses managed PORT=${deployment.containerPort}.`;
+
     return {
       id: deployment.id,
       deployDomain: deployment.deployDomain,
       status: "RUNNING",
       stage: queuePosition > 1 ? "waiting_server" : "queued",
       queuePosition,
+      containerPort: deployment.containerPort,
+      hostPort: deployment.hostPort,
+      ignoredPort,
       message:
-        queuePosition > 1
-          ? "Server is busy — your deploy is queued and will start when the current job finishes"
-          : "Deployment queued",
+        (queuePosition > 1
+          ? "Server is busy — your deploy is queued and will start when the current job finishes."
+          : "Deployment queued.") + portNote,
     };
   }
 
@@ -236,11 +244,16 @@ export class DeployService {
       throw new BadRequestException("Wait for the current deploy to finish before changing env");
     }
 
-    const envVars = dto.envVars ?? {};
+    const { env: envVars, ignoredPort } = stripCustomerPort(dto.envVars);
     const envVarsEnc =
       Object.keys(envVars).length > 0 ? encryptSecret(JSON.stringify(envVars)) : null;
 
     await this.deployRepository.update(deploymentId, { envVarsEnc });
+
+    const portNote =
+      ignoredPort != null
+        ? ` Customer PORT=${ignoredPort} was ignored; container keeps PORT=${deployment.containerPort}.`
+        : "";
 
     if (dto.redeploy) {
       await this.deployRepository.update(deploymentId, {
@@ -252,10 +265,12 @@ export class DeployService {
       return {
         id: deploymentId,
         queuePosition,
+        containerPort: deployment.containerPort,
+        ignoredPort,
         message:
-          queuePosition > 1
-            ? "Environment saved — redeploy queued (server busy, will start next)"
-            : "Environment saved — full redeploy queued",
+          (queuePosition > 1
+            ? "Environment saved — redeploy queued (server busy, will start next)."
+            : "Environment saved — full redeploy queued.") + portNote,
       };
     }
 
@@ -274,10 +289,20 @@ export class DeployService {
         containerPort: deployment.containerPort,
         envVars,
       });
-      return { id: deploymentId, message: "Environment saved and container restarted" };
+      return {
+        id: deploymentId,
+        containerPort: deployment.containerPort,
+        ignoredPort,
+        message: `Environment saved and container restarted.${portNote}`,
+      };
     }
 
-    return { id: deploymentId, message: "Environment saved — redeploy to apply" };
+    return {
+      id: deploymentId,
+      containerPort: deployment.containerPort,
+      ignoredPort,
+      message: `Environment saved — redeploy to apply.${portNote}`,
+    };
   }
 
   async checkHealth(accountId: string, deploymentId: string, userId: string) {
