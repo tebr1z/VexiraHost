@@ -87,6 +87,12 @@ export class AdminHostingController {
     return this.serverSetupService.testSsh(id);
   }
 
+  @Post("servers/:id/setup/prune-images")
+  @Roles(UserRole.ADMIN)
+  pruneServerImages(@Param("id") id: string) {
+    return this.serverSetupService.pruneImages(id);
+  }
+
   @Post("servers/:id/setup/bootstrap")
   @Roles(UserRole.ADMIN)
   bootstrapServer(@Param("id") id: string) {

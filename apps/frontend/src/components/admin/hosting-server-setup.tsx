@@ -9,6 +9,7 @@ import {
   getBootstrapJob,
   getServerSetupStatus,
   probeServerSetup,
+  pruneServerImages,
   testServerSetupSsh,
   type BootstrapJob,
   type ServerSetupStatus,
@@ -171,6 +172,7 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
   const [status, setStatus] = useState<ServerSetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [probing, setProbing] = useState(false);
+  const [pruning, setPruning] = useState(false);
   const [testingSsh, setTestingSsh] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [bootstrapJob, setBootstrapJob] = useState<BootstrapJob | null>(null);
@@ -256,6 +258,23 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
     }
   };
 
+  const onPrune = async () => {
+    if (!confirm(t("pruneConfirm"))) return;
+    setPruning(true);
+    setSshOutput(null);
+    try {
+      const result = await pruneServerImages(serverId);
+      setSshOutput(result.output);
+      toast(result.message || t("pruneSuccess"), "success");
+      const data = await probeServerSetup(serverId);
+      setStatus(data);
+    } catch (err) {
+      toast(getApiErrorMessage(err, t("pruneFailed")), "error");
+    } finally {
+      setPruning(false);
+    }
+  };
+
   const onTestSsh = async () => {
     setTestingSsh(true);
     setSshOutput(null);
@@ -332,6 +351,18 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
           >
             <MaterialIcon name="search" className={cn("text-[18px]", probing && "animate-spin")} />
             {probing ? t("probing") : t("probeTools")}
+          </button>
+          <button
+            type="button"
+            disabled={pruning || bootstrapping || !status.server.sshConfigured}
+            onClick={() => void onPrune()}
+            className="border-outline-variant hover:bg-surface-container-low inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold disabled:opacity-50"
+          >
+            <MaterialIcon
+              name="delete_sweep"
+              className={cn("text-[18px]", pruning && "animate-pulse")}
+            />
+            {pruning ? t("pruning") : t("pruneImages")}
           </button>
           <button
             type="button"

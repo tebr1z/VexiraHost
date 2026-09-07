@@ -40,6 +40,7 @@ export class LicensesRepository {
       status?: ServiceStatus;
       metadata?: Prisma.InputJsonValue;
       expiresAt?: Date | null;
+      autoRenew?: boolean;
       provisionedAt?: Date;
     },
   ) {

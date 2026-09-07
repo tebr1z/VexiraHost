@@ -19,6 +19,7 @@ function mapAddonService(service: AddonService) {
     status: service.status,
     metadata: service.metadata,
     expiresAt: service.expiresAt,
+    autoRenew: service.autoRenew,
     provisionedAt: service.provisionedAt,
     createdAt: service.createdAt,
   };
@@ -62,6 +63,39 @@ export class LicensesService {
     const service = await this.licensesRepository.findByIdForUser(id, userId);
     if (!service) throw new NotFoundException("Addon service not found");
     return mapAddonService(service);
+  }
+
+  async cancelRenewal(id: string, userId: string) {
+    const service = await this.licensesRepository.findByIdForUser(id, userId);
+    if (!service) throw new NotFoundException("Addon service not found");
+    if (service.status === "CANCELLED" || service.status === "EXPIRED") {
+      throw new BadRequestException("This service is already cancelled or expired");
+    }
+    if (service.status !== "ACTIVE" && service.status !== "SUSPENDED") {
+      throw new BadRequestException("Only active services can be cancelled");
+    }
+
+    const now = new Date();
+    const stillInPaidPeriod = service.expiresAt != null && service.expiresAt > now;
+
+    if (stillInPaidPeriod) {
+      const updated = await this.licensesRepository.updateAddon(service.id, {
+        autoRenew: false,
+      });
+      return {
+        ...mapAddonService(updated),
+        message: `Renewal cancelled. Service stays active until ${service.expiresAt!.toISOString().slice(0, 10)}.`,
+      };
+    }
+
+    const updated = await this.licensesRepository.updateAddon(service.id, {
+      autoRenew: false,
+      status: "CANCELLED",
+    });
+    return {
+      ...mapAddonService(updated),
+      message: "Service cancelled. It will no longer renew.",
+    };
   }
 
   async provision(userId: string, dto: ProvisionAddonDto) {

@@ -309,6 +309,16 @@ export async function testServerSetupSsh(
   return res.data as { ok: boolean; message: string; output: string };
 }
 
+export async function pruneServerImages(
+  serverId: string,
+): Promise<{ ok: boolean; message: string; output: string }> {
+  const res = await apiClient.request<{ ok: boolean; message: string; output: string }>(
+    `/admin/hosting/servers/${serverId}/setup/prune-images`,
+    { method: "POST" },
+  );
+  return res.data as { ok: boolean; message: string; output: string };
+}
+
 export async function bootstrapServerSetup(serverId: string): Promise<{ jobId: string }> {
   const res = await apiClient.request<{ jobId: string }>(
     `/admin/hosting/servers/${serverId}/setup/bootstrap`,

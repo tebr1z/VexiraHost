@@ -245,6 +245,19 @@ export class RemoteDeployService {
           `mkdir -p /etc/containers >/dev/null 2>&1; touch /etc/containers/nodocker >/dev/null 2>&1 || true`,
         );
 
+        // Free dangling layers before build so redeploys don't pile up unused images.
+        const prePrune = await session.exec(
+          [
+            `docker image prune -f >/tmp/vx-prune-pre.txt 2>&1 || true`,
+            `docker builder prune -f >/tmp/vx-prune-pre-builder.txt 2>&1 || true`,
+            `cat /tmp/vx-prune-pre.txt /tmp/vx-prune-pre-builder.txt 2>/dev/null | tail -n 20`,
+          ].join("; "),
+          300_000,
+        );
+        if (prePrune.stdout.trim()) {
+          await append("docker prune (before)", prePrune.stdout);
+        }
+
         const buildCmd = [
           `docker build`,
           `-f ${shellQuote(dockerfilePath)}`,
@@ -284,6 +297,20 @@ export class RemoteDeployService {
           shellQuote(containerName),
         ].join(" ");
         await append("docker run", await session.execChecked(runCmd));
+
+        // Drop dangling intermediates from this build; keep the tagged running image.
+        const postPrune = await session.exec(
+          [
+            `docker image prune -f >/tmp/vx-prune-post.txt 2>&1 || true`,
+            `docker builder prune -f >/tmp/vx-prune-post-builder.txt 2>&1 || true`,
+            `cat /tmp/vx-prune-post.txt /tmp/vx-prune-post-builder.txt 2>/dev/null | tail -n 20`,
+          ].join("; "),
+          300_000,
+        );
+        if (postPrune.stdout.trim()) {
+          await append("docker prune (after)", postPrune.stdout);
+        }
+
         await append(
           "ports",
           `App container PORT=${input.containerPort}; reverse proxy target 127.0.0.1:${input.hostPort}. Customer PORT in .env is ignored.`,
@@ -371,14 +398,18 @@ export class RemoteDeployService {
 
     await this.ssh.withSession(ssh, async (session) => {
       if (input.containerName?.trim()) {
-        await session.exec(
-          `docker rm -f ${shellQuote(input.containerName.trim())} >/dev/null 2>&1 || true`,
-          120_000,
-        );
+        const name = input.containerName.trim();
+        await session.exec(`docker rm -f ${shellQuote(name)} >/dev/null 2>&1 || true`, 120_000);
+        // Remove the tagged image for this project so redeploys don't leave duplicates.
+        await session.exec(`docker rmi -f ${shellQuote(name)} >/dev/null 2>&1 || true`, 120_000);
       }
       if (input.deployPath?.trim()) {
         await session.exec(`rm -rf ${shellQuote(input.deployPath.trim())}`);
       }
+      await session.exec(
+        `docker image prune -f >/dev/null 2>&1 || true; docker builder prune -f >/dev/null 2>&1 || true`,
+        300_000,
+      );
     });
 
     if (input.deployDomain?.trim()) {

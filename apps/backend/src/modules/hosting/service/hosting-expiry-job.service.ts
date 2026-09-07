@@ -22,6 +22,7 @@ export class HostingExpiryJobService {
     if (this.running) return;
     this.running = true;
     try {
+      await this.processCancelledAtPeriodEnd();
       await this.processExpiredAccounts();
       await this.processGraceExpiredAccounts();
     } catch (error) {
@@ -33,12 +34,37 @@ export class HostingExpiryJobService {
     }
   }
 
+  /** Paid period ended and customer disabled auto-renew → mark CANCELLED (no invoice). */
+  private async processCancelledAtPeriodEnd(): Promise<void> {
+    const now = new Date();
+    const accounts = await this.prisma.hostingAccount.findMany({
+      where: {
+        autoRenew: false,
+        status: ServiceStatus.ACTIVE,
+        expiresAt: { lte: now },
+      },
+    });
+
+    for (const account of accounts) {
+      await this.prisma.hostingAccount.update({
+        where: { id: account.id },
+        data: {
+          status: ServiceStatus.CANCELLED,
+          graceEndsAt: null,
+          renewalInvoiceId: null,
+        },
+      });
+      this.logger.log(`Marked account ${account.id} CANCELLED after period end (autoRenew=false)`);
+    }
+  }
+
   private async processExpiredAccounts(): Promise<void> {
     const now = new Date();
     const accounts = await this.prisma.hostingAccount.findMany({
       where: {
         managementMode: HostingManagementMode.MANUAL,
         status: ServiceStatus.ACTIVE,
+        autoRenew: true,
         expiresAt: { lte: now },
         billingAmount: { not: null },
       },

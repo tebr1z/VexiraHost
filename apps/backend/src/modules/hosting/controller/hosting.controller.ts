@@ -103,6 +103,16 @@ export class HostingController {
     return this.pleskMailService.createWebmailLoginUrl(id, user.id, clientIp, dto.mailbox);
   }
 
+  @Post(":id/cancel-renewal")
+  cancelRenewal(@Param("id") id: string, @User() user: AuthUser) {
+    return this.hostingService.cancelRenewal(id, user.id);
+  }
+
+  @Post(":id/resume-renewal")
+  resumeRenewal(@Param("id") id: string, @User() user: AuthUser) {
+    return this.hostingService.resumeRenewal(id, user.id);
+  }
+
   @Get(":id")
   getOne(@Param("id") id: string, @User() user: AuthUser) {
     return this.hostingService.getForUser(id, user.id);

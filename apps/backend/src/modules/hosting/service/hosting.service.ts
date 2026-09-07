@@ -76,6 +76,7 @@ function mapAccount(
     expiresAt: account.expiresAt,
     billingAmount: account.billingAmount != null ? Number(account.billingAmount) : null,
     billingCurrency: account.billingCurrency,
+    autoRenew: account.autoRenew,
     graceEndsAt: account.graceEndsAt,
     renewalInvoiceId: account.renewalInvoiceId,
     server: mapServer(account.server),
@@ -287,5 +288,75 @@ export class HostingService {
     }
 
     return this.panelSession.getOrCreateLoginUrl(id, userId, clientIp);
+  }
+
+  /**
+   * Cancel monthly renewal at period end (or stop unpaid renewal billing).
+   */
+  async cancelRenewal(id: string, userId: string) {
+    const account = await this.hostingRepository.findByIdForUser(id, userId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (account.status === "CANCELLED" || account.status === "FAILED") {
+      throw new BadRequestException("This service is already cancelled");
+    }
+
+    const isBillable =
+      account.billingAmount != null ||
+      account.expiresAt != null ||
+      account.managementMode === HostingManagementModeEnum.MANUAL;
+
+    if (!isBillable && account.status !== "ACTIVE" && account.status !== "SUSPENDED") {
+      throw new BadRequestException("This service cannot be cancelled from the dashboard");
+    }
+
+    if (account.renewalInvoiceId) {
+      await this.hostingRepository.voidOpenInvoice(account.renewalInvoiceId);
+    }
+
+    const now = new Date();
+    const stillInPaidPeriod = account.expiresAt != null && account.expiresAt > now;
+
+    if (account.status === "SUSPENDED" || !stillInPaidPeriod) {
+      const updated = await this.hostingRepository.updateAccount(account.id, {
+        autoRenew: false,
+        status: "CANCELLED",
+        graceEndsAt: null,
+        renewalInvoiceId: null,
+      });
+      return {
+        ...mapAccount(updated),
+        message: "Service cancelled. No further renewal invoices will be created.",
+      };
+    }
+
+    const updated = await this.hostingRepository.updateAccount(account.id, {
+      autoRenew: false,
+      graceEndsAt: null,
+      renewalInvoiceId: null,
+    });
+
+    return {
+      ...mapAccount(updated),
+      message: account.expiresAt
+        ? `Renewal cancelled. Your service remains active until ${account.expiresAt.toISOString().slice(0, 10)}.`
+        : "Renewal cancelled. No further renewal invoices will be created.",
+    };
+  }
+
+  async resumeRenewal(id: string, userId: string) {
+    const account = await this.hostingRepository.findByIdForUser(id, userId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (account.status === "CANCELLED") {
+      throw new BadRequestException("Cancelled services cannot be resumed — purchase again");
+    }
+    if (account.status !== "ACTIVE") {
+      throw new BadRequestException("Only active services can resume auto-renewal");
+    }
+
+    const updated = await this.hostingRepository.updateAccount(account.id, { autoRenew: true });
+    return {
+      ...mapAccount(updated),
+      message: "Auto-renewal enabled again",
+    };
   }
 }

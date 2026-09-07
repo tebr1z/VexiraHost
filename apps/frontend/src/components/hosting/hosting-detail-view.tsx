@@ -151,17 +151,25 @@ export function HostingDetailView({
   panelLoading,
   syncLoading,
   retryLoading,
+  cancelLoading,
+  resumeLoading,
   onPanelLogin,
   onSyncPlesk,
   onRetry,
+  onCancelRenewal,
+  onResumeRenewal,
 }: {
   account: HostingAccount;
   panelLoading: boolean;
   syncLoading: boolean;
   retryLoading: boolean;
+  cancelLoading?: boolean;
+  resumeLoading?: boolean;
   onPanelLogin: () => void;
   onSyncPlesk: () => void;
   onRetry: () => void;
+  onCancelRenewal?: () => void;
+  onResumeRenewal?: () => void;
 }): React.ReactElement {
   const locale = useLocale();
   const t = useTranslations("dashboard");
@@ -261,21 +269,88 @@ export function HostingDetailView({
                   {tc("graceUntil")}: {formatDate(account.graceEndsAt, locale)}
                 </p>
               ) : null}
-              <Link
-                href={
-                  account.renewalInvoiceId
-                    ? `/dashboard/invoices/${account.renewalInvoiceId}`
-                    : "/dashboard/invoices"
-                }
-                className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white"
-              >
-                <MaterialIcon name="receipt_long" className="text-[18px]" />
-                {tc("payInvoice")}
-              </Link>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={
+                    account.renewalInvoiceId
+                      ? `/dashboard/invoices/${account.renewalInvoiceId}`
+                      : "/dashboard/invoices"
+                  }
+                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white"
+                >
+                  <MaterialIcon name="receipt_long" className="text-[18px]" />
+                  {tc("payInvoice")}
+                </Link>
+                {onCancelRenewal ? (
+                  <button
+                    type="button"
+                    disabled={cancelLoading}
+                    onClick={onCancelRenewal}
+                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-800/30 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50 dark:text-amber-100"
+                  >
+                    {cancelLoading ? tc("cancelling") : tc("cancelRenewal")}
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {(account.status === "ACTIVE" || account.status === "CANCELLED") &&
+      (account.billingAmount != null || account.expiresAt || account.autoRenew === false) ? (
+        <div className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-semibold text-[var(--label-primary)]">{tc("billingTitle")}</p>
+              <p className="mt-1 text-sm text-[var(--label-secondary)]">
+                {account.autoRenew === false
+                  ? tc("renewalCancelledHint", {
+                      date: account.expiresAt
+                        ? formatDate(account.expiresAt, locale)
+                        : tc("periodEnd"),
+                    })
+                  : tc("billingHint")}
+              </p>
+              {account.billingAmount != null ? (
+                <p className="mt-2 text-sm font-medium text-[var(--label-primary)]">
+                  {account.billingAmount} {account.billingCurrency ?? "USD"}
+                  {account.expiresAt
+                    ? ` · ${ts("expires")}: ${formatDate(account.expiresAt, locale)}`
+                    : null}
+                </p>
+              ) : account.expiresAt ? (
+                <p className="mt-2 text-sm text-[var(--label-secondary)]">
+                  {ts("expires")}: {formatDate(account.expiresAt, locale)}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {account.status === "ACTIVE" && account.autoRenew !== false && onCancelRenewal ? (
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={onCancelRenewal}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
+                >
+                  <MaterialIcon name="cancel" className="text-[18px]" />
+                  {cancelLoading ? tc("cancelling") : tc("cancelRenewal")}
+                </button>
+              ) : null}
+              {account.status === "ACTIVE" && account.autoRenew === false && onResumeRenewal ? (
+                <button
+                  type="button"
+                  disabled={resumeLoading}
+                  onClick={onResumeRenewal}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--separator)] px-4 text-sm font-semibold disabled:opacity-50"
+                >
+                  {resumeLoading ? tc("resuming") : tc("resumeRenewal")}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Compact status bar */}
       <section className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 sm:p-5">

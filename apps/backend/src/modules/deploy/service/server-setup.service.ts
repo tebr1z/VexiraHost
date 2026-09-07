@@ -190,6 +190,42 @@ export class ServerSetupService {
     };
   }
 
+  async pruneImages(serverId: string): Promise<{ ok: boolean; message: string; output: string }> {
+    const server = await this.requireServer(serverId);
+
+    if (this.deployConfig.mockRemote) {
+      return {
+        ok: true,
+        message: "Pruned unused images (mock)",
+        output: "Deleted: 0 (mock)",
+      };
+    }
+
+    const ssh = this.serverBootstrap.buildSshOptions(server);
+    const output = await this.ssh.execChecked(
+      ssh,
+      [
+        `echo "=== before ==="`,
+        `df -h / /var /var/tmp 2>/dev/null | head -n 20`,
+        `docker system df 2>/dev/null || true`,
+        `echo "=== prune ==="`,
+        `docker image prune -af 2>&1 || true`,
+        `docker builder prune -af 2>&1 || true`,
+        `docker container prune -f 2>&1 || true`,
+        `echo "=== after ==="`,
+        `df -h / /var /var/tmp 2>/dev/null | head -n 20`,
+        `docker system df 2>/dev/null || true`,
+      ].join("; "),
+      600_000,
+    );
+
+    return {
+      ok: true,
+      message: "Unused Docker/Podman images and build cache pruned",
+      output,
+    };
+  }
+
   startBootstrap(serverId: string): { jobId: string } {
     const active = this.activeJobByServer.get(serverId);
     if (active) {

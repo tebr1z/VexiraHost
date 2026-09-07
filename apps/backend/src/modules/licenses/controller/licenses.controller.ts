@@ -29,4 +29,9 @@ export class LicensesController {
   getOne(@Param("id") id: string, @User() user: AuthUser) {
     return this.licensesService.getForUser(id, user.id);
   }
+
+  @Post(":id/cancel-renewal")
+  cancelRenewal(@Param("id") id: string, @User() user: AuthUser) {
+    return this.licensesService.cancelRenewal(id, user.id);
+  }
 }

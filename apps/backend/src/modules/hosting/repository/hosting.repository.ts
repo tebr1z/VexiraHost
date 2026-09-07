@@ -153,7 +153,11 @@ export class HostingRepository {
       panelPasswordEnc?: string;
       panelRef?: string;
       panelIp?: string;
-      expiresAt?: Date;
+      expiresAt?: Date | null;
+      billingAmount?: number | null;
+      autoRenew?: boolean;
+      graceEndsAt?: Date | null;
+      renewalInvoiceId?: string | null;
       provisionedAt?: Date;
       panelSessionTokenEnc?: string | null;
       panelSessionExpiresAt?: Date | null;
@@ -161,7 +165,21 @@ export class HostingRepository {
       provisionError?: string | null;
     },
   ) {
-    return this.prisma.hostingAccount.update({ where: { id }, data });
+    return this.prisma.hostingAccount.update({
+      where: { id },
+      data,
+      include: { plan: true, server: true },
+    });
+  }
+
+  async voidOpenInvoice(invoiceId: string): Promise<void> {
+    const invoice = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+    if (invoice?.status === "OPEN") {
+      await this.prisma.invoice.update({
+        where: { id: invoiceId },
+        data: { status: "VOID" },
+      });
+    }
   }
 
   findUserEmail(userId: string) {

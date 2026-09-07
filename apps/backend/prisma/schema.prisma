@@ -992,6 +992,7 @@ model AddonService {
   status        ServiceStatus    @default(PROVISIONING)
   metadata      Json?
   expiresAt     DateTime?
+  autoRenew     Boolean          @default(true)
   provisionedAt DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -1137,6 +1138,7 @@ model HostingAccount {
   expiresAt             DateTime?
   billingAmount         Decimal?               @db.Decimal(10, 2)
   billingCurrency       String                 @default("USD")
+  autoRenew             Boolean                @default(true)
   graceEndsAt           DateTime?
   renewalInvoiceId      String?
   provisionStage        String?

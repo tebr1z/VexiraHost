@@ -8,12 +8,15 @@ import { HostingDetailView } from "@/components/hosting/hosting-detail-view";
 import { EmptyState, LoadingSkeletonList } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import {
+  cancelHostingRenewal,
   getHostingAccount,
   openHostingPanel,
+  resumeHostingRenewal,
   retryHostingProvision,
   syncHostingPanelInfo,
   type HostingAccount,
 } from "@/features/hosting";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { toast } from "@/stores/toast-store";
 
 export default function HostingDetailPage(): React.ReactElement | null {
@@ -27,6 +30,8 @@ export default function HostingDetailPage(): React.ReactElement | null {
   const [panelLoading, setPanelLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [retryLoading, setRetryLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -123,9 +128,40 @@ export default function HostingDetailPage(): React.ReactElement | null {
       panelLoading={panelLoading}
       syncLoading={syncLoading}
       retryLoading={retryLoading}
+      cancelLoading={cancelLoading}
+      resumeLoading={resumeLoading}
       onPanelLogin={() => void handlePanelLogin()}
       onSyncPlesk={() => void handleSyncPlesk()}
       onRetry={() => void handleRetry()}
+      onCancelRenewal={() => {
+        if (!confirm(tc("cancelRenewalConfirm"))) return;
+        void (async () => {
+          setCancelLoading(true);
+          try {
+            const result = await cancelHostingRenewal(account.id);
+            setAccount(result);
+            toast(result.message ?? tc("cancelRenewalSuccess"), "success");
+          } catch (err) {
+            toast(getApiErrorMessage(err, tc("cancelRenewalFailed")), "error");
+          } finally {
+            setCancelLoading(false);
+          }
+        })();
+      }}
+      onResumeRenewal={() => {
+        void (async () => {
+          setResumeLoading(true);
+          try {
+            const result = await resumeHostingRenewal(account.id);
+            setAccount(result);
+            toast(result.message ?? tc("resumeRenewalSuccess"), "success");
+          } catch (err) {
+            toast(getApiErrorMessage(err, tc("resumeRenewalFailed")), "error");
+          } finally {
+            setResumeLoading(false);
+          }
+        })();
+      }}
     />
   );
 }

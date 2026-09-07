@@ -10,6 +10,7 @@ export interface AddonService {
   status: string;
   metadata: Record<string, unknown> | null;
   expiresAt: string | null;
+  autoRenew?: boolean;
   provisionedAt: string | null;
   createdAt: string;
 }
@@ -17,6 +18,14 @@ export interface AddonService {
 export async function listAddons(): Promise<AddonService[]> {
   const res = await apiClient.request<AddonService[]>("/licenses");
   return res.data ?? [];
+}
+
+export async function cancelAddonRenewal(id: string): Promise<AddonService & { message?: string }> {
+  const res = await apiClient.request<AddonService & { message?: string }>(
+    `/licenses/${id}/cancel-renewal`,
+    { method: "POST", body: {} },
+  );
+  return res.data as AddonService & { message?: string };
 }
 
 export async function provisionAddon(input: {

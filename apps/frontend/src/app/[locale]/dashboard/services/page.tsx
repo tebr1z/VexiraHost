@@ -6,7 +6,13 @@ import { useEffect, useState } from "react";
 import { ManualServiceCard } from "@/components/services/manual-service-card";
 import { EmptyState, LoadingSkeletonList, PageHeader, StatusBadge } from "@/components/ui";
 import { CopyableField } from "@/components/ui/copyable-field";
-import { listAddons, provisionAddon, type AddonService, type AddonType } from "@/features/addons";
+import {
+  cancelAddonRenewal,
+  listAddons,
+  provisionAddon,
+  type AddonService,
+  type AddonType,
+} from "@/features/addons";
 import { useRequireAuth } from "@/features/auth";
 import { listHostingAccounts, type HostingAccount } from "@/features/hosting";
 import {
@@ -14,7 +20,9 @@ import {
   type WhatsappApiDashboard,
 } from "@/features/whatsapp-api/services/whatsapp-api.service";
 import { Link } from "@/i18n/navigation";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/i18n/format";
+import { toast } from "@/stores/toast-store";
 
 const ADDON_TYPES: AddonType[] = ["LICENSE", "SSL", "EMAIL", "BACKUP"];
 
@@ -49,6 +57,7 @@ export default function ServicesPage(): React.ReactElement | null {
   useRequireAuth();
   const locale = useLocale();
   const t = useTranslations("dashboard");
+  const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.services");
   const [services, setServices] = useState<AddonService[]>([]);
   const [pleskServices, setPleskServices] = useState<HostingAccount[]>([]);
@@ -56,6 +65,7 @@ export default function ServicesPage(): React.ReactElement | null {
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [whatsappUsage, setWhatsappUsage] = useState<WhatsappApiDashboard["access"] | null>(null);
@@ -356,6 +366,40 @@ export default function ServicesPage(): React.ReactElement | null {
                     {tp("expires")}: {formatDate(service.expiresAt, locale)}
                   </p>
                 )}
+
+                {service.status === "ACTIVE" && service.autoRenew !== false ? (
+                  <button
+                    type="button"
+                    disabled={cancellingId === service.id}
+                    onClick={() => {
+                      if (!confirm(tc("cancelRenewalConfirm"))) return;
+                      void (async () => {
+                        setCancellingId(service.id);
+                        try {
+                          const result = await cancelAddonRenewal(service.id);
+                          toast(result.message ?? tc("cancelRenewalSuccess"), "success");
+                          await load();
+                        } catch (err) {
+                          toast(getApiErrorMessage(err, tc("cancelRenewalFailed")), "error");
+                        } finally {
+                          setCancellingId(null);
+                        }
+                      })();
+                    }}
+                    className="mt-3 inline-flex h-9 items-center rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
+                  >
+                    {cancellingId === service.id ? tc("cancelling") : tc("cancelRenewal")}
+                  </button>
+                ) : null}
+                {service.status === "ACTIVE" && service.autoRenew === false ? (
+                  <p className="text-on-surface-variant mt-3 text-xs">
+                    {tc("renewalCancelledHint", {
+                      date: service.expiresAt
+                        ? formatDate(service.expiresAt, locale)
+                        : tc("periodEnd"),
+                    })}
+                  </p>
+                ) : null}
               </li>
             );
           })}
