@@ -44,6 +44,8 @@ services:
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
+      # Use host DNS/routing so prisma engine downloads work on restricted VPS networks
+      network: host
     container_name: vexira-backend
     restart: unless-stopped
     ports:

@@ -13,11 +13,12 @@ COPY packages/types ./packages/types
 
 RUN pnpm install --no-frozen-lockfile --filter @vexira/backend... --ignore-scripts
 
-# prisma generate downloads engines — some VPS networks block binaries.prisma.sh
+# Prefer npmmirror first — binaries.prisma.sh often fails inside Docker on some VPS networks
+ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN pnpm --filter @vexira/types build \
  && pnpm --filter @vexira/config build \
  && set -e; \
-    mirrors="https://binaries.prisma.sh https://registry.npmmirror.com/-/binary/prisma https://cdn.npmmirror.com/binaries/prisma"; \
+    mirrors="https://registry.npmmirror.com/-/binary/prisma https://cdn.npmmirror.com/binaries/prisma https://binaries.prisma.sh"; \
     ok=0; \
     for mirror in $mirrors; do \
       echo "Trying PRISMA_ENGINES_MIRROR=$mirror"; \
@@ -33,9 +34,7 @@ RUN pnpm --filter @vexira/types build \
       done; \
     done; \
     if [ "$ok" != 1 ]; then \
-      echo "All Prisma engine mirrors failed. From the host try:"; \
-      echo "  curl -I --max-time 20 https://binaries.prisma.sh/"; \
-      echo "  DOCKER_BUILDKIT=1 docker compose ... build --network=host backend"; \
+      echo "All Prisma engine mirrors failed."; \
       exit 1; \
     fi \
  && pnpm --filter @vexira/backend build
