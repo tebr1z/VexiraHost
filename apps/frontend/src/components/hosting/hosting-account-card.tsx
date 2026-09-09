@@ -40,7 +40,7 @@ export function HostingAccountCard({
     ? [
         isServer ? tc("categoryServer") : tc("categoryHosting"),
         account.panel,
-        account.panelIp ?? account.server?.ipAddress,
+        account.server?.name ?? account.panelIp,
       ]
         .filter(Boolean)
         .join(" · ")

@@ -66,9 +66,13 @@ export class ServerBootstrapService {
     const emit = onProgress ?? (() => undefined);
     const cfg = this.deployConfig;
     if (cfg.mockRemote) {
-      emit({ stage: "connect", status: "running", logChunk: "[mock] Connecting via SSH…\n" });
+      emit({
+        stage: "connect",
+        status: "running",
+        logChunk: "[mock] Connecting to hosting server…\n",
+      });
       await delay(400);
-      emit({ stage: "connect", status: "success", message: "SSH OK (mock)" });
+      emit({ stage: "connect", status: "success", message: "Connected (mock)" });
       emit({ stage: "detect_os", status: "running", logChunk: "[mock] Detecting OS…\n" });
       await delay(500);
       const detectedOs: DetectedOs = {
@@ -127,7 +131,7 @@ export class ServerBootstrapService {
           emit({
             stage: "connect",
             status: "running",
-            logChunk: `Connecting via SSH (${session.target})…\n`,
+            logChunk: `Connecting to hosting server…\n`,
           });
           await session.execChecked('echo "VX_SSH_OK=1"', 30_000);
           emit({ stage: "connect", status: "success", message: "Connected" });

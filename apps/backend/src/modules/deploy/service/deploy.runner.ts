@@ -3,14 +3,12 @@ import { ServiceStatus } from "@prisma/client";
 
 import { DeployRepository } from "../repository/deploy.repository";
 import { DEPLOY_STAGES } from "../types/deploy-stage";
-import { resolveHostingServerSshOptions } from "../utils/server-ssh.util";
 
 import { GitHubDeployService } from "./github-deploy.service";
 import { PleskSiteService } from "./plesk-site.service";
 import { PortAllocationService } from "./port-allocation.service";
 import { RemoteDeployService } from "./remote-deploy.service";
 import { ServerBootstrapService } from "./server-bootstrap.service";
-import { formatSshTarget } from "./ssh.service";
 
 import { decryptSecret } from "@/utils/crypto.util";
 
@@ -172,10 +170,8 @@ export class DeployRunner {
         await log("Server was busy — previous deploy finished; starting this job now.");
       }
 
-      const sshTarget = formatSshTarget(
-        resolveHostingServerSshOptions(server, server.sshPort ?? 22),
-      );
-      await log(`Server SSH target: ${sshTarget}`);
+      const serverLabel = server.name?.trim() || "hosting server";
+      await log(`Using ${serverLabel}`);
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.ALLOCATING_PORT);
       await log("Stage: allocating host port…");
@@ -216,8 +212,8 @@ export class DeployRunner {
       const isRedeploy = Boolean(deployment.deployPath && deployment.containerName);
       await log(
         isRedeploy
-          ? `Stage: verify server tools (${sshTarget})…`
-          : `Stage: server bootstrap via SSH (${sshTarget})…`,
+          ? `Stage: verify server tools on ${serverLabel}…`
+          : `Stage: preparing ${serverLabel}…`,
       );
       const bootstrap = await this.serverBootstrap.ensureServerReady(
         server,

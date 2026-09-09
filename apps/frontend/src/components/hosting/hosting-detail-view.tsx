@@ -535,13 +535,10 @@ export function HostingDetailView({
                 onCopy={() => void copyText("username", username)}
               />
               <InfoItem label={tc("panel")} value={account.panel} />
-              <InfoItem
-                label={tc("server")}
-                value={account.server?.name ?? account.server?.ipAddress ?? "—"}
-              />
+              <InfoItem label={tc("server")} value={account.server?.name ?? "—"} />
               {plesk?.ipAddress ? (
                 <InfoItem
-                  label={tp("pleskIp")}
+                  label={tp("serverAddress")}
                   value={plesk.ipAddress}
                   mono
                   copyValue={plesk.ipAddress}

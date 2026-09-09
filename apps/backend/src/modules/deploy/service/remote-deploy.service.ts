@@ -137,7 +137,7 @@ export class RemoteDeployService {
     await this.ssh.withSession(
       ssh,
       async (session) => {
-        await append("ssh", `Connected to ${session.target}`);
+        await append("server", `Connected to hosting server`);
 
         await session.execChecked(`mkdir -p ${shellQuote(deployPath)}`);
 

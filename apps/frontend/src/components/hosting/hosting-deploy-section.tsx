@@ -95,8 +95,9 @@ export function HostingDeploySection({
   const [checkingHealthId, setCheckingHealthId] = useState<string | null>(null);
   const [dockerLogsById, setDockerLogsById] = useState<Record<string, string>>({});
   const [loadingDockerLogsId, setLoadingDockerLogsId] = useState<string | null>(null);
+  const [logTabById, setLogTabById] = useState<Record<string, "deploy" | "app">>({});
   const [activePanelById, setActivePanelById] = useState<
-    Record<string, "logs" | "env" | "health" | "docker" | null>
+    Record<string, "logs" | "env" | "health" | null>
   >({});
   const logScrollRef = useRef<HTMLDivElement>(null);
   const stickLogToBottomRef = useRef(true);
@@ -450,7 +451,7 @@ export function HostingDeploySection({
     }
   };
 
-  const togglePanel = (id: string, panel: "logs" | "env" | "health" | "docker") => {
+  const togglePanel = (id: string, panel: "logs" | "env" | "health") => {
     const isOpen = activePanelById[id] === panel;
     const next = isOpen ? null : panel;
     setActivePanelById((prev) => ({ ...prev, [id]: next }));
@@ -471,15 +472,17 @@ export function HostingDeploySection({
       setEnvEditId((current) => (current === id ? null : current));
       return;
     }
-    if (next === "docker") {
-      void onLoadDockerLogs(id);
-      setExpandedId((current) => (current === id ? null : current));
-      setEnvEditId((current) => (current === id ? null : current));
-      return;
-    }
 
     setExpandedId((current) => (current === id ? null : current));
     setEnvEditId((current) => (current === id ? null : current));
+  };
+
+  const openAppLogs = (id: string) => {
+    setLogTabById((prev) => ({ ...prev, [id]: "app" }));
+    setActivePanelById((prev) => ({ ...prev, [id]: "logs" }));
+    setExpandedId((current) => (current === id ? current : null));
+    setEnvEditId((current) => (current === id ? null : current));
+    void onLoadDockerLogs(id);
   };
 
   if (!enabled) return null;
@@ -789,7 +792,7 @@ export function HostingDeploySection({
             const showLogs = activePanel === "logs";
             const showEnv = activePanel === "env";
             const showHealth = activePanel === "health";
-            const showDocker = activePanel === "docker";
+            const logTab = logTabById[item.id] ?? "deploy";
             const githubAuthFailed =
               item.status === "FAILED" &&
               (isGitHubAuthError(item.lastError) ||
@@ -871,53 +874,56 @@ export function HostingDeploySection({
                       ) : null}
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                      {githubAuthFailed ? (
+                    <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        {githubAuthFailed ? (
+                          <button
+                            type="button"
+                            disabled={githubConnecting}
+                            onClick={() => void onReconnectGitHub()}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 text-xs font-semibold text-[var(--label-primary)] disabled:opacity-50"
+                          >
+                            <MaterialIcon name="link" className="text-[16px]" />
+                            {githubConnecting ? t("githubConnecting") : t("githubReconnect")}
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          disabled={githubConnecting}
-                          onClick={() => void onReconnectGitHub()}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 text-xs font-semibold text-[var(--label-primary)] disabled:opacity-50"
+                          disabled={isRunning || redeployingId === item.id}
+                          onClick={() => void onRedeploy(item.id)}
+                          title={t("redeployHint")}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
                         >
-                          <MaterialIcon name="link" className="text-[16px]" />
-                          {githubConnecting ? t("githubConnecting") : t("githubReconnect")}
+                          <MaterialIcon
+                            name="refresh"
+                            className={cn(
+                              "text-[16px]",
+                              redeployingId === item.id && "animate-spin",
+                            )}
+                          />
+                          {item.status === "FAILED" ? t("redeployUpdate") : t("redeploy")}
                         </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        disabled={isRunning || redeployingId === item.id}
-                        onClick={() => void onRedeploy(item.id)}
-                        title={t("redeployHint")}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
-                      >
-                        <MaterialIcon
-                          name="refresh"
-                          className={cn("text-[16px]", redeployingId === item.id && "animate-spin")}
-                        />
-                        {item.status === "FAILED" ? t("redeployUpdate") : t("redeploy")}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isRunning || deletingId === item.id}
-                        onClick={() => void onDelete(item.id, item.deployDomain)}
-                        title={t("delete")}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
-                      >
-                        <MaterialIcon
-                          name="delete"
-                          className={cn("text-[16px]", deletingId === item.id && "animate-pulse")}
-                        />
-                        {t("delete")}
-                      </button>
-                      <div className="flex rounded-lg border border-[var(--separator)] p-0.5">
+                        <button
+                          type="button"
+                          disabled={isRunning || deletingId === item.id}
+                          onClick={() => void onDelete(item.id, item.deployDomain)}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
+                        >
+                          <MaterialIcon
+                            name="delete"
+                            className={cn("text-[16px]", deletingId === item.id && "animate-pulse")}
+                          />
+                          {t("delete")}
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         {item.status === "SUCCESS" ? (
                           <button
                             type="button"
                             disabled={checkingHealthId === item.id || isRunning}
                             onClick={() => togglePanel(item.id, "health")}
-                            title={t("healthCheck")}
                             className={cn(
-                              "inline-flex h-8 w-8 items-center justify-center rounded-md",
+                              "inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold",
                               showHealth
                                 ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                                 : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
@@ -926,57 +932,61 @@ export function HostingDeploySection({
                             <MaterialIcon
                               name="monitor_heart"
                               className={cn(
-                                "text-[17px]",
+                                "text-[15px]",
                                 checkingHealthId === item.id && "animate-pulse",
                               )}
                             />
+                            {t("healthCheck")}
                           </button>
                         ) : null}
                         <button
                           type="button"
                           onClick={() => togglePanel(item.id, "env")}
-                          title={t("editEnv")}
                           className={cn(
-                            "inline-flex h-8 w-8 items-center justify-center rounded-md",
+                            "inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold",
                             showEnv
                               ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                               : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
                           )}
                         >
-                          <MaterialIcon name="tune" className="text-[17px]" />
+                          <MaterialIcon name="tune" className="text-[15px]" />
+                          {t("editEnv")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogTabById((prev) => ({ ...prev, [item.id]: "deploy" }));
+                            togglePanel(item.id, "logs");
+                          }}
+                          className={cn(
+                            "inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold",
+                            showLogs && logTab === "deploy"
+                              ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                              : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
+                          )}
+                        >
+                          <MaterialIcon name="terminal" className="text-[15px]" />
+                          {t("viewLogs")}
                         </button>
                         <button
                           type="button"
                           disabled={loadingDockerLogsId === item.id}
-                          onClick={() => togglePanel(item.id, "docker")}
-                          title={t("dockerLogs")}
+                          onClick={() => openAppLogs(item.id)}
                           className={cn(
-                            "inline-flex h-8 w-8 items-center justify-center rounded-md",
-                            showDocker
+                            "inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold",
+                            showLogs && logTab === "app"
                               ? "bg-[var(--accent)]/10 text-[var(--accent)]"
                               : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
                           )}
                         >
                           <MaterialIcon
-                            name="bug_report"
+                            name="article"
                             className={cn(
-                              "text-[17px]",
+                              "text-[15px]",
                               loadingDockerLogsId === item.id && "animate-pulse",
                             )}
                           />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => togglePanel(item.id, "logs")}
-                          title={showLogs ? t("hideLogs") : t("viewLogs")}
-                          className={cn(
-                            "inline-flex h-8 w-8 items-center justify-center rounded-md",
-                            showLogs
-                              ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                              : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]",
-                          )}
-                        >
-                          <MaterialIcon name="terminal" className="text-[17px]" />
+                          {t("appLogs")}
                         </button>
                       </div>
                     </div>
@@ -1085,57 +1095,77 @@ export function HostingDeploySection({
                   </div>
                 ) : null}
 
-                {showDocker ? (
-                  <div className="border-t border-[#27272a] bg-[#0f1117]">
-                    <div className="flex items-center justify-between border-b border-[#27272a] px-3 py-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
-                        {t("dockerLogs")}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={loadingDockerLogsId === item.id}
-                        onClick={() => void onLoadDockerLogs(item.id)}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--accent)] disabled:opacity-50"
-                      >
-                        <MaterialIcon
-                          name="refresh"
-                          className={cn(
-                            "text-[14px]",
-                            loadingDockerLogsId === item.id && "animate-spin",
-                          )}
-                        />
-                        {t("dockerLogsRefresh")}
-                      </button>
-                    </div>
-                    <div className="max-h-72 overflow-auto p-3">
-                      <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#d4d4d8]">
-                        {loadingDockerLogsId === item.id && !dockerLogsById[item.id]
-                          ? t("dockerLogsLoading")
-                          : (dockerLogsById[item.id] ?? t("dockerLogsEmpty"))}
-                      </pre>
-                    </div>
-                  </div>
-                ) : null}
-
                 {showLogs ? (
                   <div className="border-t border-[#27272a] bg-[#0f1117]">
-                    <div className="flex items-center justify-between border-b border-[#27272a] px-3 py-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
-                        {t("deployLogs")}
-                      </span>
-                      {isRunning ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#27272a] px-3 py-2">
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogTabById((prev) => ({ ...prev, [item.id]: "deploy" }));
+                            void onExpand(item.id, true);
+                          }}
+                          className={cn(
+                            "rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider",
+                            logTab === "deploy"
+                              ? "bg-white/10 text-white"
+                              : "text-[#a1a1aa] hover:text-white",
+                          )}
+                        >
+                          {t("deployLogs")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogTabById((prev) => ({ ...prev, [item.id]: "app" }));
+                            void onLoadDockerLogs(item.id);
+                          }}
+                          className={cn(
+                            "rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider",
+                            logTab === "app"
+                              ? "bg-white/10 text-white"
+                              : "text-[#a1a1aa] hover:text-white",
+                          )}
+                        >
+                          {t("appLogs")}
+                        </button>
+                      </div>
+                      {logTab === "deploy" && isRunning ? (
                         <span className="text-[10px] text-[var(--accent)]">
                           {stageLabel(item.stage, t)}
                         </span>
                       ) : null}
+                      {logTab === "app" ? (
+                        <button
+                          type="button"
+                          disabled={loadingDockerLogsId === item.id}
+                          onClick={() => void onLoadDockerLogs(item.id)}
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--accent)] disabled:opacity-50"
+                        >
+                          <MaterialIcon
+                            name="refresh"
+                            className={cn(
+                              "text-[14px]",
+                              loadingDockerLogsId === item.id && "animate-spin",
+                            )}
+                          />
+                          {t("dockerLogsRefresh")}
+                        </button>
+                      ) : null}
                     </div>
                     <div
-                      ref={showLogs ? logScrollRef : undefined}
-                      onScroll={showLogs ? onLogScroll : undefined}
-                      className="max-h-64 overflow-auto p-3"
+                      ref={showLogs && logTab === "deploy" ? logScrollRef : undefined}
+                      onScroll={showLogs && logTab === "deploy" ? onLogScroll : undefined}
+                      className="max-h-72 overflow-auto p-3"
                     >
                       <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-[#d4d4d8]">
-                        {expandedId === item.id ? expandedLog || t("logWaiting") : t("logWaiting")}
+                        {logTab === "app"
+                          ? loadingDockerLogsId === item.id && !dockerLogsById[item.id]
+                            ? t("dockerLogsLoading")
+                            : (dockerLogsById[item.id] ?? t("dockerLogsEmpty"))
+                          : expandedId === item.id
+                            ? expandedLog || t("logWaiting")
+                            : t("logWaiting")}
                       </pre>
                     </div>
                   </div>
