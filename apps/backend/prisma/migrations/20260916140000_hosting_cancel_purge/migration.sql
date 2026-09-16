@@ -1,6 +1,4 @@
--- AlterTable
-ALTER TABLE "hosting_accounts" ADD COLUMN "cancelApprovedAt" TIMESTAMP(3);
-ALTER TABLE "hosting_accounts" ADD COLUMN "scheduledPurgeAt" TIMESTAMP(3);
+ALTER TABLE "hosting_accounts" ADD COLUMN IF NOT EXISTS "cancelApprovedAt" TIMESTAMP(3);
+ALTER TABLE "hosting_accounts" ADD COLUMN IF NOT EXISTS "scheduledPurgeAt" TIMESTAMP(3);
 
--- CreateIndex
-CREATE INDEX "hosting_accounts_scheduledPurgeAt_idx" ON "hosting_accounts"("scheduledPurgeAt");
+CREATE INDEX IF NOT EXISTS "hosting_accounts_scheduledPurgeAt_idx" ON "hosting_accounts"("scheduledPurgeAt");

@@ -44,5 +44,7 @@ FROM base AS runner
 ENV NODE_ENV=production
 COPY --from=builder /app /app
 WORKDIR /app/apps/backend
+COPY docker/backend-entrypoint.sh /app/docker/backend-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker/backend-entrypoint.sh && chmod +x /app/docker/backend-entrypoint.sh
 EXPOSE 4000
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]
+CMD ["/app/docker/backend-entrypoint.sh"]

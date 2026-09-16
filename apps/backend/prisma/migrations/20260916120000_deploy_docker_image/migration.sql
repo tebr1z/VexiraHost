@@ -1,12 +1,12 @@
--- AlterEnum (ADD VALUE cannot run inside a Prisma transaction on some Postgres versions)
-COMMIT;
-ALTER TYPE "DeployStack" ADD VALUE 'DOCKER';
-BEGIN;
+-- PostgreSQL 16 allows ADD VALUE inside a Prisma transaction (do not COMMIT mid-migration).
+ALTER TYPE "DeployStack" ADD VALUE IF NOT EXISTS 'DOCKER';
 
--- CreateEnum
-CREATE TYPE "DeploySource" AS ENUM ('GIT', 'DOCKER_IMAGE');
+DO $$ BEGIN
+  CREATE TYPE "DeploySource" AS ENUM ('GIT', 'DOCKER_IMAGE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
--- AlterTable
-ALTER TABLE "app_deployments" ADD COLUMN "source" "DeploySource" NOT NULL DEFAULT 'GIT';
-ALTER TABLE "app_deployments" ADD COLUMN "imageRef" TEXT;
+ALTER TABLE "app_deployments" ADD COLUMN IF NOT EXISTS "source" "DeploySource" NOT NULL DEFAULT 'GIT';
+ALTER TABLE "app_deployments" ADD COLUMN IF NOT EXISTS "imageRef" TEXT;
 ALTER TABLE "app_deployments" ALTER COLUMN "repoUrl" SET DEFAULT '';
