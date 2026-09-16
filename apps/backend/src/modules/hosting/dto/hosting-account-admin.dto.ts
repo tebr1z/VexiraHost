@@ -6,8 +6,8 @@ export class UpdateHostingAccountStatusDto {
 }
 
 export class ResolveHostingCancelRequestDto {
-  @IsIn(["deactivate", "delete", "reject"])
-  action!: "deactivate" | "delete" | "reject";
+  @IsIn(["approve", "deactivate", "delete", "reject"])
+  action!: "approve" | "deactivate" | "delete" | "reject";
 }
 
 export class MigrateHostingAccountsDto {

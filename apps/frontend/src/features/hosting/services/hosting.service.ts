@@ -61,6 +61,8 @@ export interface HostingAccount {
   billingCurrency?: string | null;
   autoRenew?: boolean;
   cancelRequestedAt?: string | null;
+  cancelApprovedAt?: string | null;
+  scheduledPurgeAt?: string | null;
   graceEndsAt?: string | null;
   renewalInvoiceId?: string | null;
   server: HostingServerSummary | null;

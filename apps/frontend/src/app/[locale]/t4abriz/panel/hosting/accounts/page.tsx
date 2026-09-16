@@ -19,6 +19,7 @@ import {
 import { useRequireAuth } from "@/features/auth";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
+import { formatDateTime } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
 
@@ -75,7 +76,15 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
   );
 
   const cancelRequests = useMemo(
-    () => accounts.filter((a) => Boolean(a.cancelRequestedAt) && a.status === "ACTIVE"),
+    () =>
+      accounts.filter(
+        (a) => Boolean(a.cancelRequestedAt) && !a.scheduledPurgeAt && a.status !== "CANCELLED",
+      ),
+    [accounts],
+  );
+
+  const scheduledPurges = useMemo(
+    () => accounts.filter((a) => Boolean(a.scheduledPurgeAt)),
     [accounts],
   );
 
@@ -143,13 +152,13 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
 
   const handleCancelRequest = async (
     account: AdminHostingAccount,
-    action: "deactivate" | "delete" | "reject",
+    action: "approve" | "delete" | "reject",
   ) => {
     const confirmKey =
       action === "delete"
         ? "cancelRequestDeleteConfirm"
-        : action === "deactivate"
-          ? "cancelRequestDeactivateConfirm"
+        : action === "approve"
+          ? "cancelRequestApproveConfirm"
           : "cancelRequestRejectConfirm";
     if (!confirm(tp(confirmKey, { domain: account.primaryDomain }))) return;
     setBusyId(account.id);
@@ -336,10 +345,10 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                     <button
                       type="button"
                       disabled={busyId === account.id}
-                      onClick={() => void handleCancelRequest(account, "deactivate")}
+                      onClick={() => void handleCancelRequest(account, "approve")}
                       className="rounded-lg bg-violet-800 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
                     >
-                      {tp("cancelRequestDeactivate")}
+                      {tp("cancelRequestApprove")}
                     </button>
                     <button
                       type="button"
@@ -358,6 +367,45 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                       {tp("cancelRequestReject")}
                     </button>
                   </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {isAdmin && scheduledPurges.length > 0 && (
+        <div className="rounded-2xl border border-red-300/60 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
+          <h2 className="text-sm font-semibold text-red-950 dark:text-red-100">
+            {tp("scheduledPurgesTitle", { count: scheduledPurges.length })}
+          </h2>
+          <p className="mt-1 text-xs text-red-900 dark:text-red-200">{tp("scheduledPurgesHint")}</p>
+          <ul className="mt-3 space-y-2">
+            {scheduledPurges.map((account) => (
+              <li
+                key={account.id}
+                className="dark:bg-surface/60 rounded-xl border border-red-200/80 bg-white/80 px-3 py-2 dark:border-red-500/20"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-red-950 dark:text-red-50">
+                      {account.primaryDomain}
+                    </p>
+                    <p className="text-xs text-red-900/80 dark:text-red-200/80">
+                      {account.customer.email}
+                      {account.scheduledPurgeAt
+                        ? ` · ${formatDateTime(account.scheduledPurgeAt)}`
+                        : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busyId === account.id}
+                    onClick={() => void handleCancelRequest(account, "delete")}
+                    className="rounded-lg border border-red-400 px-2.5 py-1 text-xs font-semibold text-red-800 disabled:opacity-50 dark:text-red-200"
+                  >
+                    {tp("cancelRequestDeleteNow")}
+                  </button>
                 </div>
               </li>
             ))}

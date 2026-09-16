@@ -1140,6 +1140,8 @@ model HostingAccount {
   billingCurrency       String                 @default("USD")
   autoRenew             Boolean                @default(true)
   cancelRequestedAt     DateTime?
+  cancelApprovedAt      DateTime?
+  scheduledPurgeAt      DateTime?
   graceEndsAt           DateTime?
   renewalInvoiceId      String?
   provisionStage        String?
@@ -1161,12 +1163,19 @@ model HostingAccount {
   @@index([serviceCategory])
   @@index([expiresAt])
   @@index([graceEndsAt])
+  @@index([scheduledPurgeAt])
   @@map("hosting_accounts")
 }
 
 enum DeployStack {
   NEXTJS
   NESTJS
+  DOCKER
+}
+
+enum DeploySource {
+  GIT
+  DOCKER_IMAGE
 }
 
 enum DeployStatus {
@@ -1189,10 +1198,12 @@ model AppDeployment {
   user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   name             String
   stack            DeployStack
+  source           DeploySource     @default(GIT)
   domainMode       DeployDomainMode @default(SUBDOMAIN)
   subdomain        String?
   deployDomain     String
-  repoUrl          String
+  repoUrl          String           @default("")
+  imageRef         String?
   branch           String           @default("main")
   rootDirectory    String?
   containerPort    Int              @default(3000)

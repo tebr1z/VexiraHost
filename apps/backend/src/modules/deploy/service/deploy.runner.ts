@@ -268,21 +268,31 @@ export class DeployRunner {
         ? (JSON.parse(decryptSecret(deployment.envVarsEnc)) as Record<string, string>)
         : {};
 
-      await this.setStage(deploymentId, run.id, DEPLOY_STAGES.CLONING_REPO);
+      const isDockerImage = deployment.source === "DOCKER_IMAGE";
+      await this.setStage(
+        deploymentId,
+        run.id,
+        isDockerImage ? DEPLOY_STAGES.BUILDING : DEPLOY_STAGES.CLONING_REPO,
+      );
       await log(
-        isRedeploy
-          ? "Stage: pull latest code, rebuild image & restart container…"
-          : "Stage: clone repository, Docker build & start…",
+        isDockerImage
+          ? isRedeploy
+            ? "Stage: pull Docker image & restart container…"
+            : "Stage: pull Docker image & start container…"
+          : isRedeploy
+            ? "Stage: pull latest code, rebuild image & restart container…"
+            : "Stage: clone repository, Docker build & start…",
       );
-      const cloneUrl = await this.githubDeploy.resolveCloneUrl(
-        deployment.userId,
-        deployment.repoUrl,
-      );
+      const cloneUrl = isDockerImage
+        ? undefined
+        : await this.githubDeploy.resolveCloneUrl(deployment.userId, deployment.repoUrl);
       const result = await this.remoteDeploy.deployApplication({
         server,
         account,
         projectName: deployment.name,
         stack: deployment.stack,
+        source: deployment.source,
+        imageRef: deployment.imageRef,
         repoUrl: deployment.repoUrl,
         cloneUrl,
         branch: deployment.branch,

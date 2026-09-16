@@ -12,7 +12,7 @@ import { PageHeader, StatusBadge } from "@/components/ui";
 import type { HostingAccount } from "@/features/hosting";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatDateTime } from "@/lib/i18n/format";
 import { toast } from "@/stores/toast-store";
 
 type HostingTab = "overview" | "deploy" | "mail";
@@ -224,6 +224,16 @@ export function HostingDetailView({
   const username = account.panelUsername ?? account.username;
   const isPlesk = account.panel === "PLESK";
 
+  const canRequestCancel =
+    Boolean(onRequestCancellation) &&
+    !account.cancelRequestedAt &&
+    !account.scheduledPurgeAt &&
+    account.status !== "CANCELLED" &&
+    account.status !== "FAILED" &&
+    account.status !== "EXPIRED";
+  const cancelPending = Boolean(account.cancelRequestedAt) && !account.scheduledPurgeAt;
+  const cancelApproved = Boolean(account.scheduledPurgeAt);
+
   const copyText = async (field: string, text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -246,6 +256,77 @@ export function HostingDetailView({
           { label: account.primaryDomain },
         ]}
       />
+
+      {canRequestCancel || cancelPending || cancelApproved ? (
+        <div
+          className={cn(
+            "rounded-2xl border p-5",
+            cancelApproved
+              ? "border-red-500/30 bg-red-500/10"
+              : cancelPending
+                ? "border-amber-500/30 bg-amber-500/10"
+                : "border-[var(--separator)] bg-[var(--bg-elevated)]",
+          )}
+        >
+          <p
+            className={cn(
+              "font-semibold",
+              cancelApproved
+                ? "text-red-950 dark:text-red-100"
+                : cancelPending
+                  ? "text-amber-950 dark:text-amber-100"
+                  : "text-[var(--label-primary)]",
+            )}
+          >
+            {cancelApproved
+              ? tc("cancelApprovedTitle")
+              : cancelPending
+                ? tc("cancelRequestPendingTitle")
+                : tc("planCancelTitle")}
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-sm",
+              cancelApproved
+                ? "text-red-900/90 dark:text-red-50/90"
+                : cancelPending
+                  ? "text-amber-900/90 dark:text-amber-50/90"
+                  : "text-[var(--label-secondary)]",
+            )}
+          >
+            {cancelApproved
+              ? tc("cancelApprovedBody", {
+                  date: account.scheduledPurgeAt
+                    ? formatDateTime(account.scheduledPurgeAt, locale)
+                    : tc("periodEnd"),
+                })
+              : cancelPending
+                ? tc("cancelRequestPendingBody")
+                : tc("planCancelHint")}
+          </p>
+          {canRequestCancel ? (
+            <button
+              type="button"
+              disabled={cancelRequestLoading}
+              onClick={onRequestCancellation}
+              className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/40 bg-red-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              <MaterialIcon name="cancel" className="text-[18px]" />
+              {cancelRequestLoading ? tc("cancelling") : tc("requestCancel")}
+            </button>
+          ) : null}
+          {cancelPending && onWithdrawCancellation ? (
+            <button
+              type="button"
+              disabled={cancelRequestLoading}
+              onClick={onWithdrawCancellation}
+              className="mt-3 inline-flex h-9 items-center rounded-lg border border-amber-800/30 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50 dark:text-amber-100"
+            >
+              {cancelRequestLoading ? tc("cancelling") : tc("withdrawCancelRequest")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {(account.status === "PROVISIONING" || account.status === "FAILED") && (
         <ProvisionProgress
@@ -353,42 +434,8 @@ export function HostingDetailView({
                   {resumeLoading ? tc("resuming") : tc("resumeRenewal")}
                 </button>
               ) : null}
-              {account.status === "ACTIVE" &&
-              !account.cancelRequestedAt &&
-              onRequestCancellation ? (
-                <button
-                  type="button"
-                  disabled={cancelRequestLoading}
-                  onClick={onRequestCancellation}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
-                >
-                  <MaterialIcon name="report" className="text-[18px]" />
-                  {cancelRequestLoading ? tc("cancelling") : tc("requestCancel")}
-                </button>
-              ) : null}
             </div>
           </div>
-        </div>
-      ) : null}
-
-      {account.cancelRequestedAt && account.status === "ACTIVE" ? (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
-          <p className="font-semibold text-amber-950 dark:text-amber-100">
-            {tc("cancelRequestPendingTitle")}
-          </p>
-          <p className="mt-1 text-sm text-amber-900/90 dark:text-amber-50/90">
-            {tc("cancelRequestPendingBody")}
-          </p>
-          {onWithdrawCancellation ? (
-            <button
-              type="button"
-              disabled={cancelRequestLoading}
-              onClick={onWithdrawCancellation}
-              className="mt-3 inline-flex h-9 items-center rounded-lg border border-amber-800/30 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50 dark:text-amber-100"
-            >
-              {cancelRequestLoading ? tc("cancelling") : tc("withdrawCancelRequest")}
-            </button>
-          ) : null}
         </div>
       ) : null}
 

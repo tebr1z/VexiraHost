@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DeployDomainMode, ServiceStatus } from "@prisma/client";
+import { DeployDomainMode, DeploySource, DeployStack, ServiceStatus } from "@prisma/client";
 
 import { CreateDeploymentDto } from "../dto/create-deployment.dto";
 import { UpdateDeploymentEnvDto } from "../dto/update-deployment-env.dto";
 import { DeployRepository } from "../repository/deploy.repository";
 import { stripCustomerPort } from "../utils/deploy-env.util";
+import { sanitizeDockerImageRef } from "../utils/docker-image.util";
 import { defaultContainerPort } from "../utils/docker-templates.util";
 
 import { DeployHealthService } from "./deploy-health.service";
@@ -38,10 +39,12 @@ function serializeDeployment(deployment: Awaited<ReturnType<DeployRepository["fi
     hostingAccountId: deployment.hostingAccountId,
     name: deployment.name,
     stack: deployment.stack,
+    source: deployment.source,
     domainMode: deployment.domainMode,
     subdomain: deployment.subdomain,
     deployDomain: deployment.deployDomain,
     repoUrl: deployment.repoUrl,
+    imageRef: deployment.imageRef,
     branch: deployment.branch,
     rootDirectory: deployment.rootDirectory,
     containerPort: deployment.containerPort,
@@ -88,10 +91,12 @@ export class DeployService {
       id: row.id,
       name: row.name,
       stack: row.stack,
+      source: row.source,
       domainMode: row.domainMode,
       subdomain: row.subdomain,
       deployDomain: row.deployDomain,
       repoUrl: row.repoUrl,
+      imageRef: row.imageRef,
       branch: row.branch,
       status: row.status,
       stage: row.stage,
@@ -121,9 +126,19 @@ export class DeployService {
 
     const deployDomain = this.pleskSite.resolveDeployDomain(account, dto.domainMode, dto.subdomain);
 
-    const repoUrl = this.resolveRepoUrl(dto);
-    if (!repoUrl) {
+    const source =
+      dto.source === DeploySource.DOCKER_IMAGE ? DeploySource.DOCKER_IMAGE : DeploySource.GIT;
+    const imageRef =
+      source === DeploySource.DOCKER_IMAGE ? sanitizeDockerImageRef(dto.imageRef) : null;
+    const repoUrl = source === DeploySource.GIT ? this.resolveRepoUrl(dto) : "";
+    if (source === DeploySource.GIT && !repoUrl) {
       throw new BadRequestException("Repository URL or GitHub repository is required");
+    }
+    if (source === DeploySource.GIT && (!dto.stack || dto.stack === DeployStack.DOCKER)) {
+      throw new BadRequestException("Choose Next.js or NestJS for Git deployments");
+    }
+    if (source === DeploySource.DOCKER_IMAGE && !imageRef) {
+      throw new BadRequestException("Docker image is required");
     }
 
     const hostPort = account.server
@@ -137,14 +152,20 @@ export class DeployService {
       hostingAccountId: accountId,
       userId,
       name: dto.name.trim().toLowerCase(),
-      stack: dto.stack,
+      stack: source === DeploySource.DOCKER_IMAGE ? DeployStack.DOCKER : dto.stack!,
       domainMode: dto.domainMode,
       subdomain: dto.subdomain?.trim().toLowerCase() ?? null,
       deployDomain,
-      repoUrl,
+      source,
+      repoUrl: repoUrl ?? "",
+      imageRef,
       branch: dto.branch?.trim() || "main",
       rootDirectory: dto.rootDirectory?.trim() || null,
-      containerPort: defaultContainerPort(dto.stack),
+      containerPort:
+        dto.containerPort ??
+        defaultContainerPort(
+          source === DeploySource.DOCKER_IMAGE ? DeployStack.DOCKER : dto.stack!,
+        ),
       hostPort,
       envVarsEnc,
     });

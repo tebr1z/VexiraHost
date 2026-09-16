@@ -54,7 +54,9 @@ export class DeployRepository {
     domainMode: DeployDomainMode;
     subdomain?: string | null;
     deployDomain: string;
+    source?: "GIT" | "DOCKER_IMAGE";
     repoUrl: string;
+    imageRef?: string | null;
     branch: string;
     rootDirectory?: string | null;
     containerPort: number;

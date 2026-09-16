@@ -157,6 +157,8 @@ export class HostingRepository {
       billingAmount?: number | null;
       autoRenew?: boolean;
       cancelRequestedAt?: Date | null;
+      cancelApprovedAt?: Date | null;
+      scheduledPurgeAt?: Date | null;
       graceEndsAt?: Date | null;
       renewalInvoiceId?: string | null;
       provisionedAt?: Date;

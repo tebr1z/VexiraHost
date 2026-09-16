@@ -114,7 +114,9 @@ export function HostingDeploySection({
   const [domainMode, setDomainMode] = useState<DeployDomainMode>("SUBDOMAIN");
   const [subdomain, setSubdomain] = useState("app");
   const [repoUrl, setRepoUrl] = useState("");
-  const [repoSource, setRepoSource] = useState<"github" | "manual">("github");
+  const [repoSource, setRepoSource] = useState<"github" | "manual" | "docker">("github");
+  const [imageRef, setImageRef] = useState("");
+  const [containerPort, setContainerPort] = useState("3000");
   const [selectedGithubRepo, setSelectedGithubRepo] = useState<GitHubRepoSummary | null>(null);
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubLogin, setGithubLogin] = useState<string | null>(null);
@@ -307,7 +309,8 @@ export function HostingDeploySection({
   const onCreate = async () => {
     const hasGithubRepo = repoSource === "github" && selectedGithubRepo;
     const hasManualRepo = repoSource === "manual" && repoUrl.trim();
-    if (!name.trim() || (!hasGithubRepo && !hasManualRepo)) {
+    const hasDockerImage = repoSource === "docker" && imageRef.trim();
+    if (!name.trim() || (!hasGithubRepo && !hasManualRepo && !hasDockerImage)) {
       toast(t("validationRequired"), "error");
       return;
     }
@@ -315,14 +318,20 @@ export function HostingDeploySection({
     try {
       const created = await createDeployment(accountId, {
         name: name.trim().toLowerCase(),
-        stack,
+        stack: hasDockerImage ? "DOCKER" : stack,
         domainMode,
         subdomain: domainMode === "SUBDOMAIN" ? subdomain.trim().toLowerCase() : undefined,
-        ...(hasGithubRepo
-          ? { githubRepoFullName: selectedGithubRepo!.fullName }
-          : { repoUrl: repoUrl.trim() }),
+        ...(hasDockerImage
+          ? {
+              source: "DOCKER_IMAGE" as const,
+              imageRef: imageRef.trim(),
+              containerPort: Number.parseInt(containerPort, 10) || 3000,
+            }
+          : hasGithubRepo
+            ? { githubRepoFullName: selectedGithubRepo!.fullName }
+            : { repoUrl: repoUrl.trim() }),
         branch: branch.trim() || "main",
-        rootDirectory: rootDirectory.trim() || undefined,
+        rootDirectory: hasDockerImage ? undefined : rootDirectory.trim() || undefined,
         envVars: parseEnvVars(),
       });
       toast(
@@ -586,18 +595,24 @@ export function HostingDeploySection({
               <span className="text-xs font-medium text-[var(--label-secondary)]">
                 {t("stack")}
               </span>
-              <div className="flex gap-1.5 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-1">
-                {STACK_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setStack(option)}
-                    className={cn("flex-1", pillClass(stack === option))}
-                  >
-                    {t(`stack_${option}`)}
-                  </button>
-                ))}
-              </div>
+              {repoSource === "docker" ? (
+                <p className="flex h-10 items-center rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3 text-sm text-[var(--label-secondary)]">
+                  {t("stack_DOCKER")}
+                </p>
+              ) : (
+                <div className="flex gap-1.5 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] p-1">
+                  {STACK_OPTIONS.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setStack(option)}
+                      className={cn("flex-1", pillClass(stack === option))}
+                    >
+                      {t(`stack_${option}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -653,6 +668,13 @@ export function HostingDeploySection({
               >
                 {t("manualRepo")}
               </button>
+              <button
+                type="button"
+                onClick={() => setRepoSource("docker")}
+                className={cn("flex-1", pillClass(repoSource === "docker"))}
+              >
+                {t("dockerImage")}
+              </button>
             </div>
 
             {repoSource === "github" ? (
@@ -701,6 +723,27 @@ export function HostingDeploySection({
                   {githubConnecting ? t("githubConnecting") : t("connectGitHub")}
                 </button>
               )
+            ) : repoSource === "docker" ? (
+              <div className="space-y-2">
+                <input
+                  value={imageRef}
+                  onChange={(e) => setImageRef(e.target.value)}
+                  placeholder="ghcr.io/org/api:latest"
+                  className={cn(fieldClass, "font-mono text-xs")}
+                />
+                <p className="text-[11px] text-[var(--label-tertiary)]">{t("dockerImageHint")}</p>
+                <label className="block space-y-1 text-sm">
+                  <span className="text-xs font-medium text-[var(--label-secondary)]">
+                    {t("containerPort")}
+                  </span>
+                  <input
+                    value={containerPort}
+                    onChange={(e) => setContainerPort(e.target.value)}
+                    placeholder="3000"
+                    className={fieldClass}
+                  />
+                </label>
+              </div>
             ) : (
               <input
                 value={repoUrl}
@@ -726,29 +769,31 @@ export function HostingDeploySection({
               </span>
             </summary>
             <div className="space-y-3 border-t border-[var(--separator)] px-3.5 py-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block space-y-1 text-sm">
-                  <span className="text-xs font-medium text-[var(--label-secondary)]">
-                    {t("branch")}
-                  </span>
-                  <input
-                    value={branch}
-                    onChange={(e) => setBranch(e.target.value)}
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="block space-y-1 text-sm">
-                  <span className="text-xs font-medium text-[var(--label-secondary)]">
-                    {t("rootDirectory")}
-                  </span>
-                  <input
-                    value={rootDirectory}
-                    onChange={(e) => setRootDirectory(e.target.value)}
-                    placeholder="apps/frontend"
-                    className={cn(fieldClass, "font-mono text-xs")}
-                  />
-                </label>
-              </div>
+              {repoSource !== "docker" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-xs font-medium text-[var(--label-secondary)]">
+                      {t("branch")}
+                    </span>
+                    <input
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </label>
+                  <label className="block space-y-1 text-sm">
+                    <span className="text-xs font-medium text-[var(--label-secondary)]">
+                      {t("rootDirectory")}
+                    </span>
+                    <input
+                      value={rootDirectory}
+                      onChange={(e) => setRootDirectory(e.target.value)}
+                      placeholder="apps/frontend"
+                      className={cn(fieldClass, "font-mono text-xs")}
+                    />
+                  </label>
+                </div>
+              ) : null}
               <label className="block space-y-1 text-sm">
                 <span className="text-xs font-medium text-[var(--label-secondary)]">
                   {t("envVars")}
@@ -757,7 +802,11 @@ export function HostingDeploySection({
                   value={envText}
                   onChange={(e) => setEnvText(e.target.value)}
                   rows={3}
-                  placeholder={"DATABASE_URL=...\nAPI_KEY=..."}
+                  placeholder={
+                    repoSource === "docker"
+                      ? "DOCKER_REGISTRY_USER=\nDOCKER_REGISTRY_PASSWORD=\nAPI_KEY=..."
+                      : "DATABASE_URL=...\nAPI_KEY=..."
+                  }
                   className="w-full rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
                 />
               </label>
@@ -825,7 +874,9 @@ export function HostingDeploySection({
                         <p className="font-semibold text-[var(--label-primary)]">{item.name}</p>
                         <StatusBadge status={item.status} />
                         <span className="rounded-md bg-[var(--bg-secondary)] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--label-tertiary)]">
-                          {t(`stack_${item.stack}`)}
+                          {item.stack === "DOCKER" || item.source === "DOCKER_IMAGE"
+                            ? t("stack_DOCKER")
+                            : t(`stack_${item.stack}`)}
                         </span>
                       </div>
                       <a
@@ -837,6 +888,11 @@ export function HostingDeploySection({
                         {item.deployDomain}
                         <MaterialIcon name="open_in_new" className="text-[14px]" />
                       </a>
+                      {item.imageRef ? (
+                        <p className="mt-1 truncate font-mono text-[11px] text-[var(--label-tertiary)]">
+                          {item.imageRef}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-xs text-[var(--label-tertiary)]">
                         {stageLabel(item.stage, t)}
                         {item.lastDeployedAt

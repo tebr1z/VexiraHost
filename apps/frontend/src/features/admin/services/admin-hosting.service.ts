@@ -34,6 +34,8 @@ export interface AdminHostingAccount {
   provisionedAt: string | null;
   createdAt: string;
   cancelRequestedAt?: string | null;
+  cancelApprovedAt?: string | null;
+  scheduledPurgeAt?: string | null;
   plan: { id: string; slug: string; name: string };
   server: {
     id: string;
@@ -196,7 +198,7 @@ export async function updateAdminHostingAccountStatus(
 
 export async function resolveAdminHostingCancelRequest(
   id: string,
-  action: "deactivate" | "delete" | "reject",
+  action: "approve" | "deactivate" | "delete" | "reject",
 ): Promise<AdminHostingAccount & { message?: string }> {
   const res = await apiClient.request<AdminHostingAccount & { message?: string }>(
     `/admin/hosting/accounts/${id}/cancel-request`,

@@ -79,6 +79,8 @@ function mapAccount(
     billingCurrency: account.billingCurrency,
     autoRenew: account.autoRenew,
     cancelRequestedAt: account.cancelRequestedAt,
+    cancelApprovedAt: account.cancelApprovedAt,
+    scheduledPurgeAt: account.scheduledPurgeAt,
     graceEndsAt: account.graceEndsAt,
     renewalInvoiceId: account.renewalInvoiceId,
     server: mapServer(account.server),
@@ -358,7 +360,6 @@ export class HostingService {
 
     const updated = await this.hostingRepository.updateAccount(account.id, {
       autoRenew: true,
-      cancelRequestedAt: null,
     });
     return {
       ...mapAccount(updated),
@@ -369,11 +370,19 @@ export class HostingService {
   async requestCancellation(id: string, userId: string) {
     const account = await this.hostingRepository.findByIdForUser(id, userId);
     if (!account) throw new NotFoundException("Hosting account not found");
-    if (account.status === "CANCELLED" || account.status === "FAILED") {
+    if (
+      account.status === "CANCELLED" ||
+      account.status === "FAILED" ||
+      account.status === "EXPIRED"
+    ) {
       throw new BadRequestException("This service is already cancelled");
     }
-    if (account.status !== "ACTIVE" && account.status !== "SUSPENDED") {
-      throw new BadRequestException("This service cannot be cancelled yet");
+    if (account.scheduledPurgeAt) {
+      return {
+        ...mapAccount(account),
+        message:
+          "Cancellation is already approved. Hosting will be removed from the server within 24 hours.",
+      };
     }
     if (account.cancelRequestedAt) {
       return {
@@ -385,6 +394,8 @@ export class HostingService {
     const updated = await this.hostingRepository.updateAccount(account.id, {
       autoRenew: false,
       cancelRequestedAt: new Date(),
+      cancelApprovedAt: null,
+      scheduledPurgeAt: null,
     });
 
     const user = await this.hostingRepository.findUserEmail(userId);
@@ -394,14 +405,15 @@ export class HostingService {
       lines: [
         `Domain: ${account.primaryDomain}`,
         user?.email ? `Customer: ${user.email}` : `User: ${userId}`,
-        "Admin must approve to deactivate or delete (including Auto Deploy apps).",
+        "Admin must approve. After approval the account is deleted from the server within 24 hours.",
       ],
       url: "/t4abriz/panel/hosting/accounts",
     });
 
     return {
       ...mapAccount(updated),
-      message: "Cancellation requested. Your hosting and apps stay online until an admin approves.",
+      message:
+        "Cancellation requested. Hosting stays online until an admin approves; then it is deleted from the server within 24 hours.",
     };
   }
 
@@ -411,9 +423,16 @@ export class HostingService {
     if (!account.cancelRequestedAt) {
       throw new BadRequestException("No pending cancellation request");
     }
+    if (account.scheduledPurgeAt || account.cancelApprovedAt) {
+      throw new BadRequestException(
+        "Cancellation already approved — contact support to stop deletion",
+      );
+    }
 
     const updated = await this.hostingRepository.updateAccount(account.id, {
       cancelRequestedAt: null,
+      cancelApprovedAt: null,
+      scheduledPurgeAt: null,
     });
     return {
       ...mapAccount(updated),

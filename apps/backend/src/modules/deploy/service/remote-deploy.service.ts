@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { DeployStack, HostingAccount, HostingServer } from "@prisma/client";
+import type { DeploySource, DeployStack, HostingAccount, HostingServer } from "@prisma/client";
 
 import {
   buildApacheProxyDirectives,
@@ -13,6 +13,7 @@ import {
   redactSshTargets,
   sanitizeDeployEnvVars,
 } from "../utils/deploy-env.util";
+import { dockerRegistryHost, splitRegistryAuth } from "../utils/docker-image.util";
 import {
   buildDockerComposeProjectName,
   buildDockerfile,
@@ -100,6 +101,8 @@ export class RemoteDeployService {
     account: HostingAccount;
     projectName: string;
     stack: DeployStack;
+    source?: DeploySource | string | null;
+    imageRef?: string | null;
     repoUrl: string;
     cloneUrl?: string;
     branch: string;
@@ -181,6 +184,103 @@ export class RemoteDeployService {
         await append("server", `Connected to hosting server`);
 
         await session.execChecked(`mkdir -p ${shellQuote(deployPath)}`);
+
+        if (input.source === "DOCKER_IMAGE") {
+          const imageRef = input.imageRef?.trim();
+          if (!imageRef) {
+            throw new BadRequestException("Docker image is required");
+          }
+
+          const { env: rawEnv, ignoredPort } = sanitizeDeployEnvVars(
+            input.envVars,
+            input.containerPort,
+          );
+          const { appEnv, registryUser, registryPassword, registryHost } =
+            splitRegistryAuth(rawEnv);
+          if (ignoredPort != null) {
+            await append(
+              "env",
+              `Ignored customer PORT=${ignoredPort}. Using managed PORT=${input.containerPort} (host publish ${input.hostPort}).`,
+            );
+          } else {
+            await append(
+              "env",
+              `Using managed PORT=${input.containerPort} (host publish 127.0.0.1:${input.hostPort}).`,
+            );
+          }
+
+          const envLines = Object.entries(appEnv)
+            .map(([key, value]) => `${key}=${value}`)
+            .join("\n");
+          await session.writeFile(`${deployPath}/.env`, `${envLines}\n`);
+
+          if (registryUser && registryPassword) {
+            const host = registryHost || dockerRegistryHost(imageRef);
+            await append("docker login", `Logging in to ${host}…`);
+            const loginCmd = [
+              `printf '%s' ${shellQuote(registryPassword)}`,
+              `| docker login --username ${shellQuote(registryUser)} --password-stdin ${shellQuote(host)}`,
+            ].join(" ");
+            try {
+              await session.execChecked(loginCmd, 120_000);
+            } catch (error) {
+              throw new Error(formatDeployBuildError(error));
+            }
+          }
+
+          await input.onStage?.("building");
+          await append("docker pull", `Pulling ${imageRef} onto the hosting server…`);
+          try {
+            await session.execChecked(`docker pull ${shellQuote(imageRef)}`, 900_000, (chunk) =>
+              queueBuildStream(chunk),
+            );
+            await finishBuildStream();
+          } catch (error) {
+            await finishBuildStream();
+            throw new Error(formatDeployBuildError(error));
+          }
+
+          await session.execChecked(
+            `docker tag ${shellQuote(imageRef)} ${shellQuote(containerName)}`,
+            60_000,
+          );
+
+          await input.onStage?.("starting");
+          const containerInspect = await session.exec(
+            `docker ps -a --filter name=^/${containerName}$ --format '{{.Names}}'`,
+          );
+          const containerExists = containerInspect.stdout.trim() === containerName;
+          if (containerExists) {
+            await append(
+              "docker",
+              `Updating existing container ${containerName} (stop → replace image → start)…`,
+            );
+            await session.execChecked(`docker stop ${shellQuote(containerName)}`, 120_000);
+            await session.execChecked(`docker rm ${shellQuote(containerName)}`, 60_000);
+          } else {
+            await session.execChecked(
+              `docker rm -f ${shellQuote(containerName)} >/dev/null 2>&1 || true`,
+            );
+          }
+
+          const runCmd = [
+            `docker run -d`,
+            `--name ${shellQuote(containerName)}`,
+            `--restart unless-stopped`,
+            `-p 127.0.0.1:${input.hostPort}:${input.containerPort}`,
+            `--env-file ${shellQuote(`${deployPath}/.env`)}`,
+            `-e PORT=${input.containerPort}`,
+            shellQuote(containerName),
+          ].join(" ");
+          await append("docker run", await session.execChecked(runCmd));
+
+          await append(
+            "ports",
+            `App container PORT=${input.containerPort}; reverse proxy target 127.0.0.1:${input.hostPort}.`,
+          );
+          return;
+        }
+
         await input.onStage?.("cloning_repo");
 
         const repoPath = `${deployPath}/repo`;
@@ -450,14 +550,21 @@ export class RemoteDeployService {
     const ssh = this.apacheProxy.buildSshOptions(input.server);
 
     await this.ssh.withSession(ssh, async (session) => {
-      if (input.containerName?.trim()) {
-        const name = input.containerName.trim();
+      const name = input.containerName?.trim();
+      if (name) {
+        const inspect = await session.exec(
+          `docker inspect ${shellQuote(name)} --format '{{range .Mounts}}{{if .Name}}{{.Name}} {{end}}{{end}}' 2>/dev/null || true`,
+          30_000,
+        );
+        const volumes = inspect.stdout.trim().split(/\s+/).filter(Boolean);
         await session.exec(`docker rm -f ${shellQuote(name)} >/dev/null 2>&1 || true`, 120_000);
-        // Remove the tagged image for this project so redeploys don't leave duplicates.
+        for (const volume of volumes) {
+          await session.exec(`docker volume rm -f ${shellQuote(volume)} >/dev/null 2>&1 || true`);
+        }
         await session.exec(`docker rmi -f ${shellQuote(name)} >/dev/null 2>&1 || true`, 120_000);
       }
       if (input.deployPath?.trim()) {
-        await session.exec(`rm -rf ${shellQuote(input.deployPath.trim())}`);
+        await session.exec(`rm -rf ${shellQuote(input.deployPath.trim())}`, 180_000);
       }
       await session.exec(`docker image prune -f >/dev/null 2>&1 || true`, 120_000);
     });

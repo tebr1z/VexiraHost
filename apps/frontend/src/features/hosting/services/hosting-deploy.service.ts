@@ -1,6 +1,7 @@
 import { apiClient } from "@/services/api-client";
 
-export type DeployStack = "NEXTJS" | "NESTJS";
+export type DeployStack = "NEXTJS" | "NESTJS" | "DOCKER";
+export type DeploySource = "GIT" | "DOCKER_IMAGE";
 export type DeployDomainMode = "PRIMARY" | "SUBDOMAIN";
 export type DeployStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
 
@@ -8,10 +9,12 @@ export interface DeploymentSummary {
   id: string;
   name: string;
   stack: DeployStack;
+  source?: DeploySource;
   domainMode: DeployDomainMode;
   subdomain: string | null;
   deployDomain: string;
   repoUrl: string;
+  imageRef?: string | null;
   branch: string;
   status: DeployStatus;
   stage: string | null;
@@ -49,12 +52,15 @@ export interface DeploymentDetail extends DeploymentSummary {
 export interface CreateDeploymentInput {
   name: string;
   stack: DeployStack;
+  source?: DeploySource;
   domainMode: DeployDomainMode;
   subdomain?: string;
   repoUrl?: string;
   githubRepoFullName?: string;
+  imageRef?: string;
   branch?: string;
   rootDirectory?: string;
+  containerPort?: number;
   envVars?: Record<string, string>;
 }
 

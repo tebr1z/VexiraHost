@@ -179,6 +179,8 @@ export class HostingServersRepository {
       provisionError?: string | null;
       graceEndsAt?: Date | null;
       cancelRequestedAt?: Date | null;
+      cancelApprovedAt?: Date | null;
+      scheduledPurgeAt?: Date | null;
       autoRenew?: boolean;
       renewalInvoiceId?: string | null;
     },

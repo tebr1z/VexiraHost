@@ -3,6 +3,7 @@ import { HostingManagementMode, InvoiceStatus, ServiceStatus } from "@prisma/cli
 
 import { HostingBillingService } from "./hosting-billing.service";
 import { HostingEmailService } from "./hosting-email.service";
+import { HostingServersService } from "./hosting-servers.service";
 
 import { PrismaService } from "@/database/database.module";
 
@@ -16,12 +17,14 @@ export class HostingExpiryJobService {
     private readonly prisma: PrismaService,
     private readonly billing: HostingBillingService,
     private readonly hostingEmail: HostingEmailService,
+    private readonly hostingServers: HostingServersService,
   ) {}
 
   async tick(): Promise<void> {
     if (this.running) return;
     this.running = true;
     try {
+      await this.processScheduledPurges();
       await this.processCancelledAtPeriodEnd();
       await this.processExpiredAccounts();
       await this.processGraceExpiredAccounts();
@@ -34,6 +37,29 @@ export class HostingExpiryJobService {
     }
   }
 
+  /** Admin-approved cancellations: wipe Docker, panel account, and DB row after 24h. */
+  private async processScheduledPurges(): Promise<void> {
+    const due = await this.prisma.hostingAccount.findMany({
+      where: { scheduledPurgeAt: { lte: new Date() } },
+      select: { id: true, primaryDomain: true },
+    });
+
+    for (const account of due) {
+      try {
+        await this.hostingServers.deleteAccount(account.id);
+        this.logger.log(
+          `Purged hosting ${account.id} (${account.primaryDomain}) after approved cancellation`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to purge hosting ${account.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }
+
   /** Paid period ended and customer disabled auto-renew → mark CANCELLED (no invoice). */
   private async processCancelledAtPeriodEnd(): Promise<void> {
     const now = new Date();
@@ -41,6 +67,7 @@ export class HostingExpiryJobService {
       where: {
         autoRenew: false,
         status: ServiceStatus.ACTIVE,
+        scheduledPurgeAt: null,
         expiresAt: { lte: now },
       },
     });
