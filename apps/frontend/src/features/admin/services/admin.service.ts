@@ -156,7 +156,9 @@ export interface AdminTicket {
   id: string;
   subject: string;
   status: string;
+  kind?: string;
   priority: string;
+  relatedService?: { type: string; id: string | null; label: string | null } | null;
   messageCount: number;
   customer: AdminCustomer;
   createdAt: string;

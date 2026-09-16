@@ -1,5 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import type { TicketPriority, TicketRelatedServiceType, TicketStatus } from "@prisma/client";
+import type {
+  TicketKind,
+  TicketPriority,
+  TicketRelatedServiceType,
+  TicketStatus,
+} from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
 
@@ -68,6 +73,7 @@ export class TicketsRepository {
     userId: string;
     subject: string;
     priority: TicketPriority;
+    kind?: TicketKind;
     message: string;
     relatedServiceType?: TicketRelatedServiceType;
     relatedServiceId?: string;
@@ -79,6 +85,7 @@ export class TicketsRepository {
         userId: data.userId,
         subject: data.subject,
         priority: data.priority,
+        kind: data.kind ?? "SUPPORT",
         relatedServiceType: data.relatedServiceType,
         relatedServiceId: data.relatedServiceId,
         relatedServiceLabel: data.relatedServiceLabel,
@@ -205,6 +212,39 @@ export class TicketsRepository {
       where: { id },
       include: {
         ticket: { select: { id: true, userId: true } },
+      },
+    });
+  }
+
+  findOpenCancellationForService(
+    userId: string,
+    relatedServiceType: TicketRelatedServiceType,
+    relatedServiceId: string,
+  ) {
+    return this.prisma.ticket.findFirst({
+      where: {
+        userId,
+        kind: "CANCELLATION",
+        relatedServiceType,
+        relatedServiceId,
+        status: { notIn: ["CLOSED", "RESOLVED"] },
+      },
+      include: {
+        _count: { select: { messages: true } },
+      },
+    });
+  }
+
+  findOpenCancellationForRelatedService(
+    relatedServiceType: TicketRelatedServiceType,
+    relatedServiceId: string,
+  ) {
+    return this.prisma.ticket.findFirst({
+      where: {
+        kind: "CANCELLATION",
+        relatedServiceType,
+        relatedServiceId,
+        status: { notIn: ["CLOSED", "RESOLVED"] },
       },
     });
   }

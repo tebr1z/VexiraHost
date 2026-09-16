@@ -725,6 +725,11 @@ enum TicketRelatedServiceType {
   ADDON
 }
 
+enum TicketKind {
+  SUPPORT
+  CANCELLATION
+}
+
 enum PromoDiscountType {
   PERCENT
   FIXED
@@ -913,6 +918,7 @@ model Ticket {
   user                User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject             String
   status              TicketStatus              @default(OPEN)
+  kind                TicketKind                @default(SUPPORT)
   priority            TicketPriority            @default(MEDIUM)
   relatedServiceType  TicketRelatedServiceType?
   relatedServiceId    String?
@@ -931,6 +937,7 @@ model Ticket {
 
   @@index([userId])
   @@index([assignedToId])
+  @@index([kind])
   @@index([relatedServiceType, relatedServiceId])
   @@map("tickets")
 }

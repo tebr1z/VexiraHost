@@ -7,7 +7,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { TicketPriority, TicketRelatedServiceType, TicketStatus } from "@prisma/client";
+import { TicketKind, TicketPriority, TicketRelatedServiceType, TicketStatus } from "@prisma/client";
 import { UserRole } from "@vexira/types";
 
 import type { CreateTicketDto, ReplyTicketDto } from "../dto";
@@ -50,6 +50,7 @@ function mapTicketSummary(ticket: {
   id: string;
   subject: string;
   status: string;
+  kind?: string;
   priority: string;
   relatedServiceType?: string | null;
   relatedServiceId?: string | null;
@@ -62,6 +63,7 @@ function mapTicketSummary(ticket: {
     id: ticket.id,
     subject: ticket.subject,
     status: ticket.status,
+    kind: ticket.kind ?? "SUPPORT",
     priority: ticket.priority,
     relatedService: ticket.relatedServiceType
       ? {
@@ -106,6 +108,7 @@ function mapTicketDetail(ticket: {
   id: string;
   subject: string;
   status: string;
+  kind?: string;
   priority: string;
   relatedServiceType?: string | null;
   relatedServiceId?: string | null;
@@ -145,6 +148,7 @@ function mapTicketDetail(ticket: {
     id: ticket.id,
     subject: ticket.subject,
     status: ticket.status,
+    kind: ticket.kind ?? "SUPPORT",
     priority: ticket.priority,
     clientIp: ticket.clientIp ?? null,
     relatedService: ticket.relatedServiceType
@@ -313,6 +317,74 @@ export class TicketsService {
     }
 
     return mapTicketSummary(ticket);
+  }
+
+  async createCancellationForHosting(input: {
+    userId: string;
+    hostingAccountId: string;
+    domain: string;
+    planName: string;
+  }) {
+    const existing = await this.ticketsRepository.findOpenCancellationForService(
+      input.userId,
+      TicketRelatedServiceType.HOSTING,
+      input.hostingAccountId,
+    );
+    if (existing) return mapTicketSummary(existing);
+
+    const subject = `Hosting cancellation: ${input.domain}`;
+    const message = [
+      "The customer requested cancellation of this hosting plan.",
+      `Domain: ${input.domain}`,
+      `Plan: ${input.planName}`,
+      "After admin approval the account and API containers will be deleted from the server within 24 hours.",
+    ].join("\n");
+
+    const ticket = await this.ticketsRepository.createTicket({
+      userId: input.userId,
+      subject,
+      priority: TicketPriority.HIGH,
+      kind: TicketKind.CANCELLATION,
+      message,
+      relatedServiceType: TicketRelatedServiceType.HOSTING,
+      relatedServiceId: input.hostingAccountId,
+      relatedServiceLabel: `${input.planName} — ${input.domain}`,
+    });
+
+    if (ticket.user) {
+      this.staffAlerts.notify({
+        kind: "TICKET_OPENED",
+        title: "İptal sorğusu",
+        lines: [
+          `Müştəri: ${ticket.user.email}`,
+          `Hosting: ${input.domain}`,
+          `Plan: ${input.planName}`,
+          "Admin Sorğular bölməsindən təsdiq və ya rədd edin.",
+        ],
+        url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/tickets/${ticket.id}`,
+      });
+    }
+
+    return mapTicketSummary(ticket);
+  }
+
+  async closeCancellationForHosting(userId: string, hostingAccountId: string) {
+    const existing = await this.ticketsRepository.findOpenCancellationForService(
+      userId,
+      TicketRelatedServiceType.HOSTING,
+      hostingAccountId,
+    );
+    if (!existing) return;
+    await this.ticketsRepository.updateStatus(existing.id, TicketStatus.CLOSED);
+  }
+
+  async setCancellationStatusForHosting(hostingAccountId: string, status: TicketStatus) {
+    const existing = await this.ticketsRepository.findOpenCancellationForRelatedService(
+      TicketRelatedServiceType.HOSTING,
+      hostingAccountId,
+    );
+    if (!existing) return;
+    await this.ticketsRepository.updateStatus(existing.id, status);
   }
 
   private async resolveRelatedServiceLabel(

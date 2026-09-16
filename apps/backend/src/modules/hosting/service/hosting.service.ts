@@ -26,7 +26,7 @@ import {
   collectPlanServerCandidates,
   selectHostingServerForPlan,
 } from "@/modules/hosting/utils/server-selection.util";
-import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
+import { TicketsService } from "@/modules/tickets/service/tickets.service";
 
 function mapPlan(plan: HostingPlan) {
   return {
@@ -112,7 +112,7 @@ export class HostingService {
     private readonly panelSession: PanelSessionService,
     private readonly pleskPanel: PleskPanelService,
     private readonly provisionRunner: HostingProvisionRunner,
-    private readonly staffAlerts: StaffAlertService,
+    private readonly ticketsService: TicketsService,
   ) {}
 
   private async attachPleskInfo(
@@ -384,36 +384,26 @@ export class HostingService {
           "Cancellation is already approved. Hosting will be removed from the server within 24 hours.",
       };
     }
-    if (account.cancelRequestedAt) {
-      return {
-        ...mapAccount(account),
-        message: "Cancellation request is already waiting for admin review.",
-      };
-    }
+    const updated = account.cancelRequestedAt
+      ? account
+      : await this.hostingRepository.updateAccount(account.id, {
+          autoRenew: false,
+          cancelRequestedAt: new Date(),
+          cancelApprovedAt: null,
+          scheduledPurgeAt: null,
+        });
 
-    const updated = await this.hostingRepository.updateAccount(account.id, {
-      autoRenew: false,
-      cancelRequestedAt: new Date(),
-      cancelApprovedAt: null,
-      scheduledPurgeAt: null,
-    });
-
-    const user = await this.hostingRepository.findUserEmail(userId);
-    this.staffAlerts.notify({
-      kind: "HOSTING_CANCEL_REQUEST",
-      title: "Hosting cancellation request",
-      lines: [
-        `Domain: ${account.primaryDomain}`,
-        user?.email ? `Customer: ${user.email}` : `User: ${userId}`,
-        "Admin must approve. After approval the account is deleted from the server within 24 hours.",
-      ],
-      url: "/t4abriz/panel/hosting/accounts",
+    const ticket = await this.ticketsService.createCancellationForHosting({
+      userId,
+      hostingAccountId: account.id,
+      domain: account.primaryDomain,
+      planName: account.plan.name,
     });
 
     return {
       ...mapAccount(updated),
-      message:
-        "Cancellation requested. Hosting stays online until an admin approves; then it is deleted from the server within 24 hours.",
+      ticketId: ticket.id,
+      message: "Cancellation requested. You can follow it under Support → Requests.",
     };
   }
 
@@ -434,6 +424,7 @@ export class HostingService {
       cancelApprovedAt: null,
       scheduledPurgeAt: null,
     });
+    await this.ticketsService.closeCancellationForHosting(userId, account.id);
     return {
       ...mapAccount(updated),
       message: "Cancellation request withdrawn",

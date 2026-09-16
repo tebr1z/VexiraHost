@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { TicketMessageThread } from "@/components/tickets/ticket-message-thread";
 import { PageHeader, StatusBadge } from "@/components/ui";
+import { resolveAdminHostingCancelRequest } from "@/features/admin/services/admin-hosting.service";
 import { updateAdminTicketStatus } from "@/features/admin/services/admin.service";
 import { useRequireAuth } from "@/features/auth";
 import {
@@ -17,8 +18,10 @@ import {
   type TicketDetail,
 } from "@/features/tickets";
 import { Link } from "@/i18n/navigation";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { isKnownStatus } from "@/lib/i18n/status";
 import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "@/stores/toast-store";
 
 const TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"] as const;
 
@@ -42,6 +45,7 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const load = () =>
     getTicket(id)
@@ -62,6 +66,28 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
       await load();
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleHostingCancel = async (action: "approve" | "reject" | "delete") => {
+    const hostingId = ticket?.relatedService?.id;
+    if (!hostingId || ticket?.kind !== "CANCELLATION") return;
+    setCancelBusy(true);
+    try {
+      const result = await resolveAdminHostingCancelRequest(hostingId, action);
+      toast(result.message ?? tat("statusUpdateFailed"), "success");
+      if (action === "reject") {
+        await updateAdminTicketStatus(id, "CLOSED");
+      } else if (action === "approve") {
+        await updateAdminTicketStatus(id, "IN_PROGRESS");
+      } else {
+        await updateAdminTicketStatus(id, "RESOLVED");
+      }
+      await load();
+    } catch (err) {
+      toast(getApiErrorMessage(err, tat("statusUpdateFailed")), "error");
+    } finally {
+      setCancelBusy(false);
     }
   };
 
@@ -131,6 +157,9 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4">
         <StatusBadge status={ticket.status} />
+        <span className="rounded-full bg-[var(--bg)] px-3 py-1 text-xs font-medium text-[var(--label-secondary)]">
+          {ticket.kind === "CANCELLATION" ? tat("kindCancellation") : tat("kindSupport")}
+        </span>
         <span className="bg-surface-container-low text-on-surface-variant rounded-full px-3 py-1 text-sm capitalize">
           {tc("priorityLabel", { priority: ticket.priority.toLowerCase() })}
         </span>
@@ -157,6 +186,38 @@ export default function AdminTicketDetailPage(): React.ReactElement | null {
           {statusError && <p className="text-error text-xs">{statusError}</p>}
         </div>
       </div>
+
+      {ticket.kind === "CANCELLATION" &&
+      ticket.relatedService?.id &&
+      ticket.status !== "CLOSED" &&
+      ticket.status !== "RESOLVED" ? (
+        <div className="flex flex-wrap gap-2 rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-4 py-3">
+          <button
+            type="button"
+            disabled={cancelBusy}
+            onClick={() => void handleHostingCancel("approve")}
+            className="rounded-lg border border-[var(--separator)] px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            {tat("approveCancel")}
+          </button>
+          <button
+            type="button"
+            disabled={cancelBusy}
+            onClick={() => void handleHostingCancel("reject")}
+            className="rounded-lg border border-[var(--separator)] px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            {tat("rejectCancel")}
+          </button>
+          <button
+            type="button"
+            disabled={cancelBusy}
+            onClick={() => void handleHostingCancel("delete")}
+            className="rounded-lg border border-[var(--separator)] px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            {tat("deleteNow")}
+          </button>
+        </div>
+      ) : null}
 
       {ticket.relatedService?.label && (
         <div className="rounded-xl border border-[var(--separator)] bg-[var(--bg-elevated)] px-4 py-3">

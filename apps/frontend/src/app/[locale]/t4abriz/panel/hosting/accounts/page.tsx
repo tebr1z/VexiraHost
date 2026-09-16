@@ -10,7 +10,6 @@ import {
   listHostingServers,
   migrateAdminHostingAccounts,
   reassignAdminHostingProvision,
-  resolveAdminHostingCancelRequest,
   retryAdminHostingProvision,
   updateAdminHostingAccountStatus,
   type AdminHostingAccount,
@@ -19,7 +18,6 @@ import {
 import { useRequireAuth } from "@/features/auth";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
-import { formatDateTime } from "@/lib/i18n/format";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
 
@@ -41,9 +39,7 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
   const [migrating, setMigrating] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [reassigningId, setReassigningId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "cancelled" | "pending">(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "cancelled">("all");
 
   const load = useCallback(async () => {
     const [accountList, serverList] = await Promise.all([
@@ -80,28 +76,12 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
     [accounts],
   );
 
-  const cancelRequests = useMemo(
-    () =>
-      accounts.filter(
-        (a) => Boolean(a.cancelRequestedAt) && !a.scheduledPurgeAt && a.status !== "CANCELLED",
-      ),
-    [accounts],
-  );
-
-  const scheduledPurges = useMemo(
-    () => accounts.filter((a) => Boolean(a.scheduledPurgeAt)),
-    [accounts],
-  );
-
   const visibleAccounts = useMemo(() => {
     if (statusFilter === "active") {
       return accounts.filter((a) => a.status === "ACTIVE" || a.status === "PROVISIONING");
     }
     if (statusFilter === "cancelled") {
       return accounts.filter((a) => a.status === "CANCELLED" || a.status === "EXPIRED");
-    }
-    if (statusFilter === "pending") {
-      return accounts.filter((a) => Boolean(a.cancelRequestedAt) || Boolean(a.scheduledPurgeAt));
     }
     return accounts;
   }, [accounts, statusFilter]);
@@ -163,33 +143,6 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
       toast(tp("deleted"), "success");
     } catch (err) {
       toast(getApiErrorMessage(err, tp("deleteFailed")), "error");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleCancelRequest = async (
-    account: AdminHostingAccount,
-    action: "approve" | "delete" | "reject",
-  ) => {
-    const confirmKey =
-      action === "delete"
-        ? "cancelRequestDeleteConfirm"
-        : action === "approve"
-          ? "cancelRequestApproveConfirm"
-          : "cancelRequestRejectConfirm";
-    if (!confirm(tp(confirmKey, { domain: account.primaryDomain }))) return;
-    setBusyId(account.id);
-    try {
-      const result = await resolveAdminHostingCancelRequest(account.id, action);
-      if (action === "delete") {
-        setAccounts((prev) => prev.filter((a) => a.id !== account.id));
-      } else {
-        updateAccountInList(result);
-      }
-      toast(result.message ?? tp("cancelRequestUpdated"), "success");
-    } catch (err) {
-      toast(getApiErrorMessage(err, tp("cancelRequestFailed")), "error");
     } finally {
       setBusyId(null);
     }
@@ -269,7 +222,6 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
             ["all", "filterAll"],
             ["active", "filterActive"],
             ["cancelled", "filterCancelled"],
-            ["pending", "filterPendingCancel"],
           ] as const
         ).map(([id, key]) => (
           <button
@@ -354,101 +306,6 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                         : tp("reassignAndRetry")}
                     </button>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {isAdmin && cancelRequests.length > 0 && (
-        <div className="rounded-2xl border border-violet-300/60 bg-violet-50 p-4 dark:border-violet-500/30 dark:bg-violet-500/10">
-          <h2 className="text-sm font-semibold text-violet-950 dark:text-violet-100">
-            {tp("cancelRequestsTitle", { count: cancelRequests.length })}
-          </h2>
-          <p className="mt-1 text-xs text-violet-900 dark:text-violet-200">
-            {tp("cancelRequestsHint")}
-          </p>
-          <ul className="mt-3 space-y-2">
-            {cancelRequests.map((account) => (
-              <li
-                key={account.id}
-                className="dark:bg-surface/60 rounded-xl border border-violet-200/80 bg-white/80 px-3 py-2 dark:border-violet-500/20"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium text-violet-950 dark:text-violet-50">
-                      {account.primaryDomain}
-                    </p>
-                    <p className="text-xs text-violet-900/80 dark:text-violet-200/80">
-                      {account.customer.email}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={busyId === account.id}
-                      onClick={() => void handleCancelRequest(account, "approve")}
-                      className="rounded-lg bg-violet-800 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                    >
-                      {tp("cancelRequestApprove")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busyId === account.id}
-                      onClick={() => void handleCancelRequest(account, "delete")}
-                      className="rounded-lg border border-red-400 px-2.5 py-1 text-xs font-semibold text-red-800 disabled:opacity-50 dark:text-red-200"
-                    >
-                      {tp("cancelRequestDelete")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busyId === account.id}
-                      onClick={() => void handleCancelRequest(account, "reject")}
-                      className="rounded-lg border border-violet-400 px-2.5 py-1 text-xs font-semibold text-violet-900 disabled:opacity-50 dark:text-violet-100"
-                    >
-                      {tp("cancelRequestReject")}
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {isAdmin && scheduledPurges.length > 0 && (
-        <div className="rounded-2xl border border-red-300/60 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
-          <h2 className="text-sm font-semibold text-red-950 dark:text-red-100">
-            {tp("scheduledPurgesTitle", { count: scheduledPurges.length })}
-          </h2>
-          <p className="mt-1 text-xs text-red-900 dark:text-red-200">{tp("scheduledPurgesHint")}</p>
-          <ul className="mt-3 space-y-2">
-            {scheduledPurges.map((account) => (
-              <li
-                key={account.id}
-                className="dark:bg-surface/60 rounded-xl border border-red-200/80 bg-white/80 px-3 py-2 dark:border-red-500/20"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium text-red-950 dark:text-red-50">
-                      {account.primaryDomain}
-                    </p>
-                    <p className="text-xs text-red-900/80 dark:text-red-200/80">
-                      {account.customer.email}
-                      {account.scheduledPurgeAt
-                        ? ` · ${formatDateTime(account.scheduledPurgeAt)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busyId === account.id}
-                    onClick={() => void handleCancelRequest(account, "delete")}
-                    className="rounded-lg border border-red-400 px-2.5 py-1 text-xs font-semibold text-red-800 disabled:opacity-50 dark:text-red-200"
-                  >
-                    {tp("cancelRequestDeleteNow")}
-                  </button>
                 </div>
               </li>
             ))}

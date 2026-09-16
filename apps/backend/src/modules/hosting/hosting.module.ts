@@ -17,11 +17,12 @@ import { PleskPanelService } from "./service/plesk-panel.service";
 
 import { DeployModule } from "@/modules/deploy/deploy.module";
 import { LicensesModule } from "@/modules/licenses/licenses.module";
+import { TicketsModule } from "@/modules/tickets/tickets.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 import { StaffAlertsModule } from "@/shared/staff-alerts/staff-alerts.module";
 
 @Module({
-  imports: [LicensesModule, StaffAlertsModule, forwardRef(() => DeployModule)],
+  imports: [LicensesModule, StaffAlertsModule, TicketsModule, forwardRef(() => DeployModule)],
   controllers: [HostingController],
 
   providers: [

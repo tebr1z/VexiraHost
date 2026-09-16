@@ -603,6 +603,7 @@ export class AdminService {
       id: ticket.id,
       subject: ticket.subject,
       status: ticket.status,
+      kind: ticket.kind,
       priority: ticket.priority,
       relatedService: ticket.relatedServiceType
         ? {

@@ -257,77 +257,6 @@ export function HostingDetailView({
         ]}
       />
 
-      {canRequestCancel || cancelPending || cancelApproved ? (
-        <div
-          className={cn(
-            "rounded-2xl border p-5",
-            cancelApproved
-              ? "border-red-500/30 bg-red-500/10"
-              : cancelPending
-                ? "border-amber-500/30 bg-amber-500/10"
-                : "border-[var(--separator)] bg-[var(--bg-elevated)]",
-          )}
-        >
-          <p
-            className={cn(
-              "font-semibold",
-              cancelApproved
-                ? "text-red-950 dark:text-red-100"
-                : cancelPending
-                  ? "text-amber-950 dark:text-amber-100"
-                  : "text-[var(--label-primary)]",
-            )}
-          >
-            {cancelApproved
-              ? tc("cancelApprovedTitle")
-              : cancelPending
-                ? tc("cancelRequestPendingTitle")
-                : tc("planCancelTitle")}
-          </p>
-          <p
-            className={cn(
-              "mt-1 text-sm",
-              cancelApproved
-                ? "text-red-900/90 dark:text-red-50/90"
-                : cancelPending
-                  ? "text-amber-900/90 dark:text-amber-50/90"
-                  : "text-[var(--label-secondary)]",
-            )}
-          >
-            {cancelApproved
-              ? tc("cancelApprovedBody", {
-                  date: account.scheduledPurgeAt
-                    ? formatDateTime(account.scheduledPurgeAt, locale)
-                    : tc("periodEnd"),
-                })
-              : cancelPending
-                ? tc("cancelRequestPendingBody")
-                : tc("planCancelHint")}
-          </p>
-          {canRequestCancel ? (
-            <button
-              type="button"
-              disabled={cancelRequestLoading}
-              onClick={onRequestCancellation}
-              className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/40 bg-red-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              <MaterialIcon name="cancel" className="text-[18px]" />
-              {cancelRequestLoading ? tc("cancelling") : tc("requestCancel")}
-            </button>
-          ) : null}
-          {cancelPending && onWithdrawCancellation ? (
-            <button
-              type="button"
-              disabled={cancelRequestLoading}
-              onClick={onWithdrawCancellation}
-              className="mt-3 inline-flex h-9 items-center rounded-lg border border-amber-800/30 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50 dark:text-amber-100"
-            >
-              {cancelRequestLoading ? tc("cancelling") : tc("withdrawCancelRequest")}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
       {(account.status === "PROVISIONING" || account.status === "FAILED") && (
         <ProvisionProgress
           stage={account.provisionStage}
@@ -418,7 +347,7 @@ export function HostingDetailView({
                   type="button"
                   disabled={cancelLoading}
                   onClick={onCancelRenewal}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--separator)] px-4 text-sm font-medium text-[var(--label-secondary)] disabled:opacity-50"
                 >
                   <MaterialIcon name="cancel" className="text-[18px]" />
                   {cancelLoading ? tc("cancelling") : tc("cancelRenewal")}
@@ -698,6 +627,50 @@ export function HostingDetailView({
 
             {account.status === "PROVISIONING" ? (
               <p className="mt-4 text-xs text-[var(--label-tertiary)]">{tc("autoRefreshing")}</p>
+            ) : null}
+
+            {canRequestCancel || cancelPending || cancelApproved ? (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--separator)] pt-4">
+                <p className="text-xs text-[var(--label-tertiary)]">
+                  {cancelApproved
+                    ? tc("cancelApprovedBody", {
+                        date: account.scheduledPurgeAt
+                          ? formatDateTime(account.scheduledPurgeAt, locale)
+                          : tc("periodEnd"),
+                      })
+                    : cancelPending
+                      ? tc("cancelRequestPendingTitle")
+                      : tc("planCancelHint")}
+                </p>
+                {canRequestCancel ? (
+                  <button
+                    type="button"
+                    disabled={cancelRequestLoading}
+                    onClick={onRequestCancellation}
+                    className="text-xs font-medium text-[var(--label-tertiary)] underline-offset-2 hover:text-[var(--label-secondary)] hover:underline disabled:opacity-50"
+                  >
+                    {cancelRequestLoading ? tc("cancelling") : tc("requestCancel")}
+                  </button>
+                ) : null}
+                {cancelPending ? (
+                  <Link
+                    href="/dashboard/tickets"
+                    className="text-xs font-medium text-[var(--label-tertiary)] underline-offset-2 hover:text-[var(--label-secondary)] hover:underline"
+                  >
+                    {tc("viewCancelRequest")}
+                  </Link>
+                ) : null}
+                {cancelPending && onWithdrawCancellation ? (
+                  <button
+                    type="button"
+                    disabled={cancelRequestLoading}
+                    onClick={onWithdrawCancellation}
+                    className="text-xs font-medium text-[var(--label-tertiary)] underline-offset-2 hover:text-[var(--label-secondary)] hover:underline disabled:opacity-50"
+                  >
+                    {cancelRequestLoading ? tc("cancelling") : tc("withdrawCancelRequest")}
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </DashboardSectionCard>
         </div>

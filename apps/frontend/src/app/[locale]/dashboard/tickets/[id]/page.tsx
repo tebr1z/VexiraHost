@@ -100,7 +100,7 @@ export default function TicketDetailPage(): React.ReactElement | null {
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title={ticket.subject}
-        description={`${ticket.priority.toLowerCase()} · ${ticket.status.toLowerCase().replace(/_/g, " ")}`}
+        description={`${ticket.kind === "CANCELLATION" ? tp("cancelSection") : tp("supportSection")} · ${ticket.priority.toLowerCase()} · ${ticket.status.toLowerCase().replace(/_/g, " ")}`}
         breadcrumbs={[
           { label: t("nav.dashboard"), href: "/dashboard" },
           { label: t("nav.support"), href: "/dashboard/tickets" },

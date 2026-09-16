@@ -8,7 +8,7 @@ import {
   forwardRef,
 } from "@nestjs/common";
 import type { HostingPanel, HostingServer, ServiceStatus } from "@prisma/client";
-import { HostingPanel as HostingPanelEnum } from "@prisma/client";
+import { HostingPanel as HostingPanelEnum, TicketStatus } from "@prisma/client";
 
 import { listPleskServicePlans, type PleskServerCredentials } from "../clients/plesk-api.client";
 import type {
@@ -27,6 +27,7 @@ import { HostingEmailService } from "./hosting-email.service";
 import { HostingProvisionRunner } from "./hosting-provision.runner";
 
 import { DeployService } from "@/modules/deploy/service/deploy.service";
+import { TicketsService } from "@/modules/tickets/service/tickets.service";
 import { decryptSecret, encryptSecret, maskSecret } from "@/utils/crypto.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
@@ -141,6 +142,7 @@ export class HostingServersService {
     private readonly provisionRunner: HostingProvisionRunner,
     @Inject(forwardRef(() => DeployService))
     private readonly deployService: DeployService,
+    private readonly ticketsService: TicketsService,
   ) {}
 
   listServers() {
@@ -338,10 +340,12 @@ export class HostingServersService {
         cancelApprovedAt: null,
         scheduledPurgeAt: null,
       });
+      await this.ticketsService.setCancellationStatusForHosting(id, TicketStatus.CLOSED);
       return { ...mapAccount(updated), message: "Cancellation request rejected" };
     }
 
     if (action === "delete") {
+      await this.ticketsService.setCancellationStatusForHosting(id, TicketStatus.RESOLVED);
       await this.deleteAccount(id);
       return { id, message: "Hosting account and apps deleted" };
     }
@@ -354,6 +358,7 @@ export class HostingServersService {
       cancelApprovedAt: now,
       scheduledPurgeAt,
     });
+    await this.ticketsService.setCancellationStatusForHosting(id, TicketStatus.IN_PROGRESS);
     return {
       ...mapAccount(updated),
       message: "Cancellation approved. Hosting will be deleted from the server within 24 hours.",

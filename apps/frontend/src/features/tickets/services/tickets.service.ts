@@ -17,6 +17,7 @@ export interface Ticket {
   id: string;
   subject: string;
   status: string;
+  kind?: string;
   priority: string;
   relatedService?: TicketRelatedService | null;
   createdAt: string;
