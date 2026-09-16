@@ -66,7 +66,12 @@ function prismaGenerateLines(appDir = "."): string {
   done; \\
   if [ -n "$SCHEMA" ]; then \\
     echo "prisma generate --schema=$SCHEMA"; \\
-    npx prisma generate --schema="$SCHEMA"; \\
+    ok=0; \\
+    for mirror in https://registry.npmmirror.com/-/binary/prisma https://cdn.npmmirror.com/binaries/prisma https://binaries.prisma.sh; do \\
+      echo "Using Prisma engine mirror $$mirror"; \\
+      if PRISMA_ENGINES_MIRROR="$$mirror" npx prisma generate --schema="$SCHEMA"; then ok=1; break; fi; \\
+    done; \\
+    if [ "$$ok" != 1 ]; then exit 1; fi; \\
   else \\
     echo "No prisma schema found — skip generate"; \\
   fi`;
@@ -74,6 +79,15 @@ function prismaGenerateLines(appDir = "."): string {
 
 function alpinePrismaRuntimeDeps(): string {
   return `RUN apk add --no-cache openssl libc6-compat >/dev/null`;
+}
+
+function prismaEngineEnv(): string {
+  return `ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
+ENV PRISMA_HIDE_UPDATE_MESSAGE=1`;
+}
+
+function alpinePrismaBuildDeps(): string {
+  return `RUN apk add --no-cache openssl libc6-compat ca-certificates >/dev/null`;
 }
 
 /** Copy generated Prisma engine/client into the runtime image after prod install. */
@@ -90,6 +104,8 @@ function buildMonorepoNestDockerfile(appDir: string): string {
   const distPath = appPath("/app", appDir, "/dist");
   return `FROM node:22-alpine AS builder
 WORKDIR /app
+${alpinePrismaBuildDeps()}
+${prismaEngineEnv()}
 COPY . .
 ${installDepsLines()}
 ENV CI=true
@@ -113,6 +129,8 @@ CMD ["node", "dist/main.js"]
 function buildSinglePackageNestDockerfile(): string {
   return `FROM node:22-alpine AS builder
 WORKDIR /app
+${alpinePrismaBuildDeps()}
+${prismaEngineEnv()}
 COPY package.json ./
 COPY package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 ${installDepsLines()}

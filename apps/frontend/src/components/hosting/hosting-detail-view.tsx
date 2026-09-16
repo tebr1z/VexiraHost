@@ -153,11 +153,14 @@ export function HostingDetailView({
   retryLoading,
   cancelLoading,
   resumeLoading,
+  cancelRequestLoading,
   onPanelLogin,
   onSyncPlesk,
   onRetry,
   onCancelRenewal,
   onResumeRenewal,
+  onRequestCancellation,
+  onWithdrawCancellation,
 }: {
   account: HostingAccount;
   panelLoading: boolean;
@@ -165,11 +168,14 @@ export function HostingDetailView({
   retryLoading: boolean;
   cancelLoading?: boolean;
   resumeLoading?: boolean;
+  cancelRequestLoading?: boolean;
   onPanelLogin: () => void;
   onSyncPlesk: () => void;
   onRetry: () => void;
   onCancelRenewal?: () => void;
   onResumeRenewal?: () => void;
+  onRequestCancellation?: () => void;
+  onWithdrawCancellation?: () => void;
 }): React.ReactElement {
   const locale = useLocale();
   const t = useTranslations("dashboard");
@@ -347,8 +353,42 @@ export function HostingDetailView({
                   {resumeLoading ? tc("resuming") : tc("resumeRenewal")}
                 </button>
               ) : null}
+              {account.status === "ACTIVE" &&
+              !account.cancelRequestedAt &&
+              onRequestCancellation ? (
+                <button
+                  type="button"
+                  disabled={cancelRequestLoading}
+                  onClick={onRequestCancellation}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-500/30 px-4 text-sm font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
+                >
+                  <MaterialIcon name="report" className="text-[18px]" />
+                  {cancelRequestLoading ? tc("cancelling") : tc("requestCancel")}
+                </button>
+              ) : null}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {account.cancelRequestedAt && account.status === "ACTIVE" ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
+          <p className="font-semibold text-amber-950 dark:text-amber-100">
+            {tc("cancelRequestPendingTitle")}
+          </p>
+          <p className="mt-1 text-sm text-amber-900/90 dark:text-amber-50/90">
+            {tc("cancelRequestPendingBody")}
+          </p>
+          {onWithdrawCancellation ? (
+            <button
+              type="button"
+              disabled={cancelRequestLoading}
+              onClick={onWithdrawCancellation}
+              className="mt-3 inline-flex h-9 items-center rounded-lg border border-amber-800/30 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50 dark:text-amber-100"
+            >
+              {cancelRequestLoading ? tc("cancelling") : tc("withdrawCancelRequest")}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

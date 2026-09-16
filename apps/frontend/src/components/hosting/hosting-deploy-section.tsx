@@ -47,6 +47,13 @@ function stageLabel(stage: string | null | undefined, t: (key: string) => string
   }
 }
 
+function redactSshTargets(text: string): string {
+  return text.replace(
+    /\b[A-Za-z0-9._-]+@(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b/g,
+    "hosting server",
+  );
+}
+
 function healthCheckLabel(id: DeployHealthCheckItem["id"], t: (key: string) => string): string {
   const key = `healthCheck_${id}`;
   try {
@@ -372,7 +379,12 @@ export function HostingDeploySection({
   };
 
   const onDelete = async (id: string, domain: string) => {
-    if (!window.confirm(t("deleteConfirm", { domain }))) return;
+    const running = items.find((row) => row.id === id);
+    if (running?.status === "RUNNING" || running?.status === "PENDING") {
+      if (!window.confirm(t("deleteConfirmRunning", { domain }))) return;
+    } else if (!window.confirm(t("deleteConfirm", { domain }))) {
+      return;
+    }
     setDeletingId(id);
     try {
       await deleteDeployment(accountId, id);
@@ -872,6 +884,11 @@ export function HostingDeploySection({
                           {t("waitingServerHint")}
                         </p>
                       ) : null}
+                      {isRunning && item.stage !== "waiting_server" ? (
+                        <p className="mt-2 rounded-lg bg-[var(--bg-secondary)] px-2 py-1.5 text-xs text-[var(--label-secondary)]">
+                          {t("stuckHint")}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
@@ -889,7 +906,7 @@ export function HostingDeploySection({
                         ) : null}
                         <button
                           type="button"
-                          disabled={isRunning || redeployingId === item.id}
+                          disabled={redeployingId === item.id || deletingId === item.id}
                           onClick={() => void onRedeploy(item.id)}
                           title={t("redeployHint")}
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
@@ -905,7 +922,7 @@ export function HostingDeploySection({
                         </button>
                         <button
                           type="button"
-                          disabled={isRunning || deletingId === item.id}
+                          disabled={deletingId === item.id || redeployingId === item.id}
                           onClick={() => void onDelete(item.id, item.deployDomain)}
                           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-600 disabled:opacity-50 dark:text-red-400"
                         >
@@ -1164,7 +1181,7 @@ export function HostingDeploySection({
                             ? t("dockerLogsLoading")
                             : (dockerLogsById[item.id] ?? t("dockerLogsEmpty"))
                           : expandedId === item.id
-                            ? expandedLog || t("logWaiting")
+                            ? redactSshTargets(expandedLog) || t("logWaiting")
                             : t("logWaiting")}
                       </pre>
                     </div>

@@ -60,6 +60,7 @@ export interface HostingAccount {
   billingAmount?: number | null;
   billingCurrency?: string | null;
   autoRenew?: boolean;
+  cancelRequestedAt?: string | null;
   graceEndsAt?: string | null;
   renewalInvoiceId?: string | null;
   server: HostingServerSummary | null;
@@ -149,6 +150,26 @@ export async function cancelHostingRenewal(
 ): Promise<HostingAccount & { message?: string }> {
   const res = await apiClient.request<HostingAccount & { message?: string }>(
     `/hosting/${id}/cancel-renewal`,
+    { method: "POST", body: {} },
+  );
+  return res.data as HostingAccount & { message?: string };
+}
+
+export async function requestHostingCancellation(
+  id: string,
+): Promise<HostingAccount & { message?: string }> {
+  const res = await apiClient.request<HostingAccount & { message?: string }>(
+    `/hosting/${id}/cancel-request`,
+    { method: "POST", body: {} },
+  );
+  return res.data as HostingAccount & { message?: string };
+}
+
+export async function withdrawHostingCancellation(
+  id: string,
+): Promise<HostingAccount & { message?: string }> {
+  const res = await apiClient.request<HostingAccount & { message?: string }>(
+    `/hosting/${id}/cancel-request/withdraw`,
     { method: "POST", body: {} },
   );
   return res.data as HostingAccount & { message?: string };

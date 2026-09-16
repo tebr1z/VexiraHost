@@ -8,7 +8,11 @@ import {
   pleskVhostConfPath,
   pleskVhostSslConfPath,
 } from "../utils/apache-proxy.util";
-import { formatDeployBuildError, sanitizeDeployEnvVars } from "../utils/deploy-env.util";
+import {
+  formatDeployBuildError,
+  redactSshTargets,
+  sanitizeDeployEnvVars,
+} from "../utils/deploy-env.util";
 import {
   buildDockerComposeProjectName,
   buildDockerfile,
@@ -107,6 +111,8 @@ export class RemoteDeployService {
     existingDeployPath?: string | null;
     existingContainerName?: string | null;
     onLog?: (chunk: string) => void | Promise<void>;
+    onStage?: (stage: "cloning_repo" | "building" | "starting") => void | Promise<void>;
+    abortSignal?: AbortSignal;
   }): Promise<{ deployPath: string; containerName: string; log: string }> {
     const cfg = this.deployConfig;
     if (cfg.mockRemote) {
@@ -129,9 +135,44 @@ export class RemoteDeployService {
     const logs: string[] = [];
 
     const append = async (label: string, output: string) => {
-      const chunk = `\n--- ${label} ---\n${output.trim()}\n`;
+      const chunk = redactSshTargets(`\n--- ${label} ---\n${output.trim()}\n`);
       logs.push(chunk);
       if (input.onLog) await input.onLog(chunk);
+    };
+
+    let streamBuf = "";
+    let streamFlush: Promise<void> = Promise.resolve();
+    let streamTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushBuildStream = async () => {
+      if (!streamBuf) return;
+      const text = redactSshTargets(streamBuf);
+      streamBuf = "";
+      if (!text) return;
+      logs.push(text);
+      if (input.onLog) await input.onLog(text);
+    };
+
+    const queueBuildStream = (chunk: string) => {
+      streamBuf += chunk;
+      const flushSoon = () => {
+        if (streamTimer) {
+          clearTimeout(streamTimer);
+          streamTimer = null;
+        }
+        streamFlush = streamFlush.then(() => flushBuildStream());
+      };
+      if (streamBuf.length >= 1800) flushSoon();
+      else if (!streamTimer) streamTimer = setTimeout(flushSoon, 1000);
+    };
+
+    const finishBuildStream = async () => {
+      if (streamTimer) {
+        clearTimeout(streamTimer);
+        streamTimer = null;
+      }
+      await streamFlush;
+      await flushBuildStream();
     };
 
     await this.ssh.withSession(
@@ -140,6 +181,7 @@ export class RemoteDeployService {
         await append("server", `Connected to hosting server`);
 
         await session.execChecked(`mkdir -p ${shellQuote(deployPath)}`);
+        await input.onStage?.("cloning_repo");
 
         const repoPath = `${deployPath}/repo`;
         const cloneTarget = input.cloneUrl ?? input.repoUrl;
@@ -265,31 +307,27 @@ export class RemoteDeployService {
           `mkdir -p /etc/containers >/dev/null 2>&1; touch /etc/containers/nodocker >/dev/null 2>&1 || true`,
         );
 
-        // Free dangling layers before build so redeploys don't pile up unused images.
-        const prePrune = await session.exec(
-          [
-            `docker image prune -f >/tmp/vx-prune-pre.txt 2>&1 || true`,
-            `docker builder prune -f >/tmp/vx-prune-pre-builder.txt 2>&1 || true`,
-            `cat /tmp/vx-prune-pre.txt /tmp/vx-prune-pre-builder.txt 2>/dev/null | tail -n 20`,
-          ].join("; "),
-          300_000,
+        await input.onStage?.("building");
+        await append(
+          "docker build",
+          "Building image — live output below. Docker cache is kept so Prisma engines are not re-downloaded every deploy.",
         );
-        if (prePrune.stdout.trim()) {
-          await append("docker prune (before)", prePrune.stdout);
-        }
 
         const buildCmd = [
-          `docker build`,
+          `DOCKER_BUILDKIT=1 docker build --progress=plain`,
           `-f ${shellQuote(dockerfilePath)}`,
           `-t ${shellQuote(containerName)}`,
           shellQuote(dockerContextDir),
         ].join(" ");
         try {
-          await append("docker build", await session.execChecked(buildCmd, 900_000));
+          await session.execChecked(buildCmd, 900_000, (chunk) => queueBuildStream(chunk));
+          await finishBuildStream();
         } catch (error) {
+          await finishBuildStream();
           throw new Error(formatDeployBuildError(error));
         }
 
+        await input.onStage?.("starting");
         const containerInspect = await session.exec(
           `docker ps -a --filter name=^/${containerName}$ --format '{{.Names}}'`,
         );
@@ -318,17 +356,13 @@ export class RemoteDeployService {
         ].join(" ");
         await append("docker run", await session.execChecked(runCmd));
 
-        // Drop dangling intermediates from this build; keep the tagged running image.
+        // Drop dangling untagged layers only — never wipe builder cache (Prisma engines).
         const postPrune = await session.exec(
-          [
-            `docker image prune -f >/tmp/vx-prune-post.txt 2>&1 || true`,
-            `docker builder prune -f >/tmp/vx-prune-post-builder.txt 2>&1 || true`,
-            `cat /tmp/vx-prune-post.txt /tmp/vx-prune-post-builder.txt 2>/dev/null | tail -n 20`,
-          ].join("; "),
-          300_000,
+          `docker image prune -f 2>&1 | tail -n 8 || true`,
+          120_000,
         );
-        if (postPrune.stdout.trim()) {
-          await append("docker prune (after)", postPrune.stdout);
+        if (postPrune.stdout.trim() || postPrune.stderr.trim()) {
+          await append("docker prune (after)", `${postPrune.stdout}\n${postPrune.stderr}`);
         }
 
         await append(
@@ -337,7 +371,12 @@ export class RemoteDeployService {
         );
       },
       1_800_000,
+      input.abortSignal,
     );
+
+    if (input.abortSignal?.aborted) {
+      throw new Error("Deploy cancelled");
+    }
 
     // Always (re)apply proxy so host-port switches after conflict are reflected.
     await this.apacheProxy.applyReverseProxy(input.server, input.deployDomain, input.hostPort);
@@ -420,10 +459,7 @@ export class RemoteDeployService {
       if (input.deployPath?.trim()) {
         await session.exec(`rm -rf ${shellQuote(input.deployPath.trim())}`);
       }
-      await session.exec(
-        `docker image prune -f >/dev/null 2>&1 || true; docker builder prune -f >/dev/null 2>&1 || true`,
-        300_000,
-      );
+      await session.exec(`docker image prune -f >/dev/null 2>&1 || true`, 120_000);
     });
 
     if (input.deployDomain?.trim()) {

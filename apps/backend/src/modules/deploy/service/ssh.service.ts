@@ -146,10 +146,16 @@ function connectClient(options: SshConnectionOptions): Promise<Client> {
   });
 }
 
-function execOnClient(conn: Client, command: string, timeoutMs: number): Promise<SshExecResult> {
+function execOnClient(
+  conn: Client,
+  command: string,
+  timeoutMs: number,
+  onChunk?: (chunk: string) => void | Promise<void>,
+): Promise<SshExecResult> {
   return new Promise((resolve, reject) => {
     let settled = false;
     let stream: ClientChannel | undefined;
+    let chunkQueue: Promise<void> = Promise.resolve();
 
     const timer = setTimeout(() => {
       if (settled) return;
@@ -162,8 +168,10 @@ function execOnClient(conn: Client, command: string, timeoutMs: number): Promise
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      if (result instanceof Error) reject(result);
-      else resolve(result);
+      void chunkQueue.finally(() => {
+        if (result instanceof Error) reject(result);
+        else resolve(result);
+      });
     };
 
     conn.exec(command, (err, execStream) => {
@@ -173,12 +181,19 @@ function execOnClient(conn: Client, command: string, timeoutMs: number): Promise
       }
 
       stream = execStream;
-      bindStream(stream, finish);
+      bindStream(stream, finish, (chunk) => {
+        if (!onChunk) return;
+        chunkQueue = chunkQueue.then(() => Promise.resolve(onChunk(chunk))).catch(() => undefined);
+      });
     });
   });
 }
 
-function bindStream(stream: ClientChannel, finish: (result: SshExecResult | Error) => void): void {
+function bindStream(
+  stream: ClientChannel,
+  finish: (result: SshExecResult | Error) => void,
+  onChunk?: (chunk: string) => void,
+): void {
   let stdout = "";
   let stderr = "";
 
@@ -187,14 +202,18 @@ function bindStream(stream: ClientChannel, finish: (result: SshExecResult | Erro
       finish({ stdout, stderr, code: code ?? 0 });
     })
     .on("data", (data: Buffer) => {
-      stdout += data.toString("utf8");
+      const text = data.toString("utf8");
+      stdout += text;
+      onChunk?.(text);
     })
     .on("error", (error: Error) => {
       finish(error);
     });
 
   stream.stderr.on("data", (data: Buffer) => {
-    stderr += data.toString("utf8");
+    const text = data.toString("utf8");
+    stderr += text;
+    onChunk?.(text);
   });
 }
 
@@ -243,17 +262,25 @@ export class SshSession {
     return result;
   }
 
-  async exec(command: string, timeoutMs = 600_000): Promise<SshExecResult> {
-    return this.withChannelLock(() => execOnClient(this.conn, command, timeoutMs));
+  async exec(
+    command: string,
+    timeoutMs = 600_000,
+    onChunk?: (chunk: string) => void | Promise<void>,
+  ): Promise<SshExecResult> {
+    return this.withChannelLock(() => execOnClient(this.conn, command, timeoutMs, onChunk));
   }
 
-  async execChecked(command: string, timeoutMs?: number): Promise<string> {
-    const result = await this.exec(command, timeoutMs);
+  async execChecked(
+    command: string,
+    timeoutMs?: number,
+    onChunk?: (chunk: string) => void | Promise<void>,
+  ): Promise<string> {
+    const result = await this.exec(command, timeoutMs, onChunk);
     if (result.code !== 0) {
       const detail = (result.stderr || result.stdout).trim();
       throw new Error(detail || `SSH command failed with exit code ${result.code}`);
     }
-    return result.stdout;
+    return [result.stdout, result.stderr].filter((part) => part.trim()).join("\n");
   }
 
   async writeFile(remotePath: string, content: string, mode = "644"): Promise<void> {
@@ -287,28 +314,61 @@ export class SshService {
     options: SshConnectionOptions,
     fn: (session: SshSession) => Promise<T>,
     timeoutMs = 900_000,
+    signal?: AbortSignal,
   ): Promise<T> {
     let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      if (signal?.aborted) {
+        throw new Error("Deploy cancelled");
+      }
       let conn: Client | undefined;
       let timeoutHandle: NodeJS.Timeout | undefined;
+      const onAbort = () => {
+        conn?.end();
+      };
       try {
         conn = await connectClient(options);
         const session = new SshSession(conn, formatSshTarget(options));
+        signal?.addEventListener("abort", onAbort, { once: true });
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => {
             reject(new Error(`SSH session timed out after ${timeoutMs}ms`));
           }, timeoutMs);
         });
-        const result = await Promise.race([fn(session), timeoutPromise]);
+        let abortSettled = false;
+        const abortPromise = signal
+          ? new Promise<never>((_, reject) => {
+              const fail = () => {
+                if (abortSettled) return;
+                abortSettled = true;
+                reject(new Error("Deploy cancelled"));
+              };
+              if (signal.aborted) {
+                fail();
+                return;
+              }
+              signal.addEventListener("abort", fail, { once: true });
+            })
+          : null;
+        const result = await Promise.race(
+          abortPromise
+            ? [fn(session), timeoutPromise, abortPromise]
+            : [fn(session), timeoutPromise],
+        );
+        abortSettled = true;
         if (timeoutHandle) clearTimeout(timeoutHandle);
+        signal?.removeEventListener("abort", onAbort);
         session.close();
         return result;
       } catch (error) {
         if (timeoutHandle) clearTimeout(timeoutHandle);
+        signal?.removeEventListener("abort", onAbort);
         conn?.end();
         lastError = error instanceof Error ? error : new Error(String(error));
+        if (lastError.message === "Deploy cancelled") {
+          throw lastError;
+        }
         if (attempt < this.maxAttempts && isRetryableError(lastError)) {
           this.logger.warn(
             `SSH session attempt ${attempt}/${this.maxAttempts} failed for ${formatSshTarget(options)}: ${lastError.message}`,

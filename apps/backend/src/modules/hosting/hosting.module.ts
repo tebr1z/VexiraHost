@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 
 import { HostingController } from "./controller/hosting.controller";
 import { MockControlPanelProvider } from "./providers/mock-control-panel.provider";
@@ -15,12 +15,13 @@ import { PanelSessionService } from "./service/panel-session.service";
 import { PleskMailService } from "./service/plesk-mail.service";
 import { PleskPanelService } from "./service/plesk-panel.service";
 
+import { DeployModule } from "@/modules/deploy/deploy.module";
 import { LicensesModule } from "@/modules/licenses/licenses.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 import { StaffAlertsModule } from "@/shared/staff-alerts/staff-alerts.module";
 
 @Module({
-  imports: [LicensesModule, StaffAlertsModule],
+  imports: [LicensesModule, StaffAlertsModule, forwardRef(() => DeployModule)],
   controllers: [HostingController],
 
   providers: [

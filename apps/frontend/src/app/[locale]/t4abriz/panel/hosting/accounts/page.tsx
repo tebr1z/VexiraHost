@@ -10,6 +10,7 @@ import {
   listHostingServers,
   migrateAdminHostingAccounts,
   reassignAdminHostingProvision,
+  resolveAdminHostingCancelRequest,
   retryAdminHostingProvision,
   updateAdminHostingAccountStatus,
   type AdminHostingAccount,
@@ -73,6 +74,11 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
     [accounts],
   );
 
+  const cancelRequests = useMemo(
+    () => accounts.filter((a) => Boolean(a.cancelRequestedAt) && a.status === "ACTIVE"),
+    [accounts],
+  );
+
   const activePleskTargets = useMemo(
     () => servers.filter((s) => s.isActive && s.panel === "PLESK"),
     [servers],
@@ -130,6 +136,33 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
       toast(tp("deleted"), "success");
     } catch (err) {
       toast(getApiErrorMessage(err, tp("deleteFailed")), "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleCancelRequest = async (
+    account: AdminHostingAccount,
+    action: "deactivate" | "delete" | "reject",
+  ) => {
+    const confirmKey =
+      action === "delete"
+        ? "cancelRequestDeleteConfirm"
+        : action === "deactivate"
+          ? "cancelRequestDeactivateConfirm"
+          : "cancelRequestRejectConfirm";
+    if (!confirm(tp(confirmKey, { domain: account.primaryDomain }))) return;
+    setBusyId(account.id);
+    try {
+      const result = await resolveAdminHostingCancelRequest(account.id, action);
+      if (action === "delete") {
+        setAccounts((prev) => prev.filter((a) => a.id !== account.id));
+      } else {
+        updateAccountInList(result);
+      }
+      toast(result.message ?? tp("cancelRequestUpdated"), "success");
+    } catch (err) {
+      toast(getApiErrorMessage(err, tp("cancelRequestFailed")), "error");
     } finally {
       setBusyId(null);
     }
@@ -267,6 +300,62 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                       {reassigningId === account.id
                         ? tp("reassigningProvision")
                         : tp("reassignAndRetry")}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {isAdmin && cancelRequests.length > 0 && (
+        <div className="rounded-2xl border border-violet-300/60 bg-violet-50 p-4 dark:border-violet-500/30 dark:bg-violet-500/10">
+          <h2 className="text-sm font-semibold text-violet-950 dark:text-violet-100">
+            {tp("cancelRequestsTitle", { count: cancelRequests.length })}
+          </h2>
+          <p className="mt-1 text-xs text-violet-900 dark:text-violet-200">
+            {tp("cancelRequestsHint")}
+          </p>
+          <ul className="mt-3 space-y-2">
+            {cancelRequests.map((account) => (
+              <li
+                key={account.id}
+                className="dark:bg-surface/60 rounded-xl border border-violet-200/80 bg-white/80 px-3 py-2 dark:border-violet-500/20"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-violet-950 dark:text-violet-50">
+                      {account.primaryDomain}
+                    </p>
+                    <p className="text-xs text-violet-900/80 dark:text-violet-200/80">
+                      {account.customer.email}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleCancelRequest(account, "deactivate")}
+                      className="rounded-lg bg-violet-800 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {tp("cancelRequestDeactivate")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleCancelRequest(account, "delete")}
+                      className="rounded-lg border border-red-400 px-2.5 py-1 text-xs font-semibold text-red-800 disabled:opacity-50 dark:text-red-200"
+                    >
+                      {tp("cancelRequestDelete")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleCancelRequest(account, "reject")}
+                      className="rounded-lg border border-violet-400 px-2.5 py-1 text-xs font-semibold text-violet-900 disabled:opacity-50 dark:text-violet-100"
+                    >
+                      {tp("cancelRequestReject")}
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
 
 import { DeployController } from "./controller/deploy.controller";
@@ -21,7 +21,11 @@ import { AuthModule } from "@/modules/auth/auth.module";
 import { HostingModule } from "@/modules/hosting/hosting.module";
 
 @Module({
-  imports: [HostingModule, AuthModule, PassportModule.register({ session: false })],
+  imports: [
+    forwardRef(() => HostingModule),
+    AuthModule,
+    PassportModule.register({ session: false }),
+  ],
   controllers: [DeployController, GitHubDeployController],
   providers: [
     DeployRepository,

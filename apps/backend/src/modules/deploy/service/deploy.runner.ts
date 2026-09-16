@@ -3,6 +3,7 @@ import { ServiceStatus } from "@prisma/client";
 
 import { DeployRepository } from "../repository/deploy.repository";
 import { DEPLOY_STAGES } from "../types/deploy-stage";
+import { redactSshTargets } from "../utils/deploy-env.util";
 
 import { GitHubDeployService } from "./github-deploy.service";
 import { PleskSiteService } from "./plesk-site.service";
@@ -21,6 +22,10 @@ export class DeployRunner {
   private readonly queuesByServer = new Map<string, string[]>();
   /** Promise chain so only one deploy runs per hosting server at a time. */
   private readonly tailsByServer = new Map<string, Promise<void>>();
+
+  private readonly aborted = new Set<string>();
+  private readonly requeueAfterAbort = new Set<string>();
+  private readonly abortControllers = new Map<string, AbortController>();
 
   constructor(
     private readonly deployRepository: DeployRepository,
@@ -88,6 +93,13 @@ export class DeployRunner {
       .finally(() => {
         this.dequeue(serverId, deploymentId);
         this.registered.delete(deploymentId);
+        this.abortControllers.delete(deploymentId);
+        const shouldRequeue = this.requeueAfterAbort.has(deploymentId);
+        this.requeueAfterAbort.delete(deploymentId);
+        this.aborted.delete(deploymentId);
+        if (shouldRequeue) {
+          void this.enqueue(deploymentId);
+        }
       });
 
     this.tailsByServer.set(
@@ -109,6 +121,20 @@ export class DeployRunner {
     return null;
   }
 
+  /**
+   * Stop a stuck/in-flight deploy. Pass requeue to retry after the current SSH job dies.
+   */
+  abort(deploymentId: string, options?: { requeue?: boolean }): boolean {
+    if (options?.requeue) this.requeueAfterAbort.add(deploymentId);
+    this.aborted.add(deploymentId);
+    this.abortControllers.get(deploymentId)?.abort();
+    return this.registered.has(deploymentId);
+  }
+
+  isRegistered(deploymentId: string): boolean {
+    return this.registered.has(deploymentId);
+  }
+
   private dequeue(serverId: string, deploymentId: string): void {
     const queue = this.queuesByServer.get(serverId);
     if (!queue) return;
@@ -121,11 +147,18 @@ export class DeployRunner {
   }
 
   private async setStage(deploymentId: string, runId: string, stage: string) {
+    if (this.aborted.has(deploymentId)) {
+      throw new Error("Deploy cancelled");
+    }
     await this.deployRepository.update(deploymentId, { stage, status: "RUNNING" });
     await this.deployRepository.updateRunStage(runId, stage);
   }
 
   private async run(deploymentId: string, expectedServerId: string): Promise<void> {
+    if (this.aborted.has(deploymentId)) {
+      return;
+    }
+
     const deployment = await this.deployRepository.findById(deploymentId);
     if (!deployment) {
       this.logger.log(`Deploy ${deploymentId} was cancelled before start — skipping`);
@@ -152,6 +185,9 @@ export class DeployRunner {
       return;
     }
 
+    const abortController = new AbortController();
+    this.abortControllers.set(deploymentId, abortController);
+
     const wasWaiting = deployment.stage === DEPLOY_STAGES.WAITING_SERVER;
     const run = await this.deployRepository.createRun(deploymentId);
     await this.deployRepository.update(deploymentId, {
@@ -161,7 +197,7 @@ export class DeployRunner {
     });
 
     const log = async (message: string) => {
-      await this.deployRepository.appendRunLog(run.id, `${message}\n`);
+      await this.deployRepository.appendRunLog(run.id, redactSshTargets(`${message}\n`));
     };
 
     try {
@@ -260,7 +296,18 @@ export class DeployRunner {
         onLog: async (chunk) => {
           await log(chunk);
         },
+        onStage: async (stage) => {
+          await this.setStage(deploymentId, run.id, stage);
+        },
+        abortSignal: abortController.signal,
       });
+
+      if (this.aborted.has(deploymentId)) {
+        throw new Error("Deploy cancelled");
+      }
+
+      const still = await this.deployRepository.findById(deploymentId);
+      if (!still) return;
 
       await this.deployRepository.update(deploymentId, {
         status: "SUCCESS",
@@ -274,11 +321,19 @@ export class DeployRunner {
       await log("Deploy completed successfully");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Deploy failed";
-      await log(`ERROR: ${message}`);
+      const existing = await this.deployRepository.findById(deploymentId);
+      if (!existing) return;
+      if (existing.status !== "RUNNING") return;
+      if (this.requeueAfterAbort.has(deploymentId)) return;
+      try {
+        await log(`ERROR: ${message}`);
+      } catch {
+        /* run row may already be gone */
+      }
       await this.deployRepository.update(deploymentId, {
         status: "FAILED",
         stage: DEPLOY_STAGES.FAILED,
-        lastError: message,
+        lastError: message === "Deploy cancelled" ? "Deploy cancelled" : message,
       });
       await this.deployRepository.finishRun(run.id, "FAILED", DEPLOY_STAGES.FAILED);
     }

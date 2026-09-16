@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from "@nestjs/common";
 import type { HostingPanel, HostingServer, ServiceStatus } from "@prisma/client";
 import { HostingPanel as HostingPanelEnum } from "@prisma/client";
@@ -24,6 +26,7 @@ import {
 import { HostingEmailService } from "./hosting-email.service";
 import { HostingProvisionRunner } from "./hosting-provision.runner";
 
+import { DeployService } from "@/modules/deploy/service/deploy.service";
 import { decryptSecret, encryptSecret, maskSecret } from "@/utils/crypto.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
@@ -77,6 +80,7 @@ function mapAccount(account: {
   provisionError: string | null;
   provisionedAt: Date | null;
   createdAt: Date;
+  cancelRequestedAt?: Date | null;
   plan: { id: string; slug: string; name: string };
   user: { id: string; email: string; firstName: string | null; lastName: string | null };
   server?: {
@@ -98,6 +102,7 @@ function mapAccount(account: {
     provisionError: account.provisionError,
     provisionedAt: account.provisionedAt,
     createdAt: account.createdAt,
+    cancelRequestedAt: account.cancelRequestedAt ?? null,
     plan: {
       id: account.plan.id,
       slug: account.plan.slug,
@@ -130,6 +135,8 @@ export class HostingServersService {
     private readonly controlPanel: MockControlPanelProvider,
     private readonly hostingEmailService: HostingEmailService,
     private readonly provisionRunner: HostingProvisionRunner,
+    @Inject(forwardRef(() => DeployService))
+    private readonly deployService: DeployService,
   ) {}
 
   listServers() {
@@ -301,14 +308,66 @@ export class HostingServersService {
 
     const updated = await this.hostingServersRepository.updateAccount(id, {
       status: dto.status,
-      ...(dto.status === "ACTIVE" ? { graceEndsAt: null, provisionError: null } : {}),
+      ...(dto.status === "ACTIVE"
+        ? { graceEndsAt: null, provisionError: null, cancelRequestedAt: null }
+        : {}),
     });
     return mapAccount(updated);
+  }
+
+  async resolveCancelRequest(id: string, action: "deactivate" | "delete" | "reject") {
+    const account = await this.hostingServersRepository.findAccountById(id);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (!account.cancelRequestedAt && action !== "delete") {
+      throw new BadRequestException("No pending cancellation request");
+    }
+
+    if (action === "reject") {
+      const updated = await this.hostingServersRepository.updateAccount(id, {
+        cancelRequestedAt: null,
+      });
+      return { ...mapAccount(updated), message: "Cancellation request rejected" };
+    }
+
+    if (action === "delete") {
+      await this.deleteAccount(id);
+      return { id, message: "Hosting account and apps deleted" };
+    }
+
+    await this.deployService.removeAllForAccount(id);
+
+    if (account.server && (account.username || account.panelRef)) {
+      try {
+        await this.controlPanel.suspendAccount?.({
+          server: account.server,
+          primaryDomain: account.primaryDomain,
+          username: account.username,
+          panelRef: account.panelRef,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Panel suspend failed";
+        this.logger.warn(`Panel suspend skipped for hosting ${id}: ${message}`);
+      }
+    }
+
+    const updated = await this.hostingServersRepository.updateAccount(id, {
+      status: "CANCELLED",
+      autoRenew: false,
+      cancelRequestedAt: null,
+      graceEndsAt: null,
+      renewalInvoiceId: null,
+    });
+    return {
+      ...mapAccount(updated),
+      message: "Hosting deactivated and Auto Deploy apps removed",
+    };
   }
 
   async deleteAccount(id: string) {
     const account = await this.hostingServersRepository.findAccountById(id);
     if (!account) throw new NotFoundException("Hosting account not found");
+
+    await this.deployService.removeAllForAccount(id);
 
     if (account.server) {
       try {

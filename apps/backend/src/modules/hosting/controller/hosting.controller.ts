@@ -108,6 +108,16 @@ export class HostingController {
     return this.hostingService.cancelRenewal(id, user.id);
   }
 
+  @Post(":id/cancel-request")
+  requestCancellation(@Param("id") id: string, @User() user: AuthUser) {
+    return this.hostingService.requestCancellation(id, user.id);
+  }
+
+  @Post(":id/cancel-request/withdraw")
+  withdrawCancellation(@Param("id") id: string, @User() user: AuthUser) {
+    return this.hostingService.withdrawCancellation(id, user.id);
+  }
+
   @Post(":id/resume-renewal")
   resumeRenewal(@Param("id") id: string, @User() user: AuthUser) {
     return this.hostingService.resumeRenewal(id, user.id);

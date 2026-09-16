@@ -42,10 +42,20 @@ export function stripCustomerPort(envVars: Record<string, string> | null | undef
   return { env, ignoredPort };
 }
 
+/** Hide SSH user@ip:port from customer-facing deploy logs. */
+export function redactSshTargets(text: string): string {
+  return text.replace(
+    /\b[A-Za-z0-9._-]+@(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b/g,
+    "hosting server",
+  );
+}
+
 export function formatDeployBuildError(error: unknown): string {
-  const raw = (error instanceof Error ? error.message : String(error))
-    .replace(/x-access-token:[^@\s]+@/gi, "x-access-token:***@")
-    .replace(/\/\/[^:@\s/]+:[^@\s/]+@/g, "//***:***@");
+  const raw = redactSshTargets(
+    (error instanceof Error ? error.message : String(error))
+      .replace(/x-access-token:[^@\s]+@/gi, "x-access-token:***@")
+      .replace(/\/\/[^:@\s/]+:[^@\s/]+@/g, "//***:***@"),
+  );
 
   const lower = raw.toLowerCase();
   if (
@@ -58,6 +68,13 @@ export function formatDeployBuildError(error: unknown): string {
       "Root (/) can still look free while /var or /var/tmp is full (Podman image layers).",
       "In Admin → Hosting Servers → Setup, probe storage, remove unused images (`docker image prune -a`), then redeploy.",
     ].join(" ");
+  }
+
+  if (
+    lower.includes("binaries.prisma.sh") ||
+    (lower.includes("prisma generate") && lower.includes("request to https://"))
+  ) {
+    return "Docker build failed downloading Prisma engines. Redeploy with the updated Nest image (engine mirrors + Docker cache kept).";
   }
 
   // Drop noisy podman/npm notices when a real Error: line exists.

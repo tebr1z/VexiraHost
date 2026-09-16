@@ -1,10 +1,12 @@
 ﻿import { Test, TestingModule } from "@nestjs/testing";
 
 import { HostingRepository } from "../repository/hosting.repository";
-import { HostingService } from "../service/hosting.service";
 import { HostingProvisionRunner } from "../service/hosting-provision.runner";
+import { HostingService } from "../service/hosting.service";
 import { PanelSessionService } from "../service/panel-session.service";
 import { PleskPanelService } from "../service/plesk-panel.service";
+
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 
 describe("HostingService", () => {
   let service: HostingService;
@@ -17,6 +19,7 @@ describe("HostingService", () => {
         { provide: PanelSessionService, useValue: {} },
         { provide: PleskPanelService, useValue: {} },
         { provide: HostingProvisionRunner, useValue: { enqueue: jest.fn() } },
+        { provide: StaffAlertService, useValue: { notify: jest.fn() } },
       ],
     }).compile();
 

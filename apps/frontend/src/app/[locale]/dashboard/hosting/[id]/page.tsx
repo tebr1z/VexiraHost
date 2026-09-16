@@ -11,9 +11,11 @@ import {
   cancelHostingRenewal,
   getHostingAccount,
   openHostingPanel,
+  requestHostingCancellation,
   resumeHostingRenewal,
   retryHostingProvision,
   syncHostingPanelInfo,
+  withdrawHostingCancellation,
   type HostingAccount,
 } from "@/features/hosting";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -32,6 +34,7 @@ export default function HostingDetailPage(): React.ReactElement | null {
   const [retryLoading, setRetryLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
+  const [cancelRequestLoading, setCancelRequestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -130,6 +133,7 @@ export default function HostingDetailPage(): React.ReactElement | null {
       retryLoading={retryLoading}
       cancelLoading={cancelLoading}
       resumeLoading={resumeLoading}
+      cancelRequestLoading={cancelRequestLoading}
       onPanelLogin={() => void handlePanelLogin()}
       onSyncPlesk={() => void handleSyncPlesk()}
       onRetry={() => void handleRetry()}
@@ -159,6 +163,35 @@ export default function HostingDetailPage(): React.ReactElement | null {
             toast(getApiErrorMessage(err, tc("resumeRenewalFailed")), "error");
           } finally {
             setResumeLoading(false);
+          }
+        })();
+      }}
+      onRequestCancellation={() => {
+        if (!confirm(tc("requestCancelConfirm"))) return;
+        void (async () => {
+          setCancelRequestLoading(true);
+          try {
+            const result = await requestHostingCancellation(account.id);
+            setAccount(result);
+            toast(result.message ?? tc("requestCancelSuccess"), "success");
+          } catch (err) {
+            toast(getApiErrorMessage(err, tc("requestCancelFailed")), "error");
+          } finally {
+            setCancelRequestLoading(false);
+          }
+        })();
+      }}
+      onWithdrawCancellation={() => {
+        void (async () => {
+          setCancelRequestLoading(true);
+          try {
+            const result = await withdrawHostingCancellation(account.id);
+            setAccount(result);
+            toast(result.message ?? tc("withdrawCancelSuccess"), "success");
+          } catch (err) {
+            toast(getApiErrorMessage(err, tc("withdrawCancelFailed")), "error");
+          } finally {
+            setCancelRequestLoading(false);
           }
         })();
       }}

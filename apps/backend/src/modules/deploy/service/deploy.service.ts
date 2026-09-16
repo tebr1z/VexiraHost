@@ -179,7 +179,19 @@ export class DeployService {
       throw new NotFoundException("Deployment not found");
     }
     if (deployment.status === "RUNNING") {
-      throw new BadRequestException("Deployment is already running");
+      const inFlight = this.deployRunner.abort(deploymentId, { requeue: true });
+      await this.deployRepository.update(deploymentId, {
+        status: "PENDING",
+        stage: null,
+        lastError: null,
+      });
+      if (inFlight) {
+        return {
+          id: deploymentId,
+          queuePosition: this.deployRunner.getQueuePosition(deploymentId) ?? 1,
+          message: "Stuck deploy cancelled — retry will start as soon as the server is free",
+        };
+      }
     }
 
     await this.deployRepository.update(deploymentId, {
@@ -205,30 +217,72 @@ export class DeployService {
     if (!deployment || deployment.hostingAccountId !== accountId) {
       throw new NotFoundException("Deployment not found");
     }
-    if (deployment.status === "RUNNING" && deployment.stage !== "waiting_server") {
-      throw new BadRequestException("Wait for the current deploy to finish before deleting");
-    }
+    this.deployRunner.abort(deploymentId);
 
     const server = account.server ?? deployment.hostingAccount.server;
     if (server) {
-      await this.remoteDeploy.removeDeployment({
-        server,
-        deployPath: deployment.deployPath,
-        containerName: deployment.containerName,
-        deployDomain: deployment.deployDomain,
-      });
+      try {
+        await this.remoteDeploy.removeDeployment({
+          server,
+          deployPath: deployment.deployPath,
+          containerName: deployment.containerName,
+          deployDomain: deployment.deployDomain,
+        });
+      } catch {
+        // Container/files may still be locked by a cancelled build — record is removed anyway.
+      }
 
       // Only remove Plesk addon domains we created — never the primary subscription domain.
       if (deployment.domainMode === DeployDomainMode.SUBDOMAIN) {
-        await this.pleskSite.removeSite(server, {
-          id: deployment.pleskSiteId,
-          name: deployment.deployDomain,
-        });
+        try {
+          await this.pleskSite.removeSite(server, {
+            id: deployment.pleskSiteId,
+            name: deployment.deployDomain,
+          });
+        } catch {
+          /* best-effort */
+        }
       }
     }
 
     await this.deployRepository.delete(deploymentId);
     return { id: deploymentId, message: "Deployment deleted" };
+  }
+
+  /** Tear down every auto-deploy app (API/site) for a hosting account. */
+  async removeAllForAccount(accountId: string): Promise<void> {
+    const rows = await this.deployRepository.listByAccount(accountId);
+    for (const deployment of rows) {
+      this.deployRunner.abort(deployment.id);
+      const server = deployment.hostingAccount.server;
+      if (server) {
+        try {
+          await this.remoteDeploy.removeDeployment({
+            server,
+            deployPath: deployment.deployPath,
+            containerName: deployment.containerName,
+            deployDomain: deployment.deployDomain,
+          });
+        } catch {
+          /* best-effort */
+        }
+        if (deployment.domainMode === DeployDomainMode.SUBDOMAIN) {
+          try {
+            await this.pleskSite.removeSite(server, {
+              id: deployment.pleskSiteId,
+              name: deployment.deployDomain,
+            });
+          } catch {
+            /* best-effort */
+          }
+        }
+      }
+      try {
+        await this.deployRepository.delete(deployment.id);
+      } catch {
+        /* already gone */
+      }
+    }
   }
 
   async updateEnv(

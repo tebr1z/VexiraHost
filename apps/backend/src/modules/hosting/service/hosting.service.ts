@@ -26,6 +26,7 @@ import {
   collectPlanServerCandidates,
   selectHostingServerForPlan,
 } from "@/modules/hosting/utils/server-selection.util";
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 
 function mapPlan(plan: HostingPlan) {
   return {
@@ -77,6 +78,7 @@ function mapAccount(
     billingAmount: account.billingAmount != null ? Number(account.billingAmount) : null,
     billingCurrency: account.billingCurrency,
     autoRenew: account.autoRenew,
+    cancelRequestedAt: account.cancelRequestedAt,
     graceEndsAt: account.graceEndsAt,
     renewalInvoiceId: account.renewalInvoiceId,
     server: mapServer(account.server),
@@ -108,6 +110,7 @@ export class HostingService {
     private readonly panelSession: PanelSessionService,
     private readonly pleskPanel: PleskPanelService,
     private readonly provisionRunner: HostingProvisionRunner,
+    private readonly staffAlerts: StaffAlertService,
   ) {}
 
   private async attachPleskInfo(
@@ -353,10 +356,68 @@ export class HostingService {
       throw new BadRequestException("Only active services can resume auto-renewal");
     }
 
-    const updated = await this.hostingRepository.updateAccount(account.id, { autoRenew: true });
+    const updated = await this.hostingRepository.updateAccount(account.id, {
+      autoRenew: true,
+      cancelRequestedAt: null,
+    });
     return {
       ...mapAccount(updated),
       message: "Auto-renewal enabled again",
+    };
+  }
+
+  async requestCancellation(id: string, userId: string) {
+    const account = await this.hostingRepository.findByIdForUser(id, userId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (account.status === "CANCELLED" || account.status === "FAILED") {
+      throw new BadRequestException("This service is already cancelled");
+    }
+    if (account.status !== "ACTIVE" && account.status !== "SUSPENDED") {
+      throw new BadRequestException("This service cannot be cancelled yet");
+    }
+    if (account.cancelRequestedAt) {
+      return {
+        ...mapAccount(account),
+        message: "Cancellation request is already waiting for admin review.",
+      };
+    }
+
+    const updated = await this.hostingRepository.updateAccount(account.id, {
+      autoRenew: false,
+      cancelRequestedAt: new Date(),
+    });
+
+    const user = await this.hostingRepository.findUserEmail(userId);
+    this.staffAlerts.notify({
+      kind: "HOSTING_CANCEL_REQUEST",
+      title: "Hosting cancellation request",
+      lines: [
+        `Domain: ${account.primaryDomain}`,
+        user?.email ? `Customer: ${user.email}` : `User: ${userId}`,
+        "Admin must approve to deactivate or delete (including Auto Deploy apps).",
+      ],
+      url: "/t4abriz/panel/hosting/accounts",
+    });
+
+    return {
+      ...mapAccount(updated),
+      message: "Cancellation requested. Your hosting and apps stay online until an admin approves.",
+    };
+  }
+
+  async withdrawCancellation(id: string, userId: string) {
+    const account = await this.hostingRepository.findByIdForUser(id, userId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    if (!account.cancelRequestedAt) {
+      throw new BadRequestException("No pending cancellation request");
+    }
+
+    const updated = await this.hostingRepository.updateAccount(account.id, {
+      cancelRequestedAt: null,
+    });
+    return {
+      ...mapAccount(updated),
+      message: "Cancellation request withdrawn",
     };
   }
 }

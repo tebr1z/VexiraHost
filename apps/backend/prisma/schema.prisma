@@ -1139,6 +1139,7 @@ model HostingAccount {
   billingAmount         Decimal?               @db.Decimal(10, 2)
   billingCurrency       String                 @default("USD")
   autoRenew             Boolean                @default(true)
+  cancelRequestedAt     DateTime?
   graceEndsAt           DateTime?
   renewalInvoiceId      String?
   provisionStage        String?

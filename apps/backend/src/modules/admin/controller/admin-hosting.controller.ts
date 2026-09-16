@@ -17,6 +17,7 @@ import { RolesGuard } from "@/guards/roles.guard";
 import { ServerSetupService } from "@/modules/deploy/service/server-setup.service";
 import {
   MigrateHostingAccountsDto,
+  ResolveHostingCancelRequestDto,
   UpdateHostingAccountStatusDto,
 } from "@/modules/hosting/dto/hosting-account-admin.dto";
 import {
@@ -133,6 +134,12 @@ export class AdminHostingController {
   @Roles(UserRole.ADMIN)
   updateAccountStatus(@Param("id") id: string, @Body() dto: UpdateHostingAccountStatusDto) {
     return this.hostingServersService.updateAccountStatus(id, dto);
+  }
+
+  @Post("accounts/:id/cancel-request")
+  @Roles(UserRole.ADMIN)
+  resolveCancelRequest(@Param("id") id: string, @Body() dto: ResolveHostingCancelRequestDto) {
+    return this.hostingServersService.resolveCancelRequest(id, dto.action);
   }
 
   @Delete("accounts/:id")

@@ -37,6 +37,15 @@ export class DeployRepository {
     });
   }
 
+  listByAccount(hostingAccountId: string) {
+    return this.prisma.appDeployment.findMany({
+      where: { hostingAccountId },
+      include: {
+        hostingAccount: { include: { server: true } },
+      },
+    });
+  }
+
   create(data: {
     hostingAccountId: string;
     userId: string;

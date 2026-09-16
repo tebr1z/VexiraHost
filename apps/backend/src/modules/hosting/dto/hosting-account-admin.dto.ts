@@ -5,6 +5,11 @@ export class UpdateHostingAccountStatusDto {
   status!: "ACTIVE" | "SUSPENDED";
 }
 
+export class ResolveHostingCancelRequestDto {
+  @IsIn(["deactivate", "delete", "reject"])
+  action!: "deactivate" | "delete" | "reject";
+}
+
 export class MigrateHostingAccountsDto {
   @IsArray()
   @ArrayNotEmpty()
