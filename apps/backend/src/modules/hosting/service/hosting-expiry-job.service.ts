@@ -39,10 +39,20 @@ export class HostingExpiryJobService {
 
   /** Admin-approved cancellations: wipe Docker, panel account, and DB row after 24h. */
   private async processScheduledPurges(): Promise<void> {
-    const due = await this.prisma.hostingAccount.findMany({
-      where: { scheduledPurgeAt: { lte: new Date() } },
-      select: { id: true, primaryDomain: true },
-    });
+    let due: Array<{ id: string; primaryDomain: string }> = [];
+    try {
+      due = await this.prisma.hostingAccount.findMany({
+        where: { scheduledPurgeAt: { lte: new Date() } },
+        select: { id: true, primaryDomain: true },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Scheduled hosting purge query failed (run prisma migrate?): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
 
     for (const account of due) {
       try {
@@ -68,6 +78,7 @@ export class HostingExpiryJobService {
         autoRenew: false,
         status: ServiceStatus.ACTIVE,
         scheduledPurgeAt: null,
+        cancelRequestedAt: null,
         expiresAt: { lte: now },
       },
     });

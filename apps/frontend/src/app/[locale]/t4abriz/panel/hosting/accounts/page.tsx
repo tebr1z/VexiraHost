@@ -41,6 +41,9 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
   const [migrating, setMigrating] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [reassigningId, setReassigningId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "cancelled" | "pending">(
+    "all",
+  );
 
   const load = useCallback(async () => {
     const [accountList, serverList] = await Promise.all([
@@ -68,10 +71,12 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
   const failedAccounts = useMemo(() => accounts.filter((a) => a.status === "FAILED"), [accounts]);
 
   const atRiskAccounts = useMemo(
-    () =>
-      accounts.filter(
-        (a) => a.status === "SUSPENDED" || a.status === "CANCELLED" || a.status === "EXPIRED",
-      ),
+    () => accounts.filter((a) => a.status === "SUSPENDED" || a.status === "EXPIRED"),
+    [accounts],
+  );
+
+  const cancelledAccounts = useMemo(
+    () => accounts.filter((a) => a.status === "CANCELLED"),
     [accounts],
   );
 
@@ -87,6 +92,19 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
     () => accounts.filter((a) => Boolean(a.scheduledPurgeAt)),
     [accounts],
   );
+
+  const visibleAccounts = useMemo(() => {
+    if (statusFilter === "active") {
+      return accounts.filter((a) => a.status === "ACTIVE" || a.status === "PROVISIONING");
+    }
+    if (statusFilter === "cancelled") {
+      return accounts.filter((a) => a.status === "CANCELLED" || a.status === "EXPIRED");
+    }
+    if (statusFilter === "pending") {
+      return accounts.filter((a) => Boolean(a.cancelRequestedAt) || Boolean(a.scheduledPurgeAt));
+    }
+    return accounts;
+  }, [accounts, statusFilter]);
 
   const activePleskTargets = useMemo(
     () => servers.filter((s) => s.isActive && s.panel === "PLESK"),
@@ -244,6 +262,31 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
           { label: tp("title") },
         ]}
       />
+
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["all", "filterAll"],
+            ["active", "filterActive"],
+            ["cancelled", "filterCancelled"],
+            ["pending", "filterPendingCancel"],
+          ] as const
+        ).map(([id, key]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setStatusFilter(id)}
+            className={cn(
+              "rounded-xl border px-3 py-1.5 text-xs font-semibold",
+              statusFilter === id
+                ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                : "border-[var(--separator)] text-[var(--label-secondary)]",
+            )}
+          >
+            {tp(key)}
+          </button>
+        ))}
+      </div>
 
       {isAdmin && failedAccounts.length > 0 && (
         <div className="rounded-2xl border border-red-300/60 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
@@ -413,6 +456,54 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
         </div>
       )}
 
+      {isAdmin && cancelledAccounts.length > 0 && (
+        <div className="rounded-2xl border border-zinc-300/70 bg-zinc-50 p-4 dark:border-zinc-500/30 dark:bg-zinc-500/10">
+          <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-100">
+            {tp("cancelledAccountsTitle", { count: cancelledAccounts.length })}
+          </h2>
+          <p className="mt-1 text-xs text-zinc-800 dark:text-zinc-200">
+            {tp("cancelledAccountsHint")}
+          </p>
+          <ul className="mt-3 space-y-2">
+            {cancelledAccounts.map((account) => (
+              <li
+                key={account.id}
+                className="dark:bg-surface/60 rounded-xl border border-zinc-200/80 bg-white/80 px-3 py-2 dark:border-zinc-500/20"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-zinc-950 dark:text-zinc-50">
+                      {account.primaryDomain}
+                    </p>
+                    <p className="text-xs text-zinc-700/80 dark:text-zinc-200/80">
+                      {account.customer.email} · {account.status}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleStatus(account, "ACTIVE")}
+                      className="rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {tp("activate")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === account.id}
+                      onClick={() => void handleDelete(account)}
+                      className="rounded-lg border border-red-400 px-2.5 py-1 text-xs font-semibold text-red-800 disabled:opacity-50 dark:text-red-200"
+                    >
+                      {tp("delete")}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {isAdmin && atRiskAccounts.length > 0 && (
         <div className="rounded-2xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
           <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-100">
@@ -492,7 +583,7 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
 
       {loading ? (
         <p className="text-on-surface-variant">{tu("loading")}</p>
-      ) : accounts.length === 0 ? (
+      ) : visibleAccounts.length === 0 ? (
         <p className="text-on-surface-variant">{tu("noRecords")}</p>
       ) : (
         <div className="border-outline-variant/50 overflow-x-auto rounded-2xl border">
@@ -505,8 +596,10 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                       type="checkbox"
                       aria-label={tp("selectAllPlesk")}
                       checked={
-                        accounts.some((a) => a.panel === "PLESK") &&
-                        accounts.filter((a) => a.panel === "PLESK").every((a) => selected.has(a.id))
+                        visibleAccounts.some((a) => a.panel === "PLESK") &&
+                        visibleAccounts
+                          .filter((a) => a.panel === "PLESK")
+                          .every((a) => selected.has(a.id))
                       }
                       onChange={toggleAllPlesk}
                     />
@@ -522,7 +615,7 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
               </tr>
             </thead>
             <tbody>
-              {accounts.map((account) => {
+              {visibleAccounts.map((account) => {
                 const busy = busyId === account.id;
                 const failed = account.status === "FAILED";
                 const provisioning = account.status === "PROVISIONING";
