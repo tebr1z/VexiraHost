@@ -164,6 +164,39 @@ model Notification {
   @@map("notifications")
 }
 
+enum NotificationOutboxChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum NotificationOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model NotificationOutbox {
+  id          String                   @id @default(cuid())
+  userId      String?
+  channel     NotificationOutboxChannel
+  recipient   String
+  template    String
+  payload     Json
+  status      NotificationOutboxStatus @default(PENDING)
+  dedupeKey   String                   @unique
+  attempts    Int                      @default(0)
+  lastError   String?                  @db.Text
+  availableAt DateTime                 @default(now())
+  sentAt      DateTime?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([status, availableAt])
+  @@index([userId, createdAt])
+  @@map("notification_outbox")
+}
+
 enum CampaignStatus {
   DRAFT
   SENDING

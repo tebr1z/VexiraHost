@@ -30,6 +30,10 @@ export class SmtpMailService {
 
   constructor(private readonly configService: ConfigService) {}
 
+  isConfigured(): boolean {
+    return this.getConfig() != null;
+  }
+
   async send(to: string, content: MailContent, options?: SendMailOptions): Promise<void> {
     const cfg = this.getConfig();
     if (!cfg) {

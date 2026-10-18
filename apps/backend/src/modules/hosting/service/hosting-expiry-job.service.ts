@@ -4,6 +4,7 @@ import {
   BillingCycle,
   HostingManagementMode,
   InvoiceStatus,
+  NotificationOutboxChannel,
   NotificationType,
   ServiceStatus,
 } from "@prisma/client";
@@ -11,13 +12,13 @@ import {
 import { calculateHostingExpiry } from "../utils/hosting-renewal.util";
 
 import { HostingBillingService } from "./hosting-billing.service";
-import { HostingEmailService } from "./hosting-email.service";
 import { HostingServersService } from "./hosting-servers.service";
 
 import { PrismaService } from "@/database/database.module";
 import { RenewalPaymentService } from "@/modules/lifecycle/service/renewal-payment.service";
+import { NotificationTemplate } from "@/modules/notifications/notification-outbox.constants";
+import { NotificationOutboxService } from "@/modules/notifications/service/notification-outbox.service";
 import { NotificationsService } from "@/modules/notifications/service/notifications.service";
-import { WhatsappService } from "@/modules/whatsapp/service/whatsapp.service";
 
 const GRACE_DAYS = 7;
 
@@ -62,11 +63,10 @@ export class HostingExpiryJobService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly billing: HostingBillingService,
-    private readonly hostingEmail: HostingEmailService,
     private readonly hostingServers: HostingServersService,
     private readonly renewalPayment: RenewalPaymentService,
     private readonly notifications: NotificationsService,
-    private readonly whatsapp: WhatsappService,
+    private readonly outbox: NotificationOutboxService,
     private readonly config: ConfigService,
   ) {}
 
@@ -105,21 +105,27 @@ export class HostingExpiryJobService {
     });
 
     try {
-      await this.hostingEmail.sendRenewalInvoiceEmail({
-        to: input.user.email,
-        firstName: input.user.firstName,
-        lastName: input.user.lastName,
-        preferredCurrency: input.user.preferredCurrency,
-        localeHistory: input.user.localeHistory,
-        domain: input.domain,
-        planName: input.planName,
-        panel: input.panel,
-        amount: input.amount,
-        currency: input.currency,
-        invoiceNumber: input.invoiceNumber,
-        invoiceId: input.invoiceId,
-        dueDate: input.dueDate,
-        graceDays: GRACE_DAYS,
+      await this.outbox.enqueue({
+        userId: input.user.id,
+        channel: NotificationOutboxChannel.EMAIL,
+        recipient: input.user.email,
+        template: NotificationTemplate.HOSTING_RENEWAL,
+        dedupeKey: `hosting-renewal:${input.invoiceId}:email`,
+        payload: {
+          firstName: input.user.firstName,
+          lastName: input.user.lastName,
+          preferredCurrency: input.user.preferredCurrency,
+          localeHistory: input.user.localeHistory,
+          domain: input.domain,
+          planName: input.planName,
+          panel: input.panel,
+          amount: input.amount,
+          currency: input.currency,
+          invoiceNumber: input.invoiceNumber,
+          invoiceId: input.invoiceId,
+          dueDate: input.dueDate.toISOString(),
+          graceDays: GRACE_DAYS,
+        },
       });
     } catch (error) {
       this.logger.warn(
@@ -153,10 +159,13 @@ export class HostingExpiryJobService {
 
     if (input.user.phone && input.user.phoneVerifiedAt && input.user.whatsappNotificationsEnabled) {
       try {
-        await this.whatsapp.sendSystemText({
-          phone: input.user.phone,
+        await this.outbox.enqueue({
+          channel: NotificationOutboxChannel.WHATSAPP,
+          recipient: input.user.phone,
           userId: input.user.id,
-          message: copy.message,
+          template: NotificationTemplate.TEXT,
+          dedupeKey: `hosting-renewal:${input.invoiceId}:whatsapp`,
+          payload: { userId: input.user.id, message: copy.message },
         });
       } catch (error) {
         this.logger.warn(

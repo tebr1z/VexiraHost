@@ -49,24 +49,22 @@ function createFixture(outcome: "balance" | "epoint" | "unpaid") {
     }),
     activateAfterRenewalPayment: jest.fn(),
   };
-  const hostingEmail = { sendRenewalInvoiceEmail: jest.fn().mockResolvedValue(undefined) };
   const hostingServers = {
     updateAccountStatus: jest.fn().mockResolvedValue(undefined),
     deleteAccount: jest.fn(),
   };
   const renewalPayment = { tryPay: jest.fn().mockResolvedValue(outcome) };
   const notifications = { create: jest.fn().mockResolvedValue(undefined) };
-  const whatsapp = { sendSystemText: jest.fn().mockResolvedValue(undefined) };
+  const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
   const config = { get: jest.fn().mockReturnValue("https://vexira.example") };
 
   const service = new HostingExpiryJobService(
     prisma as never,
     billing as never,
-    hostingEmail as never,
     hostingServers as never,
     renewalPayment as never,
     notifications as never,
-    whatsapp as never,
+    outbox as never,
     config as never,
   );
 
@@ -74,11 +72,10 @@ function createFixture(outcome: "balance" | "epoint" | "unpaid") {
     service,
     prisma,
     billing,
-    hostingEmail,
     hostingServers,
     renewalPayment,
     notifications,
-    whatsapp,
+    outbox,
   };
 }
 
@@ -90,9 +87,8 @@ describe("HostingExpiryJobService", () => {
 
     expect(fixture.renewalPayment.tryPay).toHaveBeenCalledWith("user-1", "invoice-1");
     expect(fixture.hostingServers.updateAccountStatus).not.toHaveBeenCalled();
-    expect(fixture.hostingEmail.sendRenewalInvoiceEmail).not.toHaveBeenCalled();
+    expect(fixture.outbox.enqueue).not.toHaveBeenCalled();
     expect(fixture.notifications.create).not.toHaveBeenCalled();
-    expect(fixture.whatsapp.sendSystemText).not.toHaveBeenCalled();
   });
 
   it("suspends and sends a direct payment link when balance is insufficient", async () => {
@@ -103,14 +99,14 @@ describe("HostingExpiryJobService", () => {
     expect(fixture.hostingServers.updateAccountStatus).toHaveBeenCalledWith("hosting-1", {
       status: "SUSPENDED",
     });
-    expect(fixture.hostingEmail.sendRenewalInvoiceEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ invoiceId: "invoice-1" }),
+    expect(fixture.outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ dedupeKey: "hosting-renewal:invoice-1:email" }),
     );
     expect(fixture.notifications.create).toHaveBeenCalledWith(
       expect.objectContaining({ href: "/dashboard/invoices/invoice-1" }),
     );
-    expect(fixture.whatsapp.sendSystemText).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("/invoice-1") }),
+    expect(fixture.outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ dedupeKey: "hosting-renewal:invoice-1:whatsapp" }),
     );
   });
 
@@ -121,6 +117,6 @@ describe("HostingExpiryJobService", () => {
 
     expect(fixture.renewalPayment.tryPay).toHaveBeenCalledWith("user-1", "invoice-1");
     expect(fixture.hostingServers.updateAccountStatus).not.toHaveBeenCalled();
-    expect(fixture.whatsapp.sendSystemText).not.toHaveBeenCalled();
+    expect(fixture.outbox.enqueue).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import Redis from "ioredis";
 export const QUEUE_CONNECTION = "QUEUE_CONNECTION";
 export const DEFAULT_QUEUE = "DEFAULT_QUEUE";
 export const LIFECYCLE_QUEUE = "LIFECYCLE_QUEUE";
+export const NOTIFICATION_QUEUE = "NOTIFICATION_QUEUE";
 
 const logger = new Logger("QueueModule");
 let redisUnavailableLogged = false;
@@ -107,8 +108,14 @@ async function createOptionalQueue(
       useFactory: async (configService: ConfigService): Promise<Queue | null> =>
         createOptionalQueue(configService, "vexira-lifecycle"),
     },
+    {
+      provide: NOTIFICATION_QUEUE,
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService): Promise<Queue | null> =>
+        createOptionalQueue(configService, "vexira-notifications"),
+    },
   ],
-  exports: [QUEUE_CONNECTION, DEFAULT_QUEUE, LIFECYCLE_QUEUE],
+  exports: [QUEUE_CONNECTION, DEFAULT_QUEUE, LIFECYCLE_QUEUE, NOTIFICATION_QUEUE],
 })
 export class QueueModule {}
 

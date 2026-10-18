@@ -186,6 +186,7 @@ export class HostingEmailService {
     invoiceId?: string;
     dueDate: Date;
     graceDays: number;
+    strict?: boolean;
   }): Promise<void> {
     const locale = this.resolveLocale(input);
     const copy = getHostingRenewalEmailCopy(locale);
@@ -246,6 +247,7 @@ export class HostingEmailService {
           error instanceof Error ? error.message : String(error)
         }`,
       );
+      if (input.strict) throw error;
     }
   }
 
