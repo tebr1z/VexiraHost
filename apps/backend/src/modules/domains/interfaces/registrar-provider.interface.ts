@@ -30,4 +30,8 @@ export interface RegistrarProvider {
   search(query: string): Promise<DomainSearchResult[]>;
   register(domain: string): Promise<RegistrarRegistrationResult>;
   initiateTransfer(domain: string, authCode: string): Promise<RegistrarTransferResult>;
+  renew?(domain: string, years?: number): Promise<{ expiresAt: Date }>;
+  updateNameservers?(domain: string, nameservers: string[]): Promise<void>;
+  registerGlue?(domain: string, host: string, ip: string): Promise<void>;
+  defaultDnsRecords(domain: string): RegistrarDnsRecord[];
 }

@@ -13,6 +13,7 @@ import {
 } from "class-validator";
 
 const INTEGRATION_PROVIDER_VALUES = ["mock", "real", "stripe", "whm"] as const;
+const REGISTRAR_PROVIDER_VALUES = ["mock", "real", "namesilo"] as const;
 const PAYMENT_PROVIDER_VALUES = ["mock", "kapital", "epoint"] as const;
 const KAPITAL_ENVIRONMENT_VALUES = ["test", "production"] as const;
 
@@ -59,7 +60,7 @@ export class SectionBlockDto {
 export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
-  @IsIn(INTEGRATION_PROVIDER_VALUES)
+  @IsIn(REGISTRAR_PROVIDER_VALUES)
   registrarProvider?: string;
 
   @IsOptional()

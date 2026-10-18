@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { DomainsController } from "./controller/domains.controller";
 import { CloudflareDnsProvider } from "./providers/cloudflare-dns.provider";
 import { MockRegistrarProvider } from "./providers/mock-registrar.provider";
+import { NameSiloRegistrarProvider } from "./providers/namesilo-registrar.provider";
 import { PowerDnsProvider } from "./providers/powerdns.provider";
 import { DomainsRepository } from "./repository/domains.repository";
 import { TldPricingRepository } from "./repository/tld-pricing.repository";
@@ -11,6 +12,7 @@ import { DomainBillingService } from "./service/domain-billing.service";
 import { DomainEmailService } from "./service/domain-email.service";
 import { DomainExpiryJobService } from "./service/domain-expiry-job.service";
 import { DomainsService } from "./service/domains.service";
+import { RegistrarService } from "./service/registrar.service";
 
 import { AuthModule } from "@/modules/auth/auth.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
@@ -23,9 +25,12 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     DomainsRepository,
     TldPricingRepository,
     MockRegistrarProvider,
+    NameSiloRegistrarProvider,
+    RegistrarService,
     CloudflareDnsProvider,
     PowerDnsProvider,
     AuthoritativeDnsService,
+    RegistrarService,
     DomainEmailService,
     DomainBillingService,
     DomainExpiryJobService,

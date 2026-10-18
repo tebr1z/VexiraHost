@@ -11,7 +11,6 @@ import * as bcrypt from "bcryptjs";
 
 import type { UpdateDnsRecordsDto, UpdateNameserversDto, UpdateNsGlueDto } from "../dto";
 import { CloudflareDnsProvider } from "../providers/cloudflare-dns.provider";
-import { MockRegistrarProvider } from "../providers/mock-registrar.provider";
 import { DomainsRepository } from "../repository/domains.repository";
 import { normalizeDnsRecords } from "../utils/dns-record.util";
 import {
@@ -22,6 +21,7 @@ import {
 
 import { AuthoritativeDnsService } from "./authoritative-dns.service";
 import { DomainEmailService } from "./domain-email.service";
+import { RegistrarService } from "./registrar.service";
 
 import { SiteAccessService } from "@/modules/auth/service/site-access.service";
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
@@ -100,7 +100,7 @@ function mapDomain(domain: {
 export class DomainsService {
   constructor(
     private readonly domainsRepository: DomainsRepository,
-    private readonly registrar: MockRegistrarProvider,
+    private readonly registrar: RegistrarService,
     private readonly domainEmailService: DomainEmailService,
     private readonly staffAlerts: StaffAlertService,
     private readonly siteAccessService: SiteAccessService,
@@ -319,6 +319,9 @@ export class DomainsService {
     }
 
     const previousNameservers = [...domain.nameservers];
+    if (domain.managementMode === DomainManagementMode.REGISTRAR) {
+      await this.registrar.updateNameservers(domain.name, normalized);
+    }
     const updated = await this.domainsRepository.updateDomain(id, {
       nameservers: normalized,
     });
@@ -375,6 +378,13 @@ export class DomainsService {
 
     const previousGlue = parseNsGlueRecords(domain.nsGlueRecords);
     const previousNameservers = [...domain.nameservers];
+
+    if (domain.managementMode === DomainManagementMode.REGISTRAR) {
+      for (const entry of entries) {
+        await this.registrar.registerGlue(domain.name, entry.host, entry.ip);
+      }
+      await this.registrar.updateNameservers(domain.name, normalizedNameservers);
+    }
 
     const updated = await this.domainsRepository.updateDomain(id, {
       nsGlueRecords: entries as unknown as Prisma.InputJsonValue,
