@@ -1418,6 +1418,7 @@ model ManagedServer {
   sshPort               Int                 @default(22)
   sshUsername           String
   sshPasswordEnc        String
+  sshHostFingerprint    String?
   packageCode           String              @default("CUSTOM")
   selectedFeatures      String[]            @default([])
   installedFeatures     String[]            @default([])

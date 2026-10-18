@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 
@@ -15,6 +16,9 @@ export type SshConnectionOptions = {
   port?: number;
   username: string;
   password: string;
+  /** SHA-256 host key fingerprint pinned after the first trusted connection. */
+  expectedHostFingerprint?: string | null;
+  onHostFingerprint?: (fingerprint: string) => void;
 };
 
 const RETRYABLE_SSH_ERRORS = [
@@ -36,6 +40,19 @@ const SSH_TRANSPORT_AUTH_ERRORS = [
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function normalizedFingerprint(value: string): string {
+  return value
+    .trim()
+    .replace(/^SHA256:/i, "")
+    .toLowerCase();
+}
+
+export function matchesSshHostFingerprint(actual: string, expected: string): boolean {
+  const actualBytes = Buffer.from(normalizedFingerprint(actual), "utf8");
+  const expectedBytes = Buffer.from(normalizedFingerprint(expected), "utf8");
+  return actualBytes.length === expectedBytes.length && timingSafeEqual(actualBytes, expectedBytes);
 }
 
 export function formatSshTarget(options: SshConnectionOptions): string {
@@ -91,6 +108,11 @@ function wrapSshError(error: unknown, options: SshConnectionOptions, action: str
       `SSH ${action} failed for ${target}: authentication failed. Check SSH username/password in admin.`,
     );
   }
+  if (base.includes("Host denied") || base.includes("verification failed")) {
+    return new Error(
+      `SSH ${action} blocked for ${target}: server host key changed. Verify the server identity before replacing the pinned fingerprint.`,
+    );
+  }
   if (base.includes("Unable to exec") || base.includes("Channel open failure")) {
     return new Error(
       `SSH ${action} failed for ${target}: server rejected the command channel (${base}). Retrying usually helps; if it persists, check OpenSSH MaxSessions on the server.`,
@@ -126,6 +148,14 @@ function buildConnectConfig(options: SshConnectionOptions) {
     keepaliveInterval: 10_000,
     keepaliveCountMax: 5,
     tryKeyboard: false,
+    hostHash: "sha256",
+    hostVerifier: (fingerprint: string) => {
+      const labeled = `SHA256:${fingerprint}`;
+      options.onHostFingerprint?.(labeled);
+      return options.expectedHostFingerprint
+        ? matchesSshHostFingerprint(labeled, options.expectedHostFingerprint)
+        : true;
+    },
   };
 }
 
@@ -332,6 +362,20 @@ export class SshSession {
 export class SshService {
   private readonly logger = new Logger(SshService.name);
   private readonly maxAttempts = 3;
+
+  async getHostFingerprint(options: SshConnectionOptions): Promise<string> {
+    let observed = "";
+    const conn = await connectClient({
+      ...options,
+      onHostFingerprint: (fingerprint) => {
+        observed = fingerprint;
+      },
+    });
+    conn.end();
+    if (!observed)
+      throw new Error(`SSH host fingerprint was not received for ${formatSshTarget(options)}`);
+    return observed;
+  }
 
   async withSession<T>(
     options: SshConnectionOptions,

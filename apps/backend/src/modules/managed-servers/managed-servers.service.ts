@@ -184,6 +184,7 @@ export class ManagedServersService implements OnModuleInit, OnModuleDestroy {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.host !== undefined) data.host = dto.host.trim().toLowerCase();
     if (dto.sshPort !== undefined) data.sshPort = dto.sshPort;
+    if (dto.host !== undefined || dto.sshPort !== undefined) data.sshHostFingerprint = null;
     if (dto.sshUsername !== undefined) data.sshUsername = dto.sshUsername.trim();
     if (dto.sshPassword !== undefined) data.sshPasswordEnc = encryptSecret(dto.sshPassword);
     if (dto.monitoringEnabled !== undefined) data.monitoringEnabled = dto.monitoringEnabled;
@@ -311,6 +312,7 @@ export class ManagedServersService implements OnModuleInit, OnModuleDestroy {
       port: server.sshPort,
       username: server.sshUsername,
       password: decryptSecret(server.sshPasswordEnc),
+      expectedHostFingerprint: server.sshHostFingerprint,
     };
   }
 
@@ -387,6 +389,14 @@ export class ManagedServersService implements OnModuleInit, OnModuleDestroy {
       log: "Checking SSH connection and server resources…\n",
     });
     try {
+      if (!this.mockRemote) {
+        const fingerprint = await this.ssh.getHostFingerprint(await this.credentials(server));
+        if (!server.sshHostFingerprint) {
+          await this.repository.update(server.id, { sshHostFingerprint: fingerprint });
+          server.sshHostFingerprint = fingerprint;
+          await this.appendLog(taskId, `Pinned SSH host key ${fingerprint}.\n`);
+        }
+      }
       const probe = await this.probe(server);
       await this.repository.update(server.id, {
         ...probe,
