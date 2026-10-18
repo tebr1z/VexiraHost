@@ -3,7 +3,6 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Manrope, Newsreader } from "next/font/google";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
 
@@ -11,21 +10,6 @@ import { DesignNav } from "./design-nav";
 import { ProjectMock } from "./design-visuals";
 
 import "./design.css";
-
-const display = Newsreader({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-vd-display",
-  display: "swap",
-});
-
-const body = Manrope({
-  subsets: ["latin", "latin-ext", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-vd-body",
-  display: "swap",
-});
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(useGSAP, ScrollTrigger);
@@ -47,7 +31,7 @@ function SplitLine({ text, className }: { text: string; className: string }): Re
   );
 }
 
-export function DesignExperience(): React.ReactElement {
+export function DesignExperience({ fontClassName }: { fontClassName: string }): React.ReactElement {
   const t = useTranslations("design");
   const rootRef = useRef<HTMLDivElement>(null);
   const techRef = useRef<HTMLElement>(null);
@@ -364,7 +348,7 @@ export function DesignExperience(): React.ReactElement {
   );
 
   return (
-    <div ref={rootRef} className={`vd-root vd-grain ${display.variable} ${body.variable}`}>
+    <div ref={rootRef} className={`vd-root vd-grain ${fontClassName}`}>
       <div className="vd-cursor" />
       <div className="vd-cursor-dot" />
       <div className="vd-progress" />

@@ -1,9 +1,25 @@
 import type { Metadata } from "next";
+import { Manrope, Newsreader } from "next/font/google";
 import { getTranslations } from "next-intl/server";
 
 import { DesignExperience } from "@/components/design/design-experience";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbJsonLd, buildPageMetadata, organizationJsonLd } from "@/lib/seo";
+
+const designDisplayFont = Newsreader({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-vd-display",
+  display: "swap",
+});
+
+const designBodyFont = Manrope({
+  subsets: ["latin", "latin-ext", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-vd-body",
+  display: "swap",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("design");
@@ -29,7 +45,9 @@ export default async function DesignPage(): Promise<React.ReactElement> {
           ]),
         ]}
       />
-      <DesignExperience />
+      <DesignExperience
+        fontClassName={`${designDisplayFont.variable} ${designBodyFont.variable}`}
+      />
     </>
   );
 }
