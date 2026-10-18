@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { formControlClassName } from "@/components/ui";
+
 export interface ServerPlanFormValues {
   slug: string;
   name: string;
@@ -43,7 +45,10 @@ export function toServerPlanPayload(values: ServerPlanFormValues, includeSlug: b
     ramGb: Number(values.ramGb),
     diskGb: Number(values.diskGb),
     bandwidthGbps: Number(values.bandwidthGbps),
-    regions: values.regions.split(",").map((r) => r.trim()).filter(Boolean),
+    regions: values.regions
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean),
     price: Number(values.price),
     isActive: values.isActive,
     sortOrder: Number(values.sortOrder) || 0,
@@ -86,31 +91,53 @@ export function ServerPlanForm({
     }
   };
 
-  const field = "h-11 w-full rounded-xl border border-outline-variant px-4 text-sm";
+  const field = formControlClassName;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-outline-variant/50 bg-surface p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="border-outline-variant/50 bg-surface space-y-4 rounded-2xl border p-6"
+    >
       {includeSlug && (
         <div>
           <label className="mb-1 block text-sm font-medium">{tf("slug")}</label>
-          <input value={values.slug} onChange={(e) => set("slug", e.target.value)} required className={field} />
+          <input
+            value={values.slug}
+            onChange={(e) => set("slug", e.target.value)}
+            required
+            className={field}
+          />
         </div>
       )}
       <div>
         <label className="mb-1 block text-sm font-medium">{tf("name")}</label>
-        <input value={values.name} onChange={(e) => set("name", e.target.value)} required className={field} />
+        <input
+          value={values.name}
+          onChange={(e) => set("name", e.target.value)}
+          required
+          className={field}
+        />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">{tf("type")}</label>
-          <select value={values.type} onChange={(e) => set("type", e.target.value)} className={field}>
+          <select
+            value={values.type}
+            onChange={(e) => set("type", e.target.value)}
+            className={field}
+          >
             <option value="VPS">VPS</option>
             <option value="DEDICATED">Dedicated</option>
           </select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">{tf("pricePerMonth")}</label>
-          <input value={values.price} onChange={(e) => set("price", e.target.value)} required className={field} />
+          <input
+            value={values.price}
+            onChange={(e) => set("price", e.target.value)}
+            required
+            className={field}
+          />
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
@@ -134,14 +161,26 @@ export function ServerPlanForm({
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{tf("regionsComma")}</label>
-        <input value={values.regions} onChange={(e) => set("regions", e.target.value)} className={field} />
+        <input
+          value={values.regions}
+          onChange={(e) => set("regions", e.target.value)}
+          className={field}
+        />
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={values.isActive} onChange={(e) => set("isActive", e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={values.isActive}
+          onChange={(e) => set("isActive", e.target.checked)}
+        />
         {tf("active")}
       </label>
-      {error && <p className="text-sm text-error">{error}</p>}
-      <button type="submit" disabled={loading} className="h-11 rounded-xl bg-primary px-6 text-sm font-semibold text-on-primary disabled:opacity-60">
+      {error && <p className="text-error text-sm">{error}</p>}
+      <button
+        type="submit"
+        disabled={loading}
+        className="bg-primary text-on-primary h-11 rounded-xl px-6 text-sm font-semibold disabled:opacity-60"
+      >
         {loading ? tf("saving") : submitLabel}
       </button>
     </form>

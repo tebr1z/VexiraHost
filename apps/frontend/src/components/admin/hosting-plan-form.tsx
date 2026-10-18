@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { formControlClassName } from "@/components/ui";
 import {
   listHostingServers,
   listRemotePleskPlans,
@@ -246,7 +247,7 @@ export function HostingPlanForm({
     }
   };
 
-  const field = "h-11 w-full rounded-xl border border-outline-variant px-4 text-sm";
+  const field = formControlClassName;
   const numericFields: [keyof HostingPlanFormValues, string][] = [
     ["diskGb", tf("diskGb")],
     ["bandwidthGb", tf("bandwidthGb")],

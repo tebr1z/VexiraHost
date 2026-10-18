@@ -10,6 +10,7 @@ export {
   TableRowActions,
 } from "./edit-icon-button";
 export { EmptyState } from "./empty-state";
+export { Field, Input, Select, Textarea, formControlClassName } from "./form-control";
 export { LoadingSkeleton, LoadingSkeletonList } from "./loading-skeleton";
 export { PageHeader } from "./page-header";
 export { StatCard } from "./stat-card";

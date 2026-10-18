@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { formControlClassName } from "@/components/ui";
 import { listAdminProducts, type AdminProduct } from "@/features/admin";
 
 export interface PromoCodeFormValues {
@@ -149,7 +150,7 @@ export function PromoCodeForm({
       .catch(() => setProducts([]));
   }, []);
 
-  const inputClass = "w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5";
+  const inputClass = formControlClassName;
 
   return (
     <form

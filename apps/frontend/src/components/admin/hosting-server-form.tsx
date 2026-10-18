@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { formControlClassName } from "@/components/ui";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 export interface HostingServerFormValues {
@@ -350,8 +351,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputClass =
-  "h-11 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 text-sm";
+const inputClass = formControlClassName;
 
 export function toServerPayload(values: HostingServerFormValues, isEdit = false) {
   const payload: Record<string, unknown> = {

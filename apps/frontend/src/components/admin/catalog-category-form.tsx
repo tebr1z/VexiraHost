@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { formControlClassName } from "@/components/ui";
 import { slugify } from "@/lib/slug";
 
 export interface CatalogCategoryFormValues {
@@ -95,7 +96,7 @@ export function CatalogCategoryForm({
     ...initialValues,
   });
   const [saving, setSaving] = useState(false);
-  const inputClass = "w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-2.5";
+  const inputClass = formControlClassName;
 
   return (
     <form

@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import { CampaignRichEditor, htmlToPlainText } from "./campaign-rich-editor";
 
+import { formControlClassName } from "@/components/ui";
+
 export type CampaignFormValues = {
   subject: string;
   previewText: string;
@@ -62,7 +64,7 @@ export function CampaignForm({
     }
   };
 
-  const field = "h-11 w-full rounded-xl border border-outline-variant px-4 text-sm";
+  const field = formControlClassName;
 
   return (
     <form

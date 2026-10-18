@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { formControlClassName } from "@/components/ui";
 import {
   listAdminHostingPlans,
   listAdminCatalogCategories,
@@ -346,7 +347,7 @@ export function ProductForm({
     }
   };
 
-  const field = "h-11 w-full rounded-xl border border-outline-variant px-4 text-sm";
+  const field = formControlClassName;
   const area = "w-full rounded-xl border border-outline-variant px-4 py-3 text-sm";
 
   return (

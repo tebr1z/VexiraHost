@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { PageHeader } from "@/components/ui";
+import { Field, Input, PageHeader, Select } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import {
   createManagedServer,
@@ -16,6 +16,7 @@ import {
   type ManagedServer,
   type ManagedServerCatalog,
   type ManagedServerFeature,
+  type ManagedServerTask,
 } from "@/features/managed-servers/managed-servers.service";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/cn";
@@ -34,6 +35,27 @@ const initialForm: CreateManagedServerInput = {
 function percent(used: number | null, total: number | null): number {
   if (!used || !total) return 0;
   return Math.min(100, Math.max(0, Math.round((used / total) * 100)));
+}
+
+const MAX_VISIBLE_LOG_LENGTH = 12_000;
+
+function readableLog(value: string): string {
+  const normalized = Array.from(value)
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code === 9 || code === 10 || code === 13 || code >= 32;
+    })
+    .join("");
+  return normalized.length > MAX_VISIBLE_LOG_LENGTH
+    ? `…\n${normalized.slice(-MAX_VISIBLE_LOG_LENGTH)}`
+    : normalized;
+}
+
+function taskTone(status: ManagedServerTask["status"]): string {
+  if (status === "SUCCESS") return "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300";
+  if (status === "FAILED") return "bg-red-500/12 text-red-700 dark:text-red-300";
+  if (status === "WAITING_APPROVAL") return "bg-amber-500/12 text-amber-700 dark:text-amber-300";
+  return "bg-blue-500/12 text-blue-700 dark:text-blue-300";
 }
 
 function Metric({
@@ -73,6 +95,7 @@ export default function ManagedServersPage(): React.ReactElement | null {
   useRequireAuth();
   const t = useTranslations("managedServers");
   const td = useTranslations("dashboard");
+  const locale = useLocale();
   const [catalog, setCatalog] = useState<ManagedServerCatalog | null>(null);
   const [servers, setServers] = useState<ManagedServer[]>([]);
   const [form, setForm] = useState(initialForm);
@@ -209,13 +232,17 @@ export default function ManagedServersPage(): React.ReactElement | null {
         ].map((item) => (
           <article
             key={item.title}
-            className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 shadow-sm"
+            className="group relative overflow-hidden rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--accent)_28%,var(--separator))]"
           >
-            <span className="material-symbols-outlined text-[22px] text-[var(--accent)]">
-              {item.icon}
-            </span>
-            <h2 className="mt-3 text-sm font-semibold">{item.title}</h2>
-            <p className="mt-1 text-xs leading-5 text-[var(--label-secondary)]">{item.body}</p>
+            <div className="flex gap-3">
+              <span className="material-symbols-outlined bg-[var(--accent)]/10 grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[21px] text-[var(--accent)]">
+                {item.icon}
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold">{item.title}</h2>
+                <p className="mt-1 text-xs leading-5 text-[var(--label-secondary)]">{item.body}</p>
+              </div>
+            </div>
           </article>
         ))}
       </section>
@@ -223,9 +250,9 @@ export default function ManagedServersPage(): React.ReactElement | null {
       {showCreate ? (
         <form
           onSubmit={submit}
-          className="rounded-3xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm sm:p-7"
+          className="overflow-hidden rounded-3xl border border-[var(--separator)] bg-[var(--bg-elevated)] shadow-[0_20px_55px_color-mix(in_srgb,black_7%,transparent)]"
         >
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 border-b border-[var(--separator)] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_9%,transparent),transparent_58%)] p-5 sm:p-7">
             <div>
               <h2 className="text-lg font-semibold">{t("formTitle")}</h2>
               <p className="mt-1 text-sm text-[var(--label-secondary)]">{t("formDescription")}</p>
@@ -234,67 +261,58 @@ export default function ManagedServersPage(): React.ReactElement | null {
               {t("encryptedBadge")}
             </span>
           </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">{t("serverName")}</span>
-              <input
+          <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-7 lg:grid-cols-3">
+            <Field label={t("serverName")} required>
+              <Input
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="apple-input h-11 w-full"
                 placeholder={t("serverNamePlaceholder")}
               />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">{t("host")}</span>
-              <input
+            </Field>
+            <Field label={t("host")} required>
+              <Input
                 required
+                inputMode="url"
+                spellCheck={false}
                 value={form.host}
                 onChange={(e) => setForm({ ...form, host: e.target.value })}
-                className="apple-input h-11 w-full"
                 placeholder="203.0.113.10"
               />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">{t("port")}</span>
-              <input
+            </Field>
+            <Field label={t("port")} required>
+              <Input
                 required
                 type="number"
                 min={1}
                 max={65535}
                 value={form.sshPort}
                 onChange={(e) => setForm({ ...form, sshPort: Number(e.target.value) })}
-                className="apple-input h-11 w-full"
               />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">{t("username")}</span>
-              <input
+            </Field>
+            <Field label={t("username")} required>
+              <Input
                 required
                 autoComplete="username"
+                spellCheck={false}
                 value={form.sshUsername}
                 onChange={(e) => setForm({ ...form, sshUsername: e.target.value })}
-                className="apple-input h-11 w-full"
               />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">{t("password")}</span>
-              <input
+            </Field>
+            <Field label={t("password")} hint={t("passwordHint")} required>
+              <Input
                 required
                 minLength={8}
                 type="password"
                 autoComplete="new-password"
                 value={form.sshPassword}
                 onChange={(e) => setForm({ ...form, sshPassword: e.target.value })}
-                className="apple-input h-11 w-full"
               />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">{t("package")}</span>
-              <select
+            </Field>
+            <Field label={t("package")}>
+              <Select
                 value={form.packageCode}
                 onChange={(e) => setForm({ ...form, packageCode: e.target.value })}
-                className="apple-input h-11 w-full"
               >
                 <option value="CUSTOM">{t("customPackage")}</option>
                 {catalog?.packages.map((item) => (
@@ -302,12 +320,12 @@ export default function ManagedServersPage(): React.ReactElement | null {
                     {item.name}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </Field>
           </div>
-          <div className="mt-5">
-            <p className="text-sm font-medium">{t("individualTools")}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
+          <div className="border-t border-[var(--separator)] px-5 py-5 sm:px-7">
+            <p className="app-field-label">{t("individualTools")}</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {catalog?.features.map((feature) => {
                 const included = packageFeatures.includes(feature);
                 const checked = included || form.selectedFeatures.includes(feature);
@@ -315,7 +333,7 @@ export default function ManagedServersPage(): React.ReactElement | null {
                   <label
                     key={feature}
                     className={cn(
-                      "inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm",
+                      "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
                       checked
                         ? "bg-[var(--accent)]/8 border-[var(--accent)] text-[var(--accent)]"
                         : "border-[var(--separator)]",
@@ -341,7 +359,7 @@ export default function ManagedServersPage(): React.ReactElement | null {
               })}
             </div>
           </div>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-[var(--bg-secondary)]/55 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--separator)] px-5 py-4 sm:px-7">
             <p className="max-w-2xl text-xs leading-5 text-[var(--label-secondary)]">
               {t("credentialNotice")}
             </p>
@@ -481,13 +499,13 @@ export default function ManagedServersPage(): React.ReactElement | null {
                     </button>
                   </div>
                   {activeTask ? (
-                    <div className="bg-blue-500/8 mt-4 rounded-2xl border border-blue-500/20 p-4">
+                    <div className="mt-4 rounded-2xl border border-blue-500/20 bg-blue-500/[0.07] p-4">
                       <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
                         {t("activeTask", { type: activeTask.type, status: activeTask.status })}
                       </p>
                       {activeTask.log ? (
-                        <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs text-[var(--label-secondary)]">
-                          {activeTask.log}
+                        <pre className="app-log-console mt-3 max-h-44 overflow-auto whitespace-pre-wrap rounded-xl p-3 font-mono text-[11px] leading-5">
+                          {readableLog(activeTask.log)}
                         </pre>
                       ) : null}
                     </div>
@@ -604,6 +622,69 @@ export default function ManagedServersPage(): React.ReactElement | null {
                       </div>
                     </section>
                   </div>
+                  <section className="mt-5 overflow-hidden rounded-2xl border border-[var(--separator)]">
+                    <div className="bg-[var(--bg-secondary)]/60 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--separator)] px-4 py-3.5">
+                      <div>
+                        <h3 className="flex items-center gap-2 text-sm font-semibold">
+                          <span className="material-symbols-outlined text-[18px] text-[var(--accent)]">
+                            terminal
+                          </span>
+                          {t("activityTitle")}
+                        </h3>
+                        <p className="mt-0.5 text-[11px] text-[var(--label-tertiary)]">
+                          {t("activityDescription")}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[var(--fill-secondary)] px-2.5 py-1 text-xs font-semibold">
+                        {server.tasks?.length ?? 0}
+                      </span>
+                    </div>
+                    <div className="divide-y divide-[var(--separator)]">
+                      {server.tasks?.length ? (
+                        server.tasks.slice(0, 6).map((task, index) => (
+                          <details
+                            key={task.id}
+                            className="group px-4 py-3"
+                            open={index === 0 && Boolean(task.log)}
+                          >
+                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <span
+                                  className={cn(
+                                    "rounded-full px-2.5 py-1 text-[10px] font-bold",
+                                    taskTone(task.status),
+                                  )}
+                                >
+                                  {task.status}
+                                </span>
+                                <span className="truncate font-mono text-xs font-semibold">
+                                  {task.type}
+                                </span>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2 text-[11px] text-[var(--label-tertiary)]">
+                                <time dateTime={task.createdAt}>
+                                  {new Intl.DateTimeFormat(locale, {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  }).format(new Date(task.createdAt))}
+                                </time>
+                                <span className="material-symbols-outlined text-[18px] transition-transform group-open:rotate-180">
+                                  expand_more
+                                </span>
+                              </div>
+                            </summary>
+                            <pre className="app-log-console mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-xl p-3 font-mono text-[11px] leading-5">
+                              {task.log ? readableLog(task.log) : t("logEmpty")}
+                            </pre>
+                          </details>
+                        ))
+                      ) : (
+                        <p className="px-4 py-8 text-center text-xs text-[var(--label-tertiary)]">
+                          {t("noActivity")}
+                        </p>
+                      )}
+                    </div>
+                  </section>
                 </div>
               </article>
             );
