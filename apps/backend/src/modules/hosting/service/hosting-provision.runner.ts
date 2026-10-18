@@ -8,6 +8,7 @@ import { HostingRepository } from "../repository/hosting.repository";
 import { PROVISION_STAGES } from "../types/provision-stage";
 import { calculateHostingExpiry } from "../utils/hosting-renewal.util";
 import { isMockPanelServer } from "../utils/panel-endpoint.util";
+import { withProvisionRetry } from "../utils/provision-retry.util";
 
 import { AuthoritativeDnsService } from "@/modules/domains/service/authoritative-dns.service";
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
@@ -59,20 +60,6 @@ export class HostingProvisionRunner {
     try {
       await this.setStage(accountId, PROVISION_STAGES.CONNECTING_PANEL, null);
 
-      if (server.panel === "PLESK" && !isMockPanelServer(server) && server.whmPasswordEnc) {
-        const auth = await testPleskApiAuth({
-          hostname: server.hostname,
-          ipAddress: server.ipAddress,
-          panel: "PLESK",
-          whmUsername: server.whmUsername,
-          whmPasswordEnc: server.whmPasswordEnc,
-          apiTokenEnc: server.apiTokenEnc,
-        });
-        if (!auth.ok) {
-          throw new Error(auth.message);
-        }
-      }
-
       const userRecord = await this.hostingRepository.findUserEmail(account.userId);
       if (!userRecord?.email) {
         throw new Error("User email is required for hosting provisioning");
@@ -81,19 +68,52 @@ export class HostingProvisionRunner {
       await this.setStage(accountId, PROVISION_STAGES.CREATING_CUSTOMER, null);
       await this.setStage(accountId, PROVISION_STAGES.CREATING_WEBSPACE, null);
 
-      const result = await this.controlPanel.provision({
-        server,
-        primaryDomain: account.primaryDomain,
-        username: account.username,
-        panel: plan.panel,
-        userEmail: userRecord.email,
-        planName: plan.pleskPlanName ?? undefined,
-        diskGb: plan.diskGb,
-        bandwidthGb: plan.bandwidthGb,
-        maxDomains: plan.maxDomains,
-        maxEmails: plan.maxEmails,
-        maxDatabases: plan.maxDatabases,
-      });
+      const { value: result, attempts } = await withProvisionRetry(
+        async () => {
+          if (server.panel === "PLESK" && !isMockPanelServer(server) && server.whmPasswordEnc) {
+            const auth = await testPleskApiAuth({
+              hostname: server.hostname,
+              ipAddress: server.ipAddress,
+              panel: "PLESK",
+              whmUsername: server.whmUsername,
+              whmPasswordEnc: server.whmPasswordEnc,
+              apiTokenEnc: server.apiTokenEnc,
+            });
+            if (!auth.ok) throw new Error(auth.message);
+          }
+
+          return this.controlPanel.provision({
+            server,
+            primaryDomain: account.primaryDomain,
+            username: account.username,
+            panel: plan.panel,
+            userEmail: userRecord.email,
+            planName: plan.pleskPlanName ?? undefined,
+            diskGb: plan.diskGb,
+            bandwidthGb: plan.bandwidthGb,
+            maxDomains: plan.maxDomains,
+            maxEmails: plan.maxEmails,
+            maxDatabases: plan.maxDatabases,
+          });
+        },
+        {
+          maxAttempts: 3,
+          onRetry: async ({ attempt, maxAttempts, error, nextDelayMs }) => {
+            this.logger.warn(
+              `Provisioning ${accountId} attempt ${attempt}/${maxAttempts} failed; retrying in ${nextDelayMs}ms: ${error.message}`,
+            );
+            await this.setStage(
+              accountId,
+              PROVISION_STAGES.CONNECTING_PANEL,
+              `Temporary panel error. Retry ${attempt + 1}/${maxAttempts} scheduled.`,
+            );
+          },
+        },
+      );
+
+      if (attempts > 1) {
+        this.logger.log(`Provisioning ${accountId} recovered after ${attempts} attempts`);
+      }
 
       await this.setStage(accountId, PROVISION_STAGES.FINALIZING, null);
 
