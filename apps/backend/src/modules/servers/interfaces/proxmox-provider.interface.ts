@@ -1,4 +1,4 @@
-import type { ServerPowerAction, ServerStatus } from "@prisma/client";
+import type { ServerPowerAction, ServerStatus, ServerType } from "@prisma/client";
 
 export interface ProxmoxProvisionInput {
   hostname: string;
@@ -7,6 +7,7 @@ export interface ProxmoxProvisionInput {
   diskGb: number;
   region: string;
   osTemplate: string;
+  type: ServerType;
 }
 
 export interface ProxmoxProvisionResult {
@@ -36,5 +37,5 @@ export interface ProxmoxProvider {
     action: ServerPowerAction,
     currentStatus: ServerStatus,
   ): Promise<ServerStatus>;
-  getMetrics(serverId: string, ramTotalGb: number): ProxmoxMetrics;
+  getMetrics(vmId: string, node: string, ramTotalGb: number): Promise<ProxmoxMetrics>;
 }

@@ -69,7 +69,7 @@ export class MockProxmoxProvider implements ProxmoxProvider {
     }
   }
 
-  getMetrics(serverId: string, ramTotalGb: number): ProxmoxMetrics {
+  async getMetrics(serverId: string, _node: string, ramTotalGb: number): Promise<ProxmoxMetrics> {
     assertMockProviderAllowed("Mock Proxmox provider");
 
     const seed = hashSeed(serverId);

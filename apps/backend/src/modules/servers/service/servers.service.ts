@@ -7,8 +7,9 @@
 import type { Server, ServerPlan, ServerStatus, ServerType } from "@prisma/client";
 
 import type { ProvisionServerDto, ServerPowerDto } from "../dto";
-import { MockProxmoxProvider } from "../providers/mock-proxmox.provider";
 import { ServersRepository } from "../repository/servers.repository";
+
+import { ProxmoxGatewayService } from "./proxmox-gateway.service";
 
 const REGION_LABELS: Record<string, string> = {
   "fra-01": "Frankfurt (FRA-01)",
@@ -69,7 +70,7 @@ function mapServer(server: Server & { plan: ServerPlan }) {
 export class ServersService {
   constructor(
     private readonly serversRepository: ServersRepository,
-    private readonly proxmox: MockProxmoxProvider,
+    private readonly proxmox: ProxmoxGatewayService,
   ) {}
 
   listPlans(type?: ServerType) {
@@ -89,7 +90,10 @@ export class ServersService {
   async getMetrics(id: string, userId: string) {
     const server = await this.serversRepository.findByIdForUser(id, userId);
     if (!server) throw new NotFoundException("Server not found");
-    return this.proxmox.getMetrics(server.id, server.ramGb);
+    if (!server.proxmoxVmId || !server.proxmoxNode) {
+      throw new BadRequestException("Server is not fully provisioned");
+    }
+    return this.proxmox.getMetrics(server.proxmoxVmId, server.proxmoxNode, server.ramGb);
   }
 
   async provision(userId: string, dto: ProvisionServerDto) {
@@ -129,6 +133,7 @@ export class ServersService {
         diskGb: plan.diskGb,
         region: dto.region,
         osTemplate,
+        type: plan.type,
       });
 
       server = await this.serversRepository.updateServer(server.id, {

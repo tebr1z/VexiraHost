@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 
-import { MockProxmoxProvider } from "../providers/mock-proxmox.provider";
 import { ServersRepository } from "../repository/servers.repository";
+import { ProxmoxGatewayService } from "../service/proxmox-gateway.service";
 import { ServersService } from "../service/servers.service";
 
 describe("ServersService", () => {
@@ -12,7 +12,7 @@ describe("ServersService", () => {
       providers: [
         ServersService,
         { provide: ServersRepository, useValue: {} },
-        { provide: MockProxmoxProvider, useValue: {} },
+        { provide: ProxmoxGatewayService, useValue: {} },
       ],
     }).compile();
 
