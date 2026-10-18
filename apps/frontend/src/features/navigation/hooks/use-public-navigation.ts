@@ -45,14 +45,20 @@ function buildFallbackNavigation(
           href: "/licenses/antivirus",
           pathMatch: "/licenses/antivirus",
         },
+      ],
+    },
+    {
+      key: "email",
+      label: t("emailServices"),
+      items: [
         {
-          id: "licenses-google-workspace",
+          id: "email-google-workspace",
           label: t("licensesGoogleWorkspace"),
           href: "/email",
           pathMatch: "/email",
         },
         {
-          id: "licenses-webmail",
+          id: "email-webmail",
           label: t("licensesWebmail"),
           href: "/webmail",
           pathMatch: "/webmail",
@@ -98,10 +104,43 @@ function buildFallbackNavigation(
   ];
 }
 
+function isEmailItem(item: PublicNavGroup["items"][number]): boolean {
+  const searchable = `${item.id} ${item.href} ${item.pathMatch ?? ""}`.toLowerCase();
+  return (
+    searchable.includes("webmail") || searchable.includes("workspace") || item.href === "/email"
+  );
+}
+
+function organizeNavigation(groups: PublicNavGroup[], emailLabel: string): PublicNavGroup[] {
+  const emailItems = groups.flatMap((group) => group.items.filter(isEmailItem));
+  const cleaned = groups
+    .filter((group) => group.key !== "email")
+    .map((group) => ({ ...group, items: group.items.filter((item) => !isEmailItem(item)) }))
+    .filter((group) => group.items.length > 0);
+
+  if (emailItems.length > 0) {
+    const uniqueItems = emailItems.filter(
+      (item, index, items) =>
+        items.findIndex((candidate) => candidate.href === item.href) === index,
+    );
+    cleaned.push({ key: "email", label: emailLabel, items: uniqueItems });
+  }
+
+  const order = ["hostingServers", "email", "licenses", "whatsappApi", "catalog", "forumBlog"];
+  return cleaned.sort((a, b) => {
+    const aIndex = order.indexOf(a.key);
+    const bIndex = order.indexOf(b.key);
+    return (aIndex < 0 ? order.length : aIndex) - (bIndex < 0 ? order.length : bIndex);
+  });
+}
+
 export function usePublicNavigation(): PublicNavGroup[] {
   const locale = useLocale();
   const t = useTranslations("nav");
-  const fallbackNav = useMemo(() => buildFallbackNavigation(t), [t]);
+  const fallbackNav = useMemo(
+    () => organizeNavigation(buildFallbackNavigation(t), t("emailServices")),
+    [t],
+  );
   const [groups, setGroups] = useState<PublicNavGroup[]>(fallbackNav);
 
   useEffect(() => {
@@ -114,7 +153,7 @@ export function usePublicNavigation(): PublicNavGroup[] {
     listPublicNavigation(locale)
       .then((data) => {
         if (active && data.length > 0) {
-          setGroups(data);
+          setGroups(organizeNavigation(data, t("emailServices")));
         }
       })
       .catch(() => {
@@ -126,7 +165,7 @@ export function usePublicNavigation(): PublicNavGroup[] {
     return () => {
       active = false;
     };
-  }, [locale, fallbackNav]);
+  }, [locale, fallbackNav, t]);
 
   const access = useMaintenanceStore((s) => s.access);
   const role = useAuthStore((s) => s.user?.role);

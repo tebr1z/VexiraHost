@@ -145,6 +145,7 @@
     "hostingVpn": "VPN",
     "hostingN8n": "n8n Server",
     "hostingDirectDeploy": "Fayl Deploy",
+    "emailServices": "E-poçt",
     "forumBlog": "Forum/Blog",
     "forumLabel": "Forum",
     "blogLabel": "Blog",
@@ -3310,7 +3311,8 @@
     "desktopDescription": "Biznes prosesləri, daxili idarəetmə və xüsusi iş axınları üçün Windows, macOS və Linux proqramları.",
     "ctaTitle": "Layihənizi birlikdə planlaşdıraq",
     "ctaDescription": "Tələbləri analiz edib mərhələləri, texnologiyanı və real icra planını hazırlayaq.",
-    "ctaButton": "Layihəni müzakirə et"
+    "ctaButton": "Layihəni müzakirə et",
+    "technologyLabel": "İstifadə etdiyimiz texnologiyalar"
   },
   "managedServers": {
     "title": "Server idarəetməsi",

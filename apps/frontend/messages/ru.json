@@ -145,6 +145,7 @@
     "hostingVpn": "VPN",
     "hostingN8n": "n8n Сервер",
     "hostingDirectDeploy": "Deploy файлов",
+    "emailServices": "Почта",
     "forumBlog": "Форум/Блог",
     "forumLabel": "Форум",
     "blogLabel": "Блог",
@@ -3321,7 +3322,8 @@
     "desktopDescription": "Программы для Windows, macOS и Linux под бизнес-процессы и внутреннее управление.",
     "ctaTitle": "Спланируем ваш проект",
     "ctaDescription": "Проанализируем требования и подготовим этапы, технологии и реалистичный план реализации.",
-    "ctaButton": "Обсудить проект"
+    "ctaButton": "Обсудить проект",
+    "technologyLabel": "Технологии, с которыми мы работаем"
   },
   "managedServers": {
     "title": "Управление серверами",

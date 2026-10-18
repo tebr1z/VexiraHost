@@ -179,6 +179,16 @@
 .home-development-card h3 { margin-top: 34px; color: var(--home-ink); font-size: 22px; font-weight: 650; letter-spacing: -.035em; }
 .home-development-card p { position: relative; z-index: 1; max-width: 320px; margin-top: 11px; color: var(--home-muted); font-size: 12px; line-height: 1.85; }
 .home-development-stack { position: absolute; z-index: 1; left: 27px; bottom: 25px; color: var(--home-blue); font-size: 10px; font-weight: 650; letter-spacing: .02em; }
+.home-tech-banner { margin-top: 18px; overflow: hidden; border: 1px solid var(--home-line); border-radius: 18px; background: linear-gradient(135deg,var(--home-surface),var(--home-blue-soft)); box-shadow: inset 0 1px 0 rgba(255,255,255,.65); }
+.home-tech-banner-heading { display: flex; align-items: center; gap: 9px; padding: 13px 18px 11px; border-bottom: 1px solid var(--home-line); color: var(--home-muted); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+.home-tech-pulse { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.12); }
+.home-tech-viewport { overflow: hidden; padding-block: 13px; -webkit-mask-image: linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent); mask-image: linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent); }
+.home-tech-track { display: flex; width: max-content; animation: home-tech-scroll 42s linear infinite; }
+.home-tech-banner:hover .home-tech-track { animation-play-state: paused; }
+.home-tech-row { display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding-right: 10px; }
+.home-tech-item { display: inline-flex; min-height: 42px; align-items: center; gap: 9px; padding: 6px 13px 6px 7px; border: 1px solid color-mix(in srgb,var(--home-line) 88%,transparent); border-radius: 13px; background: color-mix(in srgb,var(--home-surface) 90%,transparent); color: var(--home-ink); font-size: 12px; font-weight: 650; white-space: nowrap; box-shadow: 0 3px 12px rgba(17,44,87,.035); }
+.home-tech-mark { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 9px; background: color-mix(in srgb,var(--tech-color) 13%,transparent); color: var(--tech-color); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: 10px; font-weight: 800; letter-spacing: -.04em; }
+@keyframes home-tech-scroll { to { transform: translateX(-50%); } }
 .home-development-cta { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 18px; padding: 24px 27px; border: 1px solid var(--home-line); border-radius: 18px; background: var(--home-blue-soft); }
 .home-development-cta strong { color: var(--home-ink); font-size: 17px; font-weight: 650; }
 .home-development-cta p { margin-top: 5px; color: var(--home-muted); font-size: 12px; }
@@ -318,6 +328,7 @@
   .home-deploy-flow > i { min-width: 3px; }
   .home-platform .home-section-heading h2 { font-size: 30px; }
   .home-development-cta { align-items: flex-start; flex-direction: column; }
+  .home-tech-banner-heading { padding-inline: 14px; }
   .home-frameworks small { width: 100%; margin: 4px 0 0; }
   .home-feature-row { gap: 14px; }
   .home-feature-row h3 { font-size: 17px; }
@@ -334,6 +345,12 @@
   .home-closing-inner { padding: 28px 23px; border-radius: 17px; }
   .home-closing h2 { font-size: 29px; }
   .home-closing h2 + p { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-tech-track { animation: none; }
+  .home-tech-viewport { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+  .home-tech-row[aria-hidden="true"] { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-button, .home-button svg, .home-text-link svg, .home-price-card, .home-category, .home-faq summary svg { transition: none; }

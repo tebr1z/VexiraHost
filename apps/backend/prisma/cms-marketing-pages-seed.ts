@@ -1080,7 +1080,7 @@ export async function seedVpsCmsPage(prisma: PrismaClient): Promise<void> {
             ),
           },
           {
-            icon: "snapshot",
+            icon: "photo_camera",
             label: l(
               "Anlık görüntü seçenekleri",
               "Snapshot options",

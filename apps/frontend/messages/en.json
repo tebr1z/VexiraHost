@@ -36,7 +36,8 @@
     "desktopDescription": "Windows, macOS and Linux software for business processes, internal management and custom workflows.",
     "ctaTitle": "Let’s plan your project",
     "ctaDescription": "We will analyse the requirements and prepare the phases, technology and a realistic delivery plan.",
-    "ctaButton": "Discuss the project"
+    "ctaButton": "Discuss the project",
+    "technologyLabel": "Technologies we work with"
   },
   "managedServers": {
     "title": "Server management",
@@ -241,6 +242,7 @@
     "hostingVpn": "VPN",
     "hostingN8n": "n8n Server",
     "hostingDirectDeploy": "File Deploy",
+    "emailServices": "Email",
     "forumBlog": "Forum/Blog",
     "forumLabel": "Forum",
     "blogLabel": "Blog",

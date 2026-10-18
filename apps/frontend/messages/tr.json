@@ -145,6 +145,7 @@
     "hostingVpn": "VPN",
     "hostingN8n": "n8n Sunucu",
     "hostingDirectDeploy": "Dosya Deploy",
+    "emailServices": "E-posta",
     "forumBlog": "Forum/Blog",
     "forumLabel": "Forum",
     "blogLabel": "Blog",
@@ -3311,7 +3312,8 @@
     "desktopDescription": "İş süreçleri, iç yönetim ve özel akışlar için Windows, macOS ve Linux uygulamaları.",
     "ctaTitle": "Projenizi birlikte planlayalım",
     "ctaDescription": "İhtiyaçları analiz edip aşamaları, teknolojiyi ve gerçekçi uygulama planını hazırlayalım.",
-    "ctaButton": "Projeyi görüşelim"
+    "ctaButton": "Projeyi görüşelim",
+    "technologyLabel": "Kullandığımız teknolojiler"
   },
   "managedServers": {
     "title": "Sunucu yönetimi",
