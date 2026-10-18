@@ -1267,6 +1267,20 @@
         "cloudflareDisconnected": "Cloudflare disconnected. The remote zone was not deleted.",
         "cloudflareFailed": "The Cloudflare operation failed.",
         "cloudflareSecurityHint": "The API token is never sent to the browser. Disconnecting does not delete the Cloudflare zone or its records.",
+        "dnssecTab": "DNSSEC",
+        "dnssecTitle": "DNSSEC protection",
+        "dnssecDescription": "Protect DNS answers with digital signatures and prevent forged DNS redirection.",
+        "dnssecActive": "active",
+        "dnssecInactive": "inactive",
+        "dnssecManagedRequired": "Connect Cloudflare or Vexira authoritative DNS before enabling DNSSEC.",
+        "dnssecDsRecords": "DS records for your registrar",
+        "dnssecRegistrarHint": "Add these DS values in your domain registrar's DNSSEC section. An incorrect DS record can make the domain unreachable.",
+        "dnssecEnable": "Enable DNSSEC",
+        "dnssecDisable": "Disable DNSSEC",
+        "dnssecEnabledMessage": "DNSSEC enabled. Confirm the DS record at your registrar.",
+        "dnssecDisabledMessage": "DNSSEC disabled.",
+        "dnssecFailed": "The DNSSEC operation failed.",
+        "dnssecSecurityHint": "Remove the DS record at your registrar before disabling DNSSEC, or the domain may become temporarily unreachable.",
         "settingsNavLabel": "Settings",
         "settingsTabNs": "NS settings",
         "settingsTabGlue": "Glue host (NS)",
@@ -2069,6 +2083,7 @@
             "hostinger": "Hostinger",
             "other": "Other"
           },
+          "extraNameserversHint": "Additional nameserver without a glue IP, when needed.",
           "glueHostsMin": "Enter at least two glue host records",
           "ipInvalidFormat": "IP address is not in a valid format. Enter IPv4 or IPv6.",
           "nsGlueTitle": "Glue host (NS)",
@@ -3366,7 +3381,8 @@
     "global": {
       "title": "Critical error",
       "description": "The application encountered a critical failure. Please refresh the page. If this continues, clear site data or try another browser.",
-      "retry": "Refresh page"
+      "retry": "Refresh page",
+      "details": "Technical details"
     },
     "theme": {
       "label": "Theme",

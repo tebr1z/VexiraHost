@@ -22,21 +22,24 @@ import {
   connectCloudflareDns,
   disconnectCloudflareDns,
   getCloudflareDnsStatus,
+  getDnssecStatus,
   getDnsRecords,
   getDomain,
   getNameserverStatus,
   syncCloudflareDns,
+  setDnssecEnabled,
   updateDnsRecords,
   updateNameservers,
   updateNsGlue,
   type CloudflareDnsStatus,
   type DnsRecord,
+  type DnssecStatus,
   type NameserverStatus,
   type UserDomain,
 } from "@/features/domains";
 import { Link } from "@/i18n/navigation";
 
-type SettingsPanel = "dns" | "nameservers" | "glue" | "cloudflare";
+type SettingsPanel = "dns" | "nameservers" | "glue" | "cloudflare" | "dnssec";
 
 function buildGlueFromDomain(domain: UserDomain): NsGlueEntry[] {
   if (domain.nsGlueRecords.length > 0) {
@@ -67,6 +70,7 @@ export default function DomainDetailPage(): React.ReactElement | null {
   const [activePanel, setActivePanel] = useState<SettingsPanel>("dns");
   const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
   const [cloudflareStatus, setCloudflareStatus] = useState<CloudflareDnsStatus | null>(null);
+  const [dnssecStatus, setDnssecStatus] = useState<DnssecStatus | null>(null);
   const [providerBusy, setProviderBusy] = useState(false);
   const [nameservers, setNameservers] = useState<string[]>(DEFAULT_NAMESERVERS);
   const [nameserverStatus, setNameserverStatus] = useState<NameserverStatus | null>(null);
@@ -93,6 +97,10 @@ export default function DomainDetailPage(): React.ReactElement | null {
     getCloudflareDnsStatus(domainId)
       .then(setCloudflareStatus)
       .catch(() => setCloudflareStatus(null));
+
+    getDnssecStatus(domainId)
+      .then(setDnssecStatus)
+      .catch(() => setDnssecStatus(null));
 
     getNameserverStatus(domainId)
       .then(setNameserverStatus)
@@ -295,6 +303,21 @@ export default function DomainDetailPage(): React.ReactElement | null {
     }
   };
 
+  const handleDnssecToggle = async (enabled: boolean) => {
+    setProviderBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await setDnssecEnabled(domainId, enabled);
+      setDnssecStatus(result);
+      setMessage(enabled ? tp("dnssecEnabledMessage") : tp("dnssecDisabledMessage"));
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : tp("dnssecFailed"));
+    } finally {
+      setProviderBusy(false);
+    }
+  };
+
   const panelButtonClass = (panel: SettingsPanel) =>
     [
       "w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition",
@@ -398,6 +421,17 @@ export default function DomainDetailPage(): React.ReactElement | null {
             >
               {tp("cloudflareTab")}
             </button>
+            <button
+              type="button"
+              className={panelButtonClass("dnssec")}
+              onClick={() => {
+                setActivePanel("dnssec");
+                setError(null);
+                setMessage(null);
+              }}
+            >
+              {tp("dnssecTab")}
+            </button>
           </nav>
         </aside>
 
@@ -425,7 +459,7 @@ export default function DomainDetailPage(): React.ReactElement | null {
                 if (msg) setError(msg);
               }}
             />
-          ) : (
+          ) : activePanel === "cloudflare" ? (
             <div className="space-y-5">
               <div className="border-outline-variant/40 bg-surface-container-low rounded-xl border p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -495,10 +529,73 @@ export default function DomainDetailPage(): React.ReactElement | null {
               </div>
               <p className="text-on-surface-variant text-xs">{tp("cloudflareSecurityHint")}</p>
             </div>
+          ) : (
+            <div className="space-y-5">
+              <div className="border-outline-variant/40 bg-surface-container-low rounded-xl border p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-on-surface text-lg font-semibold">{tp("dnssecTitle")}</h3>
+                    <p className="text-on-surface-variant mt-1 max-w-2xl text-sm">
+                      {tp("dnssecDescription")}
+                    </p>
+                  </div>
+                  <span className="border-outline-variant/40 bg-surface rounded-full border px-3 py-1 text-xs font-semibold uppercase">
+                    {dnssecStatus?.enabled ? tp("dnssecActive") : tp("dnssecInactive")}
+                  </span>
+                </div>
+
+                {!dnssecStatus?.supported ? (
+                  <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+                    {tp("dnssecManagedRequired")}
+                  </p>
+                ) : null}
+
+                {dnssecStatus?.dsRecords.length ? (
+                  <div className="bg-surface mt-4 rounded-lg p-3">
+                    <p className="text-on-surface-variant text-xs font-semibold uppercase">
+                      {tp("dnssecDsRecords")}
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {dnssecStatus.dsRecords.map((record) => (
+                        <code
+                          key={record}
+                          className="text-on-surface block break-all rounded-lg bg-black/5 px-3 py-2 text-xs dark:bg-white/5"
+                        >
+                          {record}
+                        </code>
+                      ))}
+                    </div>
+                    <p className="text-on-surface-variant mt-2 text-xs">
+                      {tp("dnssecRegistrarHint")}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    disabled={providerBusy || !dnssecStatus?.supported}
+                    onClick={() => void handleDnssecToggle(!dnssecStatus?.enabled)}
+                    className={
+                      dnssecStatus?.enabled
+                        ? "border-error/40 text-error rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                        : "bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                    }
+                  >
+                    {providerBusy
+                      ? tu("loading")
+                      : dnssecStatus?.enabled
+                        ? tp("dnssecDisable")
+                        : tp("dnssecEnable")}
+                  </button>
+                </div>
+              </div>
+              <p className="text-on-surface-variant text-xs">{tp("dnssecSecurityHint")}</p>
+            </div>
           )}
 
           <div className="border-outline-variant/30 flex flex-wrap items-center gap-3 border-t pt-5">
-            {activePanel !== "cloudflare" ? (
+            {activePanel !== "cloudflare" && activePanel !== "dnssec" ? (
               <button
                 type="submit"
                 disabled={
