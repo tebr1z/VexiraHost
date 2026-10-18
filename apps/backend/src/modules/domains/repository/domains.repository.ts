@@ -74,6 +74,7 @@ export class DomainsRepository {
     nsGlueRecords?: object;
     billingAmount?: number;
     billingCurrency?: string;
+    autoRenew?: boolean;
   }) {
     return this.prisma.domain.create({ data });
   }

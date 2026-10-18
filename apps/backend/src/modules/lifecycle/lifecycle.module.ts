@@ -3,8 +3,10 @@ import { Module } from "@nestjs/common";
 import { InvoiceReminderJobService } from "./service/invoice-reminder-job.service";
 import { LifecycleSchedulerService } from "./service/lifecycle-scheduler.service";
 import { LifecycleWorkerService } from "./service/lifecycle-worker.service";
+import { RenewalPaymentService } from "./service/renewal-payment.service";
 
 import { DomainsModule } from "@/modules/domains/domains.module";
+import { DomainExpiryJobService } from "@/modules/domains/service/domain-expiry-job.service";
 import { HostingModule } from "@/modules/hosting/hosting.module";
 import { HostingExpiryJobService } from "@/modules/hosting/service/hosting-expiry-job.service";
 import { LicensesModule } from "@/modules/licenses/licenses.module";
@@ -29,7 +31,9 @@ import { WhatsappModule } from "@/modules/whatsapp/whatsapp.module";
   ],
   providers: [
     InvoiceReminderJobService,
+    RenewalPaymentService,
     HostingExpiryJobService,
+    DomainExpiryJobService,
     LifecycleWorkerService,
     LifecycleSchedulerService,
   ],

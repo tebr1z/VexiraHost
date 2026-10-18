@@ -10,7 +10,6 @@ import { TldPricingRepository } from "./repository/tld-pricing.repository";
 import { AuthoritativeDnsService } from "./service/authoritative-dns.service";
 import { DomainBillingService } from "./service/domain-billing.service";
 import { DomainEmailService } from "./service/domain-email.service";
-import { DomainExpiryJobService } from "./service/domain-expiry-job.service";
 import { DomainsService } from "./service/domains.service";
 import { RegistrarService } from "./service/registrar.service";
 
@@ -33,7 +32,6 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     RegistrarService,
     DomainEmailService,
     DomainBillingService,
-    DomainExpiryJobService,
     SmtpMailService,
   ],
   exports: [
@@ -41,7 +39,7 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     DomainsRepository,
     TldPricingRepository,
     DomainBillingService,
-    DomainExpiryJobService,
+    DomainEmailService,
     CloudflareDnsProvider,
     PowerDnsProvider,
     AuthoritativeDnsService,

@@ -5,7 +5,6 @@ import {
   HostingManagementMode,
   InvoiceStatus,
   NotificationType,
-  PaymentStatus,
   ServiceStatus,
 } from "@prisma/client";
 
@@ -16,9 +15,8 @@ import { HostingEmailService } from "./hosting-email.service";
 import { HostingServersService } from "./hosting-servers.service";
 
 import { PrismaService } from "@/database/database.module";
+import { RenewalPaymentService } from "@/modules/lifecycle/service/renewal-payment.service";
 import { NotificationsService } from "@/modules/notifications/service/notifications.service";
-import { BalanceService } from "@/modules/payments/service/balance.service";
-import { PaymentsService } from "@/modules/payments/service/payments.service";
 import { WhatsappService } from "@/modules/whatsapp/service/whatsapp.service";
 
 const GRACE_DAYS = 7;
@@ -66,8 +64,7 @@ export class HostingExpiryJobService {
     private readonly billing: HostingBillingService,
     private readonly hostingEmail: HostingEmailService,
     private readonly hostingServers: HostingServersService,
-    private readonly balance: BalanceService,
-    private readonly payments: PaymentsService,
+    private readonly renewalPayment: RenewalPaymentService,
     private readonly notifications: NotificationsService,
     private readonly whatsapp: WhatsappService,
     private readonly config: ConfigService,
@@ -76,40 +73,6 @@ export class HostingExpiryJobService {
   private paymentUrl(invoiceId: string): string {
     const appUrl = this.config.get<string>("APP_URL", "http://localhost:3000").replace(/\/$/, "");
     return `${appUrl}/dashboard/invoices/${invoiceId}`;
-  }
-
-  private async tryAutomaticBalancePayment(userId: string, invoiceId: string): Promise<boolean> {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: {
-        payments: {
-          where: { status: PaymentStatus.COMPLETED },
-          select: { amount: true },
-        },
-      },
-    });
-    if (!invoice) return false;
-    if (invoice.status === InvoiceStatus.PAID) return true;
-    if (invoice.status !== InvoiceStatus.OPEN) return false;
-
-    const paid = invoice.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const amountDue = Math.max(0, Number((Number(invoice.total) - paid).toFixed(2)));
-
-    try {
-      const result = await this.balance.payInvoiceWithBalance(
-        userId,
-        invoiceId,
-        amountDue > 0 ? amountDue : undefined,
-      );
-      return result.invoiceFullyPaid === true;
-    } catch (error) {
-      this.logger.log(
-        `Automatic balance renewal skipped for invoice ${invoiceId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      return false;
-    }
   }
 
   private async notifyPaymentRequired(input: {
@@ -370,16 +333,10 @@ export class HostingExpiryJobService {
         data: { graceEndsAt, renewalInvoiceId: invoiceId },
       });
 
-      if (await this.tryAutomaticBalancePayment(account.userId, invoiceId)) {
+      const paymentOutcome = await this.renewalPayment.tryPay(account.userId, invoiceId);
+      if (paymentOutcome !== "unpaid") {
         this.logger.log(
-          `Renewed hosting ${account.id} automatically from account balance (${invoiceNumber})`,
-        );
-        continue;
-      }
-
-      if (await this.payments.tryEpointAutoRenewal(account.userId, invoiceId)) {
-        this.logger.log(
-          `Renewed hosting ${account.id} automatically from saved Epoint card (${invoiceNumber})`,
+          `Renewed hosting ${account.id} automatically via ${paymentOutcome} (${invoiceNumber})`,
         );
         continue;
       }
@@ -421,12 +378,12 @@ export class HostingExpiryJobService {
 
     for (const account of accounts) {
       if (!account.renewalInvoiceId) continue;
-      if (await this.tryAutomaticBalancePayment(account.userId, account.renewalInvoiceId)) {
-        this.logger.log(`Reactivated hosting ${account.id} after automatic balance payment`);
-        continue;
-      }
-      if (await this.payments.tryEpointAutoRenewal(account.userId, account.renewalInvoiceId)) {
-        this.logger.log(`Reactivated hosting ${account.id} after Epoint card payment`);
+      const paymentOutcome = await this.renewalPayment.tryPay(
+        account.userId,
+        account.renewalInvoiceId,
+      );
+      if (paymentOutcome !== "unpaid") {
+        this.logger.log(`Reactivated hosting ${account.id} via ${paymentOutcome}`);
       }
     }
   }

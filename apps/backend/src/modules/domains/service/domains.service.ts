@@ -160,6 +160,9 @@ export class DomainsService {
       registeredAt: new Date(),
       expiresAt: registration.expiresAt,
       nameservers: registration.nameservers,
+      billingAmount: match.price,
+      billingCurrency: match.currency,
+      autoRenew: true,
     });
 
     const defaultRecords = this.registrar.defaultDnsRecords(normalized);

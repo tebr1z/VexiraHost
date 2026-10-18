@@ -18,6 +18,7 @@ import { DomainBillingService } from "./domain-billing.service";
 import { DomainEmailService } from "./domain-email.service";
 
 import { PrismaService } from "@/database/database.module";
+import { RenewalPaymentService } from "@/modules/lifecycle/service/renewal-payment.service";
 
 @Injectable()
 export class DomainExpiryJobService {
@@ -28,6 +29,7 @@ export class DomainExpiryJobService {
     private readonly prisma: PrismaService,
     private readonly billing: DomainBillingService,
     private readonly domainEmail: DomainEmailService,
+    private readonly renewalPayment: RenewalPaymentService,
   ) {}
 
   async tick(): Promise<void> {
@@ -36,6 +38,7 @@ export class DomainExpiryJobService {
     try {
       await this.processPreExpiryReminders();
       await this.processExpiredDomains();
+      await this.processSuspendedRenewals();
       await this.processPostExpiryReminders();
       await this.processGraceExpiredDomains();
     } catch (error) {
@@ -52,7 +55,6 @@ export class DomainExpiryJobService {
     const horizon = addUtcDays(now, 30);
     const domains = await this.prisma.domain.findMany({
       where: {
-        managementMode: DomainManagementMode.MANUAL,
         status: DomainStatus.ACTIVE,
         expiresAt: { gt: now, lte: horizon },
       },
@@ -89,7 +91,6 @@ export class DomainExpiryJobService {
     const now = new Date();
     const domains = await this.prisma.domain.findMany({
       where: {
-        managementMode: DomainManagementMode.MANUAL,
         status: DomainStatus.ACTIVE,
         expiresAt: { lte: now },
       },
@@ -129,6 +130,7 @@ export class DomainExpiryJobService {
             }
           }
         } else if (existing?.status === InvoiceStatus.PAID) {
+          await this.billing.activateAfterRenewalPayment(existing.id);
           continue;
         } else {
           invoiceId = null;
@@ -164,6 +166,18 @@ export class DomainExpiryJobService {
         },
       });
 
+      if (
+        domain.managementMode === DomainManagementMode.REGISTRAR &&
+        domain.autoRenew &&
+        invoiceId
+      ) {
+        const outcome = await this.renewalPayment.tryPay(domain.userId, invoiceId);
+        if (outcome !== "unpaid") {
+          this.logger.log(`Renewed registrar domain ${domain.name} automatically via ${outcome}`);
+          continue;
+        }
+      }
+
       if (await this.markReminderSent(domain.id, "EXPIRED")) {
         await this.domainEmail.sendPostExpiryReminder({
           to: domain.user.email,
@@ -186,11 +200,31 @@ export class DomainExpiryJobService {
     }
   }
 
+  private async processSuspendedRenewals(): Promise<void> {
+    const domains = await this.prisma.domain.findMany({
+      where: {
+        managementMode: DomainManagementMode.REGISTRAR,
+        status: DomainStatus.SUSPENDED,
+        autoRenew: true,
+        graceEndsAt: { gt: new Date() },
+        renewalInvoiceId: { not: null },
+      },
+      select: { id: true, name: true, userId: true, renewalInvoiceId: true },
+    });
+
+    for (const domain of domains) {
+      if (!domain.renewalInvoiceId) continue;
+      const outcome = await this.renewalPayment.tryPay(domain.userId, domain.renewalInvoiceId);
+      if (outcome !== "unpaid") {
+        this.logger.log(`Reactivated registrar domain ${domain.name} via ${outcome}`);
+      }
+    }
+  }
+
   private async processPostExpiryReminders(): Promise<void> {
     const now = new Date();
     const domains = await this.prisma.domain.findMany({
       where: {
-        managementMode: DomainManagementMode.MANUAL,
         status: DomainStatus.SUSPENDED,
         expiredAt: { not: null },
         graceEndsAt: { gt: now },
@@ -247,7 +281,6 @@ export class DomainExpiryJobService {
     const now = new Date();
     const domains = await this.prisma.domain.findMany({
       where: {
-        managementMode: DomainManagementMode.MANUAL,
         status: DomainStatus.SUSPENDED,
         graceEndsAt: { lte: now },
       },

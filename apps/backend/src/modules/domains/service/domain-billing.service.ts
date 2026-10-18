@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { InvoiceStatus, Prisma } from "@prisma/client";
+import { DomainManagementMode, InvoiceStatus, Prisma } from "@prisma/client";
+
+import { RegistrarService } from "./registrar.service";
 
 import { PrismaService } from "@/database/database.module";
 
@@ -9,7 +11,10 @@ function generateInvoiceNumber(): string {
 
 @Injectable()
 export class DomainBillingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly registrar: RegistrarService,
+  ) {}
 
   async createDomainInvoice(input: {
     userId: string;
@@ -118,9 +123,14 @@ export class DomainBillingService {
     if (!invoice?.domainId || !invoice.domain) return null;
 
     const domain = invoice.domain;
+    if (domain.renewalInvoiceId !== invoiceId) return domain;
     const base = domain.expiresAt && domain.expiresAt > new Date() ? domain.expiresAt : new Date();
     const nextExpires = new Date(base);
-    nextExpires.setDate(nextExpires.getDate() + 365);
+    nextExpires.setUTCFullYear(nextExpires.getUTCFullYear() + 1);
+
+    if (domain.managementMode === DomainManagementMode.REGISTRAR) {
+      await this.registrar.renew(domain.name, 1);
+    }
 
     const [, updated] = await this.prisma.$transaction([
       this.prisma.domainExpiryReminder.deleteMany({ where: { domainId: domain.id } }),
