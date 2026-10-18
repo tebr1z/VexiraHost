@@ -33,7 +33,7 @@ export function buildManagedContainerRunCommand(options: ManagedContainerRunOpti
     throw new Error("Invalid container resource limits");
   const publish =
     options.hostPort == null
-      ? `-p 127.0.0.1::${options.containerPort}`
+      ? `-p ${options.bindHost ?? "127.0.0.1"}::${options.containerPort}`
       : `-p ${options.bindHost ?? "127.0.0.1"}:${options.hostPort}:${options.containerPort}`;
 
   return [
@@ -64,6 +64,20 @@ export function buildManagedContainerRunCommand(options: ManagedContainerRunOpti
     `-e PORT=${options.containerPort}`,
     shellQuote(options.image),
   ].join(" ");
+}
+
+export function parseDockerPublishedPort(output: string): number {
+  const line = output
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .at(-1);
+  const match = line?.match(/:(\d+)$/);
+  const port = Number(match?.[1]);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("Docker did not report a valid candidate port");
+  }
+  return port;
 }
 
 /**

@@ -6,7 +6,8 @@ export type StaffAlertKind =
   | "CONTACT_FORM"
   | "HOSTING_PROVISION_FAILED"
   | "HOSTING_DNS_PROVISION_FAILED"
-  | "HOSTING_CANCEL_REQUEST";
+  | "HOSTING_CANCEL_REQUEST"
+  | "AUTO_DEPLOY_FAILED";
 
 export interface StaffAlertPayload {
   kind: StaffAlertKind;

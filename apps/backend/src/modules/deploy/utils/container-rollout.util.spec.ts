@@ -1,6 +1,7 @@
 import {
   buildContainerReadinessCommand,
   buildManagedContainerRunCommand,
+  parseDockerPublishedPort,
 } from "./container-rollout.util";
 
 describe("container rollout commands", () => {
@@ -39,6 +40,20 @@ describe("container rollout commands", () => {
     expect(command).toContain("--pids-limit 256");
   });
 
+  it("binds a candidate to the deploy node interface used by a remote proxy", () => {
+    const command = buildManagedContainerRunCommand({
+      name: "vx-remote-candidate",
+      image: "vx-remote:latest",
+      accountId: "account-2",
+      envFile: "/srv/app/.env",
+      containerPort: 8080,
+      bindHost: "0.0.0.0",
+      candidate: true,
+    });
+
+    expect(command).toContain("-p 0.0.0.0::8080");
+  });
+
   it("starts the live container on its managed host port", () => {
     const command = buildManagedContainerRunCommand({
       name: "vx-app",
@@ -64,5 +79,18 @@ describe("container rollout commands", () => {
     expect(command).toContain("/api/v1/health");
     expect(command).toContain("HTTP $code");
     expect(command).toContain('while [ "$attempt" -le 20 ]');
+  });
+
+  it.each(["127.0.0.1:43123", "0.0.0.0:43123", ":::43123"])(
+    "parses Docker published candidate port from %s",
+    (value) => {
+      expect(parseDockerPublishedPort(value)).toBe(43123);
+    },
+  );
+
+  it("rejects an invalid Docker published port", () => {
+    expect(() => parseDockerPublishedPort("missing")).toThrow(
+      "Docker did not report a valid candidate port",
+    );
   });
 });

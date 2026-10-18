@@ -12,6 +12,7 @@ import { PortAllocationService } from "./port-allocation.service";
 import { RemoteDeployService } from "./remote-deploy.service";
 import { ServerBootstrapService } from "./server-bootstrap.service";
 
+import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { decryptSecret } from "@/utils/crypto.util";
 
 @Injectable()
@@ -35,6 +36,7 @@ export class DeployRunner {
     private readonly remoteDeploy: RemoteDeployService,
     private readonly serverBootstrap: ServerBootstrapService,
     private readonly githubDeploy: GitHubDeployService,
+    private readonly staffAlerts: StaffAlertService,
   ) {}
 
   /**
@@ -376,6 +378,18 @@ export class DeployRunner {
         lastError: message === "Deploy cancelled" ? "Deploy cancelled" : message,
       });
       await this.deployRepository.finishRun(run.id, "FAILED", DEPLOY_STAGES.FAILED);
+      this.staffAlerts.notify({
+        kind: "AUTO_DEPLOY_FAILED",
+        title: "Auto Deploy failed",
+        lines: [
+          `Application: ${deployment.name}`,
+          `Domain: ${deployment.deployDomain}`,
+          `Customer ID: ${deployment.userId}`,
+          `Server: ${server.name}`,
+          `Reason: ${message}`,
+        ],
+        url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/az/t4abriz/panel/hosting/accounts`,
+      });
     }
   }
 }

@@ -17,6 +17,7 @@ import {
 import {
   buildContainerReadinessCommand,
   buildManagedContainerRunCommand,
+  parseDockerPublishedPort,
 } from "../utils/container-rollout.util";
 import {
   formatDeployBuildError,
@@ -69,6 +70,7 @@ export class ApacheProxyService {
     cgroupParent?: string;
     dataPath?: string;
     linuxUser?: string;
+    switchTraffic?: (hostPort: number) => Promise<void>;
   }): Promise<void> {
     const candidateName = `${input.containerName}-candidate`;
     const rollbackName = `${input.containerName}-rollback`;
@@ -90,6 +92,7 @@ export class ApacheProxyService {
         envFile: input.envFile,
         containerPort: input.containerPort,
         candidate: true,
+        bindHost: input.bindHost,
         limits: input.resourceLimits,
         cgroupParent: input.cgroupParent,
         dataPath: input.dataPath,
@@ -109,12 +112,20 @@ export class ApacheProxyService {
         );
       }
       await input.append("preflight", readiness.stdout.trim() || "Candidate is ready");
-    } finally {
+    } catch (error) {
       await input.session.exec(
         `docker rm -f ${shellQuote(candidateName)} >/dev/null 2>&1 || true`,
         60_000,
       );
+      throw error;
     }
+
+    const candidatePort = parseDockerPublishedPort(
+      await input.session.execChecked(
+        `docker port ${shellQuote(candidateName)} ${input.containerPort}/tcp | tail -n 1`,
+        30_000,
+      ),
+    );
 
     const currentInspect = await input.session.exec(
       `docker ps -a --filter name=^/${input.containerName}$ --format '{{.Names}}'`,
@@ -137,6 +148,11 @@ export class ApacheProxyService {
     }
 
     if (hasPrevious) {
+      await input.switchTraffic?.(candidatePort);
+      await input.append(
+        "traffic switch",
+        `Reverse proxy moved to healthy candidate on port ${candidatePort}.`,
+      );
       await input.session.exec(
         `docker rm -f ${shellQuote(rollbackName)} >/dev/null 2>&1 || true`,
         60_000,
@@ -178,6 +194,8 @@ export class ApacheProxyService {
         );
       }
       await input.append("readiness", readiness.stdout.trim() || "Live container is ready");
+      await input.switchTraffic?.(input.hostPort);
+      await input.append("traffic switch", `Reverse proxy moved to live port ${input.hostPort}.`);
       if (hasPrevious) {
         await input.session.exec(
           `docker rm -f ${shellQuote(rollbackName)} >/dev/null 2>&1 || true`,
@@ -195,6 +213,7 @@ export class ApacheProxyService {
           60_000,
         );
         await input.session.execChecked(`docker start ${shellQuote(input.containerName)}`, 120_000);
+        await input.switchTraffic?.(input.hostPort);
         await input.append(
           "rollback",
           "New release failed readiness; previous container was restored automatically.",
@@ -205,6 +224,11 @@ export class ApacheProxyService {
         hasPrevious
           ? `New release failed; previous release restored. ${reason}`
           : `New release failed readiness. ${reason}`,
+      );
+    } finally {
+      await input.session.exec(
+        `docker rm -f ${shellQuote(candidateName)} >/dev/null 2>&1 || true`,
+        60_000,
       );
     }
   }
@@ -755,6 +779,13 @@ export class RemoteDeployService {
             cgroupParent: tenant.slice,
             dataPath: `${deployPath}/data`,
             linuxUser: deployUser,
+            switchTraffic: async (port) =>
+              this.apacheProxy.applyReverseProxy(
+                input.proxyServer,
+                input.deployDomain,
+                port,
+                input.proxyTargetHost,
+              ),
           });
 
           await append(
