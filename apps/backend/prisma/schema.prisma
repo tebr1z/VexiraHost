@@ -499,6 +499,10 @@ model Domain {
   dnsZoneRef        String?
   dnsProviderStatus String?
   dnsLastSyncedAt   DateTime?
+  dnssecEnabled     Boolean              @default(false)
+  dnssecStatus      String?
+  dnssecDsRecords   Json                 @default("[]")
+  dnssecUpdatedAt   DateTime?
   /**
    * Glue records: [{ "host": "ns1.example.com", "ip": "1.2.3.4" }]
    */

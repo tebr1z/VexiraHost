@@ -26,6 +26,10 @@ export interface UserDomain {
   dnsProvider: "LOCAL" | "CLOUDFLARE" | "POWERDNS";
   dnsProviderStatus: string | null;
   dnsLastSyncedAt: string | null;
+  dnssecEnabled: boolean;
+  dnssecStatus: string | null;
+  dnssecDsRecords: string[];
+  dnssecUpdatedAt: string | null;
   dnsRecordCount: number;
   createdAt: string;
 }
@@ -74,6 +78,14 @@ export interface NameserverStatus {
   lookupStatus: "OK" | "PENDING" | "ERROR";
   lookupError: string | null;
   checkedAt: string;
+}
+
+export interface DnssecStatus {
+  supported: boolean;
+  enabled: boolean;
+  status: string;
+  dsRecords: string[];
+  updatedAt: string | null;
 }
 
 export async function searchDomains(query: string): Promise<DomainSearchResult[]> {
@@ -196,4 +208,17 @@ export async function disconnectCloudflareDns(domainId: string): Promise<UserDom
     method: "POST",
   });
   return res.data as UserDomain;
+}
+
+export async function getDnssecStatus(domainId: string): Promise<DnssecStatus> {
+  const res = await apiClient.request<DnssecStatus>(`/domains/${domainId}/dnssec`);
+  return res.data as DnssecStatus;
+}
+
+export async function setDnssecEnabled(domainId: string, enabled: boolean): Promise<DnssecStatus> {
+  const res = await apiClient.request<DnssecStatus>(
+    `/domains/${domainId}/dnssec/${enabled ? "enable" : "disable"}`,
+    { method: "POST" },
+  );
+  return res.data as DnssecStatus;
 }

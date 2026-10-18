@@ -36,6 +36,17 @@ export interface ManagedDnsRecord {
   proxied?: boolean;
 }
 
+export interface ManagedDnssecStatus {
+  enabled: boolean;
+  status: string;
+  dsRecords: string[];
+}
+
+interface CloudflareDnssec {
+  status: string;
+  ds?: string;
+}
+
 @Injectable()
 export class CloudflareDnsProvider {
   constructor(private readonly config: ConfigService) {}
@@ -108,6 +119,34 @@ export class CloudflareDnsProvider {
 
   getZone(zoneId: string): Promise<CloudflareZone> {
     return this.request<CloudflareZone>(`zones/${encodeURIComponent(zoneId)}`);
+  }
+
+  async getDnssec(zoneId: string): Promise<ManagedDnssecStatus> {
+    const result = await this.request<CloudflareDnssec>(
+      `zones/${encodeURIComponent(zoneId)}/dnssec`,
+    );
+    return {
+      enabled: result.status === "active",
+      status: result.status,
+      dsRecords: result.ds ? [result.ds] : [],
+    };
+  }
+
+  async enableDnssec(zoneId: string): Promise<ManagedDnssecStatus> {
+    const result = await this.request<CloudflareDnssec>(
+      `zones/${encodeURIComponent(zoneId)}/dnssec`,
+      { method: "POST" },
+    );
+    return {
+      enabled: result.status === "active",
+      status: result.status,
+      dsRecords: result.ds ? [result.ds] : [],
+    };
+  }
+
+  async disableDnssec(zoneId: string): Promise<ManagedDnssecStatus> {
+    await this.request(`zones/${encodeURIComponent(zoneId)}/dnssec`, { method: "DELETE" });
+    return { enabled: false, status: "disabled", dsRecords: [] };
   }
 
   async listRecords(zoneId: string, domainName: string): Promise<ManagedDnsRecord[]> {

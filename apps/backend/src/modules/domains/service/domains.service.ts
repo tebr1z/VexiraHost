@@ -70,6 +70,10 @@ function mapDomain(domain: {
   dnsZoneRef?: string | null;
   dnsProviderStatus?: string | null;
   dnsLastSyncedAt?: Date | null;
+  dnssecEnabled?: boolean;
+  dnssecStatus?: string | null;
+  dnssecDsRecords?: unknown;
+  dnssecUpdatedAt?: Date | null;
   createdAt: Date;
   _count?: { dnsRecords: number };
 }) {
@@ -91,6 +95,10 @@ function mapDomain(domain: {
     dnsProvider: domain.dnsProvider ?? DnsProvider.LOCAL,
     dnsProviderStatus: domain.dnsProviderStatus ?? null,
     dnsLastSyncedAt: domain.dnsLastSyncedAt ?? null,
+    dnssecEnabled: domain.dnssecEnabled ?? false,
+    dnssecStatus: domain.dnssecStatus ?? null,
+    dnssecDsRecords: Array.isArray(domain.dnssecDsRecords) ? domain.dnssecDsRecords : [],
+    dnssecUpdatedAt: domain.dnssecUpdatedAt ?? null,
     dnsRecordCount: domain._count?.dnsRecords ?? 0,
     createdAt: domain.createdAt,
   };
@@ -522,8 +530,78 @@ export class DomainsService {
       dnsZoneRef: null,
       dnsProviderStatus: null,
       dnsLastSyncedAt: null,
+      dnssecEnabled: false,
+      dnssecStatus: null,
+      dnssecDsRecords: [],
+      dnssecUpdatedAt: null,
     });
     return mapDomain(updated);
+  }
+
+  async getDnssecStatus(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+    if (!domain.dnsZoneRef || domain.dnsProvider === DnsProvider.LOCAL) {
+      return {
+        supported: false,
+        enabled: false,
+        status: "not_managed",
+        dsRecords: [],
+        updatedAt: domain.dnssecUpdatedAt,
+      };
+    }
+    const status =
+      domain.dnsProvider === DnsProvider.CLOUDFLARE
+        ? await this.cloudflare.getDnssec(domain.dnsZoneRef)
+        : await this.authoritativeDns.getDnssec(domain.name);
+    const updatedAt = new Date();
+    await this.domainsRepository.updateDomain(domain.id, {
+      dnssecEnabled: status.enabled,
+      dnssecStatus: status.status,
+      dnssecDsRecords: status.dsRecords,
+      dnssecUpdatedAt: updatedAt,
+    });
+    return { supported: true, ...status, updatedAt };
+  }
+
+  async enableDnssec(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+    if (!domain.dnsZoneRef || domain.dnsProvider === DnsProvider.LOCAL) {
+      throw new BadRequestException("Connect Cloudflare or Vexira authoritative DNS first");
+    }
+    const status =
+      domain.dnsProvider === DnsProvider.CLOUDFLARE
+        ? await this.cloudflare.enableDnssec(domain.dnsZoneRef)
+        : await this.authoritativeDns.enableDnssec(domain.name);
+    const updatedAt = new Date();
+    await this.domainsRepository.updateDomain(domain.id, {
+      dnssecEnabled: status.enabled,
+      dnssecStatus: status.status,
+      dnssecDsRecords: status.dsRecords,
+      dnssecUpdatedAt: updatedAt,
+    });
+    return { supported: true, ...status, updatedAt };
+  }
+
+  async disableDnssec(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+    if (!domain.dnsZoneRef || domain.dnsProvider === DnsProvider.LOCAL) {
+      throw new BadRequestException("Managed DNS is not connected");
+    }
+    const status =
+      domain.dnsProvider === DnsProvider.CLOUDFLARE
+        ? await this.cloudflare.disableDnssec(domain.dnsZoneRef)
+        : await this.authoritativeDns.disableDnssec(domain.name);
+    const updatedAt = new Date();
+    await this.domainsRepository.updateDomain(domain.id, {
+      dnssecEnabled: false,
+      dnssecStatus: status.status,
+      dnssecDsRecords: [],
+      dnssecUpdatedAt: updatedAt,
+    });
+    return { supported: true, ...status, updatedAt };
   }
 
   private async recordManualChangeAndNotify(input: {

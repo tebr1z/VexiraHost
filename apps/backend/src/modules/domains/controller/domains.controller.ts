@@ -98,4 +98,19 @@ export class DomainsController {
   disconnectCloudflare(@Param("id") id: string, @User() user: AuthUser) {
     return this.domainsService.disconnectCloudflare(id, user.id);
   }
+
+  @Get(":id/dnssec")
+  getDnssec(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.getDnssecStatus(id, user.id);
+  }
+
+  @Post(":id/dnssec/enable")
+  enableDnssec(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.enableDnssec(id, user.id);
+  }
+
+  @Post(":id/dnssec/disable")
+  disableDnssec(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.disableDnssec(id, user.id);
+  }
 }

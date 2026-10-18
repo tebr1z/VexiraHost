@@ -150,6 +150,18 @@ export class AuthoritativeDnsService {
     await this.powerDns.replaceRecords(domainName, records);
   }
 
+  getDnssec(domainName: string) {
+    return this.powerDns.getDnssec(domainName);
+  }
+
+  enableDnssec(domainName: string) {
+    return this.powerDns.enableDnssec(domainName);
+  }
+
+  disableDnssec(domainName: string) {
+    return this.powerDns.disableDnssec(domainName);
+  }
+
   async provisionHostingZone(input: {
     userId: string;
     domainName: string;

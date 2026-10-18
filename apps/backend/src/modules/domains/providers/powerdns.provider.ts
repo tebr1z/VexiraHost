@@ -2,7 +2,7 @@ import { BadGatewayException, Injectable, ServiceUnavailableException } from "@n
 import { ConfigService } from "@nestjs/config";
 import type { DnsRecordType } from "@prisma/client";
 
-import type { ManagedDnsRecord } from "./cloudflare-dns.provider";
+import type { ManagedDnsRecord, ManagedDnssecStatus } from "./cloudflare-dns.provider";
 
 const SUPPORTED_TYPES = new Set<DnsRecordType>(["A", "AAAA", "CNAME", "MX", "TXT", "NS"]);
 
@@ -23,6 +23,12 @@ interface PowerDnsZone {
   name: string;
   kind: string;
   rrsets?: PowerDnsRrset[];
+}
+
+interface PowerDnsCryptoKey {
+  active: boolean;
+  published: boolean;
+  ds?: string[];
 }
 
 @Injectable()
@@ -78,6 +84,33 @@ export class PowerDnsProvider {
 
   async getZone(domainName: string): Promise<PowerDnsZone | null> {
     return this.request<PowerDnsZone>(this.zonePath(domainName), undefined, true);
+  }
+
+  async getDnssec(domainName: string): Promise<ManagedDnssecStatus> {
+    const zone = await this.getZone(domainName);
+    if (!zone) return { enabled: false, status: "zone_missing", dsRecords: [] };
+    const keys =
+      (await this.request<PowerDnsCryptoKey[]>(`${this.zonePath(domainName)}/cryptokeys`)) ?? [];
+    const dsRecords = keys.flatMap((key) => key.ds ?? []);
+    const enabled = keys.some((key) => key.active && key.published);
+    return { enabled, status: enabled ? "active" : "disabled", dsRecords };
+  }
+
+  async enableDnssec(domainName: string): Promise<ManagedDnssecStatus> {
+    await this.ensureZone(domainName);
+    await this.request<void>(this.zonePath(domainName), {
+      method: "PUT",
+      body: JSON.stringify({ dnssec: true }),
+    });
+    return this.getDnssec(domainName);
+  }
+
+  async disableDnssec(domainName: string): Promise<ManagedDnssecStatus> {
+    await this.request<void>(this.zonePath(domainName), {
+      method: "PUT",
+      body: JSON.stringify({ dnssec: false }),
+    });
+    return { enabled: false, status: "disabled", dsRecords: [] };
   }
 
   async listRecords(domainName: string): Promise<ManagedDnsRecord[]> {

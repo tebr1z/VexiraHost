@@ -120,6 +120,23 @@ describe("PowerDnsProvider", () => {
       expect.arrayContaining([expect.objectContaining({ type: "NS", changetype: "DELETE" })]),
     );
   });
+
+  it("reads active DNSSEC keys and DS records", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ id: "example.com.", name: "example.com.", kind: "Native" }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse([{ active: true, published: true, ds: ["2371 13 2 0123456789ABCDEF"] }]),
+      );
+
+    await expect(provider().getDnssec("example.com")).resolves.toEqual({
+      enabled: true,
+      status: "active",
+      dsRecords: ["2371 13 2 0123456789ABCDEF"],
+    });
+  });
 });
 
 interface PowerDnsRecord {

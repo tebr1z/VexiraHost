@@ -109,4 +109,25 @@ describe("CloudflareDnsProvider", () => {
       expect.objectContaining({ proxied: true }),
     );
   });
+
+  it("enables DNSSEC and returns the registrar DS record", async () => {
+    const config = {
+      get: jest.fn((key: string) =>
+        key === "cloudflare.apiToken" ? "token" : "https://api.cloudflare.test/client/v4",
+      ),
+    } as unknown as ConfigService;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(response({ status: "active", ds: "2371 13 2 0123456789ABCDEF" }));
+
+    await expect(new CloudflareDnsProvider(config).enableDnssec("zone-1")).resolves.toEqual({
+      enabled: true,
+      status: "active",
+      dsRecords: ["2371 13 2 0123456789ABCDEF"],
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("zones/zone-1/dnssec"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });
