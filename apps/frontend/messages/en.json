@@ -3099,7 +3099,7 @@
       "distributionBalancedHelp": "Always provision on the server with the fewest accounts (among those under the limit).",
       "pleskPlanName": "Plesk service plan name",
       "pleskPlanNamePlaceholder": "e.g. Default",
-      "pleskPlanNameHelp": "Must match an existing service plan on the Plesk server. Leave empty to use server defaults.",
+      "pleskPlanNameHelp": "Choose a service plan available on every selected Plesk server. Its quotas are filled automatically.",
       "hostingServerRequired": "Select at least one hosting server for this plan.",
       "noHostingServersForPanel": "No active servers for this panel. Add one under Hosting Servers first.",
       "noLinkedHostingPlans": "No hosting plans linked to a server yet. Create a plan and assign a server.",

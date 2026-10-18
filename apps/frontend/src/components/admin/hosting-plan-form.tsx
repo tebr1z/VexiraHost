@@ -3,7 +3,12 @@
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import { listHostingServers, type HostingServer } from "@/features/admin";
+import {
+  listHostingServers,
+  listRemotePleskPlans,
+  type HostingServer,
+  type PleskRemotePlan,
+} from "@/features/admin";
 import { useAccessTokenReady } from "@/features/auth";
 import { Link } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -117,6 +122,9 @@ export function HostingPlanForm({
   const [servers, setServers] = useState<HostingServer[]>([]);
   const [serversLoaded, setServersLoaded] = useState(false);
   const [serversError, setServersError] = useState<string | null>(null);
+  const [remotePlans, setRemotePlans] = useState<PleskRemotePlan[]>([]);
+  const [remotePlansLoading, setRemotePlansLoading] = useState(false);
+  const [remotePlansError, setRemotePlansError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +161,34 @@ export function HostingPlanForm({
       return { ...prev, serverIds: nextIds };
     });
   }, [matchingServers, serversLoaded]);
+
+  useEffect(() => {
+    if (!accessTokenReady || values.panel !== "PLESK" || values.serverIds.length === 0) {
+      setRemotePlans([]);
+      setRemotePlansError(null);
+      return;
+    }
+    let cancelled = false;
+    setRemotePlansLoading(true);
+    setRemotePlansError(null);
+    Promise.all(values.serverIds.map((serverId) => listRemotePleskPlans(serverId)))
+      .then((groups) => {
+        if (cancelled) return;
+        const common = (groups[0] ?? []).filter((plan) =>
+          groups.every((group) => group.some((candidate) => candidate.name === plan.name)),
+        );
+        setRemotePlans(common);
+      })
+      .catch((err) => {
+        if (!cancelled) setRemotePlansError(getApiErrorMessage(err, tf("pleskPlanNameHelp")));
+      })
+      .finally(() => {
+        if (!cancelled) setRemotePlansLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessTokenReady, values.panel, values.serverIds, tf]);
 
   const set = (key: keyof HostingPlanFormValues, value: string | boolean | string[]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -192,6 +228,10 @@ export function HostingPlanForm({
     }
     if (values.autoDeployEnabled && !values.autoDeployServerId) {
       setError(tf("autoDeployServerRequired"));
+      return;
+    }
+    if (values.panel === "PLESK" && !values.pleskPlanName.trim()) {
+      setError(tf("pleskPlanNameHelp"));
       return;
     }
 
@@ -407,18 +447,49 @@ export function HostingPlanForm({
       </div>
 
       {values.panel === "PLESK" && (
-        <div>
+        <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-3 rounded-xl border p-4">
           <label htmlFor="hosting-plan-plesk-name" className="mb-1 block text-sm font-medium">
             {tf("pleskPlanName")}
           </label>
-          <input
+          <select
             id="hosting-plan-plesk-name"
             value={values.pleskPlanName}
-            onChange={(e) => set("pleskPlanName", e.target.value)}
-            placeholder={tf("pleskPlanNamePlaceholder")}
+            onChange={(e) => {
+              const name = e.target.value;
+              const remote = remotePlans.find((plan) => plan.name === name);
+              setValues((prev) => ({
+                ...prev,
+                pleskPlanName: name,
+                ...(remote
+                  ? {
+                      diskGb: String(remote.diskGb),
+                      bandwidthGb: String(remote.bandwidthGb),
+                      maxDomains: String(remote.maxDomains),
+                      maxEmails: String(remote.maxEmails),
+                      maxDatabases: String(remote.maxDatabases),
+                    }
+                  : {}),
+              }));
+            }}
+            required
+            disabled={remotePlansLoading || values.serverIds.length === 0}
             className={field}
-          />
-          <p className="text-on-surface-variant mt-1 text-xs">{tf("pleskPlanNameHelp")}</p>
+          >
+            <option value="">
+              {remotePlansLoading ? tw("loadingPlans") : tf("pleskPlanNamePlaceholder")}
+            </option>
+            {values.pleskPlanName &&
+            !remotePlans.some((plan) => plan.name === values.pleskPlanName) ? (
+              <option value={values.pleskPlanName}>{values.pleskPlanName}</option>
+            ) : null}
+            {remotePlans.map((plan) => (
+              <option key={plan.name} value={plan.name}>
+                {plan.name} · {plan.diskGb} GB · {plan.maxDomains} domain
+              </option>
+            ))}
+          </select>
+          <p className="text-on-surface-variant text-xs">{tf("pleskPlanNameHelp")}</p>
+          {remotePlansError ? <p className="text-error text-xs">{remotePlansError}</p> : null}
         </div>
       )}
 

@@ -20,7 +20,6 @@ export interface HostingServerFormValues {
   isDefault: boolean;
   isActive: boolean;
   deployNodeEnabled: boolean;
-  setupAfterSave: boolean;
   maxAccounts: string;
 }
 
@@ -39,7 +38,6 @@ const DEFAULT_VALUES: HostingServerFormValues = {
   isDefault: false,
   isActive: true,
   deployNodeEnabled: false,
-  setupAfterSave: false,
   maxAccounts: "",
 };
 
@@ -66,8 +64,7 @@ export function HostingServerForm({
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
-  const needsSsh =
-    values.deployNodeEnabled && (!initialValues?.deployNodeEnabled || values.setupAfterSave);
+  const needsSsh = values.deployNodeEnabled && !initialValues?.deployNodeEnabled;
 
   const update = (key: keyof HostingServerFormValues, value: string | boolean) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -273,7 +270,6 @@ export function HostingServerForm({
               setValues((prev) => ({
                 ...prev,
                 deployNodeEnabled: e.target.checked,
-                setupAfterSave: e.target.checked ? prev.setupAfterSave : false,
               }))
             }
           />
@@ -287,22 +283,9 @@ export function HostingServerForm({
           </span>
         </label>
         {values.deployNodeEnabled ? (
-          <div className="border-primary/15 space-y-3 border-t pt-4">
+          <div className="border-primary/15 border-t pt-4">
             <p className="text-on-surface-variant text-xs leading-relaxed">{tw("runtimeHint")}</p>
-            <label className="flex cursor-pointer items-start gap-3 text-sm">
-              <input
-                type="checkbox"
-                className="accent-primary mt-1 size-4"
-                checked={values.setupAfterSave}
-                onChange={(e) => update("setupAfterSave", e.target.checked)}
-              />
-              <span>
-                <span className="font-medium">{tw("setupAfterSave")}</span>
-                <span className="text-on-surface-variant mt-1 block text-xs leading-relaxed">
-                  {tw("setupHint")}
-                </span>
-              </span>
-            </label>
+            <p className="text-primary mt-2 text-xs font-medium">{tw("setupHint")}</p>
           </div>
         ) : (
           <p className="text-on-surface-variant text-xs">{tw("hostingOnlyHint")}</p>

@@ -62,21 +62,29 @@ export function HostingServerPackages({ server }: { server: HostingServer }): Re
         )}
       </div>
 
-      <div className="bg-surface-container-low flex flex-wrap items-center justify-between gap-3 rounded-xl p-4">
-        <div>
-          <p className="text-sm font-semibold">
-            {server.deployNodeEnabled ? t("deployAvailable") : t("hostingOnly")}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="bg-surface-container-low rounded-xl p-4">
+          <p className="text-sm font-semibold">Plesk</p>
+          <p className="text-on-surface-variant mt-1 text-xs">
+            {server.panel === "PLESK" ? server.hostname : t("hostingOnly")}
           </p>
-          <p className="text-on-surface-variant mt-1 text-xs">{t("perPackageHint")}</p>
         </div>
-        {canCreateDeployPlan ? (
-          <Link
-            href={`${newPlanHref}&autoDeploy=1`}
-            className="text-primary text-sm font-semibold underline-offset-4 hover:underline"
-          >
-            {t("newDeployPackage")}
-          </Link>
-        ) : null}
+        <div className="bg-surface-container-low flex flex-wrap items-center justify-between gap-3 rounded-xl p-4">
+          <div>
+            <p className="text-sm font-semibold">
+              {server.deployNodeEnabled ? t("deployAvailable") : t("hostingOnly")}
+            </p>
+            <p className="text-on-surface-variant mt-1 text-xs">{t("perPackageHint")}</p>
+          </div>
+          {canCreateDeployPlan ? (
+            <Link
+              href={`${newPlanHref}&autoDeploy=1`}
+              className="text-primary text-sm font-semibold underline-offset-4 hover:underline"
+            >
+              {t("newDeployPackage")}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {loading ? (
@@ -104,6 +112,11 @@ export function HostingServerPackages({ server }: { server: HostingServer }): Re
                 <p className="text-on-surface-variant mt-1 text-xs">
                   {t("hostingQuota", { gb: plan.diskGb })}
                 </p>
+                {plan.pleskPlanName ? (
+                  <p className="text-on-surface-variant mt-1 text-xs">
+                    {tf("pleskPlanName")}: {plan.pleskPlanName}
+                  </p>
+                ) : null}
                 {plan.autoDeployEnabled ? (
                   <p className="text-on-surface-variant mt-1 text-xs">
                     {t("deployQuota", { gb: plan.autoDeployDiskGb, apps: plan.autoDeployMaxApps })}

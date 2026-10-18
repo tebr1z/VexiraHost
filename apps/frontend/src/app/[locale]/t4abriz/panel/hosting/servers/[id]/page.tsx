@@ -12,7 +12,6 @@ import {
 import { HostingServerPackages } from "@/components/admin/hosting-server-packages";
 import { PageHeader } from "@/components/ui";
 import {
-  bootstrapServerSetup,
   deleteHostingServer,
   getHostingServer,
   syncPleskPlansFromServer,
@@ -79,7 +78,7 @@ export default function EditHostingServerPage(): React.ReactElement | null {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title={server.name}
         description={
@@ -136,6 +135,27 @@ export default function EditHostingServerPage(): React.ReactElement | null {
         }
       />
 
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <ServerMetric label="Panel" value={server.panel} detail={server.hostname} />
+        <ServerMetric
+          label={ts("deployNode")}
+          value={server.deployNodeEnabled ? server.deployHealth : tw("hostingOnly")}
+          detail={server.deployHealthMessage ?? server.ipAddress}
+        />
+        <ServerMetric
+          label={tf("maxAccountsOptional")}
+          value={`${server.activeAccountCount}/${server.maxAccounts ?? "∞"}`}
+          detail={server.isActive ? tf("active") : tw("inactive")}
+        />
+        <ServerMetric
+          label="SSH"
+          value={
+            server.sshPasswordConfigured ? `${server.sshUsername ?? "root"}:${server.sshPort}` : "—"
+          }
+          detail={server.deployNodeEnabled ? "Vexira Resource Guard" : tw("hostingOnly")}
+        />
+      </section>
+
       <HostingServerPackages server={server} />
 
       {server.credentialHealth.rotationRequired ? (
@@ -156,16 +176,10 @@ export default function EditHostingServerPage(): React.ReactElement | null {
           const updated = await updateHostingServer(server.id, toServerPayload(values, true));
           setServer(updated);
           toast(tt("hostingServerUpdated"), "success");
-          if (values.deployNodeEnabled && values.setupAfterSave) {
-            try {
-              const { jobId } = await bootstrapServerSetup(server.id);
-              router.push(
-                `/t4abriz/panel/hosting/servers/${server.id}/setup?jobId=${encodeURIComponent(jobId)}`,
-              );
-            } catch (error) {
-              toast(getApiErrorMessage(error, tw("setupStartFailed")), "error");
-              router.push(`/t4abriz/panel/hosting/servers/${server.id}/setup`);
-            }
+          if (updated.bootstrapJobId) {
+            router.push(
+              `/t4abriz/panel/hosting/servers/${server.id}/setup?jobId=${encodeURIComponent(updated.bootstrapJobId)}`,
+            );
           }
         }}
         onTest={async () => {
@@ -212,6 +226,24 @@ export default function EditHostingServerPage(): React.ReactElement | null {
       >
         {tf("deleteServer")}
       </button>
+    </div>
+  );
+}
+
+function ServerMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}): React.ReactElement {
+  return (
+    <div className="border-outline-variant/45 bg-surface rounded-2xl border p-4 shadow-sm">
+      <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wide">{label}</p>
+      <p className="text-on-surface mt-2 truncate text-lg font-semibold">{value}</p>
+      <p className="text-on-surface-variant mt-1 truncate text-xs">{detail}</p>
     </div>
   );
 }

@@ -32,10 +32,15 @@ function AutoDeployLimitsEditor({
   account: AdminHostingAccount;
   editable: boolean;
   onUpdated: (account: AdminHostingAccount) => void;
-  labels: Record<"disk" | "apps" | "ai" | "edit" | "save" | "inherit" | "saved" | "failed", string>;
+  labels: Record<
+    "cpu" | "memory" | "disk" | "apps" | "ai" | "edit" | "save" | "inherit" | "saved" | "failed",
+    string
+  >;
 }): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cpu, setCpu] = useState(account.autoDeployLimits.cpuPercentOverride?.toString() ?? "");
+  const [memory, setMemory] = useState(account.autoDeployLimits.memoryMbOverride?.toString() ?? "");
   const [disk, setDisk] = useState(account.autoDeployLimits.diskGbOverride?.toString() ?? "");
   const [apps, setApps] = useState(account.autoDeployLimits.maxAppsOverride?.toString() ?? "");
   const [ai, setAi] = useState(account.autoDeployLimits.aiCreditsOverride?.toString() ?? "");
@@ -45,6 +50,8 @@ function AutoDeployLimitsEditor({
     setSaving(true);
     try {
       const updated = await updateAdminHostingAutoDeployLimits(account.id, {
+        autoDeployCpuPercentOverride: parse(cpu),
+        autoDeployMemoryMbOverride: parse(memory),
         autoDeployDiskGbOverride: parse(disk),
         autoDeployMaxAppsOverride: parse(apps),
         autoDeployAiCreditsOverride: parse(ai),
@@ -61,6 +68,10 @@ function AutoDeployLimitsEditor({
 
   return (
     <div className="space-y-1 text-xs">
+      <p>
+        {labels.cpu}: {account.autoDeployLimits.cpuPercent}% · {labels.memory}:{" "}
+        {account.autoDeployLimits.memoryMb} MB
+      </p>
       <p>
         {labels.disk}: {account.autoDeployLimits.diskGb} GB
       </p>
@@ -80,6 +91,8 @@ function AutoDeployLimitsEditor({
           {open ? (
             <div className="space-y-2 rounded-xl border border-[var(--separator)] p-2">
               {[
+                [labels.cpu, cpu, setCpu, 10],
+                [labels.memory, memory, setMemory, 128],
                 [labels.disk, disk, setDisk, 1],
                 [labels.apps, apps, setApps, 1],
                 [labels.ai, ai, setAi, 0],
@@ -121,6 +134,7 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
   const tStage = useTranslations("dashboard.provision.stages");
   const tu = useTranslations("ui");
   const tr = useTranslations("deployResources");
+  const tw = useTranslations("admin.forms.serverWorkflow");
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
 
@@ -625,6 +639,8 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                         editable={isAdmin}
                         onUpdated={updateAccountInList}
                         labels={{
+                          cpu: tw("cpuLimit"),
+                          memory: tw("memoryLimit"),
                           disk: tp("autoDeployDisk"),
                           apps: tp("autoDeployApps"),
                           ai: tp("autoDeployAi"),

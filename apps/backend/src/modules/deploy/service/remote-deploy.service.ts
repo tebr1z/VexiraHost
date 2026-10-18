@@ -1199,6 +1199,40 @@ export class RemoteDeployService {
     await this.ssh.execChecked(ssh, runCmd);
   }
 
+  async applyTenantLimits(input: {
+    server: HostingServer;
+    accountId: string;
+    limits: TenantLimits;
+    dockerContainers: string[];
+  }): Promise<void> {
+    const cfg = this.deployConfig;
+    if (cfg.mockRemote) return;
+    const ssh = this.apacheProxy.buildSshOptions(input.server);
+    const basePath = cfg.basePath.replace(/\/$/, "");
+    const tenant = tenantIdentity(input.accountId, basePath);
+    if ((await this.ssh.exec(ssh, "test -f /etc/systemd/system/vexira.slice")).code !== 0) {
+      await this.ssh.writeFile(ssh, "/etc/systemd/system/vexira.slice", TENANT_PARENT_SLICE);
+    }
+    await this.ssh.writeFile(
+      ssh,
+      `/etc/systemd/system/${tenant.slice}`,
+      tenantSliceContent(input.limits),
+    );
+    await this.ssh.execChecked(
+      ssh,
+      buildTenantPrepareCommand(input.accountId, basePath, input.limits),
+      120_000,
+    );
+    for (const name of input.dockerContainers) {
+      tenantRuntimeUnit(name);
+      await this.ssh.execChecked(
+        ssh,
+        `docker update --cpus ${input.limits.cpuPercent / 100} --memory ${input.limits.memoryMb}m --memory-swap ${input.limits.memoryMb}m ${shellQuote(name)}`,
+        60_000,
+      );
+    }
+  }
+
   async removeDeployment(input: {
     server: HostingServer;
     accountId: string;

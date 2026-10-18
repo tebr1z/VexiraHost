@@ -114,6 +114,8 @@ function mapAccount(account: {
   cancelApprovedAt?: Date | null;
   scheduledPurgeAt?: Date | null;
   autoDeployDiskGbOverride?: number | null;
+  autoDeployCpuPercentOverride?: number | null;
+  autoDeployMemoryMbOverride?: number | null;
   autoDeployMaxAppsOverride?: number | null;
   autoDeployAiCreditsOverride?: number | null;
   autoDeployDiskUsedMb?: number;
@@ -125,6 +127,8 @@ function mapAccount(account: {
     name: string;
     diskGb?: number;
     autoDeployDiskGb?: number;
+    autoDeployCpuPercent?: number;
+    autoDeployMemoryMb?: number;
     autoDeployMaxApps?: number;
     autoDeployAiMonthlyCredits?: number;
   };
@@ -152,11 +156,15 @@ function mapAccount(account: {
     cancelApprovedAt: account.cancelApprovedAt ?? null,
     scheduledPurgeAt: account.scheduledPurgeAt ?? null,
     autoDeployLimits: {
+      cpuPercent: account.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent ?? 100,
+      memoryMb: account.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb ?? 1024,
       diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb ?? 0,
       maxApps: account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps ?? 0,
       aiCredits:
         account.autoDeployAiCreditsOverride ?? account.plan.autoDeployAiMonthlyCredits ?? 0,
       diskGbOverride: account.autoDeployDiskGbOverride ?? null,
+      cpuPercentOverride: account.autoDeployCpuPercentOverride ?? null,
+      memoryMbOverride: account.autoDeployMemoryMbOverride ?? null,
       maxAppsOverride: account.autoDeployMaxAppsOverride ?? null,
       aiCreditsOverride: account.autoDeployAiCreditsOverride ?? null,
     },
@@ -383,12 +391,28 @@ export class HostingServersService {
     id: string,
     limits: {
       autoDeployDiskGbOverride?: number | null;
+      autoDeployCpuPercentOverride?: number | null;
+      autoDeployMemoryMbOverride?: number | null;
       autoDeployMaxAppsOverride?: number | null;
       autoDeployAiCreditsOverride?: number | null;
     },
   ) {
     const account = await this.hostingServersRepository.findAccountById(id);
     if (!account) throw new NotFoundException("Hosting account not found");
+    await this.deployService.applyAccountResourceLimits(id, {
+      cpuPercent:
+        limits.autoDeployCpuPercentOverride !== undefined
+          ? (limits.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent ?? 100)
+          : (account.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent ?? 100),
+      memoryMb:
+        limits.autoDeployMemoryMbOverride !== undefined
+          ? (limits.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb ?? 1024)
+          : (account.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb ?? 1024),
+      diskGb:
+        limits.autoDeployDiskGbOverride !== undefined
+          ? (limits.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb ?? 1)
+          : (account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb ?? 1),
+    });
     const updated = await this.hostingServersRepository.updateAccount(id, limits);
     return mapAccount(updated);
   }

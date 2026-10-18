@@ -165,12 +165,41 @@ export class DeployService {
       hasDeployments: apps.length > 0,
       ...usage,
       limits: {
-        cpuPercent: account.plan.autoDeployCpuPercent,
-        memoryMb: account.plan.autoDeployMemoryMb,
+        cpuPercent: account.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent,
+        memoryMb: account.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb,
         diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
         maxApps: account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps,
       },
     };
+  }
+
+  async applyAccountResourceLimits(
+    accountId: string,
+    limits: { cpuPercent: number; memoryMb: number; diskGb: number },
+  ): Promise<void> {
+    const account = await this.hostingRepository.findById(accountId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    const apps = await this.deployRepository.listByAccount(accountId);
+    if (apps.length === 0) return;
+    const runtimeIds = new Set(apps.map((app) => app.deployServerId).filter(Boolean));
+    if (runtimeIds.size > 1) {
+      throw new BadRequestException(
+        "Move this customer's applications to one runtime server first",
+      );
+    }
+    const server =
+      apps.find((app) => app.deployServer)?.deployServer ?? account.plan.autoDeployServer;
+    if (!server?.deployNodeEnabled) {
+      throw new BadRequestException("Auto Deploy runtime is not configured");
+    }
+    await this.remoteDeploy.applyTenantLimits({
+      server,
+      accountId,
+      limits,
+      dockerContainers: apps
+        .filter((app) => app.runtime === DeployRuntime.DOCKER && app.containerName)
+        .map((app) => app.containerName!),
+    });
   }
 
   async get(accountId: string, deploymentId: string, userId: string) {
@@ -556,8 +585,8 @@ export class DeployService {
         containerPort: deployment.containerPort,
         envVars,
         resourceLimits: {
-          cpuPercent: account.plan.autoDeployCpuPercent,
-          memoryMb: account.plan.autoDeployMemoryMb,
+          cpuPercent: account.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent,
+          memoryMb: account.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb,
           diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
         },
         bindHost: server.id === account.server?.id ? "127.0.0.1" : "0.0.0.0",

@@ -3006,7 +3006,7 @@
       "distributionBalancedHelp": "Yeni hesab həmişə limiti dolmayan və ən az hesabı olan serverdə açılır.",
       "pleskPlanName": "Plesk servis planı adı",
       "pleskPlanNamePlaceholder": "məs. Default",
-      "pleskPlanNameHelp": "Plesk serverindəki mövcud servis planı adı ilə eyni olmalıdır. Boş buraxsanız server defoltu istifadə olunur.",
+      "pleskPlanNameHelp": "Seçilən bütün Plesk serverlərində mövcud olan servis planını seçin. Kvotalar həmin plandan avtomatik doldurulur.",
       "hostingServerRequired": "Bu plan üçün ən azı bir hosting serveri seçin.",
       "noHostingServersForPanel": "Bu panel üçün aktiv server yoxdur. Əvvəlcə Hosting Serverləri bölməsində əlavə edin.",
       "noLinkedHostingPlans": "Serverə bağlı hosting planı yoxdur. Plan yaradıb server təyin edin.",

@@ -1263,6 +1263,8 @@ model HostingAccount {
   provisionError        String?
   provisionedAt         DateTime?
   autoDeployDiskGbOverride Int?
+  autoDeployCpuPercentOverride Int?
+  autoDeployMemoryMbOverride Int?
   autoDeployMaxAppsOverride Int?
   autoDeployAiCreditsOverride Int?
   autoDeployDiskUsedMb Int                    @default(0)

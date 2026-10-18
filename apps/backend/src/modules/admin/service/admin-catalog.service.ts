@@ -17,6 +17,8 @@ import type {
 } from "../dto";
 import { AdminCatalogRepository } from "../repository/admin-catalog.repository";
 
+import { listPleskServicePlans } from "@/modules/hosting/clients/plesk-api.client";
+import { isMockPanelServer } from "@/modules/hosting/utils/panel-endpoint.util";
 import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
 import { mapProductPrices, oneTimeProductPrices } from "@/shared/pricing/product-price.util";
 import { expandProductPricesFromUsdSource } from "@/shared/pricing/usd-price-expand.util";
@@ -359,6 +361,28 @@ export class AdminCatalogService {
     return server;
   }
 
+  private async assertPleskPlanExists(serverIds: string[], planName: string) {
+    await Promise.all(
+      serverIds.map(async (serverId) => {
+        const server = await this.catalogRepository.findHostingServerById(serverId);
+        if (!server || isMockPanelServer(server)) return;
+        const plans = await listPleskServicePlans({
+          hostname: server.hostname,
+          ipAddress: server.ipAddress,
+          panel: "PLESK",
+          whmUsername: server.whmUsername,
+          whmPasswordEnc: server.whmPasswordEnc,
+          apiTokenEnc: server.apiTokenEnc,
+        });
+        if (!plans.some((plan) => plan.name === planName)) {
+          throw new BadRequestException(
+            `Plesk package "${planName}" does not exist on server "${server.name}"`,
+          );
+        }
+      }),
+    );
+  }
+
   listHostingPlans() {
     return this.catalogRepository.listHostingPlans().then((plans) => plans.map(mapHostingPlan));
   }
@@ -385,6 +409,11 @@ export class AdminCatalogService {
     }
     for (const serverId of serverIds) {
       await this.assertHostingServer(serverId, dto.panel);
+    }
+    const pleskPlanName = dto.pleskPlanName?.trim() ?? "";
+    if (dto.panel === HostingPanel.PLESK) {
+      if (!pleskPlanName) throw new BadRequestException("Select a Plesk service plan");
+      await this.assertPleskPlanExists(serverIds, pleskPlanName);
     }
     assertAutoDeployPlan(dto.panel, dto.autoDeployEnabled);
     if (dto.autoDeployEnabled) {
@@ -415,7 +444,7 @@ export class AdminCatalogService {
       billingCycle: dto.billingCycle ?? "MONTHLY",
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
-      pleskPlanName: dto.pleskPlanName?.trim() || null,
+      pleskPlanName: pleskPlanName || null,
       autoDeployEnabled: dto.autoDeployEnabled ?? false,
       autoDeployDiskGb: dto.autoDeployDiskGb ?? 1,
       autoDeployCpuPercent: dto.autoDeployCpuPercent ?? 100,
@@ -450,6 +479,16 @@ export class AdminCatalogService {
     }
     for (const serverId of serverIds) {
       await this.assertHostingServer(serverId, nextPanel);
+    }
+    const nextPleskPlanName =
+      dto.pleskPlanName !== undefined
+        ? dto.pleskPlanName?.trim() || ""
+        : current.pleskPlanName?.trim() || "";
+    if (nextPanel === HostingPanel.PLESK) {
+      if (!nextPleskPlanName) throw new BadRequestException("Select a Plesk service plan");
+      if (dto.pleskPlanName !== undefined || dto.serverIds || dto.serverId) {
+        await this.assertPleskPlanExists(serverIds, nextPleskPlanName);
+      }
     }
 
     const nextAutoDeploy =

@@ -325,8 +325,8 @@ export class DeployRunner {
         diskLimitBytes:
           (account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb) * 1024 * 1024 * 1024,
         resourceLimits: {
-          cpuPercent: account.plan.autoDeployCpuPercent,
-          memoryMb: account.plan.autoDeployMemoryMb,
+          cpuPercent: account.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent,
+          memoryMb: account.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb,
           diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
         },
         envVars,

@@ -92,8 +92,8 @@ function mapAccount(
     graceEndsAt: account.graceEndsAt,
     renewalInvoiceId: account.renewalInvoiceId,
     autoDeployLimits: {
-      cpuPercent: account.plan.autoDeployCpuPercent,
-      memoryMb: account.plan.autoDeployMemoryMb,
+      cpuPercent: account.autoDeployCpuPercentOverride ?? account.plan.autoDeployCpuPercent,
+      memoryMb: account.autoDeployMemoryMbOverride ?? account.plan.autoDeployMemoryMb,
       diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
       maxApps: account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps,
       aiCredits: account.autoDeployAiCreditsOverride ?? account.plan.autoDeployAiMonthlyCredits,

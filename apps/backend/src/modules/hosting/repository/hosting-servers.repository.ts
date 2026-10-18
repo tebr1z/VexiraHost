@@ -224,6 +224,8 @@ export class HostingServersRepository {
       autoRenew?: boolean;
       renewalInvoiceId?: string | null;
       autoDeployDiskGbOverride?: number | null;
+      autoDeployCpuPercentOverride?: number | null;
+      autoDeployMemoryMbOverride?: number | null;
       autoDeployMaxAppsOverride?: number | null;
       autoDeployAiCreditsOverride?: number | null;
       autoDeployDiskUsedMb?: number;

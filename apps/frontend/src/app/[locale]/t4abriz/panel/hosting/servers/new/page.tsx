@@ -4,10 +4,9 @@ import { useTranslations } from "next-intl";
 
 import { HostingServerForm, toServerPayload } from "@/components/admin/hosting-server-form";
 import { PageHeader } from "@/components/ui";
-import { bootstrapServerSetup, createHostingServer } from "@/features/admin";
+import { createHostingServer } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
 import { useRouter } from "@/i18n/navigation";
-import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
 
@@ -45,17 +44,10 @@ export default function NewHostingServerPage(): React.ReactElement | null {
             toServerPayload(values) as Parameters<typeof createHostingServer>[0],
           );
           toast(tt("hostingServerSaved"), "success");
-          if (values.deployNodeEnabled && values.setupAfterSave) {
-            try {
-              const { jobId } = await bootstrapServerSetup(server.id);
-              router.push(
-                `/t4abriz/panel/hosting/servers/${server.id}/setup?jobId=${encodeURIComponent(jobId)}`,
-              );
-            } catch (error) {
-              // The server is already saved. Do not retry creation if SSH setup fails.
-              toast(getApiErrorMessage(error, tw("setupStartFailed")), "error");
-              router.push(`/t4abriz/panel/hosting/servers/${server.id}/setup`);
-            }
+          if (server.bootstrapJobId) {
+            router.push(
+              `/t4abriz/panel/hosting/servers/${server.id}/setup?jobId=${encodeURIComponent(server.bootstrapJobId)}`,
+            );
             return;
           }
           router.push(`/t4abriz/panel/hosting/servers/${server.id}`);

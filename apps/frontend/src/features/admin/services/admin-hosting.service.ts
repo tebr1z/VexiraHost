@@ -36,6 +36,7 @@ export interface HostingServer {
   deployUptimeSeconds: number | null;
   createdAt: string;
   updatedAt: string;
+  bootstrapJobId?: string | null;
 }
 
 export interface AdminHostingAccount {
@@ -53,9 +54,13 @@ export interface AdminHostingAccount {
   cancelApprovedAt?: string | null;
   scheduledPurgeAt?: string | null;
   autoDeployLimits: {
+    cpuPercent: number;
+    memoryMb: number;
     diskGb: number;
     maxApps: number;
     aiCredits: number;
+    cpuPercentOverride: number | null;
+    memoryMbOverride: number | null;
     diskGbOverride: number | null;
     maxAppsOverride: number | null;
     aiCreditsOverride: number | null;
@@ -231,6 +236,8 @@ export async function updateAdminHostingAccountStatus(
 export async function updateAdminHostingAutoDeployLimits(
   id: string,
   input: {
+    autoDeployCpuPercentOverride: number | null;
+    autoDeployMemoryMbOverride: number | null;
     autoDeployDiskGbOverride: number | null;
     autoDeployMaxAppsOverride: number | null;
     autoDeployAiCreditsOverride: number | null;

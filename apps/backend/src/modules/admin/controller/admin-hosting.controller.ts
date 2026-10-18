@@ -51,8 +51,12 @@ export class AdminHostingController {
 
   @Post("servers")
   @Roles(UserRole.ADMIN)
-  createServer(@Body() dto: CreateHostingServerDto) {
-    return this.hostingServersService.createServer(dto);
+  async createServer(@Body() dto: CreateHostingServerDto) {
+    const server = await this.hostingServersService.createServer(dto);
+    const bootstrapJobId = server.deployNodeEnabled
+      ? this.serverSetupService.startBootstrap(server.id).jobId
+      : null;
+    return { ...server, bootstrapJobId };
   }
 
   @Get("servers/:id")
@@ -63,8 +67,18 @@ export class AdminHostingController {
 
   @Patch("servers/:id")
   @Roles(UserRole.ADMIN)
-  updateServer(@Param("id") id: string, @Body() dto: UpdateHostingServerDto) {
-    return this.hostingServersService.updateServer(id, dto);
+  async updateServer(@Param("id") id: string, @Body() dto: UpdateHostingServerDto) {
+    const server = await this.hostingServersService.updateServer(id, dto);
+    const credentialsChanged =
+      dto.deployNodeEnabled === true ||
+      dto.sshUsername !== undefined ||
+      dto.sshPassword !== undefined ||
+      dto.sshPort !== undefined;
+    const bootstrapJobId =
+      server.deployNodeEnabled && credentialsChanged
+        ? this.serverSetupService.startBootstrap(server.id).jobId
+        : null;
+    return { ...server, bootstrapJobId };
   }
 
   @Delete("servers/:id")
