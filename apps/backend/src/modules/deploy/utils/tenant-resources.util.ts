@@ -37,7 +37,8 @@ export function tenantIdentity(accountId: string, basePath: string) {
 
 export function tenantSliceContent(limits: TenantLimits): string {
   validateTenantLimits(limits);
-  return `[Unit]\nDescription=Vexira tenant aggregate resource budget\n[Slice]\nCPUAccounting=yes\nMemoryAccounting=yes\nTasksAccounting=yes\nCPUQuota=${limits.cpuPercent}%\nMemoryMax=${limits.memoryMb}M\nMemorySwapMax=0\nTasksMax=512\n`;
+  const memoryHighMb = Math.max(1, Math.floor(limits.memoryMb * 0.9));
+  return `[Unit]\nDescription=Vexira tenant aggregate resource budget\n[Slice]\nCPUAccounting=yes\nMemoryAccounting=yes\nTasksAccounting=yes\nCPUQuota=${limits.cpuPercent}%\nMemoryHigh=${memoryHighMb}M\nMemoryMax=${limits.memoryMb}M\nMemorySwapMax=0\nTasksMax=512\n`;
 }
 
 /** Native XFS project quotas: no formatting/remounting and no advisory-only fallback. */
@@ -75,10 +76,13 @@ export function buildTenantPrepareCommand(
     `xfs_quota -x -c ${q(`project -s -p ${root} ${projectId}`)} "$MOUNT"`,
     `xfs_quota -x -c ${q(`limit -p bsoft=${limits.diskGb}g bhard=${limits.diskGb}g ihard=200000 ${projectId}`)} "$MOUNT"`,
     `xfs_quota -x -c ${q(`limit -u bsoft=${limits.diskGb}g bhard=${limits.diskGb}g ihard=200000 ${user}`)} "$MOUNT"`,
+    "install -d -m 700 /var/lib/vexira/tenants",
+    `printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' ${q(accountId)} ${q(user)} ${q(slice)} ${q(root)} ${limits.cpuPercent} ${limits.memoryMb} ${limits.diskGb} ${projectId} > ${q(`/var/lib/vexira/tenants/${slice}.tenant`)}`,
+    `chmod 600 ${q(`/var/lib/vexira/tenants/${slice}.tenant`)}`,
     // Keep tenant cgroups below a host-wide budget; leave headroom for Plesk/OS.
     `systemctl daemon-reload && systemctl start ${q(slice)}`,
     `systemctl set-property vexira.slice MemoryMax=80% MemorySwapMax=0 TasksMax=8192 CPUQuota="$(( $(getconf _NPROCESSORS_ONLN) * 80 ))%"`,
-    `systemctl set-property ${q(slice)} CPUQuota=${limits.cpuPercent}% MemoryMax=${limits.memoryMb}M MemorySwapMax=0 TasksMax=512`,
+    `systemctl set-property ${q(slice)} CPUQuota=${limits.cpuPercent}% MemoryHigh=${Math.max(1, Math.floor(limits.memoryMb * 0.9))}M MemoryMax=${limits.memoryMb}M MemorySwapMax=0 TasksMax=512`,
     "echo 'Tenant cgroup and enforced project quota prepared'",
   ].join("\n");
 }
@@ -99,7 +103,7 @@ export function buildTenantRunCommand(input: {
     input.runtimeName ? "--collect" : "--wait --pipe --collect",
     `--unit=${q(unit)} --slice=${q(slice)} --service-type=exec`,
     `--property=${q(`User=${user}`)} --property=${q(`Group=${user}`)}`,
-    "--property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes",
+    "--property=NoNewPrivileges=yes --property=ProtectSystem=strict --property=ProtectHome=yes --property=MemoryOOMGroup=yes",
     "--property=PrivateTmp=yes --property=PrivateDevices=yes --property=ProtectControlGroups=yes",
     "--property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=RestrictSUIDSGID=yes --property=ProtectProc=invisible",
     "--property=RestrictNamespaces=yes --property=CapabilityBoundingSet= --property=UMask=0077",
@@ -133,7 +137,7 @@ export function tenantRuntimeServiceContent(
     .replace(/\\/g, "\\\\")
     .replace(/"/g, '\\"')
     .replace(/\n/g, " ");
-  return `[Unit]\nDescription=Vexira isolated PM2 application\nAfter=network.target\n[Service]\nType=exec\nUser=${user}\nGroup=${user}\nSlice=${slice}\nWorkingDirectory=${root}\nEnvironment=HOME=${root}/.home PM2_HOME=${root}/.home/.pm2-${runtimeName} npm_config_cache=${root}/.home/.npm XDG_CACHE_HOME=${root}/.home/.cache\nExecStart=/bin/sh -c "${escaped}"\nRestart=on-failure\nRestartSec=3\nKillMode=control-group\nLogRateLimitIntervalSec=30s\nLogRateLimitBurst=200\nNoNewPrivileges=yes\nProtectSystem=strict\nProtectHome=yes\nPrivateTmp=yes\nPrivateDevices=yes\nProtectControlGroups=yes\nProtectKernelTunables=yes\nProtectKernelModules=yes\nProtectProc=invisible\nRestrictSUIDSGID=yes\nRestrictNamespaces=yes\nCapabilityBoundingSet=\nUMask=0077\nReadWritePaths=${root}\nTemporaryFileSystem=/tmp:rw,nosuid,nodev,size=64M\n[Install]\nWantedBy=multi-user.target\n`;
+  return `[Unit]\nDescription=Vexira isolated PM2 application\nAfter=network.target\n[Service]\nType=exec\nUser=${user}\nGroup=${user}\nSlice=${slice}\nWorkingDirectory=${root}\nEnvironment=HOME=${root}/.home PM2_HOME=${root}/.home/.pm2-${runtimeName} npm_config_cache=${root}/.home/.npm XDG_CACHE_HOME=${root}/.home/.cache\nExecStart=/bin/sh -c "${escaped}"\nRestart=on-failure\nRestartSec=3\nKillMode=control-group\nMemoryOOMGroup=yes\nLogRateLimitIntervalSec=30s\nLogRateLimitBurst=200\nNoNewPrivileges=yes\nProtectSystem=strict\nProtectHome=yes\nPrivateTmp=yes\nPrivateDevices=yes\nProtectControlGroups=yes\nProtectKernelTunables=yes\nProtectKernelModules=yes\nProtectProc=invisible\nRestrictSUIDSGID=yes\nRestrictNamespaces=yes\nCapabilityBoundingSet=\nUMask=0077\nReadWritePaths=${root}\nTemporaryFileSystem=/tmp:rw,nosuid,nodev,size=64M\n[Install]\nWantedBy=multi-user.target\n`;
 }
 
 export function buildTenantMetricsCommand(accountId: string, basePath: string): string {

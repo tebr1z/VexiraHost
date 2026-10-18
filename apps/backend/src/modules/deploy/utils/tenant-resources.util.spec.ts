@@ -1,4 +1,5 @@
 import { buildManagedContainerRunCommand } from "./container-rollout.util";
+import { RESOURCE_GUARD_SCRIPT, RESOURCE_GUARD_TIMER } from "./resource-guard.script";
 import {
   buildTenantPrepareCommand,
   buildTenantRunCommand,
@@ -33,6 +34,7 @@ describe("tenant resource enforcement", () => {
   });
   it("uses hard CPU, RAM, swap and process limits", () => {
     expect(tenantSliceContent(limits)).toContain("CPUQuota=150%");
+    expect(tenantSliceContent(limits)).toContain("MemoryHigh=1843M");
     expect(tenantSliceContent(limits)).toContain("MemoryMax=2048M");
     expect(tenantSliceContent(limits)).toContain("MemorySwapMax=0");
     expect(tenantSliceContent(limits)).toContain("TasksMax=512");
@@ -45,6 +47,7 @@ describe("tenant resource enforcement", () => {
     expect(cmd).toContain("state -u");
     expect(cmd).toContain("limit -u bsoft=10g bhard=10g ihard=200000");
     expect(cmd).toContain("Project quota ID collision");
+    expect(cmd).toContain("/var/lib/vexira/tenants/");
     expect(cmd).not.toMatch(/mkfs|mount -o|\/etc\/fstab/);
   });
   it("runs dependency/build scripts unprivileged with a read-only host filesystem", () => {
@@ -59,6 +62,7 @@ describe("tenant resource enforcement", () => {
       "ProtectSystem=strict",
       "ProtectHome=yes",
       "ProtectControlGroups=yes",
+      "MemoryOOMGroup=yes",
       "CapabilityBoundingSet=",
       "RuntimeMaxSec=900",
       "KillMode=control-group",
@@ -66,6 +70,12 @@ describe("tenant resource enforcement", () => {
     ])
       expect(cmd).toContain(setting);
     expect(cmd).not.toContain("User=root");
+  });
+  it("installs a low-overhead host guard that reasserts hard limits", () => {
+    expect(RESOURCE_GUARD_SCRIPT).toContain('systemctl set-property --runtime "$slice"');
+    expect(RESOURCE_GUARD_SCRIPT).toContain('xfs_quota -x -c "limit -p');
+    expect(RESOURCE_GUARD_SCRIPT).toContain('kill -KILL "$pid"');
+    expect(RESOURCE_GUARD_TIMER).toContain("OnUnitActiveSec=30s");
   });
   it("creates persistent PM2 services with a distinct PM2 home for each app", () => {
     const service = tenantRuntimeServiceContent(

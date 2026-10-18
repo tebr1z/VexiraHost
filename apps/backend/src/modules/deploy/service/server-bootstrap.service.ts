@@ -3,6 +3,12 @@ import { ConfigService } from "@nestjs/config";
 import type { HostingServer } from "@prisma/client";
 
 import type { BootstrapStageId } from "../types/bootstrap-job.types";
+import {
+  RESOURCE_GUARD_SCRIPT,
+  RESOURCE_GUARD_SERVICE,
+  RESOURCE_GUARD_TIMER,
+  RESOURCE_GUARD_VERSION,
+} from "../utils/resource-guard.script";
 import { buildServerBootstrapScript, OS_DETECT_COMMAND } from "../utils/server-bootstrap.script";
 import {
   formatOsVersionLabel,
@@ -202,6 +208,7 @@ export class ServerBootstrapService {
             const dockerInfo = await session.exec("docker info >/dev/null 2>&1");
 
             if (isDeployToolPresent(git) && isDeployToolPresent(docker) && dockerInfo.code === 0) {
+              const guardInstalled = await this.ensureResourceGuard(session);
               append("bootstrap", "Skipped — git and Docker already installed");
               emit({ stage: "upload_script", status: "success", message: "Skipped" });
               emit({ stage: "install_packages", status: "success", message: "Skipped" });
@@ -209,7 +216,7 @@ export class ServerBootstrapService {
                 stage: "verify",
                 status: "success",
                 message: "git & Docker OK",
-                logChunk: "Bootstrap skipped — server is already ready for deploy.\n",
+                logChunk: `Bootstrap skipped — server is already ready for deploy.\nResource guard ${guardInstalled ? "installed" : "already active"}.\n`,
               });
               emit({ stage: "done", status: "success" });
               this.logger.log(`Server ${server.id} bootstrap skipped (tools already present)`);
@@ -264,6 +271,11 @@ export class ServerBootstrapService {
             });
             throw new Error("Server bootstrap did not complete successfully");
           }
+          const guardInstalled = await this.ensureResourceGuard(session);
+          append(
+            "resource guard",
+            guardInstalled ? "Installed and enabled" : "Already installed and enabled",
+          );
           emit({ stage: "install_packages", status: "success", message: "Packages installed" });
 
           emit({ stage: "verify", status: "running", logChunk: "Verifying git & Docker…\n" });
@@ -298,6 +310,34 @@ export class ServerBootstrapService {
       throw new Error("Could not detect server OS from /etc/os-release");
     }
     return parsed;
+  }
+
+  private async ensureResourceGuard(session: SshSession): Promise<boolean> {
+    const probe = await session.exec(
+      `test -x /usr/local/sbin/vexira-resource-guard && grep -Fq ${shellQuote(`vexira-resource-guard-version: ${RESOURCE_GUARD_VERSION}`)} /usr/local/sbin/vexira-resource-guard && systemctl is-enabled --quiet vexira-resource-guard.timer`,
+      30_000,
+    );
+    if (probe.code === 0) {
+      await session.execChecked("systemctl start vexira-resource-guard.timer", 30_000);
+      return false;
+    }
+
+    await session.writeFile("/usr/local/sbin/vexira-resource-guard", RESOURCE_GUARD_SCRIPT, "755");
+    await session.writeFile(
+      "/etc/systemd/system/vexira-resource-guard.service",
+      RESOURCE_GUARD_SERVICE,
+      "644",
+    );
+    await session.writeFile(
+      "/etc/systemd/system/vexira-resource-guard.timer",
+      RESOURCE_GUARD_TIMER,
+      "644",
+    );
+    await session.execChecked(
+      "systemctl daemon-reload && systemctl enable --now vexira-resource-guard.timer && systemctl start vexira-resource-guard.service",
+      60_000,
+    );
+    return true;
   }
 
   private formatOsLog(detected: DetectedOs): string {

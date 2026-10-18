@@ -57,6 +57,7 @@ export type ServerSetupStatus = {
     node: string | null;
     npm: string | null;
     pm2: string | null;
+    resourceGuard: string | null;
     os: string | null;
     probedAt: string;
   } | null;
@@ -167,6 +168,7 @@ export class ServerSetupService implements OnModuleInit, OnModuleDestroy {
           node: "v22.0.0 (mock)",
           npm: "10.0.0 (mock)",
           pm2: "5.4.0 (mock)",
+          resourceGuard: "active (mock)",
           os: server.osVersion ?? "Ubuntu 22.04 LTS (mock)",
           probedAt: new Date().toISOString(),
         },
@@ -221,17 +223,22 @@ export class ServerSetupService implements OnModuleInit, OnModuleDestroy {
     const node = parseProbeLine(output, "NODE");
     const npm = parseProbeLine(output, "NPM");
     const pm2 = parseProbeLine(output, "PM2");
+    const resourceGuard = parseProbeLine(output, "RESOURCE_GUARD");
     const diskUsedMb = parseProbeNumber(output, "DISK_USED_MB");
     const diskTotalMb = parseProbeNumber(output, "DISK_TOTAL_MB");
     const diskPercent =
       diskUsedMb != null && diskTotalMb ? Math.round((diskUsedMb / diskTotalMb) * 100) : 0;
     const missingRuntime = !node || !npm || !pm2;
-    const deployHealth = missingRuntime || diskPercent >= 90 ? "DEGRADED" : "HEALTHY";
+    const missingEnforcement = resourceGuard !== "active";
+    const deployHealth =
+      missingRuntime || missingEnforcement || diskPercent >= 90 ? "DEGRADED" : "HEALTHY";
     const deployHealthMessage = missingRuntime
       ? "Node.js, npm or PM2 is missing"
-      : diskPercent >= 90
-        ? `Root disk usage is ${diskPercent}%`
-        : "Auto Deploy node is healthy";
+      : missingEnforcement
+        ? "Vexira resource guard is not active"
+        : diskPercent >= 90
+          ? `Root disk usage is ${diskPercent}%`
+          : "Auto Deploy node is healthy";
 
     await this.hostingServersRepository.update(server.id, {
       deployHealth,
@@ -257,6 +264,7 @@ export class ServerSetupService implements OnModuleInit, OnModuleDestroy {
         node,
         npm,
         pm2,
+        resourceGuard,
         os: detected ? formatOsVersionLabel(detected) : null,
         probedAt,
       },

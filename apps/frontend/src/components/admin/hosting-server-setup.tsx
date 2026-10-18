@@ -429,6 +429,14 @@ export function HostingServerSetupPanel({
           <ToolRow label="Node.js" value={status.tools.node} ok={Boolean(status.tools.node)} />
           <ToolRow label="npm" value={status.tools.npm} ok={Boolean(status.tools.npm)} />
           <ToolRow label="PM2" value={status.tools.pm2} ok={Boolean(status.tools.pm2)} />
+          <ToolRow
+            label="Vexira Resource Guard"
+            value={status.tools.resourceGuard}
+            ok={
+              status.tools.resourceGuard === "active" ||
+              status.tools.resourceGuard === "active (mock)"
+            }
+          />
         </div>
       )}
 

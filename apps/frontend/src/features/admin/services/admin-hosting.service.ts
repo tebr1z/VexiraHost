@@ -315,6 +315,7 @@ export interface ServerSetupStatus {
     node: string | null;
     npm: string | null;
     pm2: string | null;
+    resourceGuard: string | null;
     os: string | null;
     probedAt: string;
   } | null;

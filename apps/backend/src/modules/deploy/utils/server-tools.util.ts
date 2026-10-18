@@ -5,6 +5,7 @@ export const TOOLS_PROBE_COMMAND = [
   'echo "NODE=$(node --version 2>/dev/null || echo missing)"',
   'echo "NPM=$(npm --version 2>/dev/null || echo missing)"',
   'echo "PM2=$(pm2 --version 2>/dev/null || echo missing)"',
+  'echo "RESOURCE_GUARD=$(systemctl is-active vexira-resource-guard.timer 2>/dev/null || echo missing)"',
   `echo "CPU_PERCENT=$(awk -v l=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null || echo 0) -v c=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1) 'BEGIN { printf "%d", (l/c)*100 }')"`,
   "echo \"MEM_USED_MB=$(free -m 2>/dev/null | awk '/^Mem:/ {print $3}' || echo 0)\"",
   "echo \"MEM_TOTAL_MB=$(free -m 2>/dev/null | awk '/^Mem:/ {print $2}' || echo 0)\"",
