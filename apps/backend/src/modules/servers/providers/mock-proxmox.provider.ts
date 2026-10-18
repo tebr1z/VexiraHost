@@ -8,6 +8,8 @@ import type {
   ProxmoxProvider,
 } from "../interfaces/proxmox-provider.interface";
 
+import { assertMockProviderAllowed } from "@/shared/providers/mock-provider.guard";
+
 const REGION_NODES: Record<string, string> = {
   "fra-01": "pve-fra-01",
   "nyc-01": "pve-nyc-01",
@@ -25,6 +27,8 @@ function hashSeed(input: string): number {
 @Injectable()
 export class MockProxmoxProvider implements ProxmoxProvider {
   async provision(input: ProxmoxProvisionInput): Promise<ProxmoxProvisionResult> {
+    assertMockProviderAllowed("Mock Proxmox provider");
+
     const vmId = String(1000 + (hashSeed(input.hostname) % 8000));
     const node = REGION_NODES[input.region] ?? "pve-fra-01";
     const octet = (hashSeed(input.hostname) % 200) + 10;
@@ -43,6 +47,8 @@ export class MockProxmoxProvider implements ProxmoxProvider {
     action: ServerPowerAction,
     currentStatus: ServerStatus,
   ): Promise<ServerStatus> {
+    assertMockProviderAllowed("Mock Proxmox provider");
+
     if (currentStatus === ServerStatus.PROVISIONING) {
       throw new Error("Server is still provisioning");
     }
@@ -64,6 +70,8 @@ export class MockProxmoxProvider implements ProxmoxProvider {
   }
 
   getMetrics(serverId: string, ramTotalGb: number): ProxmoxMetrics {
+    assertMockProviderAllowed("Mock Proxmox provider");
+
     const seed = hashSeed(serverId);
     const cpuPercent = 12 + (seed % 55);
     const ramUsedGb = Math.round(((seed % 70) / 100) * ramTotalGb * 10) / 10;

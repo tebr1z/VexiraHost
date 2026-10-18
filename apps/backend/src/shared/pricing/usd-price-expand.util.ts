@@ -77,6 +77,15 @@ export function expandProductPricesFromUsdSource(
   rates: Pick<ExchangeRatesSnapshot, "usdToAzn" | "usdToEur">,
   yearlyEnabled = true,
 ): ExpandedProductPrice[] {
+  const usdOneTime = prices.find((p) => p.currency === "USD" && p.period === "ONE_TIME");
+  if (usdOneTime) {
+    return (["USD", "EUR", "AZN"] as const).map((currency) => ({
+      currency,
+      period: "ONE_TIME",
+      originalPrice: convertUsd(usdOneTime.originalPrice, currency, rates),
+      salePrice: convertUsd(usdOneTime.salePrice, currency, rates),
+    }));
+  }
   const usdMonthly =
     prices.find((p) => p.currency === "USD" && p.period === "MONTHLY") ??
     prices.find((p) => p.period === "MONTHLY");

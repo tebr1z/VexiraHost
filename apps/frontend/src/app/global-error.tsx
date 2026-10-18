@@ -12,17 +12,14 @@ export default function GlobalError({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
+        {/* Material Symbols is an icon font and must also load when the root layout fails. */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
           rel="stylesheet"
         />
         <style>{`
-          body { font-family: Inter, sans-serif; margin: 0; }
-          .font-jakarta { font-family: "Plus Jakarta Sans", sans-serif; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; }
+          .font-jakarta { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
         `}</style>
       </head>
       <body>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
@@ -27,32 +28,33 @@ export function BrandLogo({
   const isIconOnly = variant === "icon";
   const isLight = tone === "light";
 
-  const content = (
-    <>
-      <BrandMark size={isIconOnly ? 32 : 36} tone={tone} />
-      {!isIconOnly && (
-        <span className="flex flex-col leading-none">
-          <span
-            className={cn(
-              "text-[1.05rem] font-bold tracking-tight",
-              isLight ? "text-white" : "text-[var(--label)]",
-              labelClassName,
-            )}
-          >
-            Vexira
-          </span>
-          <span
-            className={cn(
-              "text-[0.6875rem] font-semibold uppercase tracking-[0.14em]",
-              isLight ? "text-white/75" : "text-[var(--accent)]",
-              labelClassName,
-            )}
-          >
-            Host
-          </span>
-        </span>
+  const content = isIconOnly ? (
+    <BrandMark size={32} tone={tone} />
+  ) : (
+    <span
+      className={cn(
+        "vexira-brand-logo block",
+        isLight && "vexira-brand-logo-light",
+        labelClassName,
       )}
-    </>
+    >
+      <Image
+        src="/brand/logo.svg"
+        alt="Vexira Host"
+        width={148}
+        height={40}
+        unoptimized
+        className="vexira-brand-logo-default h-10 w-[148px]"
+      />
+      <Image
+        src="/brand/logo-light.svg"
+        alt="Vexira Host"
+        width={148}
+        height={40}
+        unoptimized
+        className="vexira-brand-logo-inverse h-10 w-[148px]"
+      />
+    </span>
   );
 
   const wrapperClass = cn("group inline-flex shrink-0 items-center gap-2.5", className);

@@ -49,7 +49,10 @@ export class DomainsRepository {
   }
 
   findByIdForUser(id: string, userId: string) {
-    return this.prisma.domain.findFirst({ where: { id, userId } });
+    return this.prisma.domain.findFirst({
+      where: { id, userId },
+      include: { _count: { select: { dnsRecords: true } } },
+    });
   }
 
   findByName(name: string) {
@@ -93,7 +96,8 @@ export class DomainsRepository {
       name: string;
       value: string;
       ttl: number;
-      priority?: number;
+      priority?: number | null;
+      proxied?: boolean;
     }[],
   ) {
     return this.prisma.$transaction(async (tx) => {

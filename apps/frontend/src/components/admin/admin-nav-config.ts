@@ -149,6 +149,13 @@ export const ADMIN_PANEL_NAV_GROUPS: AdminNavGroup[] = [
         icon: "cloud",
         matchPrefix: "/t4abriz/panel/hosting/accounts",
       },
+      {
+        href: "/t4abriz/panel/managed-servers",
+        labelKey: "managedServers",
+        icon: "admin_panel_settings",
+        matchPrefix: "/t4abriz/panel/managed-servers",
+        adminOnly: true,
+      },
     ],
   },
   {

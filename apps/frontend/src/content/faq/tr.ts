@@ -34,7 +34,7 @@ export const faqTr: FaqPageContent = {
           id: "general-4",
           question: "Verilerim nerede saklanıyor?",
           answer:
-            "Hizmet türüne göre verileriniz güvenli veri merkezi altyapısında, izole hesaplar ve şifreli bağlantılar üzerinden saklanır.\nYedekleme, erişim logları ve güvenlik duvarı katmanları hizmet paketinize göre aktif edilir.",
+            "Hizmet türüne göre verileriniz güvenli veri merkezi altyapısında, izole hesaplar ve şifreli bağlantılar üzerinden saklanır.\nErişim logları ve güvenlik duvarı katmanları hizmet paketinize göre aktif edilir.",
         },
         {
           id: "general-5",
@@ -52,7 +52,7 @@ export const faqTr: FaqPageContent = {
           id: "hosting-1",
           question: "Web hosting planlarınızda neler dahil?",
           answer:
-            "Planlarımızda NVMe depolama, ücretsiz SSL, e-posta hesapları, cPanel veya Plesk kontrol paneli, haftalık otomatik yedekleme ve 7/24 destek yer alır.\nPlan seviyesine göre disk, bant genişliği, domain ve posta kutusu limitleri artar.",
+            "Planlarımızda NVMe depolama, ücretsiz SSL, e-posta hesapları, cPanel veya Plesk kontrol paneli ve 7/24 destek yer alır.\nPlan seviyesine göre disk, bant genişliği, domain ve posta kutusu limitleri artar.",
         },
         {
           id: "hosting-2",
@@ -70,7 +70,7 @@ export const faqTr: FaqPageContent = {
           id: "hosting-4",
           question: "WordPress ve diğer CMS'leri kurabilir miyim?",
           answer:
-            "Kontrol panelinden tek tıkla WordPress, Joomla, Drupal ve benzeri popüler CMS'leri kurabilirsiniz.\nOtomatik güncellemeler, SSL ve yedekleme ile siteniz güvenli şekilde yayında kalır.",
+            "Kontrol panelinden tek tıkla WordPress, Joomla, Drupal ve benzeri popüler CMS'leri kurabilirsiniz.\nOtomatik güncellemeler ve ücretsiz SSL sitenizi güvende tutmaya yardımcı olur.",
         },
         {
           id: "hosting-5",
@@ -116,9 +116,9 @@ export const faqTr: FaqPageContent = {
         },
         {
           id: "servers-5",
-          question: "Sunucu yedeklemesi nasıl çalışır?",
+          question: "Yedeklerimi nasıl saklamalıyım?",
           answer:
-            "Otomatik snapshot ve yedekleme seçenekleri planınıza göre sunulur.\nKritik verileriniz için ek yedekleme politikaları tanımlayabilir, panelden geri yükleme işlemi başlatabilirsiniz.",
+            "Şu anda hosting paketlerine yönetilen yedekleme hizmeti dahil değildir.\nKritik verilerinizin düzenli kopyalarını ayrı bir harici depoda saklamanızı öneririz.",
         },
       ],
     },

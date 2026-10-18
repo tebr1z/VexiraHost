@@ -9,10 +9,22 @@ import {
   IsOptional,
   IsString,
   Min,
+  Max,
   MinLength,
 } from "class-validator";
 
 export class CreateHostingPlanDto {
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(3200)
+  autoDeployCpuPercent?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(128)
+  @Max(262144)
+  autoDeployMemoryMb?: number;
   @IsOptional()
   @IsString()
   @MinLength(2)
@@ -93,9 +105,47 @@ export class CreateHostingPlanDto {
   @IsOptional()
   @IsBoolean()
   autoDeployEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  autoDeployServerId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  autoDeployDiskGb?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  autoDeployMaxApps?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoDeployAiEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  autoDeployAiMonthlyCredits?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoDeploySecurityScanEnabled?: boolean;
 }
 
 export class UpdateHostingPlanDto {
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(3200)
+  autoDeployCpuPercent?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(128)
+  @Max(262144)
+  autoDeployMemoryMb?: number;
   @IsOptional()
   @IsString()
   @MinLength(2)
@@ -177,4 +227,31 @@ export class UpdateHostingPlanDto {
   @IsOptional()
   @IsBoolean()
   autoDeployEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  autoDeployServerId?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  autoDeployDiskGb?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  autoDeployMaxApps?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoDeployAiEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  autoDeployAiMonthlyCredits?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoDeploySecurityScanEnabled?: boolean;
 }

@@ -20,6 +20,8 @@ export interface CatalogProduct {
   discountPercent?: number;
   currency: string;
   billingCycle: string;
+  minimumQuantity?: number;
+  requiresQuote?: boolean;
   period?: string;
   yearlySavingsPercent?: number | null;
   availableCurrencies?: string[];

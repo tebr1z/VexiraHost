@@ -1,9 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/cn";
 import { usePricingStore, type AppPeriod } from "@/stores/pricing-store";
+
+const subscribe = () => () => {};
 
 export function BillingPeriodToggle({
   className,
@@ -14,7 +17,13 @@ export function BillingPeriodToggle({
   savingsPercent?: number;
 }): React.ReactElement {
   const t = useTranslations("publicHosting");
-  const period = usePricingStore((s) => s.period);
+  const storedPeriod = usePricingStore((s) => s.period);
+  const hydrated = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+  const period = hydrated ? storedPeriod : "MONTHLY";
   const setPeriod = usePricingStore((s) => s.setPeriod);
 
   const options: { value: AppPeriod; label: string; badge?: string }[] = [
@@ -34,6 +43,7 @@ export function BillingPeriodToggle({
             key={opt.value}
             type="button"
             data-active={period === opt.value}
+            aria-pressed={period === opt.value}
             onClick={() => setPeriod(opt.value)}
             className="apple-segmented-item inline-flex items-center gap-2"
           >

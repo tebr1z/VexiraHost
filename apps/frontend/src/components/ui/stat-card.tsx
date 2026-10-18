@@ -12,12 +12,7 @@ export function StatCard({
   className?: string;
 }): React.ReactElement {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-t-2 border-[var(--separator)] border-t-[var(--accent)] bg-[var(--bg-elevated)] p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg",
-        className,
-      )}
-    >
+    <div className={cn("vexira-stat-card", className)}>
       <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--label-secondary)]">
         {label}
       </p>

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { CloudNavLoader } from "@/components/layout/cloud-nav-loader";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useVerifiedStaffSession } from "@/features/auth/hooks/use-auth";
@@ -65,16 +66,16 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
 
   if (!isReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0b1220] text-white/70">
-        {t("login.checking")}
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-6">
+        <CloudNavLoader fullPage />
       </div>
     );
   }
 
   if (isImpersonatingAway) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0b1220] text-white/70">
-        {t("login.checking")}
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-6">
+        <CloudNavLoader fullPage />
       </div>
     );
   }
@@ -96,34 +97,40 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
 
       {mobileOpen ? (
         <aside className="fixed inset-y-0 left-0 z-[70] w-[min(18rem,88vw)] lg:hidden">
-          <AdminSidebar isAdmin={isAdmin} onNavigate={() => setMobileOpen(false)} />
+          <AdminSidebar
+            isAdmin={isAdmin}
+            onLogout={handleLogout}
+            onNavigate={() => setMobileOpen(false)}
+          />
         </aside>
       ) : null}
 
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <div className="sticky top-0 hidden h-screen shrink-0 lg:block">
-          <AdminSidebar isAdmin={isAdmin} />
+          <AdminSidebar isAdmin={isAdmin} onLogout={handleLogout} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-white/10 bg-[#0b1220]/80 px-4 py-3 backdrop-blur-xl sm:px-6">
+          <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between gap-3 border-b border-[var(--separator)] bg-[var(--bg-elevated)] px-4 py-3 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white lg:hidden"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] text-[var(--label)] lg:hidden"
                 aria-label={t("header.openMenu")}
                 onClick={() => setMobileOpen(true)}
               >
                 <span className="material-symbols-outlined text-[22px]">menu</span>
               </button>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{t("header.title")}</p>
+                <p className="truncate text-sm font-semibold text-[var(--label)]">
+                  {t("header.title")}
+                </p>
                 <p className="text-on-surface-variant truncate text-xs">{user.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden text-right sm:block">
-                <p className="text-xs font-medium text-white/90">
+                <p className="text-xs font-medium text-[var(--label)]">
                   {[user.firstName, user.lastName].filter(Boolean).join(" ") || user.email}
                 </p>
                 <p className="text-on-surface-variant text-xs capitalize">{user.role}</p>
@@ -133,7 +140,7 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-medium text-white hover:bg-white/10"
+                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[var(--separator)] px-3 text-sm font-medium text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)]"
               >
                 <span className="material-symbols-outlined text-[18px]">logout</span>
                 <span className="hidden sm:inline">{t("header.logout")}</span>

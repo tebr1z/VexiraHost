@@ -2,6 +2,8 @@ import { DnsRecordType } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMinSize,
+  ArrayMaxSize,
+  IsBoolean,
   IsArray,
   IsEnum,
   IsInt,
@@ -11,6 +13,7 @@ import {
   Max,
   Min,
   MinLength,
+  MaxLength,
   ValidateNested,
 } from "class-validator";
 
@@ -51,9 +54,11 @@ export class DnsRecordDto {
   type!: DnsRecordType;
 
   @IsString()
+  @MaxLength(253)
   name!: string;
 
   @IsString()
+  @MaxLength(4096)
   value!: string;
 
   @IsInt()
@@ -66,11 +71,16 @@ export class DnsRecordDto {
   @Min(0)
   @Max(65535)
   priority?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  proxied?: boolean;
 }
 
 export class UpdateDnsRecordsDto {
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => DnsRecordDto)
   records!: DnsRecordDto[];

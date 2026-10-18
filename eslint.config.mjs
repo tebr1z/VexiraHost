@@ -17,21 +17,11 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
-        { prefer: "type-imports" },
-      ],
+      "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
       "import/order": [
         "error",
         {
-          groups: [
-            "builtin",
-            "external",
-            "internal",
-            "parent",
-            "sibling",
-            "index",
-          ],
+          groups: ["builtin", "external", "internal", "parent", "sibling", "index"],
           "newlines-between": "always",
           alphabetize: { order: "asc", caseInsensitive: true },
         },
@@ -46,10 +36,18 @@ export default tseslint.config(
     },
   },
   {
+    files: ["apps/backend/jest.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { module: "readonly" },
+    },
+  },
+  {
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
       "**/.next/**",
+      "**/next-env.d.ts",
       "**/coverage/**",
       "**/.turbo/**",
     ],

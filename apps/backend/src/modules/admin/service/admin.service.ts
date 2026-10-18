@@ -26,6 +26,7 @@ import { HostingBillingService } from "@/modules/hosting/service/hosting-billing
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 import { LicensesService } from "@/modules/licenses/service/licenses.service";
 import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
+import { toPublicGatewayRef } from "@/modules/payments/utils/payment-reference.util";
 import { WhatsappApiService } from "@/modules/whatsapp/service/whatsapp-api.service";
 import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
 import { convertLedgerAmount } from "@/shared/pricing/currency-convert.util";
@@ -630,7 +631,7 @@ export class AdminService {
       amount: Number(payment.amount),
       currency: payment.currency,
       status: payment.status,
-      gatewayRef: payment.gatewayRef,
+      gatewayRef: toPublicGatewayRef(payment.gatewayRef),
       failureReason: payment.failureReason,
       customer: mapCustomer(payment.user),
       invoice: {

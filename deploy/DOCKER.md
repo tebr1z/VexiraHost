@@ -53,7 +53,7 @@ Dəyiş:
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `HOSTING_CREDENTIALS_KEY`
-- Kapital / SMTP / OAuth (lazımdırsa)
+- Epoint / Kapital / SMTP / OAuth (lazımdırsa)
 
 ---
 
@@ -75,6 +75,8 @@ docker logs vexira-frontend --tail 50
 Portlar:
 - Frontend → `127.0.0.1:3000`
 - Backend → `127.0.0.1:4000`
+
+Bu portlar yalnız localhost-a bind olunur; internet trafiki Plesk reverse proxy-dən keçməlidir.
 
 ---
 
@@ -121,6 +123,29 @@ cd /var/www/VexiraHost
 git pull
 docker compose -f docker/docker-compose.yml --env-file deploy/.env.docker up -d --build
 ```
+
+Production image-ləri multi-stage qurulur:
+
+- frontend yalnız Next.js `standalone` output-u daşıyır;
+- backend yalnız `dist`, Prisma schema/client və production dependency-ləri daşıyır;
+- build alətləri və dev dependency-lər runtime image-ə keçmir;
+- pnpm store BuildKit cache-də saxlanır, ona görə təkrar build daha sürətli olur.
+
+Disk istifadəsini yoxla:
+
+```bash
+docker system df
+docker images vexira-host-backend vexira-host-frontend
+```
+
+Köhnə, heç bir container tərəfindən istifadə olunmayan image qatlarını təhlükəsiz təmizlə və build cache-i 1 GB-la məhdud saxla:
+
+```bash
+docker image prune -f
+docker builder prune -f --keep-storage 1GB
+```
+
+`docker system prune -a --volumes` istifadə etmə: database, Redis və WhatsApp məlumat volume-larını riskə ata bilər. Backend upload/storage məlumatı `backend_storage`, WhatsApp sessiyası `whatsapp_auth` volume-unda qalır.
 
 ---
 

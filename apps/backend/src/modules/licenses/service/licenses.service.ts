@@ -18,8 +18,8 @@ function mapAddonService(service: AddonService) {
     identifier: service.identifier,
     status: service.status,
     metadata: service.metadata,
-    expiresAt: service.expiresAt,
-    autoRenew: service.autoRenew,
+    expiresAt: service.type === "LICENSE" ? null : service.expiresAt,
+    autoRenew: service.type === "LICENSE" ? false : service.autoRenew,
     provisionedAt: service.provisionedAt,
     createdAt: service.createdAt,
   };
@@ -68,6 +68,8 @@ export class LicensesService {
   async cancelRenewal(id: string, userId: string) {
     const service = await this.licensesRepository.findByIdForUser(id, userId);
     if (!service) throw new NotFoundException("Addon service not found");
+    if (service.type === "LICENSE")
+      throw new BadRequestException("Licenses are one-time purchases with no renewal to cancel");
     if (service.status === "CANCELLED" || service.status === "EXPIRED") {
       throw new BadRequestException("This service is already cancelled or expired");
     }
@@ -345,6 +347,8 @@ export class LicensesService {
     service = await this.licensesRepository.updateAddon(service.id, {
       identifier: key,
       status: "ACTIVE",
+      autoRenew: false,
+      expiresAt: null,
       provisionedAt: new Date(),
       metadata: {
         ...prevMeta,
@@ -449,7 +453,8 @@ export class LicensesService {
           orderId: input.orderId ?? null,
           orderItemId: input.orderItemId ?? null,
         } as Prisma.InputJsonValue,
-        expiresAt: result.expiresAt,
+        expiresAt: input.type === "LICENSE" ? null : result.expiresAt,
+        ...(input.type === "LICENSE" ? { autoRenew: false } : {}),
         provisionedAt: new Date(),
       });
 

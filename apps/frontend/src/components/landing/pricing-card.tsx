@@ -1,13 +1,12 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
-import { CATALOG_CATEGORY_ICONS } from "@/components/landing/catalog-category-nav";
-import { MaterialIcon } from "@/components/landing/material-icon";
+import { HomeIcon } from "./home-icon";
+
 import type { CatalogProduct } from "@/features/catalog";
+import type { HostingPlan } from "@/features/hosting";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/i18n/format";
 
 const CATEGORY_FEATURES: Record<string, string[]> = {
   HOSTING: ["f1", "f2", "f3"],
@@ -20,11 +19,18 @@ const CATEGORY_FEATURES: Record<string, string[]> = {
   BACKUP: ["f1", "f2"],
   WHATSAPP_API: ["f1", "f2", "f3"],
 };
+const PLAN_DESCRIPTIONS: Record<string, string> = {
+  plus: "plusDescription",
+  pro: "proDescription",
+  "pro-plus": "proPlusDescription",
+  business: "businessDescription",
+};
 
-function billingLabel(cycle: string, t: ReturnType<typeof useTranslations<"pricing">>): string {
-  if (cycle === "YEARLY") return t("yearly");
-  if (cycle === "ONE_TIME") return t("oneTime");
-  return t("monthly");
+// A stable storefront format prevents Node/browser ICU differences during hydration.
+function formatPlanPrice(amount: number, currency: string): string {
+  const number = amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const symbol = ({ USD: "$", EUR: "€", AZN: "₼" } as Record<string, string>)[currency] ?? currency;
+  return `${symbol} ${number}`;
 }
 
 export function PricingCard({
@@ -32,125 +38,128 @@ export function PricingCard({
   featured,
   index,
   onSelect,
+  plan,
+  showDetails = false,
 }: {
   product: CatalogProduct;
   featured?: boolean;
   index: number;
   onSelect: () => void;
+  plan?: HostingPlan;
+  showDetails?: boolean;
 }): React.ReactElement {
-  const locale = useLocale();
   const t = useTranslations("pricing");
-  const tCat = useTranslations("dashboard.pages.products.categories");
-  const reduceMotion = useReducedMotion();
-  const featureKeys = CATEGORY_FEATURES[product.category] ?? ["f1", "f2"];
-  const categoryIcon = CATALOG_CATEGORY_ICONS[product.category] ?? "deployed_code";
-  const descriptionLines =
+  const th = useTranslations("homeRedesign");
+  const td = useTranslations("publicHosting");
+  const cycle = product.category === "LICENSE" ? "ONE_TIME" : product.billingCycle.toUpperCase();
+  const quoteOnly = Boolean(product.requiresQuote);
+  const minimumQuantity = Math.max(1, product.minimumQuantity ?? 1);
+  const lines =
     product.description
       ?.split(/\n|•/)
-      .map((l) => l.trim())
+      .map((line) => line.trim())
       .filter(Boolean) ?? [];
+  const planDescription = plan ? PLAN_DESCRIPTIONS[plan.slug] : undefined;
+  const featureKeys = CATEGORY_FEATURES[product.category] ?? [];
+  const productFeatures = lines.slice(1, 6);
+  const fallbackFeatureKeys = featureKeys.slice(0, Math.max(0, 3 - productFeatures.length));
+  const specs = plan
+    ? [
+        { value: `${plan.diskGb} GB`, label: th("storage") },
+        { value: String(plan.maxDomains), label: th("websites") },
+        { value: String(plan.maxEmails), label: th("mailboxes") },
+        ...(showDetails ? [{ value: `${plan.bandwidthGb} GB`, label: td("specBandwidth") }] : []),
+        ...(plan.autoDeployEnabled
+          ? [
+              { value: `${plan.autoDeployDiskGb ?? 0} GB`, label: th("deployStorage") },
+              { value: String(plan.autoDeployMaxApps ?? 0), label: th("deployApps") },
+            ]
+          : []),
+        ...(showDetails && plan.autoDeployAiEnabled
+          ? [{ value: String(plan.autoDeployAiMonthlyCredits ?? 0), label: td("specAiCredits") }]
+          : []),
+      ]
+    : [];
+  const billing =
+    cycle === "YEARLY" ? t("yearly") : cycle === "ONE_TIME" ? t("oneTime") : t("monthly");
+  const billingDetail =
+    quoteOnly || cycle === "ONE_TIME"
+      ? null
+      : cycle === "YEARLY"
+        ? th("annualTotal")
+        : th("monthlyTotal");
 
   return (
-    <motion.article
-      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.4, delay: index * 0.05 }}
-      whileHover={reduceMotion ? undefined : { y: -4 }}
-      className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-[28px] border bg-[var(--bg-elevated)] p-6 transition-[border-color,box-shadow,transform] duration-300 sm:p-7",
-        featured
-          ? "border-[color-mix(in_srgb,var(--accent)_45%,var(--separator))] shadow-[0_20px_50px_color-mix(in_srgb,var(--accent)_10%,transparent)]"
-          : "border-[var(--separator)] shadow-[0_10px_30px_rgba(0,0,0,0.04)] hover:border-[color-mix(in_srgb,var(--accent)_28%,var(--separator))]",
-      )}
-    >
-      {featured ? (
-        <div
-          className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,transparent,var(--accent),transparent)]"
-          aria-hidden
-        />
-      ) : null}
-
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-2xl",
-              featured
-                ? "bg-[var(--accent)] text-white"
-                : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]",
-            )}
-          >
-            <MaterialIcon name={categoryIcon} className="text-[22px]" />
-          </span>
+    <article className={cn("home-price-card", featured && "home-price-card-featured")}>
+      <div className="home-plan-topline">
+        <span className="home-plan-number">{String(index + 1).padStart(2, "0")}</span>
+        {featured ? <span className="home-plan-recommended">{t("popular")}</span> : null}
+      </div>
+      <h3>{plan?.name ?? product.name}</h3>
+      <p className="home-plan-description">
+        {planDescription ? th(planDescription) : (lines[0] ?? "")}
+      </p>
+      <div className="home-plan-price">
+        {quoteOnly ? (
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--label-tertiary)]">
-              {tCat(product.category as never)}
-            </p>
-            <h3 className="mt-0.5 text-xl font-semibold tracking-tight text-[var(--label)] sm:text-[1.35rem]">
-              {product.name}
-            </h3>
+            <strong className="home-plan-quote">{t("quotePrice")}</strong>
           </div>
-        </div>
-        {featured ? (
-          <span className="shrink-0 rounded-md bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--accent)]">
-            {t("popular")}
-          </span>
+        ) : (
+          <div>
+            <strong>{formatPlanPrice(product.price, product.currency)}</strong>
+            <span>{billing}</span>
+          </div>
+        )}
+        {billingDetail || minimumQuantity > 1 ? (
+          <p>
+            {[
+              billingDetail,
+              minimumQuantity > 1 ? t("minimumQuantity", { count: minimumQuantity }) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
         ) : null}
       </div>
-
-      {product.description ? (
-        <p className="relative mt-4 min-h-[2.75rem] text-sm leading-relaxed text-[var(--label-secondary)]">
-          {descriptionLines[0] ?? product.description}
-        </p>
+      {plan ? (
+        <ul className="home-plan-specs">
+          {specs.map((spec) => (
+            <li key={spec.label}>
+              <HomeIcon name="check" />
+              <span>
+                <strong>{spec.value}</strong> {spec.label}
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : (
-        <div className="mt-4 min-h-[2.75rem]" />
+        <ul className="home-plan-specs">
+          {productFeatures.map((line) => (
+            <li key={line}>
+              <HomeIcon name="check" />
+              <span>{line}</span>
+            </li>
+          ))}
+          {fallbackFeatureKeys.map((key) => (
+            <li key={key}>
+              <HomeIcon name="check" />
+              <span>{t(`categoryFeatures.${product.category}.${key}` as never)}</span>
+            </li>
+          ))}
+        </ul>
       )}
-
-      <div className="relative mt-6 flex items-baseline gap-1.5">
-        <span className="text-[2.35rem] font-semibold leading-none tracking-[-0.04em] text-[var(--label)] sm:text-[2.6rem]">
-          {formatMoney(product.price, product.currency, locale)}
-        </span>
-        <span className="text-sm text-[var(--label-secondary)]">
-          {billingLabel(product.billingCycle, t)}
-        </span>
-      </div>
-
       <button
         type="button"
         onClick={onSelect}
         className={cn(
-          "apple-btn relative mt-6 w-full",
-          featured ? "apple-btn-primary" : "apple-btn-secondary",
+          "home-button home-plan-button",
+          featured ? "home-button-primary" : "home-button-outline",
         )}
+        aria-label={`${quoteOnly ? t("contactSales") : t("selectPlan")} — ${plan?.name ?? product.name}`}
       >
-        {t("selectPlan")}
-        <MaterialIcon
-          name="arrow_forward"
-          className="ml-1 text-[18px] transition-transform duration-200 group-hover:translate-x-0.5"
-        />
+        {quoteOnly ? t("contactSales") : t("selectPlan")}
+        <HomeIcon name="arrow" />
       </button>
-
-      <ul className="relative mt-6 space-y-2.5 border-t border-[var(--separator)] pt-5">
-        {descriptionLines.slice(1).map((line) => (
-          <li key={line} className="flex items-start gap-2.5 text-sm text-[var(--label-secondary)]">
-            <MaterialIcon
-              name="check_circle"
-              className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]"
-            />
-            <span>{line}</span>
-          </li>
-        ))}
-        {featureKeys.map((key) => (
-          <li key={key} className="flex items-start gap-2.5 text-sm text-[var(--label-secondary)]">
-            <MaterialIcon
-              name="check_circle"
-              className="mt-0.5 shrink-0 text-[16px] text-[var(--success)]"
-            />
-            <span>{t(`categoryFeatures.${product.category}.${key}` as never)}</span>
-          </li>
-        ))}
-      </ul>
-    </motion.article>
+    </article>
   );
 }

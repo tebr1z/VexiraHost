@@ -23,11 +23,13 @@ export const KAPITAL_PRESETS: Record<
   },
   production: {
     label: "Kapital production",
-    username: "TerminalSys/E1210023",
-    password: "QNt&2YLoh)9COsMJ*jZC",
+    username: "",
+    password: "",
     baseUrl: "https://e-commerce.kapitalbank.az",
   },
 };
+
+export type KapitalPresetSummary = Omit<(typeof KAPITAL_PRESETS)[KapitalEnvironment], "password">;
 
 export interface ResolvedKapitalConfig {
   username: string;
@@ -45,6 +47,7 @@ export interface KapitalAdminSettings {
   environment: KapitalEnvironment;
   username: string;
   password: string;
+  passwordConfigured: boolean;
   baseUrl: string;
   configured: boolean;
   source: ResolvedKapitalConfig["source"];
@@ -58,15 +61,17 @@ export class KapitalConfigService {
   ) {}
 
   private envKapital() {
-    return this.configService.getOrThrow<{ kapital: {
-      username: string;
-      password: string;
-      isDev: boolean;
-      baseUrl: string;
-      redirectUrl: string;
-      returnUrl: string;
-      language: string;
-    } }>("payment").kapital;
+    return this.configService.getOrThrow<{
+      kapital: {
+        username: string;
+        password: string;
+        isDev: boolean;
+        baseUrl: string;
+        redirectUrl: string;
+        returnUrl: string;
+        language: string;
+      };
+    }>("payment").kapital;
   }
 
   private async readStoredSettings(): Promise<Record<string, string>> {
@@ -97,18 +102,13 @@ export class KapitalConfigService {
 
     const storedEnvironment = this.normalizeEnvironment(stored[KAPITAL_SETTING_KEYS.environment]);
     const environment: KapitalEnvironment =
-      storedEnvironment ??
-      (envKapital.isDev ? "test" : "production");
+      storedEnvironment ?? (envKapital.isDev ? "test" : "production");
 
     const preset = KAPITAL_PRESETS[environment];
     const username =
-      stored[KAPITAL_SETTING_KEYS.username]?.trim() ||
-      envKapital.username ||
-      preset.username;
+      stored[KAPITAL_SETTING_KEYS.username]?.trim() || envKapital.username || preset.username;
     const password =
-      stored[KAPITAL_SETTING_KEYS.password] ||
-      envKapital.password ||
-      preset.password;
+      stored[KAPITAL_SETTING_KEYS.password] || envKapital.password || preset.password;
 
     let source: ResolvedKapitalConfig["source"] = "preset";
     if (stored[KAPITAL_SETTING_KEYS.username] || stored[KAPITAL_SETTING_KEYS.password]) {
@@ -137,7 +137,8 @@ export class KapitalConfigService {
     return {
       environment: resolved.environment,
       username: resolved.username,
-      password: resolved.password,
+      password: "",
+      passwordConfigured: Boolean(resolved.password),
       baseUrl: resolved.baseUrl,
       configured: Boolean(resolved.username && resolved.password),
       source: resolved.source,
@@ -154,6 +155,8 @@ export class KapitalConfigService {
       this.normalizeEnvironment(stored[KAPITAL_SETTING_KEYS.environment]) ?? "test";
 
     const environment = input.environment ?? currentEnvironment;
+    const environmentChanged =
+      input.environment !== undefined && input.environment !== currentEnvironment;
     const preset = KAPITAL_PRESETS[environment];
 
     if (input.environment !== undefined) {
@@ -162,22 +165,33 @@ export class KapitalConfigService {
 
     if (input.username !== undefined) {
       await this.upsertSetting(KAPITAL_SETTING_KEYS.username, input.username.trim());
-    } else if (input.environment !== undefined && !stored[KAPITAL_SETTING_KEYS.username]) {
+    } else if (environmentChanged) {
       await this.upsertSetting(KAPITAL_SETTING_KEYS.username, preset.username);
     }
 
     const passwordProvided = input.password !== undefined && input.password.trim() !== "";
     if (passwordProvided) {
       await this.upsertSetting(KAPITAL_SETTING_KEYS.password, input.password!.trim());
-    } else if (input.environment !== undefined && !stored[KAPITAL_SETTING_KEYS.password]) {
+    } else if (environmentChanged) {
       await this.upsertSetting(KAPITAL_SETTING_KEYS.password, preset.password);
     }
 
     return this.getAdminSettings();
   }
 
-  getPresets() {
-    return KAPITAL_PRESETS;
+  getPresets(): Record<KapitalEnvironment, KapitalPresetSummary> {
+    return {
+      test: {
+        label: KAPITAL_PRESETS.test.label,
+        username: KAPITAL_PRESETS.test.username,
+        baseUrl: KAPITAL_PRESETS.test.baseUrl,
+      },
+      production: {
+        label: KAPITAL_PRESETS.production.label,
+        username: KAPITAL_PRESETS.production.username,
+        baseUrl: KAPITAL_PRESETS.production.baseUrl,
+      },
+    };
   }
 
   private upsertSetting(key: string, value: string) {

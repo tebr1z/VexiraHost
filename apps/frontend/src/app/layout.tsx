@@ -5,6 +5,8 @@ import { getSiteUrl, SITE_NAME } from "@/lib/seo";
 import { AppProviders } from "@/providers/app-providers";
 
 import "@/styles/globals.css";
+import "@/styles/home.css";
+import "@/styles/platform.css";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -95,11 +97,13 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
-        { url: "/favicon.png", type: "image/png" },
-        { url: "/logo.png", type: "image/png", sizes: "512x512" },
+        { url: "/favicon.ico?v=3", sizes: "16x16 32x32 48x48" },
+        { url: "/favicon.svg?v=3", type: "image/svg+xml", sizes: "any" },
+        { url: "/favicon-32x32.png?v=3", type: "image/png", sizes: "32x32" },
+        { url: "/favicon-16x16.png?v=3", type: "image/png", sizes: "16x16" },
       ],
-      apple: [{ url: "/favicon.png", type: "image/png" }],
-      shortcut: "/favicon.png",
+      apple: [{ url: "/apple-touch-icon.png?v=3", type: "image/png", sizes: "180x180" }],
+      shortcut: "/favicon.ico?v=3",
     },
     manifest: "/manifest.webmanifest",
     appleWebApp: {
@@ -134,12 +138,13 @@ export default async function RootLayout({
             __html: `(function(){try{var s=JSON.parse(localStorage.getItem('vexira-theme')||'{}');var m=s.state&&s.state.mode||'system';var d=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}}catch(e){}})();`,
           }}
         />
+        {/* Material Symbols is an icon font; next/font does not expose variable icon axes. */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="bg-background text-foreground min-h-screen font-sans antialiased">
+      <body className="vexira-platform bg-background text-foreground min-h-screen font-sans antialiased">
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

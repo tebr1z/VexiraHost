@@ -49,6 +49,16 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  :where(a, button, input, select, textarea, summary):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    outline-offset: 3px;
+  }
+
+  summary {
+    -webkit-tap-highlight-color: transparent;
   }
 
   html:not(.dark) {
@@ -218,6 +228,96 @@
     border-radius: 980px;
   }
 
+  .public-navbar {
+    min-height: 60px;
+  }
+
+  .public-navbar-logo {
+    transform-origin: left center;
+    transition: transform 0.2s ease;
+  }
+
+  .public-navbar[data-scrolled="true"] .public-navbar-logo {
+    transform: scale(0.94);
+  }
+
+  .public-nav-cluster {
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
+    background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+    padding: 0.2rem;
+  }
+
+  .public-nav-trigger {
+    min-height: 2.15rem;
+    padding-inline: 0.72rem;
+    font-size: 0.82rem;
+    font-weight: 550;
+  }
+
+  .public-nav-chevron {
+    color: var(--label-tertiary);
+    transition: transform 0.18s ease, color 0.18s ease;
+  }
+
+  .group\/nav:hover .public-nav-chevron,
+  .group\/nav:focus-within .public-nav-chevron {
+    color: var(--label-secondary);
+    transform: rotate(180deg);
+  }
+
+  .public-nav-dropdown {
+    margin-top: 0.7rem;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--separator) 88%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--bg-elevated) 96%, transparent);
+    box-shadow: 0 20px 50px rgba(10, 22, 48, 0.14), 0 2px 10px rgba(10, 22, 48, 0.06);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  .public-nav-dropdown::before {
+    content: "";
+    position: absolute;
+    inset: -0.75rem 0 auto;
+    height: 0.75rem;
+  }
+
+  .public-nav-tools {
+    min-height: 2.45rem;
+    border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+    padding: 0.08rem;
+  }
+
+  .public-nav-account {
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
+    min-height: 2.45rem;
+    border-radius: 999px;
+    background: var(--label);
+    color: var(--bg-elevated);
+    padding: 0.5rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 650;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  .public-nav-account:hover {
+    opacity: 0.88;
+  }
+
+  .public-nav-account:active {
+    transform: scale(0.97);
+  }
+
+  .public-nav-primary {
+    gap: 0.35rem;
+  }
+
   .apple-nav-link:hover {
     color: var(--label);
     background: var(--fill-secondary);
@@ -280,6 +380,13 @@
     box-shadow:
       0 0 0 0.5px color-mix(in srgb, white 35%, transparent) inset,
       0 10px 28px rgba(0, 0, 0, 0.12);
+  }
+
+  @media (max-width: 1100px) {
+    .public-nav-trigger {
+      padding-inline: 0.56rem;
+      font-size: 0.77rem;
+    }
   }
 
   /* Hide floating glass nav while the mobile drawer is open (avoids top-of-page overlap). */
@@ -462,7 +569,9 @@
 
   /* Hero spectacle */
   .hero-spectacle {
-    background: var(--bg);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, var(--accent) 4%), var(--bg)),
+      var(--bg);
   }
 
   .hero-spectacle-mesh {
@@ -471,6 +580,35 @@
       radial-gradient(ellipse 45% 35% at 85% 15%, color-mix(in srgb, #5856d6 10%, transparent), transparent),
       radial-gradient(ellipse 40% 30% at 10% 25%, color-mix(in srgb, #34c759 8%, transparent), transparent),
       var(--bg);
+  }
+
+  .hosting-hero {
+    background: var(--bg);
+    background:
+      radial-gradient(circle at 82% 14%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 28rem),
+      radial-gradient(circle at 12% 80%, color-mix(in srgb, #5856d6 8%, transparent), transparent 24rem),
+      var(--bg);
+  }
+
+  .hosting-hero-grid {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--separator) 34%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--separator) 34%, transparent) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 92%);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 92%);
+  }
+
+  @supports not (color: color-mix(in srgb, white 50%, black)) {
+    :where(a, button, input, select, textarea, summary):focus-visible {
+      outline-color: #0a84ff;
+    }
+
+    .hosting-hero-grid {
+      background-image:
+        linear-gradient(rgba(120, 120, 128, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(120, 120, 128, 0.1) 1px, transparent 1px);
+    }
   }
 
   .dark .hero-spectacle-mesh {
@@ -582,12 +720,15 @@
         color-mix(in srgb, #8b5cf6 6%, transparent) 0,
         transparent 26rem
       ),
+      linear-gradient(color-mix(in srgb, var(--separator) 24%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--separator) 24%, transparent) 1px, transparent 1px),
       var(--bg-grouped);
+    background-size: auto, auto, 32px 32px, 32px 32px, auto;
   }
 
   .dashboard-hero {
     background:
-      linear-gradient(125deg, rgba(15, 23, 42, 0.98), rgba(37, 32, 91, 0.96) 58%, #3157a5),
+      linear-gradient(125deg, #0b1328 0%, #182650 48%, #304da0 100%),
       var(--accent);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.14),

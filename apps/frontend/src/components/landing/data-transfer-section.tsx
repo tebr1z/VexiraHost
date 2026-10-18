@@ -100,7 +100,7 @@ export function DataTransferSection(): React.ReactElement {
   }, []);
 
   return (
-    <section className="apple-grouped overflow-hidden py-20 sm:py-28" id="solutions">
+    <section className="apple-grouped overflow-hidden py-16 sm:py-20" id="solutions">
       <div className="max-w-container-max mx-auto px-5 md:px-8">
         <div className="mb-10 text-center sm:mb-14">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">

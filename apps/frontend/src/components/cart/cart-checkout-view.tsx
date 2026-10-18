@@ -30,6 +30,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   getYearlyOfferFromProduct,
+  buildCartItemFromProduct,
   isMonthlyBilling,
   resolveCheckoutPeriod,
 } from "@/lib/cart-pricing";
@@ -146,10 +147,12 @@ export function CartCheckoutView({
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
-    if (paymentMethod === "balance" && !canPayWithBalance) {
-      setPaymentMethod("card");
-    }
-  }, [paymentMethod, canPayWithBalance]);
+    setPaymentMethod((current) => {
+      if (canPayWithBalance && current === "card") return "balance";
+      if (!canPayWithBalance && current === "balance") return "card";
+      return current;
+    });
+  }, [canPayWithBalance]);
 
   useEffect(() => {
     setAppliedPromo(null);
@@ -205,7 +208,32 @@ export function CartCheckoutView({
 
     const enrichMonthlyItems = async () => {
       for (const item of items) {
-        if (!isMonthlyBilling(item.billingCycle) || item.yearlyPrice) {
+        if (item.category === "LICENSE") {
+          try {
+            const product = await getCatalogProduct(item.slug, {
+              currency: item.currency,
+              period: "MONTHLY",
+            });
+            if (cancelled) return;
+            const canonical = buildCartItemFromProduct(product);
+            if (
+              item.billingCycle !== "ONE_TIME" ||
+              item.price !== canonical.price ||
+              item.currency !== canonical.currency ||
+              item.yearlyPrice !== undefined
+            ) {
+              patchItem(item.productId, {
+                ...canonical,
+                yearlyPrice: undefined,
+                yearlySavingsPercent: undefined,
+              });
+            }
+          } catch {
+            /* The server still validates the canonical one-time price at checkout. */
+          }
+          continue;
+        }
+        if (!isMonthlyBilling(item.billingCycle)) {
           continue;
         }
         try {
@@ -214,9 +242,21 @@ export function CartCheckoutView({
             period: "MONTHLY",
           });
           if (cancelled) return;
+          const minimumQuantity = Math.max(1, product.minimumQuantity ?? 1);
           const offer = getYearlyOfferFromProduct(product);
-          if (offer.yearlyPrice) {
-            patchItem(item.productId, offer);
+          const patch: Partial<typeof item> = {};
+
+          if (item.minimumQuantity !== minimumQuantity) {
+            patch.minimumQuantity = minimumQuantity;
+          }
+          if (item.quantity < minimumQuantity) {
+            patch.quantity = minimumQuantity;
+          }
+          if (offer.yearlyPrice && item.yearlyPrice !== offer.yearlyPrice) {
+            Object.assign(patch, offer);
+          }
+          if (Object.keys(patch).length > 0) {
+            patchItem(item.productId, patch);
           }
         } catch {
           // ignore — upsell is optional
@@ -230,8 +270,13 @@ export function CartCheckoutView({
     };
   }, [items, patchItem]);
 
+  const tl = useTranslations("licenseBilling");
   const billingLabel = (cycle: string) =>
-    cycle.toUpperCase() === "YEARLY" ? t("billingYearly") : t("billingMonthly");
+    cycle.toUpperCase() === "ONE_TIME"
+      ? tl("label")
+      : cycle.toUpperCase() === "YEARLY"
+        ? t("billingYearly")
+        : t("billingMonthly");
 
   const handleCheckout = async () => {
     setLoading(true);
@@ -423,7 +468,7 @@ export function CartCheckoutView({
                 <p className="text-primary font-semibold">{item.name}</p>
                 <p className="text-on-surface-variant text-sm">
                   {item.quantity} × {formatMoney(item.price, item.currency, locale)} /{" "}
-                  {billingLabel(item.billingCycle)}
+                  {billingLabel(item.category === "LICENSE" ? "ONE_TIME" : item.billingCycle)}
                 </p>
                 {item.category === "HOSTING" && item.primaryDomain?.trim() ? (
                   <p className="mt-1 text-sm text-[var(--accent)]">{item.primaryDomain.trim()}</p>

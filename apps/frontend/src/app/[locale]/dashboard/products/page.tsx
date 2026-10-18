@@ -73,6 +73,10 @@ export default function DashboardProductsPage(): React.ReactElement | null {
   );
 
   const handleAddToCart = (product: CatalogProduct) => {
+    if (product.requiresQuote) {
+      router.push("/contact");
+      return;
+    }
     addItem(buildCartItemFromProduct(product));
     toast(tp("addedToCart"), "success");
   };
@@ -163,10 +167,12 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                 <p className="mt-2 text-sm text-[var(--label-secondary)]">{product.promoText}</p>
               )}
               <p className="font-jakarta mt-5 text-2xl font-bold tracking-tight text-[var(--label-primary)]">
-                {product.isFree
-                  ? tp("free")
-                  : `${formatMoney(product.price, product.currency, locale)}`}
-                {!product.isFree && (
+                {product.requiresQuote
+                  ? tp("quotePrice")
+                  : product.isFree
+                    ? tp("free")
+                    : `${formatMoney(product.price, product.currency, locale)}`}
+                {!product.isFree && !product.requiresQuote && (
                   <span className="ml-1 text-sm font-normal text-[var(--label-secondary)]">
                     /{" "}
                     {product.billingCycle.toUpperCase() === "YEARLY"
@@ -177,7 +183,20 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                   </span>
                 )}
               </p>
-              {product.isFree ? (
+              {(product.minimumQuantity ?? 1) > 1 ? (
+                <p className="mt-1 text-xs font-medium text-[var(--label-secondary)]">
+                  {tp("minimumQuantity", { count: product.minimumQuantity ?? 1 })}
+                </p>
+              ) : null}
+              {product.requiresQuote ? (
+                <button
+                  type="button"
+                  onClick={() => router.push("/contact")}
+                  className="dashboard-btn-primary mt-5 w-full"
+                >
+                  {tp("contactSales")}
+                </button>
+              ) : product.isFree ? (
                 <button
                   type="button"
                   disabled={claimingId === product.id}

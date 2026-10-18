@@ -1,8 +1,8 @@
 import { Controller, Get, Query } from "@nestjs/common";
 
-import { Public } from "@/decorators/auth.decorators";
-
 import { NavigationService } from "../service/navigation.service";
+
+import { Public } from "@/decorators/auth.decorators";
 
 @Controller("navigation")
 export class NavigationController {

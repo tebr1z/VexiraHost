@@ -72,7 +72,7 @@ export default function HostingPage(): React.ReactElement | null {
         ]}
         actions={
           <Link
-            href="/dashboard/hosting/new"
+            href="/hosting"
             className="bg-primary text-on-primary inline-flex h-10 items-center rounded-xl px-5 text-sm font-semibold"
           >
             {tp("emptyAction")}
@@ -85,11 +85,7 @@ export default function HostingPage(): React.ReactElement | null {
       ) : error ? (
         <EmptyState title={tp("loadFailed")} description={error} />
       ) : accounts.length === 0 ? (
-        <EmptyState
-          title={tp("empty")}
-          actionLabel={tp("emptyAction")}
-          actionHref="/dashboard/hosting/new"
-        />
+        <EmptyState title={tp("empty")} actionLabel={tp("emptyAction")} actionHref="/hosting" />
       ) : (
         <div className="space-y-8">
           {activeAccounts.length > 0 ? (

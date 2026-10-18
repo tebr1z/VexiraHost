@@ -9,8 +9,10 @@ import {
   toServerPayload,
   type HostingServerFormValues,
 } from "@/components/admin/hosting-server-form";
+import { HostingServerPackages } from "@/components/admin/hosting-server-packages";
 import { PageHeader } from "@/components/ui";
 import {
+  bootstrapServerSetup,
   deleteHostingServer,
   getHostingServer,
   syncPleskPlansFromServer,
@@ -37,6 +39,7 @@ export default function EditHostingServerPage(): React.ReactElement | null {
   const tt = useTranslations("admin.toasts");
   const tc = useTranslations("dashboard.common");
   const tu = useTranslations("ui");
+  const tw = useTranslations("admin.forms.serverWorkflow");
   const [server, setServer] = useState<HostingServer | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -45,8 +48,9 @@ export default function EditHostingServerPage(): React.ReactElement | null {
     if (!isAdmin || !params.id) return;
     getHostingServer(params.id)
       .then(setServer)
+      .catch((err) => toast(getApiErrorMessage(err, tc("serverNotFound")), "error"))
       .finally(() => setLoading(false));
-  }, [isAdmin, params.id]);
+  }, [isAdmin, params.id, tc]);
 
   if (!isAdmin) {
     return <p className="text-on-surface-variant">{tf("hostingServersEditAdminOnly")}</p>;
@@ -70,6 +74,7 @@ export default function EditHostingServerPage(): React.ReactElement | null {
     sshPort: String(server.sshPort ?? 22),
     isDefault: server.isDefault,
     isActive: server.isActive,
+    deployNodeEnabled: server.deployNodeEnabled,
     maxAccounts: server.maxAccounts ? String(server.maxAccounts) : "",
   };
 
@@ -131,13 +136,27 @@ export default function EditHostingServerPage(): React.ReactElement | null {
         }
       />
 
+      <HostingServerPackages server={server} />
+
       <HostingServerForm
         initialValues={initialValues}
+        sshPasswordConfigured={server.sshPasswordConfigured}
         submitLabel={tf("updateServer")}
         onSubmit={async (values) => {
-          await updateHostingServer(server.id, toServerPayload(values, true));
+          const updated = await updateHostingServer(server.id, toServerPayload(values, true));
+          setServer(updated);
           toast(tt("hostingServerUpdated"), "success");
-          router.push("/t4abriz/panel/hosting/servers");
+          if (values.deployNodeEnabled && values.setupAfterSave) {
+            try {
+              const { jobId } = await bootstrapServerSetup(server.id);
+              router.push(
+                `/t4abriz/panel/hosting/servers/${server.id}/setup?jobId=${encodeURIComponent(jobId)}`,
+              );
+            } catch (error) {
+              toast(getApiErrorMessage(error, tw("setupStartFailed")), "error");
+              router.push(`/t4abriz/panel/hosting/servers/${server.id}/setup`);
+            }
+          }
         }}
         onTest={async () => {
           const result = await testHostingServer(server.id);

@@ -68,7 +68,6 @@ export function PageHeader({
           <h1 className="font-jakarta text-2xl font-bold tracking-tight text-[var(--label-primary)] sm:text-3xl">
             {title}
           </h1>
-          <div className="mt-2 h-1 w-10 rounded-full bg-gradient-to-r from-[var(--accent)] to-violet-500" />
           {description ? (
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--label-secondary)]">
               {description}

@@ -158,6 +158,36 @@ export default function AdminHostingServersPage(): React.ReactElement | null {
                         SSH: {server.sshUsername ?? server.whmUsername}:{server.sshPort}
                       </p>
                     )}
+                    {server.deployNodeEnabled ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          className={
+                            server.deployHealth === "HEALTHY"
+                              ? "bg-emerald-500/12 rounded-full px-2 py-1 font-semibold text-emerald-700 dark:text-emerald-300"
+                              : server.deployHealth === "DOWN"
+                                ? "bg-red-500/12 rounded-full px-2 py-1 font-semibold text-red-700 dark:text-red-300"
+                                : "bg-amber-500/12 rounded-full px-2 py-1 font-semibold text-amber-700 dark:text-amber-300"
+                          }
+                        >
+                          {tp("deployNode")}: {server.deployHealth}
+                        </span>
+                        {server.deployMemoryTotalMb ? (
+                          <span className="text-on-surface-variant">
+                            RAM {server.deployMemoryUsedMb ?? 0}/{server.deployMemoryTotalMb} MB
+                          </span>
+                        ) : null}
+                        {server.deployDiskTotalMb ? (
+                          <span className="text-on-surface-variant">
+                            Disk {server.deployDiskUsedMb ?? 0}/{server.deployDiskTotalMb} MB
+                          </span>
+                        ) : null}
+                        {server.deployCpuLoadPercent != null ? (
+                          <span className="text-on-surface-variant">
+                            CPU {server.deployCpuLoadPercent}%
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div>

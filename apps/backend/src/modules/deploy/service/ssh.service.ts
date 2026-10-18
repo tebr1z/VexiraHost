@@ -1,3 +1,6 @@
+import { createReadStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+
 import { Injectable, Logger } from "@nestjs/common";
 import { Client, type ClientChannel, type SFTPWrapper } from "ssh2";
 
@@ -294,6 +297,26 @@ export class SshSession {
       try {
         const modeNum = parseInt(mode, 8);
         await sftpWriteFile(sftp, remotePath, content, modeNum);
+      } finally {
+        sftp.end();
+      }
+    });
+  }
+
+  async uploadFile(localPath: string, remotePath: string, mode = "600"): Promise<void> {
+    return this.withChannelLock(async () => {
+      const dir = remotePath.replace(/\/[^/]+$/, "");
+      if (dir && dir !== remotePath) {
+        await execOnClient(this.conn, `mkdir -p ${shellQuote(dir)}`, 60_000);
+      }
+
+      const sftp = await openSftp(this.conn);
+      try {
+        const modeNum = parseInt(mode, 8);
+        await pipeline(
+          createReadStream(localPath),
+          sftp.createWriteStream(remotePath, { mode: modeNum }),
+        );
       } finally {
         sftp.end();
       }

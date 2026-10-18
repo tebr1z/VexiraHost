@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PlansSectionIntro } from "@/components/hosting/plans-section-intro";
 import { PricingCard } from "@/components/landing/pricing-card";
 import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
-import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
@@ -17,7 +16,7 @@ import {
   type CatalogCategory,
   type CatalogProduct,
 } from "@/features/catalog";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
 import { filterCatalogProductsForPeriod } from "@/lib/hosting-catalog";
@@ -29,6 +28,7 @@ export default function CategoryProductsPage(): React.ReactElement {
   const params = useParams();
   const categorySlug = params.categorySlug as string;
   const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("catalogPage");
   const tp = useTranslations("pricing");
   const addItem = useCartStore((s) => s.addItem);
@@ -65,6 +65,10 @@ export default function CategoryProductsPage(): React.ReactElement {
   }, [loadProducts]);
 
   const handleBuy = (product: CatalogProduct) => {
+    if (product.requiresQuote) {
+      router.push("/contact");
+      return;
+    }
     addItem(buildCartItemFromProduct(product));
     toast(tp("addedToCart"), "success");
     continueAfterAdd();
@@ -77,7 +81,7 @@ export default function CategoryProductsPage(): React.ReactElement {
   return (
     <MarketingShell>
       <section className="apple-grouped py-16 sm:py-20">
-        <div className="max-w-container-max mx-auto px-5 md:px-8">
+        <div className="public-catalog-container">
           <Link
             href="/#pricing"
             className="mb-6 inline-flex text-sm text-[var(--label-secondary)] hover:text-[var(--accent)]"
@@ -86,33 +90,36 @@ export default function CategoryProductsPage(): React.ReactElement {
           </Link>
 
           <PlansSectionIntro
+            headingLevel={1}
             eyebrow={t("eyebrow")}
             title={activeCategory?.name ?? t("title")}
             subtitle={t("subtitle")}
             guarantees={[t("guarantee1"), t("guarantee2"), t("guarantee3")]}
             controls={
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
-                <CurrencySwitcher variant="segmented" />
+                {activeCategory?.systemType !== "LICENSE" &&
+                products.some(
+                  (product) =>
+                    product.category !== "LICENSE" && product.billingCycle !== "ONE_TIME",
+                ) ? (
+                  <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+                ) : null}
               </div>
             }
           />
 
           {categories.length > 1 ? (
-            <div className="mb-10 flex justify-center overflow-x-auto pb-1">
-              <div className="apple-segmented">
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/products/${cat.slug}`}
-                    data-active={cat.slug === categorySlug}
-                    className="apple-segmented-item"
-                  >
-                    {cat.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <nav className="public-catalog-nav" aria-label={t("title")}>
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/products/${cat.slug}`}
+                  aria-current={cat.slug === categorySlug ? "page" : undefined}
+                >
+                  {cat.name}
+                </Link>
+              ))}
+            </nav>
           ) : null}
 
           {loading ? (

@@ -20,6 +20,7 @@ export class DomainBillingService {
     dueDate: Date;
     feeAmount?: number;
     feeDescription?: string;
+    idempotencyKey?: string;
   }) {
     const base = new Prisma.Decimal(input.amount.toFixed(2));
     const fee =
@@ -28,39 +29,50 @@ export class DomainBillingService {
         : null;
     const total = fee ? base.add(fee) : base;
 
-    return this.prisma.invoice.create({
-      data: {
-        userId: input.userId,
-        domainId: input.domainId,
-        invoiceNumber: generateInvoiceNumber(),
-        status: InvoiceStatus.OPEN,
-        subtotal: total,
-        total,
-        currency: input.currency.toUpperCase(),
-        dueDate: input.dueDate,
-        items: {
-          create: [
-            {
-              description: input.description,
-              quantity: 1,
-              unitPrice: base,
-              totalPrice: base,
-            },
-            ...(fee
-              ? [
-                  {
-                    description: input.feeDescription ?? "Processing fee (1%)",
-                    quantity: 1,
-                    unitPrice: fee,
-                    totalPrice: fee,
-                  },
-                ]
-              : []),
-          ],
-        },
+    const data = {
+      userId: input.userId,
+      domainId: input.domainId,
+      invoiceNumber: generateInvoiceNumber(),
+      status: InvoiceStatus.OPEN,
+      subtotal: total,
+      total,
+      currency: input.currency.toUpperCase(),
+      dueDate: input.dueDate,
+      items: {
+        create: [
+          {
+            description: input.description,
+            quantity: 1,
+            unitPrice: base,
+            totalPrice: base,
+          },
+          ...(fee
+            ? [
+                {
+                  description: input.feeDescription ?? "Processing fee (1%)",
+                  quantity: 1,
+                  unitPrice: fee,
+                  totalPrice: fee,
+                },
+              ]
+            : []),
+        ],
       },
-      include: { items: true },
-    });
+    };
+
+    if (input.idempotencyKey) {
+      return this.prisma.invoice.upsert({
+        where: { idempotencyKey: input.idempotencyKey },
+        create: {
+          ...data,
+          idempotencyKey: input.idempotencyKey,
+        },
+        update: { dueDate: input.dueDate },
+        include: { items: true },
+      });
+    }
+
+    return this.prisma.invoice.create({ data, include: { items: true } });
   }
 
   async applyLateFeeOnce(input: {

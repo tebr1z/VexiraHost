@@ -34,7 +34,7 @@ export const faqEn: FaqPageContent = {
           id: "general-4",
           question: "Where is my data stored?",
           answer:
-            "Depending on the service type, your data is stored in secure data center infrastructure through isolated accounts and encrypted connections.\nBackup, access logs, and firewall layers are enabled according to your service package.",
+            "Depending on the service type, your data is stored in secure data center infrastructure through isolated accounts and encrypted connections.\nAccess logs and firewall layers are enabled according to your service package.",
         },
         {
           id: "general-5",
@@ -52,7 +52,7 @@ export const faqEn: FaqPageContent = {
           id: "hosting-1",
           question: "What is included in your web hosting plans?",
           answer:
-            "Our plans include NVMe storage, free SSL, email accounts, cPanel or Plesk control panel, weekly automatic backups, and 24/7 support.\nDisk space, bandwidth, domain, and mailbox limits increase with plan level.",
+            "Our plans include NVMe storage, free SSL, email accounts, a cPanel or Plesk control panel, and 24/7 support.\nDisk space, bandwidth, domain, and mailbox limits increase with plan level.",
         },
         {
           id: "hosting-2",
@@ -70,7 +70,7 @@ export const faqEn: FaqPageContent = {
           id: "hosting-4",
           question: "Can I install WordPress and other CMS platforms?",
           answer:
-            "You can install WordPress, Joomla, Drupal, and other popular CMS platforms with one click from the control panel.\nYour site stays securely online with automatic updates, SSL, and backups.",
+            "You can install WordPress, Joomla, Drupal, and other popular CMS platforms with one click from the control panel.\nAutomatic updates and free SSL help keep your site secure.",
         },
         {
           id: "hosting-5",
@@ -116,9 +116,9 @@ export const faqEn: FaqPageContent = {
         },
         {
           id: "servers-5",
-          question: "How does server backup work?",
+          question: "How should I keep backups?",
           answer:
-            "Automatic snapshot and backup options are offered according to your plan.\nYou can define additional backup policies for critical data and initiate restore operations from the panel.",
+            "Managed backup is not currently included with hosting plans.\nWe recommend keeping regular copies of critical data in separate external storage.",
         },
       ],
     },

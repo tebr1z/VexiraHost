@@ -183,6 +183,7 @@ export class HostingEmailService {
     amount: number;
     currency: string;
     invoiceNumber: string;
+    invoiceId?: string;
     dueDate: Date;
     graceDays: number;
   }): Promise<void> {
@@ -191,6 +192,9 @@ export class HostingEmailService {
     const name = displayName(input.firstName, input.lastName, input.to);
     const appUrl = this.appUrl();
     const invoicesUrl = `${appUrl}/dashboard/invoices`;
+    const paymentUrl = input.invoiceId
+      ? `${appUrl}/dashboard/invoices/${input.invoiceId}`
+      : invoicesUrl;
     const amountLabel = `${input.amount.toFixed(2)} ${input.currency}`;
     const due = formatEmailDate(input.dueDate, locale);
 
@@ -205,7 +209,7 @@ export class HostingEmailService {
       ),
       `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:4px 0 8px;">
         <tr>
-          <td style="padding-right:10px;">${primaryButton(copy.payButton, invoicesUrl)}</td>
+          <td style="padding-right:10px;">${primaryButton(copy.payButton, paymentUrl)}</td>
           <td>${secondaryButton(copy.invoicesButton, invoicesUrl)}</td>
         </tr>
       </table>`,
@@ -231,7 +235,7 @@ export class HostingEmailService {
       `${copy.amountLabel}: ${amountLabel}\n` +
       `${copy.invoiceLabel}: ${input.invoiceNumber}\n` +
       `${copy.dueLabel}: ${due}\n\n` +
-      `${copy.payButton}: ${invoicesUrl}\n\n` +
+      `${copy.payButton}: ${paymentUrl}\n\n` +
       copy.footer;
 
     try {

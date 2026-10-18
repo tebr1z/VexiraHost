@@ -7,7 +7,6 @@ import { asString, asStringArray, CmsSectionShell } from "@/components/cms/cms-s
 import { HostingPlanCard } from "@/components/hosting/hosting-plan-card";
 import { PlansSectionIntro } from "@/components/hosting/plans-section-intro";
 import { BillingPeriodToggle } from "@/components/layout/billing-period-toggle";
-import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
 import {
@@ -84,26 +83,22 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
 
   return (
     <CmsSectionShell design={section.design} className="apple-grouped" id="hosting-plans">
-      <div className="mx-auto w-full max-w-[1400px] px-3 sm:px-4 lg:px-5">
+      <div className="home-container">
         <PlansSectionIntro
+          variant="showcase"
           eyebrow={eyebrow}
           title={title}
           subtitle={subtitle}
           guarantees={
             guarantees.length > 0 ? guarantees : [t("guarantee1"), t("guarantee2"), t("guarantee3")]
           }
-          controls={
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
-              <CurrencySwitcher variant="segmented" />
-            </div>
-          }
+          controls={<BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />}
         />
 
         {loading ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <LoadingSkeleton key={i} className="h-[28rem] rounded-2xl" />
+              <LoadingSkeleton key={i} className="h-[31rem] rounded-[28px]" />
             ))}
           </div>
         ) : planEntries.length === 0 ? (
@@ -113,7 +108,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
         ) : (
           <div
             className={cn(
-              "grid gap-3 sm:gap-4",
+              "grid items-stretch gap-4 lg:gap-5",
               planEntries.length === 1 && "mx-auto max-w-sm",
               planEntries.length === 2 && "mx-auto max-w-3xl sm:grid-cols-2",
               planEntries.length === 3 && "mx-auto max-w-5xl sm:grid-cols-2 xl:grid-cols-3",
@@ -123,6 +118,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
             {planEntries.map(({ plan, product }, index) => (
               <HostingPlanCard
                 key={product.id}
+                index={index}
                 plan={plan}
                 product={product}
                 featured={index === popularIndex}
@@ -132,7 +128,7 @@ export function CmsPlansSection({ section }: { section: PublicCmsSection }): Rea
           </div>
         )}
 
-        {asString(c.priceNote) ? (
+        {asString(c.priceNote) && period !== "YEARLY" ? (
           <p className="mx-auto mt-8 max-w-2xl text-center text-xs text-[var(--label-tertiary)]">
             {asString(c.priceNote)}
           </p>

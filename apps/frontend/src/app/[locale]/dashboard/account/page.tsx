@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -802,11 +803,12 @@ export default function AccountPage(): React.ReactElement | null {
                   >
                     <p className="text-sm text-[var(--label-secondary)]">{tp("totpScanHint")}</p>
                     <div className="flex justify-center rounded-xl bg-white p-4">
-                      <img
+                      <Image
                         src={totpSetup.qrCodeDataUrl}
                         alt={tp("totpQrAlt")}
                         width={200}
                         height={200}
+                        unoptimized
                         className="h-[200px] w-[200px]"
                       />
                     </div>

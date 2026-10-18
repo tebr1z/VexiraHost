@@ -1,13 +1,61 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { HostingManagementMode, InvoiceStatus, ServiceStatus } from "@prisma/client";
+import { ConfigService } from "@nestjs/config";
+import {
+  BillingCycle,
+  HostingManagementMode,
+  InvoiceStatus,
+  NotificationType,
+  PaymentStatus,
+  ServiceStatus,
+} from "@prisma/client";
+
+import { calculateHostingExpiry } from "../utils/hosting-renewal.util";
 
 import { HostingBillingService } from "./hosting-billing.service";
 import { HostingEmailService } from "./hosting-email.service";
 import { HostingServersService } from "./hosting-servers.service";
 
 import { PrismaService } from "@/database/database.module";
+import { NotificationsService } from "@/modules/notifications/service/notifications.service";
+import { BalanceService } from "@/modules/payments/service/balance.service";
+import { PaymentsService } from "@/modules/payments/service/payments.service";
+import { WhatsappService } from "@/modules/whatsapp/service/whatsapp.service";
 
 const GRACE_DAYS = 7;
+
+function renewalPaymentCopy(
+  locale: string | undefined,
+  input: { domain: string; amount: number; currency: string; paymentUrl: string },
+): { title: string; body: string; message: string } {
+  const amount = `${input.amount.toFixed(2)} ${input.currency}`;
+  if (locale === "az") {
+    return {
+      title: "Hosting yenilənməsi üçün ödəniş lazımdır",
+      body: `${input.domain} üçün ${amount} balansda yoxdur. Fakturanı linkdən ödəyin.`,
+      message: `Vexira Host: ${input.domain} hosting yenilənməsi üçün balans kifayət deyil (${amount}). Ödəniş: ${input.paymentUrl}`,
+    };
+  }
+  if (locale === "ru") {
+    return {
+      title: "Требуется оплата продления хостинга",
+      body: `На балансе недостаточно ${amount} для ${input.domain}. Оплатите счёт по ссылке.`,
+      message: `Vexira Host: недостаточно средств для продления ${input.domain} (${amount}). Оплатить: ${input.paymentUrl}`,
+    };
+  }
+  if (locale === "en") {
+    return {
+      title: "Hosting renewal payment required",
+      body: `Your balance is insufficient for the ${amount} renewal of ${input.domain}. Pay the invoice from the link.`,
+      message: `Vexira Host: insufficient balance to renew ${input.domain} (${amount}). Pay now: ${input.paymentUrl}`,
+    };
+  }
+  return {
+    title: "Hosting yenileme ödemesi gerekli",
+    body: `${input.domain} için ${amount} tutarında yeterli bakiye yok. Faturayı bağlantıdan ödeyin.`,
+    message: `Vexira Host: ${input.domain} yenilemesi için bakiye yetersiz (${amount}). Ödeme: ${input.paymentUrl}`,
+  };
+}
+
 @Injectable()
 export class HostingExpiryJobService {
   private readonly logger = new Logger(HostingExpiryJobService.name);
@@ -18,15 +66,154 @@ export class HostingExpiryJobService {
     private readonly billing: HostingBillingService,
     private readonly hostingEmail: HostingEmailService,
     private readonly hostingServers: HostingServersService,
+    private readonly balance: BalanceService,
+    private readonly payments: PaymentsService,
+    private readonly notifications: NotificationsService,
+    private readonly whatsapp: WhatsappService,
+    private readonly config: ConfigService,
   ) {}
+
+  private paymentUrl(invoiceId: string): string {
+    const appUrl = this.config.get<string>("APP_URL", "http://localhost:3000").replace(/\/$/, "");
+    return `${appUrl}/dashboard/invoices/${invoiceId}`;
+  }
+
+  private async tryAutomaticBalancePayment(userId: string, invoiceId: string): Promise<boolean> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        payments: {
+          where: { status: PaymentStatus.COMPLETED },
+          select: { amount: true },
+        },
+      },
+    });
+    if (!invoice) return false;
+    if (invoice.status === InvoiceStatus.PAID) return true;
+    if (invoice.status !== InvoiceStatus.OPEN) return false;
+
+    const paid = invoice.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+    const amountDue = Math.max(0, Number((Number(invoice.total) - paid).toFixed(2)));
+
+    try {
+      const result = await this.balance.payInvoiceWithBalance(
+        userId,
+        invoiceId,
+        amountDue > 0 ? amountDue : undefined,
+      );
+      return result.invoiceFullyPaid === true;
+    } catch (error) {
+      this.logger.log(
+        `Automatic balance renewal skipped for invoice ${invoiceId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return false;
+    }
+  }
+
+  private async notifyPaymentRequired(input: {
+    user: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      preferredCurrency: string | null;
+      localeHistory: string[];
+      phone: string | null;
+      phoneVerifiedAt: Date | null;
+      whatsappNotificationsEnabled: boolean;
+    };
+    domain: string;
+    planName: string;
+    panel: string;
+    amount: number;
+    currency: string;
+    invoiceId: string;
+    invoiceNumber: string;
+    dueDate: Date;
+  }): Promise<void> {
+    const paymentUrl = this.paymentUrl(input.invoiceId);
+    const copy = renewalPaymentCopy(input.user.localeHistory[0], {
+      domain: input.domain,
+      amount: input.amount,
+      currency: input.currency,
+      paymentUrl,
+    });
+
+    try {
+      await this.hostingEmail.sendRenewalInvoiceEmail({
+        to: input.user.email,
+        firstName: input.user.firstName,
+        lastName: input.user.lastName,
+        preferredCurrency: input.user.preferredCurrency,
+        localeHistory: input.user.localeHistory,
+        domain: input.domain,
+        planName: input.planName,
+        panel: input.panel,
+        amount: input.amount,
+        currency: input.currency,
+        invoiceNumber: input.invoiceNumber,
+        invoiceId: input.invoiceId,
+        dueDate: input.dueDate,
+        graceDays: GRACE_DAYS,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Renewal email ${input.invoiceId} failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    try {
+      await this.notifications.create({
+        userId: input.user.id,
+        type: NotificationType.INVOICE,
+        title: copy.title,
+        body: copy.body,
+        reference: input.invoiceNumber,
+        href: `/dashboard/invoices/${input.invoiceId}`,
+        meta: {
+          invoiceId: input.invoiceId,
+          amount: input.amount,
+          currency: input.currency,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Renewal notification ${input.invoiceId} failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
+    if (input.user.phone && input.user.phoneVerifiedAt && input.user.whatsappNotificationsEnabled) {
+      try {
+        await this.whatsapp.sendSystemText({
+          phone: input.user.phone,
+          userId: input.user.id,
+          message: copy.message,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Renewal phone message ${input.invoiceId} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }
 
   async tick(): Promise<void> {
     if (this.running) return;
     this.running = true;
     try {
       await this.processScheduledPurges();
+      await this.backfillRecurringBillingMetadata();
       await this.processCancelledAtPeriodEnd();
       await this.processExpiredAccounts();
+      await this.processSuspendedRenewals();
       await this.processGraceExpiredAccounts();
     } catch (error) {
       this.logger.error(
@@ -34,6 +221,35 @@ export class HostingExpiryJobService {
       );
     } finally {
       this.running = false;
+    }
+  }
+
+  /** Make hosting bought before recurring billing was introduced renewable too. */
+  private async backfillRecurringBillingMetadata(): Promise<void> {
+    const accounts = await this.prisma.hostingAccount.findMany({
+      where: {
+        managementMode: HostingManagementMode.AUTOMATED,
+        status: ServiceStatus.ACTIVE,
+        expiresAt: null,
+      },
+      include: { plan: true },
+    });
+
+    for (const account of accounts) {
+      const expiresAt = calculateHostingExpiry(
+        account.provisionedAt ?? account.createdAt,
+        account.plan.billingCycle,
+      );
+      await this.prisma.hostingAccount.update({
+        where: { id: account.id },
+        data: expiresAt
+          ? {
+              expiresAt,
+              billingAmount: account.billingAmount ?? account.plan.price,
+              billingCurrency: account.plan.currency.toUpperCase(),
+            }
+          : { autoRenew: false },
+      });
     }
   }
 
@@ -84,13 +300,10 @@ export class HostingExpiryJobService {
     });
 
     for (const account of accounts) {
+      await this.hostingServers.updateAccountStatus(account.id, { status: "SUSPENDED" });
       await this.prisma.hostingAccount.update({
         where: { id: account.id },
-        data: {
-          status: ServiceStatus.CANCELLED,
-          graceEndsAt: null,
-          renewalInvoiceId: null,
-        },
+        data: { status: ServiceStatus.CANCELLED, graceEndsAt: null, renewalInvoiceId: null },
       });
       this.logger.log(`Marked account ${account.id} CANCELLED after period end (autoRenew=false)`);
     }
@@ -100,7 +313,6 @@ export class HostingExpiryJobService {
     const now = new Date();
     const accounts = await this.prisma.hostingAccount.findMany({
       where: {
-        managementMode: HostingManagementMode.MANUAL,
         status: ServiceStatus.ACTIVE,
         autoRenew: true,
         expiresAt: { lte: now },
@@ -115,6 +327,7 @@ export class HostingExpiryJobService {
     for (const account of accounts) {
       const amount = account.billingAmount != null ? Number(account.billingAmount) : 0;
       if (!Number.isFinite(amount) || amount <= 0) continue;
+      if (account.plan.billingCycle === BillingCycle.ONE_TIME) continue;
 
       const graceEndsAt = new Date(now);
       graceEndsAt.setDate(graceEndsAt.getDate() + GRACE_DAYS);
@@ -131,7 +344,7 @@ export class HostingExpiryJobService {
             data: { dueDate: graceEndsAt },
           });
         } else if (existing?.status === InvoiceStatus.PAID) {
-          // Already paid — extend instead of suspending
+          await this.billing.activateAfterRenewalPayment(existing.id);
           continue;
         } else {
           invoiceId = null;
@@ -146,6 +359,7 @@ export class HostingExpiryJobService {
           currency: account.billingCurrency || "USD",
           description: `Renewal — ${account.primaryDomain} (${account.panel})`,
           dueDate: graceEndsAt,
+          idempotencyKey: `hosting-renewal:${account.id}:${account.expiresAt?.toISOString() ?? "unknown"}`,
         });
         invoiceId = invoice.id;
         invoiceNumber = invoice.invoiceNumber;
@@ -153,34 +367,67 @@ export class HostingExpiryJobService {
 
       await this.prisma.hostingAccount.update({
         where: { id: account.id },
-        data: {
-          status: ServiceStatus.SUSPENDED,
-          graceEndsAt,
-          renewalInvoiceId: invoiceId,
-        },
+        data: { graceEndsAt, renewalInvoiceId: invoiceId },
       });
 
-      if (invoiceNumber) {
-        await this.hostingEmail.sendRenewalInvoiceEmail({
-          to: account.user.email,
-          firstName: account.user.firstName,
-          lastName: account.user.lastName,
-          preferredCurrency: account.user.preferredCurrency,
-          localeHistory: account.user.localeHistory,
+      if (await this.tryAutomaticBalancePayment(account.userId, invoiceId)) {
+        this.logger.log(
+          `Renewed hosting ${account.id} automatically from account balance (${invoiceNumber})`,
+        );
+        continue;
+      }
+
+      if (await this.payments.tryEpointAutoRenewal(account.userId, invoiceId)) {
+        this.logger.log(
+          `Renewed hosting ${account.id} automatically from saved Epoint card (${invoiceNumber})`,
+        );
+        continue;
+      }
+
+      await this.hostingServers.updateAccountStatus(account.id, { status: "SUSPENDED" });
+
+      if (invoiceNumber && invoiceId) {
+        await this.notifyPaymentRequired({
+          user: account.user,
           domain: account.primaryDomain,
           planName: account.plan.name,
           panel: account.panel,
           amount,
           currency: account.billingCurrency || "USD",
+          invoiceId,
           invoiceNumber,
           dueDate: graceEndsAt,
-          graceDays: GRACE_DAYS,
         });
       }
 
       this.logger.log(
-        `Suspended manual account ${account.id} and issued renewal invoice ${invoiceNumber}`,
+        `Suspended hosting account ${account.id} and issued renewal invoice ${invoiceNumber}`,
       );
+    }
+  }
+
+  /** Retry automatic debit while the invoice is still inside its grace period. */
+  private async processSuspendedRenewals(): Promise<void> {
+    const now = new Date();
+    const accounts = await this.prisma.hostingAccount.findMany({
+      where: {
+        status: ServiceStatus.SUSPENDED,
+        autoRenew: true,
+        graceEndsAt: { gt: now },
+        renewalInvoiceId: { not: null },
+      },
+      select: { id: true, userId: true, renewalInvoiceId: true },
+    });
+
+    for (const account of accounts) {
+      if (!account.renewalInvoiceId) continue;
+      if (await this.tryAutomaticBalancePayment(account.userId, account.renewalInvoiceId)) {
+        this.logger.log(`Reactivated hosting ${account.id} after automatic balance payment`);
+        continue;
+      }
+      if (await this.payments.tryEpointAutoRenewal(account.userId, account.renewalInvoiceId)) {
+        this.logger.log(`Reactivated hosting ${account.id} after Epoint card payment`);
+      }
     }
   }
 
@@ -188,7 +435,6 @@ export class HostingExpiryJobService {
     const now = new Date();
     const accounts = await this.prisma.hostingAccount.findMany({
       where: {
-        managementMode: HostingManagementMode.MANUAL,
         status: ServiceStatus.SUSPENDED,
         graceEndsAt: { lte: now },
         renewalInvoiceId: { not: null },
@@ -206,7 +452,7 @@ export class HostingExpiryJobService {
           where: { id: account.renewalInvoiceId },
         });
         if (invoice?.status === InvoiceStatus.PAID) {
-          // Payment race: skip delete
+          await this.billing.activateAfterRenewalPayment(invoice.id);
           continue;
         }
         if (invoice && invoice.status === InvoiceStatus.OPEN) {
@@ -217,20 +463,8 @@ export class HostingExpiryJobService {
         }
       }
 
-      await this.hostingEmail.sendAccountDeletedEmail({
-        to: account.user.email,
-        firstName: account.user.firstName,
-        lastName: account.user.lastName,
-        preferredCurrency: account.user.preferredCurrency,
-        localeHistory: account.user.localeHistory,
-        domain: account.primaryDomain,
-        planName: account.plan.name,
-        username: account.panelUsername ?? account.username,
-        serverName: account.server?.name,
-      });
-
-      await this.prisma.hostingAccount.delete({ where: { id: account.id } });
-      this.logger.log(`Deleted unpaid manual account ${account.id} after grace period`);
+      await this.hostingServers.deleteAccount(account.id);
+      this.logger.log(`Deleted unpaid hosting account ${account.id} after grace period`);
     }
   }
 }

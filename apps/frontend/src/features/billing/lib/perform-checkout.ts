@@ -1,9 +1,4 @@
-import {
-  chargeInvoice,
-  checkout,
-  createPaymentMethod,
-  listPaymentMethods,
-} from "../services/billing.service";
+import { chargeInvoice, checkout } from "../services/billing.service";
 
 import { resolveCheckoutPeriod } from "@/lib/cart-pricing";
 import type { CartItem } from "@/stores/cart-store";
@@ -177,13 +172,7 @@ export async function performCheckout(
     };
   }
 
-  let methods = await listPaymentMethods();
-  if (methods.length === 0) {
-    await createPaymentMethod();
-    methods = await listPaymentMethods();
-  }
-
-  const payment = await chargeInvoice(order.invoice.id, { methodId: methods[0]?.id });
+  const payment = await chargeInvoice(order.invoice.id);
 
   if (payment?.mode === "redirect" && payment.redirectUrl) {
     return {

@@ -44,7 +44,8 @@ export default async function BlogPage(): Promise<React.ReactElement> {
       />
       <section className="apple-page py-16 sm:py-20">
         <div className="mx-auto max-w-5xl px-5 md:px-8">
-          <header className="max-w-2xl">
+          <header className="public-page-heading">
+            <p>VEXIRA HOST</p>
             <h1 className="text-3xl font-semibold tracking-tight text-[var(--label)] sm:text-4xl">
               {ui.title}
             </h1>

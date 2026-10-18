@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="156" height="64" viewBox="0 0 156 64" fill="none">
+  <title>Vexira Host wordmark</title>
+  <!-- Original geometric letter outlines: no downloaded font or icon dependency. -->
+  <g transform="translate(0 9)" fill="#14213b">
+    <path d="M0 0H6L15 23L24 0H30L18 32H12L0 0Z"/>
+    <path fill-rule="evenodd" d="M36 20C36 12 41 7 48 7C55 7 59 12 59 20V22H42C42.8 25.5 45 27.2 48.5 27.2C51.5 27.2 53.5 26 55.2 24.5L58.5 28C55.8 31 52.5 32.5 48 32.5C40.5 32.5 36 27.5 36 20ZM42 17H53C52.5 13.8 50.7 12 48 12C45 12 43 13.8 42 17Z"/>
+    <path d="M64 8H71L76.5 16L82 8H89L80 20L89 32H82L76.5 24L71 32H64L73 20L64 8Z"/>
+    <path d="M96 8H102V32H96V8Z"/>
+    <circle cx="99" cy="1" r="3.4"/>
+    <path d="M110 8H116V12C118 8.5 121.3 7 125 8V14C119.5 13 116 15.5 116 21V32H110V8Z"/>
+    <path fill-rule="evenodd" d="M129 20C129 12 133.5 7.5 140 7.5C143.5 7.5 145.8 9 147 11V8H153V32H147V29C145 31.3 142.5 32.5 139.5 32.5C133 32.5 129 28 129 20ZM135 20C135 24.7 137.5 27 141 27C144.7 27 147 24 147 20C147 16 144.7 13 141 13C137.5 13 135 15.5 135 20Z"/>
+  </g>
+  <g transform="translate(1 48)" stroke="#1768e8" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="round">
+    <path d="M0 0V11M8 0V11M0 5.5H8"/>
+    <rect x="17" y="0" width="8" height="11" rx="4"/>
+    <path d="M42 1C40.3-.5 34-.8 34 2.6C34 6.1 42 4.6 42 8.4C42 11.8 35.7 11.5 34 10"/>
+    <path d="M51 0H61M56 0V11"/>
+  </g>
+</svg>

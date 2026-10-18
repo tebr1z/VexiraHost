@@ -23,6 +23,17 @@ export class AdminCatalogRepository {
             accountCount: true,
           },
         },
+        autoDeployServer: {
+          select: {
+            id: true,
+            name: true,
+            hostname: true,
+            ipAddress: true,
+            isActive: true,
+            deployNodeEnabled: true,
+            deployHealth: true,
+          },
+        },
         planServers: {
           orderBy: { priority: "asc" },
           include: {
@@ -59,6 +70,17 @@ export class AdminCatalogRepository {
             isActive: true,
             maxAccounts: true,
             accountCount: true,
+          },
+        },
+        autoDeployServer: {
+          select: {
+            id: true,
+            name: true,
+            hostname: true,
+            ipAddress: true,
+            isActive: true,
+            deployNodeEnabled: true,
+            deployHealth: true,
           },
         },
         planServers: {
@@ -182,7 +204,7 @@ export class AdminCatalogRepository {
     productId: string,
     prices: Array<{
       currency: "USD" | "EUR" | "AZN";
-      period: "MONTHLY" | "YEARLY";
+      period: "MONTHLY" | "YEARLY" | "ONE_TIME";
       originalPrice: number;
       salePrice: number;
     }>,

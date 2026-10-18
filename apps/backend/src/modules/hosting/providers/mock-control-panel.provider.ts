@@ -26,6 +26,8 @@ import {
 } from "../utils/panel-endpoint.util";
 import { generatePleskCompliantPassword } from "../utils/plesk-password.util";
 
+import { assertMockProviderAllowed } from "@/shared/providers/mock-provider.guard";
+
 function hashSeed(input: string): number {
   let hash = 0;
 
@@ -124,6 +126,8 @@ export class MockControlPanelProvider implements ControlPanelProvider {
       };
     }
 
+    assertMockProviderAllowed("Mock hosting control panel");
+
     const panelRef = `${input.panel.toLowerCase()}-acct-${10000 + (seed % 90000)}`;
 
     const panelUrl =
@@ -173,6 +177,8 @@ export class MockControlPanelProvider implements ControlPanelProvider {
       };
     }
 
+    assertMockProviderAllowed("Mock hosting control panel");
+
     const endpoint = resolvePanelEndpoint(input.server);
 
     const token = String(hashSeed(`${login}:${Date.now()}`));
@@ -218,6 +224,8 @@ export class MockControlPanelProvider implements ControlPanelProvider {
       return testPleskApiAuth(pleskCredentials(server));
     }
 
+    assertMockProviderAllowed("Mock hosting control panel");
+
     return {
       ok: true,
 
@@ -235,9 +243,11 @@ export class MockControlPanelProvider implements ControlPanelProvider {
 
   async deleteAccount(target: ControlPanelAccountTarget): Promise<void> {
     if (target.server.panel !== HostingPanel.PLESK || isMockPanelServer(target.server)) {
+      assertMockProviderAllowed("Mock hosting control panel");
       return;
     }
     if (!target.server.whmPasswordEnc && !target.server.apiTokenEnc) {
+      assertMockProviderAllowed("Mock hosting control panel");
       return;
     }
     await deletePleskWebspace(pleskCredentials(target.server), this.webspaceFilter(target));
@@ -248,9 +258,11 @@ export class MockControlPanelProvider implements ControlPanelProvider {
     status: "active" | "suspended",
   ): Promise<void> {
     if (target.server.panel !== HostingPanel.PLESK || isMockPanelServer(target.server)) {
+      assertMockProviderAllowed("Mock hosting control panel");
       return;
     }
     if (!target.server.whmPasswordEnc && !target.server.apiTokenEnc) {
+      assertMockProviderAllowed("Mock hosting control panel");
       return;
     }
     await setPleskWebspaceStatus(

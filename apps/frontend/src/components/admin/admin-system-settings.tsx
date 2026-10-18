@@ -23,7 +23,7 @@ import { defaultSiteAccess, SITE_SECTION_GROUPS, type SiteAccessConfig } from "@
 import { toast } from "@/stores/toast-store";
 
 const PROVIDER_OPTION_KEYS = ["mock", "real", "stripe", "whm"] as const;
-const PAYMENT_PROVIDER_OPTION_KEYS = ["mock", "kapital"] as const;
+const PAYMENT_PROVIDER_OPTION_KEYS = ["mock", "kapital", "epoint"] as const;
 const KAPITAL_ENVIRONMENT_KEYS = ["test", "production"] as const;
 
 type SystemTab = "status" | "site" | "integrations" | "providers";
@@ -54,6 +54,7 @@ export function AdminSystemSettings({ isAdmin }: { isAdmin: boolean }): React.Re
     environment: "test",
     username: "",
     password: "",
+    passwordConfigured: false,
     baseUrl: "",
     configured: false,
     source: "preset",
@@ -131,7 +132,7 @@ export function AdminSystemSettings({ isAdmin }: { isAdmin: boolean }): React.Re
       ...current,
       environment,
       username: preset.username,
-      password: preset.password,
+      password: "",
       baseUrl: preset.baseUrl,
     }));
   };
@@ -265,15 +266,57 @@ export function AdminSystemSettings({ isAdmin }: { isAdmin: boolean }): React.Re
       </nav>
 
       {activeTab === "status" ? (
-        <SettingsCard title={tp("queue")} description={`${tp("environment")}: ${status.nodeEnv}`}>
-          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Stat label={tp("connected")} value={status.queue.connected ? "Yes" : "No"} />
-            <Stat label={tp("waiting")} value={String(status.queue.waiting)} />
-            <Stat label={tp("active")} value={String(status.queue.active)} />
-            <Stat label={tp("completed")} value={String(status.queue.completed)} />
-            <Stat label={tp("failed")} value={String(status.queue.failed)} />
-          </dl>
-        </SettingsCard>
+        <div className="space-y-5">
+          <SettingsCard title={tp("queue")} description={`${tp("environment")}: ${status.nodeEnv}`}>
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <Stat label={tp("connected")} value={status.queue.connected ? "Yes" : "No"} />
+              <Stat label={tp("waiting")} value={String(status.queue.waiting)} />
+              <Stat label={tp("active")} value={String(status.queue.active)} />
+              <Stat label={tp("completed")} value={String(status.queue.completed)} />
+              <Stat label={tp("failed")} value={String(status.queue.failed)} />
+            </dl>
+          </SettingsCard>
+          <SettingsCard
+            title={tp("cloudflareDns.title")}
+            description={tp("cloudflareDns.description")}
+            icon="cloud"
+            badge={
+              <ConfigBadge
+                configured={status.cloudflareDns.configured}
+                label={
+                  status.cloudflareDns.configured
+                    ? tp("cloudflareDns.configured")
+                    : tp("cloudflareDns.notConfigured")
+                }
+              />
+            }
+          >
+            <p className="text-on-surface-variant text-sm">
+              {status.cloudflareDns.canCreateZones
+                ? tp("cloudflareDns.zoneCreateReady")
+                : tp("cloudflareDns.zoneCreateMissing")}
+            </p>
+          </SettingsCard>
+          <SettingsCard
+            title={tp("authoritativeDns.title")}
+            description={tp("authoritativeDns.description")}
+            icon="dns"
+            badge={
+              <ConfigBadge
+                configured={status.authoritativeDns.configured}
+                label={
+                  status.authoritativeDns.configured
+                    ? tp("authoritativeDns.configured")
+                    : tp("authoritativeDns.notConfigured")
+                }
+              />
+            }
+          >
+            <p className="text-on-surface-variant font-mono text-sm">
+              {status.authoritativeDns.nameservers.join(" · ") || "—"}
+            </p>
+          </SettingsCard>
+        </div>
       ) : null}
 
       {activeTab === "integrations" ? (
@@ -675,6 +718,21 @@ export function AdminSystemSettings({ isAdmin }: { isAdmin: boolean }): React.Re
                   source={tp(`kapital.sourceOptions.${kapital.source}`)}
                   label={tp("kapital.source")}
                 />
+                <div className="border-outline-variant/40 bg-surface-container text-on-surface-variant rounded-xl border px-4 py-3 text-sm">
+                  {tp("kapital.recurringNotice")}
+                </div>
+              </div>
+            ) : null}
+            {providers.paymentProvider === "epoint" ? (
+              <div className="border-outline-variant/40 bg-surface-container-low/40 space-y-2 rounded-2xl border p-4 text-sm">
+                <p className="text-on-surface font-semibold">{tp("epoint.title")}</p>
+                <p className="text-on-surface-variant">{tp("epoint.description")}</p>
+                <p className="text-on-surface-variant font-mono text-xs">
+                  {status.epoint.callbackUrl}
+                </p>
+                <p className={status.epoint.configured ? "text-emerald-600" : "text-amber-600"}>
+                  {tp(status.epoint.configured ? "epoint.configured" : "epoint.notConfigured")}
+                </p>
               </div>
             ) : null}
             <ProviderSelect

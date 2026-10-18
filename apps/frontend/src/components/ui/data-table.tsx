@@ -90,7 +90,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="overflow-hidden rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] shadow-sm">
+      <div className="vexira-table-frame overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-[var(--separator)] bg-[var(--fill-secondary)]">

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { listHostingServers, type HostingServer } from "@/features/admin";
 import { useAccessTokenReady } from "@/features/auth";
+import { Link } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { slugify } from "@/lib/slug";
 
@@ -26,12 +27,20 @@ export interface HostingPlanFormValues {
   sortOrder: string;
   pleskPlanName: string;
   autoDeployEnabled: boolean;
+  autoDeployServerId: string;
+  autoDeployDiskGb: string;
+  autoDeployCpuPercent: string;
+  autoDeployMemoryMb: string;
+  autoDeployMaxApps: string;
+  autoDeployAiEnabled: boolean;
+  autoDeployAiMonthlyCredits: string;
+  autoDeploySecurityScanEnabled: boolean;
 }
 
 const DEFAULT: HostingPlanFormValues = {
   name: "",
   description: "",
-  panel: "CPANEL",
+  panel: "PLESK",
   serverIds: [],
   distributionMode: "FAILOVER",
   diskGb: "10",
@@ -44,11 +53,20 @@ const DEFAULT: HostingPlanFormValues = {
   sortOrder: "0",
   pleskPlanName: "",
   autoDeployEnabled: false,
+  autoDeployServerId: "",
+  autoDeployDiskGb: "1",
+  autoDeployCpuPercent: "100",
+  autoDeployMemoryMb: "1024",
+  autoDeployMaxApps: "1",
+  autoDeployAiEnabled: false,
+  autoDeployAiMonthlyCredits: "0",
+  autoDeploySecurityScanEnabled: true,
 };
 
 function formatServerCapacity(server: HostingServer): string {
-  if (server.maxAccounts == null) return `${server.accountCount}/∞`;
-  return `${server.accountCount}/${server.maxAccounts}`;
+  const count = server.activeAccountCount ?? Math.max(0, server.accountCount);
+  if (server.maxAccounts == null) return `${count}/∞`;
+  return `${count}/${server.maxAccounts}`;
 }
 
 export function toHostingPlanPayload(values: HostingPlanFormValues) {
@@ -70,6 +88,14 @@ export function toHostingPlanPayload(values: HostingPlanFormValues) {
     sortOrder: Number(values.sortOrder) || 0,
     pleskPlanName: values.pleskPlanName.trim() || null,
     autoDeployEnabled: values.autoDeployEnabled,
+    autoDeployServerId: values.autoDeployEnabled ? values.autoDeployServerId : null,
+    autoDeployDiskGb: Number(values.autoDeployDiskGb),
+    autoDeployCpuPercent: Number(values.autoDeployCpuPercent),
+    autoDeployMemoryMb: Number(values.autoDeployMemoryMb),
+    autoDeployMaxApps: Number(values.autoDeployMaxApps),
+    autoDeployAiEnabled: values.autoDeployAiEnabled,
+    autoDeployAiMonthlyCredits: Number(values.autoDeployAiMonthlyCredits) || 0,
+    autoDeploySecurityScanEnabled: values.autoDeploySecurityScanEnabled,
   };
 }
 
@@ -85,9 +111,12 @@ export function HostingPlanForm({
   onSubmit: (values: HostingPlanFormValues) => Promise<void>;
 }): React.ReactElement {
   const tf = useTranslations("admin.forms");
+  const tw = useTranslations("admin.forms.serverWorkflow");
   const accessTokenReady = useAccessTokenReady();
   const [values, setValues] = useState<HostingPlanFormValues>({ ...DEFAULT, ...initialValues });
   const [servers, setServers] = useState<HostingServer[]>([]);
+  const [serversLoaded, setServersLoaded] = useState(false);
+  const [serversError, setServersError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,10 +124,20 @@ export function HostingPlanForm({
 
   useEffect(() => {
     if (!accessTokenReady) return;
+    let cancelled = false;
     listHostingServers()
-      .then(setServers)
-      .catch(() => undefined);
-  }, [accessTokenReady]);
+      .then((data) => {
+        if (cancelled) return;
+        setServers(data);
+        setServersLoaded(true);
+      })
+      .catch((err) => {
+        if (!cancelled) setServersError(getApiErrorMessage(err, tw("loadServersFailed")));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessTokenReady, tw]);
 
   const matchingServers = useMemo(
     () => servers.filter((server) => server.isActive && server.panel === values.panel),
@@ -106,13 +145,14 @@ export function HostingPlanForm({
   );
 
   useEffect(() => {
+    if (!serversLoaded) return;
     const validIds = new Set(matchingServers.map((server) => server.id));
     setValues((prev) => {
       const nextIds = prev.serverIds.filter((id) => validIds.has(id));
       if (nextIds.length === prev.serverIds.length) return prev;
       return { ...prev, serverIds: nextIds };
     });
-  }, [matchingServers]);
+  }, [matchingServers, serversLoaded]);
 
   const set = (key: keyof HostingPlanFormValues, value: string | boolean | string[]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -141,12 +181,17 @@ export function HostingPlanForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!serversLoaded) return;
     if (values.serverIds.length === 0) {
       setError(tf("hostingServerRequired"));
       return;
     }
     if (values.autoDeployEnabled && values.panel !== "PLESK") {
       setError(tf("autoDeployRequiresPlesk"));
+      return;
+    }
+    if (values.autoDeployEnabled && !values.autoDeployServerId) {
+      setError(tf("autoDeployServerRequired"));
       return;
     }
 
@@ -174,6 +219,7 @@ export function HostingPlanForm({
   const orderedSelected = values.serverIds
     .map((id) => matchingServers.find((server) => server.id === id))
     .filter((server): server is HostingServer => Boolean(server));
+  const deployServers = servers.filter((server) => server.isActive && server.deployNodeEnabled);
 
   return (
     <form
@@ -181,8 +227,12 @@ export function HostingPlanForm({
       className="border-outline-variant/50 bg-surface space-y-4 rounded-2xl border p-6"
     >
       <div>
-        <label className="mb-1 block text-sm font-medium">{tf("name")}</label>
+        <label htmlFor="hosting-plan-name" className="mb-1 block text-sm font-medium">
+          {tf("name")}
+        </label>
         <input
+          id="hosting-plan-name"
+          minLength={2}
           value={values.name}
           onChange={(e) => set("name", e.target.value)}
           required
@@ -201,8 +251,11 @@ export function HostingPlanForm({
         )}
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">{tf("description")}</label>
+        <label htmlFor="hosting-plan-description" className="mb-1 block text-sm font-medium">
+          {tf("description")}
+        </label>
         <textarea
+          id="hosting-plan-description"
           value={values.description}
           onChange={(e) => set("description", e.target.value)}
           rows={2}
@@ -210,10 +263,19 @@ export function HostingPlanForm({
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">{tf("panel")}</label>
+        <label htmlFor="hosting-plan-panel" className="mb-1 block text-sm font-medium">
+          {tf("panel")}
+        </label>
         <select
+          id="hosting-plan-panel"
           value={values.panel}
-          onChange={(e) => set("panel", e.target.value)}
+          onChange={(e) =>
+            setValues((prev) => ({
+              ...prev,
+              panel: e.target.value as HostingPlanFormValues["panel"],
+              autoDeployEnabled: e.target.value === "PLESK" && prev.autoDeployEnabled,
+            }))
+          }
           className={`${field} sm:max-w-xs`}
         >
           <option value="CPANEL">cPanel</option>
@@ -229,14 +291,20 @@ export function HostingPlanForm({
           <p className="text-on-surface-variant mb-3 text-xs">
             {values.panel === "PLESK" ? tf("pleskServersHelp") : tf("hostingServersHelp")}
           </p>
-          {matchingServers.length === 0 ? (
+          {serversError ? (
+            <p role="alert" className="text-error text-sm">
+              {serversError}
+            </p>
+          ) : !serversLoaded ? (
+            <p className="text-on-surface-variant text-sm">{tw("loadingServers")}</p>
+          ) : matchingServers.length === 0 ? (
             <p className="text-error text-xs">{tf("noHostingServersForPanel")}</p>
           ) : (
             <ul className="space-y-2">
               {matchingServers.map((server) => {
                 const selected = values.serverIds.includes(server.id);
                 const full =
-                  server.maxAccounts != null && server.accountCount >= server.maxAccounts;
+                  server.maxAccounts != null && server.activeAccountCount >= server.maxAccounts;
                 return (
                   <li key={server.id}>
                     <label className="border-outline-variant/50 bg-surface flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-sm">
@@ -340,8 +408,11 @@ export function HostingPlanForm({
 
       {values.panel === "PLESK" && (
         <div>
-          <label className="mb-1 block text-sm font-medium">{tf("pleskPlanName")}</label>
+          <label htmlFor="hosting-plan-plesk-name" className="mb-1 block text-sm font-medium">
+            {tf("pleskPlanName")}
+          </label>
           <input
+            id="hosting-plan-plesk-name"
             value={values.pleskPlanName}
             onChange={(e) => set("pleskPlanName", e.target.value)}
             placeholder={tf("pleskPlanNamePlaceholder")}
@@ -352,13 +423,23 @@ export function HostingPlanForm({
       )}
 
       {values.panel === "PLESK" ? (
-        <div className="border-outline-variant/60 bg-surface-container-low/40 rounded-xl border p-4">
+        <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-4 rounded-xl border p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm">
             <input
               type="checkbox"
               className="mt-1"
               checked={values.autoDeployEnabled}
-              onChange={(e) => set("autoDeployEnabled", e.target.checked)}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                setValues((prev) => ({
+                  ...prev,
+                  autoDeployEnabled: enabled,
+                  autoDeployServerId:
+                    prev.autoDeployServerId ||
+                    orderedSelected.find((server) => server.deployNodeEnabled)?.id ||
+                    "",
+                }));
+              }}
             />
             <span>
               <span className="font-medium">{tf("autoDeployEnabled")}</span>
@@ -367,14 +448,151 @@ export function HostingPlanForm({
               </span>
             </span>
           </label>
+          {values.autoDeployEnabled ? (
+            <div className="space-y-4 border-t border-[var(--separator)] pt-4">
+              <div>
+                <label
+                  htmlFor="hosting-plan-deploy-server"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  {tf("autoDeployServer")}
+                </label>
+                <select
+                  id="hosting-plan-deploy-server"
+                  value={values.autoDeployServerId}
+                  onChange={(e) => set("autoDeployServerId", e.target.value)}
+                  className={field}
+                  required
+                >
+                  <option value="">{tf("autoDeployServerPlaceholder")}</option>
+                  {deployServers.map((server) => (
+                    <option key={server.id} value={server.id}>
+                      {server.name} · {server.ipAddress} · {server.deployHealth}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-on-surface-variant mt-2 text-xs">{tw("separateQuotas")}</p>
+                {serversLoaded && deployServers.length === 0 ? (
+                  <p className="text-error mt-2 text-xs">
+                    {tw("noDeployServers")}{" "}
+                    <Link
+                      href="/t4abriz/panel/hosting/servers/new"
+                      className="font-semibold underline"
+                    >
+                      {tw("addServer")}
+                    </Link>
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(
+                  [
+                    ["autoDeployCpuPercent", "cpuLimit", 10, 3200],
+                    ["autoDeployMemoryMb", "memoryLimit", 128, 262144],
+                  ] as const
+                ).map(([key, label, min, max]) => (
+                  <label key={key} className="block text-xs font-medium">
+                    <span className="mb-1 block">{tw(label)}</span>
+                    <input
+                      type="number"
+                      required
+                      min={min}
+                      max={max}
+                      step={1}
+                      value={values[key]}
+                      onChange={(event) => set(key, event.target.value)}
+                      className={field}
+                    />
+                  </label>
+                ))}
+                <div>
+                  <label
+                    htmlFor="hosting-plan-deploy-disk"
+                    className="mb-1 block text-xs font-medium"
+                  >
+                    {tf("autoDeployDiskGb")}
+                  </label>
+                  <input
+                    id="hosting-plan-deploy-disk"
+                    type="number"
+                    min={1}
+                    required
+                    value={values.autoDeployDiskGb}
+                    onChange={(e) => set("autoDeployDiskGb", e.target.value)}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="hosting-plan-deploy-apps"
+                    className="mb-1 block text-xs font-medium"
+                  >
+                    {tf("autoDeployMaxApps")}
+                  </label>
+                  <input
+                    id="hosting-plan-deploy-apps"
+                    type="number"
+                    min={1}
+                    required
+                    value={values.autoDeployMaxApps}
+                    onChange={(e) => set("autoDeployMaxApps", e.target.value)}
+                    className={field}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="hosting-plan-ai-credits"
+                    className="mb-1 block text-xs font-medium"
+                  >
+                    {tf("autoDeployAiCredits")}
+                  </label>
+                  <input
+                    id="hosting-plan-ai-credits"
+                    type="number"
+                    min={0}
+                    value={values.autoDeployAiMonthlyCredits}
+                    onChange={(e) => set("autoDeployAiMonthlyCredits", e.target.value)}
+                    className={field}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <p className="text-on-surface-variant w-full text-xs leading-relaxed">
+                  {tw("resourceLimitsHint")}
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.autoDeployAiEnabled}
+                    onChange={(e) => set("autoDeployAiEnabled", e.target.checked)}
+                  />
+                  {tf("autoDeployAiEnabled")}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.autoDeploySecurityScanEnabled}
+                    onChange={(e) => set("autoDeploySecurityScanEnabled", e.target.checked)}
+                  />
+                  {tf("autoDeploySecurityScanEnabled")}
+                </label>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {numericFields.map(([key, label]) => (
           <div key={key}>
-            <label className="mb-1 block text-sm font-medium">{label}</label>
+            <label htmlFor={`hosting-plan-${key}`} className="mb-1 block text-sm font-medium">
+              {label}
+            </label>
             <input
+              id={`hosting-plan-${key}`}
+              type="number"
+              min={["maxEmails", "maxDatabases", "price"].includes(key) ? 0 : 1}
+              step={key === "price" ? "0.01" : "1"}
               value={values[key] as string}
               onChange={(e) => set(key, e.target.value)}
               required
@@ -393,18 +611,31 @@ export function HostingPlanForm({
           {tf("active")}
         </label>
         <div>
-          <label className="mb-1 block text-sm font-medium">{tf("sortOrder")}</label>
+          <label htmlFor="hosting-plan-sort" className="mb-1 block text-sm font-medium">
+            {tf("sortOrder")}
+          </label>
           <input
+            id="hosting-plan-sort"
+            type="number"
             value={values.sortOrder}
             onChange={(e) => set("sortOrder", e.target.value)}
             className={`${field} w-24`}
           />
         </div>
       </div>
-      {error && <p className="text-error text-sm">{error}</p>}
+      {error && (
+        <p role="alert" className="text-error text-sm">
+          {error}
+        </p>
+      )}
       <button
         type="submit"
-        disabled={loading || matchingServers.length === 0}
+        disabled={
+          loading ||
+          !serversLoaded ||
+          matchingServers.length === 0 ||
+          (values.autoDeployEnabled && deployServers.length === 0)
+        }
         className="bg-primary text-on-primary h-11 rounded-xl px-6 text-sm font-semibold disabled:opacity-60"
       >
         {loading ? tf("saving") : submitLabel}

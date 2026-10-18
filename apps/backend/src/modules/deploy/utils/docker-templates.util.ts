@@ -1,10 +1,9 @@
 import type { DeployStack } from "@prisma/client";
 
-export function defaultContainerPort(_stack: DeployStack): number {
-  return 3000;
+export function defaultContainerPort(stack: DeployStack): number {
+  return stack === "DOTNET" ? 8080 : 3000;
 }
 
-/** Default pnpm major for Alpine builds (corepack is unreliable under podman). */
 const PNPM_VERSION = "9.15.0";
 
 export type DockerfileOptions = {
@@ -23,32 +22,61 @@ export function sanitizeAppSubdir(dir: string | null | undefined): string {
   return cleaned;
 }
 
+/** Small, secret-safe build context even when the customer repo has no .dockerignore. */
+export function buildDockerignore(): string {
+  return [
+    ".git",
+    ".github",
+    ".gitlab",
+    ".idea",
+    ".vscode",
+    ".turbo",
+    "**/.turbo",
+    "node_modules",
+    "**/node_modules",
+    ".next",
+    "**/.next",
+    "dist",
+    "**/dist",
+    "coverage",
+    "**/coverage",
+    "test-results",
+    "**/test-results",
+    "playwright-report",
+    "**/playwright-report",
+    "*.log",
+    "**/*.log",
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "Dockerfile*",
+    "docker-compose*.yml",
+    "docker-compose*.yaml",
+  ].join("\n");
+}
+
 function installPnpm(): string {
   return `RUN npm install -g pnpm@${PNPM_VERSION}`;
 }
 
 function installDepsLines(): string {
   return `${installPnpm()}
-RUN if [ -f pnpm-lock.yaml ]; then pnpm install; \\
-  elif [ -f yarn.lock ]; then npm install -g yarn && yarn install; \\
+RUN --mount=type=cache,id=vexira-pnpm-store,target=/pnpm/store \\
+  if [ -f pnpm-lock.yaml ]; then pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile; \\
+  elif [ -f yarn.lock ]; then npm install -g yarn && yarn install --frozen-lockfile; \\
   elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then npm ci; \\
   else npm install; fi`;
 }
 
-function installProdDepsLines(): string {
-  return `${installPnpm()}
-RUN if [ -f pnpm-lock.yaml ]; then pnpm install --prod; \\
-  elif [ -f yarn.lock ]; then npm install -g yarn && yarn install --production; \\
-  elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then npm ci --omit=dev; \\
-  else npm install --omit=dev; fi`;
-}
-
-function runBuildInDir(appDir: string, monorepo: boolean): string {
+function runBuildInDir(appDir: string, monorepo: boolean, nextEnvTarget?: string): string {
+  const mount = nextEnvTarget
+    ? `--mount=type=secret,id=app_env,target=${nextEnvTarget},required=false `
+    : "";
   if (monorepo && appDir !== ".") {
-    // Turbo respects ^build — compiles @vexira/* packages before Next/Nest app
-    return `RUN pnpm exec turbo run build --filter=./${appDir}...`;
+    return `RUN ${mount}pnpm exec turbo run build --filter=./${appDir}...`;
   }
-  return `RUN if [ -f pnpm-lock.yaml ]; then pnpm run build; \\
+  return `RUN ${mount}if [ -f pnpm-lock.yaml ]; then pnpm run build; \\
   elif [ -f yarn.lock ]; then yarn run build; \\
   else npm run build; fi`;
 }
@@ -68,17 +96,16 @@ function prismaGenerateLines(appDir = "."): string {
     echo "prisma generate --schema=$SCHEMA"; \\
     ok=0; \\
     for mirror in https://registry.npmmirror.com/-/binary/prisma https://cdn.npmmirror.com/binaries/prisma https://binaries.prisma.sh; do \\
-      echo "Using Prisma engine mirror $$mirror"; \\
-      if PRISMA_ENGINES_MIRROR="$$mirror" npx prisma generate --schema="$SCHEMA"; then ok=1; break; fi; \\
+      if PRISMA_ENGINES_MIRROR="$mirror" npx prisma generate --schema="$SCHEMA"; then ok=1; break; fi; \\
     done; \\
-    if [ "$$ok" != 1 ]; then exit 1; fi; \\
+    test "$ok" = 1; \\
   else \\
     echo "No prisma schema found — skip generate"; \\
   fi`;
 }
 
 function alpinePrismaRuntimeDeps(): string {
-  return `RUN apk add --no-cache openssl libc6-compat >/dev/null`;
+  return `RUN apk add --no-cache openssl libc6-compat tini >/dev/null`;
 }
 
 function prismaEngineEnv(): string {
@@ -90,19 +117,15 @@ function alpinePrismaBuildDeps(): string {
   return `RUN apk add --no-cache openssl libc6-compat ca-certificates >/dev/null`;
 }
 
-/** Copy generated Prisma engine/client into the runtime image after prod install. */
-function copyPrismaClientFromBuilder(): string {
-  return `COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma`;
-}
-
 function appPath(prefix: string, appDir: string, suffix: string): string {
   return appDir === "." ? `${prefix}${suffix}` : `${prefix}/${appDir}${suffix}`;
 }
 
 function buildMonorepoNestDockerfile(appDir: string): string {
   const distPath = appPath("/app", appDir, "/dist");
-  return `FROM node:22-alpine AS builder
+  const prismaPath = appPath("/app", appDir, "/prisma");
+  return `# syntax=docker/dockerfile:1.7
+FROM node:22-alpine AS builder
 WORKDIR /app
 ${alpinePrismaBuildDeps()}
 ${prismaEngineEnv()}
@@ -112,22 +135,29 @@ ENV CI=true
 ENV TURBO_TELEMETRY_DISABLED=1
 ${prismaGenerateLines(appDir)}
 ${runBuildInDir(appDir, true)}
+RUN pnpm --filter ./${appDir} deploy --prod /prod/app \\
+ && rm -rf /prod/app/dist \\
+ && cp -R ${distPath} /prod/app/dist \\
+ && if [ -d ${prismaPath} ]; then rm -rf /prod/app/prisma && cp -R ${prismaPath} /prod/app/prisma; fi \\
+ && PRISMA_CLIENT_DIR="$(find /app/node_modules -type d -name .prisma -print -quit)" \\
+ && if [ -n "$PRISMA_CLIENT_DIR" ]; then find "$PRISMA_CLIENT_DIR" -type f -name '*.tmp*' -delete && rm -rf /prod/app/node_modules/.prisma && cp -R "$PRISMA_CLIENT_DIR" /prod/app/node_modules/.prisma; fi
 
-FROM node:22-alpine
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ${alpinePrismaRuntimeDeps()}
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder ${distPath} ./dist
-${copyPrismaClientFromBuilder()}
+COPY --from=builder --chown=node:node /prod/app ./
+USER node
 EXPOSE 3000
 ENV PORT=3000
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "dist/main.js"]
 `;
 }
 
 function buildSinglePackageNestDockerfile(): string {
-  return `FROM node:22-alpine AS builder
+  return `# syntax=docker/dockerfile:1.7
+FROM node:22-alpine AS builder
 WORKDIR /app
 ${alpinePrismaBuildDeps()}
 ${prismaEngineEnv()}
@@ -136,21 +166,27 @@ COPY package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 ${installDepsLines()}
 COPY . .
 ${prismaGenerateLines(".")}
-RUN if [ -f pnpm-lock.yaml ]; then pnpm run build; \\
-  elif [ -f yarn.lock ]; then yarn run build; \\
-  else npm run build; fi
+${runBuildInDir(".", false)}
+RUN mkdir -p /prod/app \\
+ && if [ -f pnpm-lock.yaml ]; then pnpm --filter . deploy --prod /prod/app; \\
+    elif [ -f yarn.lock ]; then cp package.json yarn.lock /prod/app/ && cd /prod/app && yarn install --production --frozen-lockfile; \\
+    elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then cp package.json package-lock.json* npm-shrinkwrap.json* /prod/app/ && cd /prod/app && npm ci --omit=dev; \\
+    else cp package.json /prod/app/ && cd /prod/app && npm install --omit=dev; fi \\
+ && rm -rf /prod/app/dist \\
+ && cp -R /app/dist /prod/app/dist \\
+ && if [ -d /app/prisma ]; then rm -rf /prod/app/prisma && cp -R /app/prisma /prod/app/prisma; fi \\
+ && PRISMA_CLIENT_DIR="$(find /app/node_modules -type d -name .prisma -print -quit)" \\
+ && if [ -n "$PRISMA_CLIENT_DIR" ]; then find "$PRISMA_CLIENT_DIR" -type f -name '*.tmp*' -delete && rm -rf /prod/app/node_modules/.prisma && cp -R "$PRISMA_CLIENT_DIR" /prod/app/node_modules/.prisma; fi
 
-FROM node:22-alpine
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ${alpinePrismaRuntimeDeps()}
-COPY package.json ./
-COPY package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-${installProdDepsLines()}
-COPY --from=builder /app/dist ./dist
-${copyPrismaClientFromBuilder()}
+COPY --from=builder --chown=node:node /prod/app ./
+USER node
 EXPOSE 3000
 ENV PORT=3000
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "dist/main.js"]
 `;
 }
@@ -159,57 +195,64 @@ function buildMonorepoNextDockerfile(appDir: string): string {
   const publicPath = appPath("/app", appDir, "/public");
   const standalonePath = appPath("/app", appDir, "/.next/standalone");
   const staticPath = appPath("/app", appDir, "/.next/static");
+  const envTarget = appPath("/app", appDir, "/.env.production");
   const publicDest = appDir === "." ? "./public" : `./${appDir}/public`;
   const staticDest = appDir === "." ? "./.next/static" : `./${appDir}/.next/static`;
   const serverEntry = appDir === "." ? "server.js" : `${appDir}/server.js`;
 
-  return `FROM node:22-alpine AS builder
+  return `# syntax=docker/dockerfile:1.7
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY . .
 ${installDepsLines()}
 ENV CI=true
 ENV TURBO_TELEMETRY_DISABLED=1
 ENV NEXT_TELEMETRY_DISABLED=1
-${runBuildInDir(appDir, true)}
+RUN mkdir -p ${publicPath}
+${runBuildInDir(appDir, true, envTarget)}
 
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=builder ${standalonePath} ./
-COPY --from=builder ${staticPath} ${staticDest}
-COPY --from=builder ${publicPath} ${publicDest}
+RUN apk add --no-cache libc6-compat tini >/dev/null
+COPY --from=builder --chown=node:node ${standalonePath} ./
+COPY --from=builder --chown=node:node ${staticPath} ${staticDest}
+COPY --from=builder --chown=node:node ${publicPath} ${publicDest}
+USER node
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "${serverEntry}"]
 `;
 }
 
 function buildSinglePackageNextDockerfile(): string {
-  return `FROM node:22-alpine AS deps
+  return `# syntax=docker/dockerfile:1.7
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package.json ./
 COPY package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 ${installDepsLines()}
-
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN mkdir -p /app/public
+${runBuildInDir(".", false, "/app/.env.production")}
 
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+RUN apk add --no-cache libc6-compat tini >/dev/null
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+USER node
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "server.js"]
 `;
 }

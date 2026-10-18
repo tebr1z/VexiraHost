@@ -1,0 +1,165 @@
+/* Shared Vexira design system. Product-specific and semantic status colours stay intact. */
+:root {
+  --bg: var(--home-bg);
+  --bg-grouped: var(--home-bg);
+  --bg-elevated: var(--home-surface);
+  --bg-secondary: var(--home-soft);
+  --label: var(--home-ink);
+  --label-primary: var(--home-ink);
+  --label-secondary: var(--home-muted);
+  --label-tertiary: #748299;
+  --separator: var(--home-line);
+  --accent: #1768e8;
+  --accent-hover: #1158cb;
+  --action: #1768e8;
+  --fill: #e2eaf5;
+  --fill-secondary: #eef3f9;
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --shadow-sm: 0 2px 8px rgba(20, 45, 80, .035);
+  --shadow-md: 0 12px 36px rgba(20, 45, 80, .08);
+}
+.dark {
+  --bg: var(--home-bg);
+  --bg-grouped: var(--home-bg);
+  --bg-elevated: var(--home-surface);
+  --bg-secondary: var(--home-soft);
+  --label: var(--home-ink);
+  --label-primary: var(--home-ink);
+  --label-secondary: var(--home-muted);
+  --label-tertiary: #8093ad;
+  --separator: var(--home-line);
+  --accent: #73adff;
+  --accent-hover: #9bc4ff;
+  --fill: #24334a;
+  --fill-secondary: #182438;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, .1);
+  --shadow-md: 0 12px 36px rgba(0, 0, 0, .2);
+}
+.vexira-platform { background: var(--bg); color: var(--label); }
+.vexira-brand-mark { border-radius: 28.125%; box-shadow: 0 3px 8px rgba(23, 104, 232, .13); }
+.vexira-brand-mark-light { box-shadow: 0 0 0 1px rgba(255, 255, 255, .12); }
+.vexira-brand-logo .vexira-brand-logo-inverse { display: none; }
+.dark .vexira-brand-logo .vexira-brand-logo-default,
+.vexira-brand-logo.vexira-brand-logo-light .vexira-brand-logo-default { display: none; }
+.dark .vexira-brand-logo .vexira-brand-logo-inverse,
+.vexira-brand-logo.vexira-brand-logo-light .vexira-brand-logo-inverse { display: block; }
+.vexira-platform .apple-btn { border-radius: 10px; min-height: 44px; font-weight: 600; }
+.vexira-platform :is(.apple-btn-primary, .dashboard-btn-primary, .bg-primary, .bg-secondary),
+.vexira-platform :where(a, button)[class~="bg-[var(--accent)]"] { background-color: var(--action); color: #fff; }
+.vexira-platform :is(.apple-btn-primary, .dashboard-btn-primary, .bg-primary):hover { background-color: #1158cb; }
+.vexira-platform :is(.apple-card, .panel-card, .card-3d, .dashboard-section-card) {
+  border: 1px solid var(--separator); border-radius: 18px; background: var(--bg-elevated); box-shadow: var(--shadow-sm);
+}
+.vexira-platform :is(.dashboard-input, .auth-field) { border-radius: 10px; }
+.vexira-platform .dashboard-workspace,
+.vexira-platform :is(.panel-mesh-bg, .panel-bg, .admin-mesh-bg) { background: var(--bg); color: var(--label); }
+.vexira-platform :is(.sidebar-lagom, .sidebar-lagom-dark) {
+  background: var(--bg-elevated); border-right: 1px solid var(--separator); box-shadow: none; backdrop-filter: none;
+}
+.vexira-platform :is(.nav-item-lagom-active, .nav-item-lagom-dark-active) {
+  border: 1px solid var(--separator); background: var(--home-blue-soft); color: var(--accent); box-shadow: none;
+}
+.vexira-platform .header-3d { background: var(--bg-elevated); border-color: var(--separator); box-shadow: none; }
+.vexira-platform .dashboard-hero { background: #142c50; border: 1px solid #25466f; box-shadow: none; }
+.vexira-platform :is(.dashboard-btn-primary, .dashboard-btn-secondary) { border-radius: 10px; box-shadow: none; }
+.vexira-platform :is(.dashboard-btn-primary, .dashboard-btn-secondary):hover { transform: none; }
+.vexira-platform .dashboard-nav-card { border-radius: 14px; box-shadow: var(--shadow-sm); }
+.vexira-platform .dashboard-page-header { padding-bottom: 22px; border-bottom: 1px solid var(--separator); animation: none; }
+.vexira-platform .dashboard-page-header h1 { color: var(--label); font-size: clamp(27px, 3vw, 34px); font-weight: 650; letter-spacing: -.045em; }
+.vexira-platform .dashboard-page-header p { max-width: 650px; }
+.vexira-platform .dashboard-location-chip { border-radius: 9px; animation: none; }
+.vexira-stat-card { border: 1px solid var(--separator); border-radius: 16px; padding: 22px; background: var(--bg-elevated); box-shadow: var(--shadow-sm); }
+.vexira-stat-card > p:first-child { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--label-secondary); }
+.vexira-stat-card > p:first-child::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.vexira-stat-card > p:nth-child(2) { margin-top: 12px; font-size: 29px; font-weight: 650; color: var(--label); letter-spacing: -.04em; }
+.vexira-table-frame { border-radius: 16px; border: 1px solid var(--separator); background: var(--bg-elevated); box-shadow: var(--shadow-sm); }
+.vexira-table-frame thead { background: var(--bg-secondary); }
+.vexira-table-frame td { color: var(--label); }
+.vexira-platform .auth-workspace { background: radial-gradient(ellipse at 15% 12%, var(--home-blue-soft), transparent 55%), var(--bg); }
+.public-marketing { background: var(--bg); color: var(--label); }
+.public-marketing .ios-nav-float { max-width: 1240px; border: 1px solid var(--separator); border-radius: 18px; background: color-mix(in srgb, var(--bg-elevated) 94%, transparent); box-shadow: var(--shadow-md); }
+.public-marketing:not(.home-marketing) main h1 { color: var(--label); font-size: clamp(34px, 4.6vw, 56px); font-weight: 650; line-height: 1.12; letter-spacing: -.045em; text-wrap: balance; }
+.public-marketing :is(.hosting-hero, .hero-spectacle, .hero-spectacle-mesh) { background: radial-gradient(ellipse at 85% 15%, var(--home-blue-soft), transparent 62%), var(--bg); }
+.public-marketing .hosting-hero-grid { opacity: .35; }
+.public-marketing .hero-gradient-text { color: var(--accent); background: none; -webkit-text-fill-color: currentColor; }
+.public-marketing :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) { border-radius: 10px; }
+.public-marketing footer { background: var(--bg-elevated); }
+.public-page-heading { max-width: 760px; margin-bottom: 36px; }
+.public-page-heading > p:first-child { color: var(--accent); font-size: 11px; font-weight: 650; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 16px; }
+.public-page-heading h1 + p { margin-top: 18px; color: var(--label-secondary); font-size: 16px; line-height: 1.85; }
+.public-inquiry-layout { display: grid; grid-template-columns: .85fr 1.15fr; gap: 64px; width: min(1120px, calc(100% - 64px)); margin: 72px auto 90px; align-items: start; }
+.public-inquiry-layout .public-page-heading { position: sticky; top: 130px; padding-top: 20px; }
+.public-inquiry-note { display: flex; align-items: center; gap: 10px; margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--separator); font-size: 12px; color: var(--label-secondary); }
+.public-inquiry-note svg { width: 19px; height: 19px; color: var(--accent); }
+.public-catalog-container { width: min(1240px, calc(100% - 64px)); margin-inline: auto; }
+.public-catalog-nav { display: flex; flex-wrap: wrap; gap: 7px; padding-bottom: 24px; margin-block: 30px; border-bottom: 1px solid var(--separator); }
+.public-catalog-nav a { display: inline-flex; align-items: center; min-height: 40px; padding: 9px 15px; border: 1px solid transparent; border-radius: 9px; color: var(--label-secondary); font-size: 12px; font-weight: 600; }
+.public-catalog-nav a[aria-current="page"] { background: var(--bg-elevated); border-color: var(--separator); color: var(--accent); }
+.public-catalog-nav a:hover { background: var(--bg-secondary); }
+.vexira-service-hero { padding-block: 48px !important; border-bottom: 1px solid var(--separator); }
+.vexira-service-hero-layout { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 40px; }
+.vexira-service-hero-copy { padding-block: 20px; }
+.vexira-service-description { margin-top: 22px; max-width: 510px; font-size: 17px; line-height: 1.85; color: var(--label-secondary); }
+.vexira-service-perks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 26px; }
+.vexira-service-perks li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--label-secondary); }
+.vexira-service-perks svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--home-green); }
+.vexira-service-note { margin-top: 20px; font-size: 12px; color: var(--label-secondary); }
+.vexira-plans-intro { margin-bottom: 34px; }
+.vexira-plans-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 36px; }
+.vexira-plans-heading .home-eyebrow { margin-bottom: 14px; }
+.vexira-plans-heading h2 { font-size: clamp(30px, 3.6vw, 44px); font-weight: 650; line-height: 1.15; letter-spacing: -.045em; color: var(--label); }
+.vexira-plans-subtitle { max-width: 610px; margin-top: 15px; font-size: 14px; line-height: 1.8; color: var(--label-secondary); }
+.vexira-plans-controls { flex-shrink: 0; }
+.vexira-plans-guarantees { display: flex; flex-wrap: wrap; gap: 12px 22px; margin-top: 25px; padding-top: 22px; border-top: 1px solid var(--separator); }
+.vexira-plans-guarantees li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--label-secondary); }
+.vexira-plans-guarantees svg { width: 15px; height: 15px; color: var(--home-green); }
+
+/* Route transitions and data placeholders use the same self-contained brand mark. */
+.brand-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; color: var(--label); }
+.brand-loader-full { min-height: 56vh; width: 100%; }
+.brand-loader-symbol { display: grid; place-items: center; width: 88px; height: 88px; border: 1px solid var(--separator); border-radius: 26px; background: var(--bg-elevated); box-shadow: var(--shadow-md); }
+.brand-loader-symbol svg { width: 54px; height: 54px; }
+.brand-loader-name { margin-bottom: 8px; font-size: 18px; font-weight: 650; letter-spacing: -.035em; text-align: center; }
+.brand-loader-label { font-size: 12px; line-height: 1.6; color: var(--label-secondary); text-align: center; }
+.brand-loader-track { width: 136px; height: 3px; overflow: hidden; border-radius: 4px; background: var(--fill); }
+.brand-loader-track::after { content: ""; display: block; width: 45%; height: 100%; border-radius: inherit; background: var(--action); animation: brand-loading 1.5s ease-in-out infinite; }
+.brand-loader-overlay { position: fixed; inset: 0; z-index: 220; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(8px); }
+.brand-loader-dialog { width: min(100%, 320px); padding: 36px 28px; border: 1px solid var(--separator); border-radius: 22px; background: var(--bg-elevated); box-shadow: var(--shadow-md); }
+.brand-loader-dialog .brand-loader-symbol { background: var(--bg-secondary); box-shadow: none; }
+.vexira-platform .nav-progress-bar { background: var(--action); box-shadow: none; }
+.workspace-loading { padding-block: 20px; }
+.workspace-loading .brand-loader { flex-direction: row; justify-content: flex-start; gap: 16px; margin-bottom: 32px; }
+.workspace-loading .brand-loader-symbol { width: 56px; height: 56px; border-radius: 17px; box-shadow: none; }
+.workspace-loading .brand-loader-symbol svg { width: 36px; height: 36px; }
+.workspace-loading .brand-loader-name, .workspace-loading .brand-loader-label { text-align: left; }
+.workspace-loading .brand-loader-track { display: none; }
+.vexira-skeleton { position: relative; overflow: hidden; border-radius: 12px; background: var(--bg-secondary); }
+.vexira-skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--label-secondary) 9%, transparent), transparent); animation: skeleton-loading 1.8s ease-in-out infinite; }
+@keyframes brand-loading { 0% { transform: translateX(-110%); } 100% { transform: translateX(330%); } }
+@keyframes skeleton-loading { to { transform: translateX(100%); } }
+@media (max-width: 800px) {
+  .vexira-service-hero-layout { grid-template-columns: 1fr; gap: 8px; }
+  .vexira-service-hero .home-cloud-scene { max-width: 440px; }
+  .vexira-plans-heading { flex-direction: column; align-items: flex-start; gap: 22px; }
+  .public-inquiry-layout { grid-template-columns: 1fr; gap: 22px; margin-block: 45px 60px; }
+  .public-inquiry-layout .public-page-heading { position: static; padding-top: 0; margin-bottom: 0; }
+}
+@media (max-width: 540px) {
+  .vexira-service-hero { padding-block: 30px !important; }
+  .vexira-service-description { font-size: 14px; }
+  .vexira-service-perks { gap: 12px; }
+  .vexira-service-perks li { font-size: 11px; }
+  .public-inquiry-layout, .public-catalog-container { width: calc(100% - 36px); }
+  .public-marketing:not(.home-marketing) main h1 { font-size: 34px; }
+  .public-page-heading h1 + p { font-size: 14px; }
+  .public-catalog-nav { gap: 5px; }
+  .public-catalog-nav a { padding: 8px 11px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-track::after, .vexira-skeleton::after { animation: none; transform: none; }
+  .brand-loader-track::after { width: 100%; opacity: .6; }
+  .vexira-skeleton::after { display: none; }
+}

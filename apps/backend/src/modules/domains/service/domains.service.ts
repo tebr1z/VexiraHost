@@ -5,19 +5,22 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DomainManagementMode, DomainStatus, TransferStatus } from "@prisma/client";
+import { DnsProvider, DomainManagementMode, DomainStatus, TransferStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
 import type { UpdateDnsRecordsDto, UpdateNameserversDto, UpdateNsGlueDto } from "../dto";
+import { CloudflareDnsProvider } from "../providers/cloudflare-dns.provider";
 import { MockRegistrarProvider } from "../providers/mock-registrar.provider";
 import { DomainsRepository } from "../repository/domains.repository";
+import { normalizeDnsRecords } from "../utils/dns-record.util";
 import {
   normalizeNsGlueEntries,
   parseNsGlueRecords,
   type NsGlueEntry,
 } from "../utils/ns-glue.util";
 
+import { AuthoritativeDnsService } from "./authoritative-dns.service";
 import { DomainEmailService } from "./domain-email.service";
 
 import { SiteAccessService } from "@/modules/auth/service/site-access.service";
@@ -30,12 +33,13 @@ function extractTld(domain: string): string {
 }
 
 function mapDnsRecord(record: {
-  id: string;
+  id?: string;
   type: string;
   name: string;
   value: string;
   ttl: number;
-  priority: number | null;
+  priority?: number | null;
+  proxied?: boolean;
 }) {
   return {
     id: record.id,
@@ -44,6 +48,7 @@ function mapDnsRecord(record: {
     value: record.value,
     ttl: record.ttl,
     priority: record.priority,
+    proxied: record.proxied === true,
   };
 }
 
@@ -61,6 +66,10 @@ function mapDomain(domain: {
   billingCurrency?: string;
   graceEndsAt?: Date | null;
   renewalInvoiceId?: string | null;
+  dnsProvider?: DnsProvider;
+  dnsZoneRef?: string | null;
+  dnsProviderStatus?: string | null;
+  dnsLastSyncedAt?: Date | null;
   createdAt: Date;
   _count?: { dnsRecords: number };
 }) {
@@ -79,6 +88,9 @@ function mapDomain(domain: {
     billingCurrency: domain.billingCurrency ?? "USD",
     graceEndsAt: domain.graceEndsAt ?? null,
     renewalInvoiceId: domain.renewalInvoiceId ?? null,
+    dnsProvider: domain.dnsProvider ?? DnsProvider.LOCAL,
+    dnsProviderStatus: domain.dnsProviderStatus ?? null,
+    dnsLastSyncedAt: domain.dnsLastSyncedAt ?? null,
     dnsRecordCount: domain._count?.dnsRecords ?? 0,
     createdAt: domain.createdAt,
   };
@@ -92,6 +104,8 @@ export class DomainsService {
     private readonly domainEmailService: DomainEmailService,
     private readonly staffAlerts: StaffAlertService,
     private readonly siteAccessService: SiteAccessService,
+    private readonly cloudflare: CloudflareDnsProvider,
+    private readonly authoritativeDns: AuthoritativeDnsService,
   ) {}
 
   async search(query: string) {
@@ -110,6 +124,15 @@ export class DomainsService {
       throw new NotFoundException("Domain not found");
     }
     return mapDomain(domain);
+  }
+
+  async getNameserverStatus(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) {
+      throw new NotFoundException("Domain not found");
+    }
+
+    return this.authoritativeDns.verifyNameserverDelegation(domain.name, domain.nameservers);
   }
 
   async register(name: string, userId: string) {
@@ -233,10 +256,30 @@ export class DomainsService {
       throw new BadRequestException("DNS can only be updated for active domains");
     }
 
+    const normalizedRecords = normalizeDnsRecords(dto.records);
     const previousRecords = await this.domainsRepository.getDnsRecords(id);
-    const records = await this.domainsRepository.replaceDnsRecords(id, dto.records);
+    if (domain.dnsProvider === DnsProvider.CLOUDFLARE) {
+      if (!domain.dnsZoneRef) {
+        throw new BadRequestException("Cloudflare zone reference is missing");
+      }
+      await this.cloudflare.replaceRecords(domain.dnsZoneRef, domain.name, normalizedRecords);
+    } else if (domain.dnsProvider === DnsProvider.POWERDNS) {
+      await this.authoritativeDns.replaceRecords(domain.name, normalizedRecords);
+    }
+    const records = await this.domainsRepository.replaceDnsRecords(id, normalizedRecords);
 
-    if (domain.managementMode === DomainManagementMode.MANUAL) {
+    if (
+      domain.dnsProvider === DnsProvider.CLOUDFLARE ||
+      domain.dnsProvider === DnsProvider.POWERDNS
+    ) {
+      await this.domainsRepository.updateDomain(id, { dnsLastSyncedAt: new Date() });
+    }
+
+    if (
+      domain.managementMode === DomainManagementMode.MANUAL &&
+      domain.dnsProvider !== DnsProvider.CLOUDFLARE &&
+      domain.dnsProvider !== DnsProvider.POWERDNS
+    ) {
       await this.recordManualChangeAndNotify({
         domain,
         userId,
@@ -258,6 +301,16 @@ export class DomainsService {
     }
     if (domain.status !== DomainStatus.ACTIVE) {
       throw new BadRequestException("Nameservers can only be updated for active domains");
+    }
+    if (domain.dnsProvider === DnsProvider.CLOUDFLARE) {
+      throw new BadRequestException(
+        "Nameservers are managed by Cloudflare. Disconnect Cloudflare before changing them.",
+      );
+    }
+    if (domain.dnsProvider === DnsProvider.POWERDNS) {
+      throw new BadRequestException(
+        "Nameservers are managed by Vexira authoritative DNS and cannot be changed here.",
+      );
     }
 
     const normalized = dto.nameservers.map((ns) => ns.trim().toLowerCase()).filter(Boolean);
@@ -292,6 +345,14 @@ export class DomainsService {
     }
     if (domain.status !== DomainStatus.ACTIVE) {
       throw new BadRequestException("Nameservers can only be updated for active domains");
+    }
+    if (
+      domain.dnsProvider === DnsProvider.CLOUDFLARE ||
+      domain.dnsProvider === DnsProvider.POWERDNS
+    ) {
+      throw new BadRequestException(
+        "Glue records cannot be changed while the domain uses a managed DNS provider.",
+      );
     }
 
     const entries = normalizeNsGlueEntries(dto.entries);
@@ -340,6 +401,116 @@ export class DomainsService {
       nsGlueRecords: parseNsGlueRecords(updated.nsGlueRecords) as NsGlueEntry[],
       nameservers: updated.nameservers,
     };
+  }
+
+  async getCloudflareStatus(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+
+    if (domain.dnsProvider !== DnsProvider.CLOUDFLARE || !domain.dnsZoneRef) {
+      return {
+        configured: this.cloudflare.isConfigured(),
+        connected: false,
+        status: null,
+        nameservers: [],
+        lastSyncedAt: domain.dnsLastSyncedAt,
+      };
+    }
+
+    const zone = await this.cloudflare.getZone(domain.dnsZoneRef);
+    const nameservers = zone.name_servers ?? domain.nameservers;
+    await this.domainsRepository.updateDomain(domain.id, {
+      dnsProviderStatus: zone.status,
+      nameservers,
+    });
+    return {
+      configured: true,
+      connected: true,
+      status: zone.status,
+      nameservers,
+      lastSyncedAt: domain.dnsLastSyncedAt,
+    };
+  }
+
+  async connectCloudflare(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+    if (domain.status !== DomainStatus.ACTIVE) {
+      throw new BadRequestException("Cloudflare can only be connected to an active domain");
+    }
+
+    const previousNameservers = [...domain.nameservers];
+    const zone = await this.cloudflare.ensureZone(domain.name);
+    const nameservers = zone.name_servers ?? [];
+    const localRecords = await this.domainsRepository.getDnsRecords(domain.id);
+    let records = await this.cloudflare.listRecords(zone.id, domain.name);
+
+    if (records.length === 0 && localRecords.length > 0) {
+      await this.cloudflare.replaceRecords(zone.id, domain.name, localRecords);
+      records = localRecords;
+    } else if (records.length > 0) {
+      await this.domainsRepository.replaceDnsRecords(domain.id, records);
+    }
+
+    const syncedAt = new Date();
+    const updated = await this.domainsRepository.updateDomain(domain.id, {
+      dnsProvider: DnsProvider.CLOUDFLARE,
+      dnsZoneRef: zone.id,
+      dnsProviderStatus: zone.status,
+      dnsLastSyncedAt: syncedAt,
+      ...(nameservers.length >= 2 ? { nameservers } : {}),
+    });
+
+    if (
+      domain.managementMode === DomainManagementMode.MANUAL &&
+      nameservers.length >= 2 &&
+      nameservers.join("|") !== previousNameservers.join("|")
+    ) {
+      await this.recordManualChangeAndNotify({
+        domain,
+        userId,
+        type: "NAMESERVER",
+        previousData: { nameservers: previousNameservers },
+        requestedData: { nameservers, provider: "CLOUDFLARE" },
+      });
+    }
+
+    return { domain: mapDomain(updated), records: records.map(mapDnsRecord) };
+  }
+
+  async syncCloudflare(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+    if (domain.dnsProvider !== DnsProvider.CLOUDFLARE || !domain.dnsZoneRef) {
+      throw new BadRequestException("Cloudflare is not connected to this domain");
+    }
+
+    const [zone, records] = await Promise.all([
+      this.cloudflare.getZone(domain.dnsZoneRef),
+      this.cloudflare.listRecords(domain.dnsZoneRef, domain.name),
+    ]);
+    const stored = await this.domainsRepository.replaceDnsRecords(domain.id, records);
+    const syncedAt = new Date();
+    const updated = await this.domainsRepository.updateDomain(domain.id, {
+      dnsProviderStatus: zone.status,
+      dnsLastSyncedAt: syncedAt,
+      ...(zone.name_servers && zone.name_servers.length >= 2
+        ? { nameservers: zone.name_servers }
+        : {}),
+    });
+    return { domain: mapDomain(updated), records: stored.map(mapDnsRecord) };
+  }
+
+  async disconnectCloudflare(id: string, userId: string) {
+    const domain = await this.domainsRepository.findByIdForUser(id, userId);
+    if (!domain) throw new NotFoundException("Domain not found");
+    const updated = await this.domainsRepository.updateDomain(domain.id, {
+      dnsProvider: DnsProvider.LOCAL,
+      dnsZoneRef: null,
+      dnsProviderStatus: null,
+      dnsLastSyncedAt: null,
+    });
+    return mapDomain(updated);
   }
 
   private async recordManualChangeAndNotify(input: {

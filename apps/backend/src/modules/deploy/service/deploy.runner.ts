@@ -4,6 +4,7 @@ import { ServiceStatus } from "@prisma/client";
 import { DeployRepository } from "../repository/deploy.repository";
 import { DEPLOY_STAGES } from "../types/deploy-stage";
 import { redactSshTargets } from "../utils/deploy-env.util";
+import { resolveDeployRuntime } from "../utils/deploy-runtime.util";
 
 import { GitHubDeployService } from "./github-deploy.service";
 import { PleskSiteService } from "./plesk-site.service";
@@ -50,7 +51,10 @@ export class DeployRunner {
       return { queuePosition: 1 };
     }
 
-    const serverId = deployment.hostingAccount.serverId;
+    const serverId =
+      deployment.deployServerId ??
+      deployment.hostingAccount.plan.autoDeployServerId ??
+      deployment.hostingAccount.serverId;
     if (!serverId) {
       await this.deployRepository.update(deploymentId, {
         status: "FAILED",
@@ -166,12 +170,13 @@ export class DeployRunner {
     }
 
     const account = deployment.hostingAccount;
-    const server = account.server;
-    if (!server || account.serverId !== expectedServerId) {
+    const pleskServer = account.server;
+    const server = deployment.deployServer ?? account.plan.autoDeployServer ?? pleskServer;
+    if (!server || server.id !== expectedServerId || !pleskServer) {
       await this.deployRepository.update(deploymentId, {
         status: "FAILED",
         stage: DEPLOY_STAGES.FAILED,
-        lastError: "Hosting server is not assigned",
+        lastError: "Plesk or Auto Deploy server is not assigned",
       });
       return;
     }
@@ -214,6 +219,7 @@ export class DeployRunner {
       const resolvedPort = await this.portAllocation.resolveHostPort(server, {
         prefer: deployment.hostPort,
         containerName: deployment.containerName,
+        runtime: resolveDeployRuntime(deployment.stack, deployment.source),
       });
       const hostPort = resolvedPort.port;
       if (resolvedPort.switchedFrom != null) {
@@ -232,7 +238,7 @@ export class DeployRunner {
         await this.setStage(deploymentId, run.id, DEPLOY_STAGES.CREATING_SUBDOMAIN);
         await log(`Stage: Plesk addon domain (${deployment.deployDomain})…`);
         const { siteId, created } = await this.pleskSite.ensureSubdomain(
-          server,
+          pleskServer,
           account,
           deployment.deployDomain,
         );
@@ -251,16 +257,21 @@ export class DeployRunner {
           ? `Stage: verify server tools on ${serverLabel}…`
           : `Stage: preparing ${serverLabel}…`,
       );
-      const bootstrap = await this.serverBootstrap.ensureServerReady(
-        server,
-        async (update) => {
-          if (update.logChunk) await log(update.logChunk.trimEnd());
-        },
-        { skipBootstrapIfReady: true },
-      );
-      await log(bootstrap.log);
-      if (bootstrap.osVersionSaved) {
-        await log(`Detected OS saved: ${bootstrap.detectedOs.prettyName}`);
+      const runtime = resolveDeployRuntime(deployment.stack, deployment.source);
+      if (runtime === "docker") {
+        const bootstrap = await this.serverBootstrap.ensureServerReady(
+          server,
+          async (update) => {
+            if (update.logChunk) await log(update.logChunk.trimEnd());
+          },
+          { skipBootstrapIfReady: true },
+        );
+        await log(bootstrap.log);
+        if (bootstrap.osVersionSaved) {
+          await log(`Detected OS saved: ${bootstrap.detectedOs.prettyName}`);
+        }
+      } else {
+        await log("Runtime: PM2 (Docker is not used for Next.js/NestJS deployments).");
       }
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.PREPARING_SERVER);
@@ -269,6 +280,7 @@ export class DeployRunner {
         : {};
 
       const isDockerImage = deployment.source === "DOCKER_IMAGE";
+      const isUpload = deployment.source === "UPLOAD";
       await this.setStage(
         deploymentId,
         run.id,
@@ -279,26 +291,42 @@ export class DeployRunner {
           ? isRedeploy
             ? "Stage: pull Docker image & restart container…"
             : "Stage: pull Docker image & start container…"
-          : isRedeploy
-            ? "Stage: pull latest code, rebuild image & restart container…"
-            : "Stage: clone repository, Docker build & start…",
+          : isUpload
+            ? isRedeploy
+              ? "Stage: upload source archive again, rebuild & restart PM2 process…"
+              : "Stage: upload source archive, build & start with PM2…"
+            : isRedeploy
+              ? "Stage: pull latest code, rebuild & restart PM2 process…"
+              : "Stage: clone repository, build & start with PM2…",
       );
-      const cloneUrl = isDockerImage
-        ? undefined
-        : await this.githubDeploy.resolveCloneUrl(deployment.userId, deployment.repoUrl);
+      const cloneUrl =
+        isDockerImage || isUpload
+          ? undefined
+          : await this.githubDeploy.resolveCloneUrl(deployment.userId, deployment.repoUrl);
       const result = await this.remoteDeploy.deployApplication({
         server,
+        proxyServer: pleskServer,
+        proxyTargetHost: server.id === pleskServer.id ? "127.0.0.1" : server.ipAddress,
         account,
         projectName: deployment.name,
         stack: deployment.stack,
         source: deployment.source,
+        runtime: runtime === "pm2" ? "PM2" : "DOCKER",
         imageRef: deployment.imageRef,
+        sourceArchivePath: deployment.sourceArchivePath,
         repoUrl: deployment.repoUrl,
         cloneUrl,
         branch: deployment.branch,
         rootDirectory: deployment.rootDirectory,
         hostPort,
         containerPort: deployment.containerPort,
+        diskLimitBytes:
+          (account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb) * 1024 * 1024 * 1024,
+        resourceLimits: {
+          cpuPercent: account.plan.autoDeployCpuPercent,
+          memoryMb: account.plan.autoDeployMemoryMb,
+          diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
+        },
         envVars,
         deployDomain: deployment.deployDomain,
         existingDeployPath: isRedeploy ? deployment.deployPath : null,
@@ -323,10 +351,12 @@ export class DeployRunner {
         status: "SUCCESS",
         stage: DEPLOY_STAGES.COMPLETED,
         lastError: null,
+        runtime: runtime === "pm2" ? "PM2" : "DOCKER",
         deployPath: result.deployPath,
         containerName: result.containerName,
         lastDeployedAt: new Date(),
       });
+      await this.deployRepository.updateAccountDeployUsage(account.id, result.diskUsedMb);
       await this.deployRepository.finishRun(run.id, "SUCCESS", DEPLOY_STAGES.COMPLETED);
       await log("Deploy completed successfully");
     } catch (error) {

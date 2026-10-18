@@ -1,12 +1,21 @@
+import { unlink } from "node:fs/promises";
+import { resolve, sep } from "node:path";
+
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { DeployDomainMode, DeploySource, DeployStack, ServiceStatus } from "@prisma/client";
+import {
+  DeployDomainMode,
+  DeployRuntime,
+  DeploySource,
+  DeployStack,
+  ServiceStatus,
+} from "@prisma/client";
 
-import { CreateDeploymentDto } from "../dto/create-deployment.dto";
+import { CreateDeploymentDto, CreateUploadDeploymentDto } from "../dto/create-deployment.dto";
 import { UpdateDeploymentEnvDto } from "../dto/update-deployment-env.dto";
 import { DeployRepository } from "../repository/deploy.repository";
 import { stripCustomerPort } from "../utils/deploy-env.util";
@@ -40,6 +49,7 @@ function serializeDeployment(deployment: Awaited<ReturnType<DeployRepository["fi
     name: deployment.name,
     stack: deployment.stack,
     source: deployment.source,
+    runtime: deployment.runtime,
     domainMode: deployment.domainMode,
     subdomain: deployment.subdomain,
     deployDomain: deployment.deployDomain,
@@ -92,6 +102,7 @@ export class DeployService {
       name: row.name,
       stack: row.stack,
       source: row.source,
+      runtime: row.runtime,
       domainMode: row.domainMode,
       subdomain: row.subdomain,
       deployDomain: row.deployDomain,
@@ -107,6 +118,61 @@ export class DeployService {
     }));
   }
 
+  async resources(accountId: string, userId: string) {
+    const account = await this.assertAccount(accountId, userId);
+    this.assertDeployEligible(account);
+    return this.collectResources(account);
+  }
+
+  async adminResources(accountId: string) {
+    const account = await this.hostingRepository.findById(accountId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    return this.collectResources(account);
+  }
+
+  private async collectResources(
+    account: NonNullable<Awaited<ReturnType<HostingRepository["findById"]>>>,
+  ) {
+    const accountId = account.id;
+    const apps = await this.deployRepository.listByAccount(accountId);
+    const runtimeIds = new Set(apps.map((app) => app.deployServerId).filter(Boolean));
+    if (runtimeIds.size > 1)
+      throw new BadRequestException(
+        "Applications span multiple runtime servers; consolidate them before aggregate resource monitoring",
+      );
+    const server =
+      apps.find((app) => app.deployServer)?.deployServer ??
+      account.plan.autoDeployServer ??
+      account.server;
+    if (apps.length && !server?.deployNodeEnabled)
+      throw new BadRequestException("Auto Deploy runtime is not configured");
+    const usage =
+      apps.length && server
+        ? await this.remoteDeploy.probeResources(server, accountId)
+        : {
+            ready: false,
+            mock: false,
+            checkedAt: new Date().toISOString(),
+            memoryBytes: null,
+            diskBytes: null,
+            cpuPercent: null,
+            appliedCpuPercent: null,
+            appliedMemoryMb: null,
+            appliedDiskGb: null,
+          };
+    return {
+      accountId,
+      hasDeployments: apps.length > 0,
+      ...usage,
+      limits: {
+        cpuPercent: account.plan.autoDeployCpuPercent,
+        memoryMb: account.plan.autoDeployMemoryMb,
+        diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
+        maxApps: account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps,
+      },
+    };
+  }
+
   async get(accountId: string, deploymentId: string, userId: string) {
     await this.assertAccount(accountId, userId);
     const deployment = await this.deployRepository.findByIdForUser(deploymentId, userId);
@@ -116,9 +182,36 @@ export class DeployService {
     return serializeDeployment(deployment);
   }
 
-  async create(accountId: string, userId: string, dto: CreateDeploymentDto) {
+  async create(
+    accountId: string,
+    userId: string,
+    dto: CreateDeploymentDto,
+    sourceArchivePath?: string,
+  ) {
     const account = await this.assertAccount(accountId, userId);
     this.assertDeployEligible(account);
+
+    const maxApps = account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps;
+    const appCount = await this.deployRepository.countForAccount(accountId);
+    if (appCount >= maxApps) {
+      throw new BadRequestException(
+        `Auto Deploy application limit reached (${appCount}/${maxApps}). Delete an existing app or upgrade the plan.`,
+      );
+    }
+
+    const deployServer = account.plan.autoDeployServer ?? account.server;
+    if (!deployServer?.isActive || !deployServer.deployNodeEnabled) {
+      throw new BadRequestException("Auto Deploy server is not active or not configured");
+    }
+    if (deployServer.deployHealth === "DOWN") {
+      throw new BadRequestException("Auto Deploy server is currently unavailable");
+    }
+    const existingApps = await this.deployRepository.listByAccount(accountId);
+    if (existingApps.some((app) => app.deployServerId && app.deployServerId !== deployServer.id)) {
+      throw new BadRequestException(
+        "This account has apps on a different runtime server. Migrate those apps before creating more so its resource budget stays on one node.",
+      );
+    }
 
     if (dto.domainMode === DeployDomainMode.SUBDOMAIN && !dto.subdomain?.trim()) {
       throw new BadRequestException("Subdomain label is required for subdomain deployments");
@@ -127,23 +220,42 @@ export class DeployService {
     const deployDomain = this.pleskSite.resolveDeployDomain(account, dto.domainMode, dto.subdomain);
 
     const source =
-      dto.source === DeploySource.DOCKER_IMAGE ? DeploySource.DOCKER_IMAGE : DeploySource.GIT;
+      dto.source === DeploySource.DOCKER_IMAGE
+        ? DeploySource.DOCKER_IMAGE
+        : dto.source === DeploySource.UPLOAD
+          ? DeploySource.UPLOAD
+          : DeploySource.GIT;
     const imageRef =
       source === DeploySource.DOCKER_IMAGE ? sanitizeDockerImageRef(dto.imageRef) : null;
     const repoUrl = source === DeploySource.GIT ? this.resolveRepoUrl(dto) : "";
     if (source === DeploySource.GIT && !repoUrl) {
       throw new BadRequestException("Repository URL or GitHub repository is required");
     }
-    if (source === DeploySource.GIT && (!dto.stack || dto.stack === DeployStack.DOCKER)) {
+    if (
+      source === DeploySource.GIT &&
+      dto.stack !== DeployStack.NEXTJS &&
+      dto.stack !== DeployStack.NESTJS
+    ) {
       throw new BadRequestException("Choose Next.js or NestJS for Git deployments");
+    }
+    if (
+      source === DeploySource.UPLOAD &&
+      dto.stack !== DeployStack.NEXTJS &&
+      dto.stack !== DeployStack.NESTJS
+    ) {
+      throw new BadRequestException("Choose Next.js or NestJS for file uploads");
+    }
+    if (source === DeploySource.UPLOAD && !sourceArchivePath) {
+      throw new BadRequestException("ZIP source archive is required");
     }
     if (source === DeploySource.DOCKER_IMAGE && !imageRef) {
       throw new BadRequestException("Docker image is required");
     }
+    if (source === DeploySource.DOCKER_IMAGE && dto.stack !== DeployStack.DOTNET) {
+      throw new BadRequestException("Docker image deploy is available only for .NET applications");
+    }
 
-    const hostPort = account.server
-      ? (await this.portAllocation.resolveHostPort(account.server, {})).port
-      : await this.portAllocation.allocate(account.serverId!);
+    const hostPort = (await this.portAllocation.resolveHostPort(deployServer, {})).port;
     const { env: safeEnvVars, ignoredPort } = stripCustomerPort(dto.envVars);
     const envVarsEnc =
       Object.keys(safeEnvVars).length > 0 ? encryptSecret(JSON.stringify(safeEnvVars)) : null;
@@ -151,21 +263,20 @@ export class DeployService {
     const deployment = await this.deployRepository.create({
       hostingAccountId: accountId,
       userId,
+      deployServerId: deployServer.id,
       name: dto.name.trim().toLowerCase(),
-      stack: source === DeploySource.DOCKER_IMAGE ? DeployStack.DOCKER : dto.stack!,
+      stack: dto.stack,
       domainMode: dto.domainMode,
       subdomain: dto.subdomain?.trim().toLowerCase() ?? null,
       deployDomain,
       source,
+      runtime: source === DeploySource.DOCKER_IMAGE ? DeployRuntime.DOCKER : DeployRuntime.PM2,
       repoUrl: repoUrl ?? "",
       imageRef,
+      sourceArchivePath: source === DeploySource.UPLOAD ? sourceArchivePath : null,
       branch: dto.branch?.trim() || "main",
       rootDirectory: dto.rootDirectory?.trim() || null,
-      containerPort:
-        dto.containerPort ??
-        defaultContainerPort(
-          source === DeploySource.DOCKER_IMAGE ? DeployStack.DOCKER : dto.stack!,
-        ),
+      containerPort: dto.containerPort ?? defaultContainerPort(dto.stack),
       hostPort,
       envVarsEnc,
     });
@@ -174,8 +285,10 @@ export class DeployService {
 
     const portNote =
       ignoredPort != null
-        ? ` Customer PORT=${ignoredPort} was ignored; container uses PORT=${deployment.containerPort}.`
-        : ` Container uses managed PORT=${deployment.containerPort}.`;
+        ? ` Customer PORT=${ignoredPort} was ignored; the managed runtime uses its assigned port.`
+        : source === DeploySource.DOCKER_IMAGE
+          ? ` Container uses managed PORT=${deployment.containerPort}.`
+          : ` PM2 uses managed PORT=${deployment.hostPort}.`;
 
     return {
       id: deployment.id,
@@ -191,6 +304,65 @@ export class DeployService {
           ? "Server is busy — your deploy is queued and will start when the current job finishes."
           : "Deployment queued.") + portNote,
     };
+  }
+
+  async createFromUpload(
+    accountId: string,
+    userId: string,
+    dto: CreateUploadDeploymentDto,
+    file?: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException("ZIP source archive is required");
+
+    try {
+      const account = await this.assertAccount(accountId, userId);
+      this.assertDeployEligible(account);
+      const autoDeployDiskGb = account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb;
+      const diskLimitBytes = autoDeployDiskGb * 1024 * 1024 * 1024;
+      if (file.size > diskLimitBytes) {
+        throw new BadRequestException(
+          `Upload exceeds the ${autoDeployDiskGb} GB Auto Deploy disk limit`,
+        );
+      }
+
+      let envVars: Record<string, string> = {};
+      if (dto.envVarsJson?.trim()) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(dto.envVarsJson);
+        } catch {
+          throw new BadRequestException("Environment variables JSON is invalid");
+        }
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+          throw new BadRequestException("Environment variables must be an object");
+        }
+        envVars = Object.fromEntries(
+          Object.entries(parsed as Record<string, unknown>).map(([key, value]) => [
+            key,
+            String(value),
+          ]),
+        );
+      }
+
+      return await this.create(
+        accountId,
+        userId,
+        {
+          name: dto.name,
+          stack: dto.stack,
+          source: DeploySource.UPLOAD,
+          domainMode: dto.domainMode,
+          subdomain: dto.subdomain,
+          rootDirectory: dto.rootDirectory,
+          containerPort: dto.containerPort,
+          envVars,
+        },
+        file.path,
+      );
+    } catch (error) {
+      await this.removeSourceArchive(file.path);
+      throw error;
+    }
   }
 
   async redeploy(accountId: string, deploymentId: string, userId: string) {
@@ -240,11 +412,15 @@ export class DeployService {
     }
     this.deployRunner.abort(deploymentId);
 
-    const server = account.server ?? deployment.hostingAccount.server;
-    if (server) {
+    const runtimeServer =
+      deployment.deployServer ?? account.plan.autoDeployServer ?? account.server;
+    const pleskServer = account.server ?? deployment.hostingAccount.server;
+    if (runtimeServer) {
       try {
         await this.remoteDeploy.removeDeployment({
-          server,
+          server: runtimeServer,
+          accountId,
+          proxyServer: pleskServer ?? undefined,
           deployPath: deployment.deployPath,
           containerName: deployment.containerName,
           deployDomain: deployment.deployDomain,
@@ -254,9 +430,9 @@ export class DeployService {
       }
 
       // Only remove Plesk addon domains we created — never the primary subscription domain.
-      if (deployment.domainMode === DeployDomainMode.SUBDOMAIN) {
+      if (deployment.domainMode === DeployDomainMode.SUBDOMAIN && pleskServer) {
         try {
-          await this.pleskSite.removeSite(server, {
+          await this.pleskSite.removeSite(pleskServer, {
             id: deployment.pleskSiteId,
             name: deployment.deployDomain,
           });
@@ -267,6 +443,9 @@ export class DeployService {
     }
 
     await this.deployRepository.delete(deploymentId);
+    if (deployment.sourceArchivePath) {
+      await this.removeSourceArchive(deployment.sourceArchivePath);
+    }
     return { id: deploymentId, message: "Deployment deleted" };
   }
 
@@ -275,11 +454,17 @@ export class DeployService {
     const rows = await this.deployRepository.listByAccount(accountId);
     for (const deployment of rows) {
       this.deployRunner.abort(deployment.id);
-      const server = deployment.hostingAccount.server;
-      if (server) {
+      const runtimeServer =
+        deployment.deployServer ??
+        deployment.hostingAccount.plan.autoDeployServer ??
+        deployment.hostingAccount.server;
+      const pleskServer = deployment.hostingAccount.server;
+      if (runtimeServer) {
         try {
           await this.remoteDeploy.removeDeployment({
-            server,
+            server: runtimeServer,
+            accountId,
+            proxyServer: pleskServer ?? undefined,
             deployPath: deployment.deployPath,
             containerName: deployment.containerName,
             deployDomain: deployment.deployDomain,
@@ -287,9 +472,9 @@ export class DeployService {
         } catch {
           /* best-effort */
         }
-        if (deployment.domainMode === DeployDomainMode.SUBDOMAIN) {
+        if (deployment.domainMode === DeployDomainMode.SUBDOMAIN && pleskServer) {
           try {
-            await this.pleskSite.removeSite(server, {
+            await this.pleskSite.removeSite(pleskServer, {
               id: deployment.pleskSiteId,
               name: deployment.deployDomain,
             });
@@ -302,6 +487,9 @@ export class DeployService {
         await this.deployRepository.delete(deployment.id);
       } catch {
         /* already gone */
+      }
+      if (deployment.sourceArchivePath) {
+        await this.removeSourceArchive(deployment.sourceArchivePath);
       }
     }
   }
@@ -329,7 +517,7 @@ export class DeployService {
 
     const portNote =
       ignoredPort != null
-        ? ` Customer PORT=${ignoredPort} was ignored; container keeps PORT=${deployment.containerPort}.`
+        ? ` Customer PORT=${ignoredPort} was ignored; the managed runtime keeps its assigned port.`
         : "";
 
     if (dto.redeploy) {
@@ -351,26 +539,34 @@ export class DeployService {
       };
     }
 
-    const server = account.server ?? deployment.hostingAccount.server;
+    const server = deployment.deployServer ?? account.plan.autoDeployServer ?? account.server;
     if (
       deployment.status === "SUCCESS" &&
       deployment.containerName &&
       deployment.deployPath &&
       server
     ) {
-      await this.remoteDeploy.restartContainer({
+      await this.remoteDeploy.restartApplication({
         server,
+        accountId,
         deployPath: deployment.deployPath,
         containerName: deployment.containerName,
+        runtime: deployment.runtime,
         hostPort: deployment.hostPort,
         containerPort: deployment.containerPort,
         envVars,
+        resourceLimits: {
+          cpuPercent: account.plan.autoDeployCpuPercent,
+          memoryMb: account.plan.autoDeployMemoryMb,
+          diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
+        },
+        bindHost: server.id === account.server?.id ? "127.0.0.1" : "0.0.0.0",
       });
       return {
         id: deploymentId,
         containerPort: deployment.containerPort,
         ignoredPort,
-        message: `Environment saved and container restarted.${portNote}`,
+        message: `Environment saved and application restarted.${portNote}`,
       };
     }
 
@@ -392,7 +588,7 @@ export class DeployService {
       throw new BadRequestException("Health check is available only for successful deployments");
     }
 
-    const server = account.server;
+    const server = deployment.deployServer ?? account.plan.autoDeployServer ?? account.server;
     if (!server) {
       throw new BadRequestException("Hosting server is not assigned");
     }
@@ -407,7 +603,7 @@ export class DeployService {
       throw new NotFoundException("Deployment not found");
     }
 
-    const server = account.server ?? deployment.hostingAccount.server;
+    const server = deployment.deployServer ?? account.plan.autoDeployServer ?? account.server;
     if (!server) {
       throw new BadRequestException("Hosting server is not assigned");
     }
@@ -462,5 +658,16 @@ export class DeployService {
       return this.githubDeploy.resolveRepoUrlFromSelection(fullName);
     }
     return null;
+  }
+
+  private async removeSourceArchive(archivePath: string): Promise<void> {
+    const uploadRoot = resolve(process.cwd(), "storage", "deploy-uploads");
+    const resolvedPath = resolve(archivePath);
+    if (!resolvedPath.startsWith(`${uploadRoot}${sep}`)) return;
+    try {
+      await unlink(resolvedPath);
+    } catch {
+      /* already removed */
+    }
   }
 }

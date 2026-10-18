@@ -9,24 +9,31 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { fetchCmsPage, fetchCmsPageByPath } from "@/features/cms/services/cms.service";
 import type { PublicCmsPage } from "@/features/cms/types";
 
-type CmsPageViewProps =
-  { slug: string; pathSegment?: never } | { slug?: never; pathSegment: string };
+type CmsPageViewProps = (
+  { slug: string; pathSegment?: never } | { slug?: never; pathSegment: string }
+) & { initialPage?: PublicCmsPage | null };
 
 export function CmsPageView(props: CmsPageViewProps): React.ReactElement {
   const locale = useLocale();
-  const [page, setPage] = useState<PublicCmsPage | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState<PublicCmsPage | null>(props.initialPage ?? null);
+  const [loading, setLoading] = useState(props.initialPage === undefined);
   const pathSegment = "pathSegment" in props ? props.pathSegment : undefined;
   const slug = "slug" in props ? props.slug : undefined;
 
   useEffect(() => {
+    if (props.initialPage !== undefined) {
+      setPage(props.initialPage);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const loader = pathSegment
       ? fetchCmsPageByPath(pathSegment, locale)
       : fetchCmsPage(slug!, locale);
 
     loader.then(setPage).finally(() => setLoading(false));
-  }, [pathSegment, slug, locale]);
+  }, [pathSegment, slug, locale, props.initialPage]);
 
   if (loading) {
     return (

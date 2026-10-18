@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
 import type {
@@ -9,6 +14,7 @@ import type {
   UpdateNavItemDto,
 } from "../dto/navigation.dto";
 import { NavigationRepository } from "../repository/navigation.repository";
+
 import { NavigationService } from "./navigation.service";
 
 function toJsonLabels(labels: NavLabelsDto): Prisma.InputJsonValue {
@@ -65,6 +71,22 @@ export class AdminNavigationService {
     return this.navigationService.getAdminGroup(id);
   }
 
+  async reorderGroups(ids: string[]) {
+    const groups = await this.repository.findAllGroups();
+    const existingIds = new Set(groups.map((group) => group.id));
+    if (
+      ids.length !== groups.length ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id) => !existingIds.has(id))
+    ) {
+      throw new BadRequestException(
+        "Reorder list must contain every navigation group exactly once",
+      );
+    }
+    await this.repository.reorderGroups(ids);
+    return this.navigationService.listAdmin();
+  }
+
   async deleteGroup(id: string) {
     const group = await this.repository.findGroupById(id);
     if (!group) {
@@ -106,6 +128,23 @@ export class AdminNavigationService {
       sortOrder: dto.sortOrder,
       isActive: dto.isActive,
     });
+  }
+
+  async reorderItems(groupId: string, ids: string[]) {
+    const group = await this.repository.findGroupById(groupId);
+    if (!group) throw new NotFoundException("Navigation group not found");
+    const existingIds = new Set(group.items.map((item) => item.id));
+    if (
+      ids.length !== group.items.length ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id) => !existingIds.has(id))
+    ) {
+      throw new BadRequestException(
+        "Reorder list must contain every item in the navigation group exactly once",
+      );
+    }
+    await this.repository.reorderItems(ids);
+    return this.navigationService.getAdminGroup(groupId);
   }
 
   async deleteItem(id: string) {

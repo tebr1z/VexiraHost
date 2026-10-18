@@ -1,45 +1,87 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { EmptyState, LoadingSkeletonList, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
-import { createPaymentMethod, listPaymentMethods } from "@/features/billing";
+import {
+  disablePaymentMethod,
+  getAccountBalance,
+  listPaymentMethods,
+  registerEpointCard,
+  setDefaultPaymentMethod,
+  type PaymentMethod,
+} from "@/features/billing";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { toast } from "@/stores/toast-store";
 
-interface Method {
-  id: string;
-  type: string;
-  label: string;
-  last4: string | null;
-  brand: string | null;
-  isDefault: boolean;
+interface Balance {
+  balance: number;
+  currency: string;
 }
 
 export default function PaymentsPage(): React.ReactElement | null {
   useRequireAuth();
   const t = useTranslations("dashboard");
   const tp = useTranslations("dashboard.pages.payments");
-  const [methods, setMethods] = useState<Method[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const load = () =>
-    listPaymentMethods()
-      .then(setMethods)
-      .finally(() => setLoading(false));
+  const loadMethods = useCallback(async () => {
+    try {
+      setMethods(await listPaymentMethods());
+    } catch (error) {
+      toast(getApiErrorMessage(error, tp("loadFailed")), "error");
+    }
+  }, [tp]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void getAccountBalance()
+      .then(setBalance)
+      .catch(() => setBalance(null));
+    void loadMethods();
 
-  const addMockCard = async () => {
-    setAdding(true);
+    const cardResult = new URLSearchParams(window.location.search).get("card");
+    if (cardResult === "success") toast(tp("cardAdded"), "success");
+    if (cardResult === "failed") toast(tp("cardAddFailed"), "error");
+  }, [loadMethods, tp]);
+
+  const addCard = async () => {
+    setBusy("add");
     try {
-      await createPaymentMethod();
-      await load();
+      const result = await registerEpointCard();
+      window.location.assign(result.redirectUrl);
+    } catch (error) {
+      toast(getApiErrorMessage(error, tp("cardAddFailed")), "error");
+      setBusy(null);
+    }
+  };
+
+  const makeDefault = async (id: string) => {
+    setBusy(id);
+    try {
+      await setDefaultPaymentMethod(id);
+      await loadMethods();
+      toast(tp("defaultUpdated"), "success");
+    } catch (error) {
+      toast(getApiErrorMessage(error, tp("updateFailed")), "error");
     } finally {
-      setAdding(false);
+      setBusy(null);
+    }
+  };
+
+  const remove = async (id: string) => {
+    setBusy(id);
+    try {
+      await disablePaymentMethod(id);
+      await loadMethods();
+      toast(tp("cardRemoved"), "success");
+    } catch (error) {
+      toast(getApiErrorMessage(error, tp("updateFailed")), "error");
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -52,51 +94,101 @@ export default function PaymentsPage(): React.ReactElement | null {
           { label: t("nav.dashboard"), href: "/dashboard" },
           { label: t("nav.payments") },
         ]}
-        actions={
-          <button
-            type="button"
-            onClick={addMockCard}
-            disabled={adding}
-            className="dashboard-btn-primary disabled:opacity-60"
-          >
-            {adding ? "Adding..." : "Add mock card"}
-          </button>
-        }
       />
 
-      {loading ? (
-        <LoadingSkeletonList rows={2} />
-      ) : methods.length === 0 ? (
-        <EmptyState title={tp("empty")} actionLabel="Add mock card" onAction={addMockCard} />
-      ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {methods.map((m) => (
-            <li
-              key={m.id}
-              className="hover:border-[var(--accent)]/20 group flex min-h-28 items-center justify-between rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <div className="flex items-center gap-3">
-                <span className="bg-[var(--accent)]/10 flex h-11 w-11 items-center justify-center rounded-xl text-[var(--accent)]">
-                  <span className="material-symbols-outlined">credit_card</span>
-                </span>
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-6 shadow-sm">
+          <span className="bg-[var(--accent)]/10 mb-4 flex h-11 w-11 items-center justify-center rounded-xl text-[var(--accent)]">
+            <span className="material-symbols-outlined">account_balance_wallet</span>
+          </span>
+          <h2 className="font-jakarta text-lg font-semibold text-[var(--label-primary)]">
+            {tp("balanceTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-[var(--label-secondary)]">{tp("balanceDescription")}</p>
+          <p className="mt-5 text-2xl font-bold tabular-nums text-[var(--label-primary)]">
+            {balance ? `${balance.balance.toFixed(2)} ${balance.currency}` : "—"}
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-6 shadow-sm">
+          <span className="bg-[var(--accent)]/10 mb-4 flex h-11 w-11 items-center justify-center rounded-xl text-[var(--accent)]">
+            <span className="material-symbols-outlined">credit_card</span>
+          </span>
+          <h2 className="font-jakarta text-lg font-semibold text-[var(--label-primary)]">
+            {tp("cardTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-[var(--label-secondary)]">{tp("cardDescription")}</p>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void addCard()}
+            className="mt-5 inline-flex h-10 items-center rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy === "add" ? tp("openingEpoint") : tp("addCard")}
+          </button>
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-jakarta text-lg font-semibold text-[var(--label-primary)]">
+              {tp("savedCards")}
+            </h2>
+            <p className="mt-1 text-sm text-[var(--label-secondary)]">{tp("savedCardsHint")}</p>
+          </div>
+          <span className="rounded-full bg-[var(--fill-secondary)] px-3 py-1 text-xs font-semibold text-[var(--label-secondary)]">
+            {tp("cardSecurity")}
+          </span>
+        </div>
+
+        {methods.length === 0 ? (
+          <p className="mt-5 rounded-xl bg-[var(--fill-secondary)] p-4 text-sm text-[var(--label-secondary)]">
+            {tp("noCards")}
+          </p>
+        ) : (
+          <div className="mt-5 space-y-3">
+            {methods.map((method) => (
+              <div
+                key={method.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--separator)] p-4"
+              >
                 <div>
-                  <p className="font-semibold text-[var(--label-primary)]">{m.label}</p>
-                  <p className="text-sm text-[var(--label-secondary)]">
-                    {m.type}
-                    {m.last4 ? ` · **** ${m.last4}` : ""}
-                    {m.isDefault ? " · Default" : ""}
+                  <p className="font-semibold text-[var(--label-primary)]">{method.label}</p>
+                  <p className="mt-1 text-xs text-[var(--label-secondary)]">
+                    {method.status === "ACTIVE"
+                      ? tp("active")
+                      : method.status === "FAILED"
+                        ? tp("failed")
+                        : tp("pending")}
+                    {method.isDefault ? ` · ${tp("default")}` : ""}
                   </p>
                 </div>
+                <div className="flex gap-2">
+                  {method.status === "ACTIVE" && !method.isDefault ? (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void makeDefault(method.id)}
+                      className="rounded-lg border border-[var(--separator)] px-3 py-2 text-xs font-semibold disabled:opacity-50"
+                    >
+                      {tp("makeDefault")}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() => void remove(method.id)}
+                    className="rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-600 disabled:opacity-50"
+                  >
+                    {tp("remove")}
+                  </button>
+                </div>
               </div>
-              {m.brand && (
-                <span className="rounded-full bg-[var(--fill-secondary)] px-2.5 py-1 text-xs font-semibold text-[var(--label-secondary)]">
-                  {m.brand}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

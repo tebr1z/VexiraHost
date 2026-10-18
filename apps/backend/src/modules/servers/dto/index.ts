@@ -1,5 +1,5 @@
-﻿import { IsEnum, IsOptional, IsString, Matches, MinLength } from "class-validator";
-import { ServerPowerAction, ServerType } from "@prisma/client";
+﻿import { ServerPowerAction, ServerType } from "@prisma/client";
+import { IsEnum, IsOptional, IsString, Matches, MinLength } from "class-validator";
 
 export class ListPlansQueryDto {
   @IsOptional()

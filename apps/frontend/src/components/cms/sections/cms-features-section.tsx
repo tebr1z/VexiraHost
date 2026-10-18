@@ -1,7 +1,9 @@
 "use client";
 
-import { MaterialIcon } from "@/components/landing/material-icon";
+import Image from "next/image";
+
 import { asBlocks, CmsSectionShell } from "@/components/cms/cms-section-shell";
+import { MaterialIcon } from "@/components/landing/material-icon";
 import type { PublicCmsSection } from "@/features/cms/types";
 
 export function CmsFeaturesSection({ section }: { section: PublicCmsSection }): React.ReactElement {
@@ -19,7 +21,7 @@ export function CmsFeaturesSection({ section }: { section: PublicCmsSection }): 
             className="border-b border-[var(--separator)] py-14 last:border-b-0 sm:py-16"
           >
             <div
-              className={`mx-auto flex max-w-container-max flex-col gap-8 px-5 md:px-8 lg:items-center ${
+              className={`max-w-container-max mx-auto flex flex-col gap-8 px-5 md:px-8 lg:items-center ${
                 reversed ? "lg:flex-row-reverse" : "lg:flex-row"
               }`}
             >
@@ -37,7 +39,10 @@ export function CmsFeaturesSection({ section }: { section: PublicCmsSection }): 
                         key={bullet}
                         className="flex items-start gap-2 text-sm text-[var(--label-secondary)]"
                       >
-                        <MaterialIcon name="check" className="mt-0.5 text-[16px] text-[var(--success)]" />
+                        <MaterialIcon
+                          name="check"
+                          className="mt-0.5 text-[16px] text-[var(--success)]"
+                        />
                         {bullet}
                       </li>
                     ))}
@@ -45,11 +50,14 @@ export function CmsFeaturesSection({ section }: { section: PublicCmsSection }): 
                 )}
               </div>
               <div className="flex flex-1 items-center justify-center">
-                <div className="flex h-48 w-full max-w-sm items-center justify-center rounded-[24px] border border-[var(--separator)] bg-[var(--bg-elevated)] shadow-apple-md">
+                <div className="shadow-apple-md flex h-48 w-full max-w-sm items-center justify-center rounded-[24px] border border-[var(--separator)] bg-[var(--bg-elevated)]">
                   {section.design.imageUrl ? (
-                    <img
+                    <Image
                       src={section.design.imageUrl}
-                      alt=""
+                      alt={block.title ?? ""}
+                      width={768}
+                      height={384}
+                      unoptimized
                       className="h-full w-full rounded-[24px] object-cover"
                     />
                   ) : (

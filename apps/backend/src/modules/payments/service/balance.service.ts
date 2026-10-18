@@ -69,6 +69,7 @@ export class BalanceService {
     const note = input.note?.trim() || null;
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${input.userId} FOR UPDATE`;
       const user = await tx.user.findUnique({ where: { id: input.userId } });
       if (!user) throw new NotFoundException("User not found");
 
@@ -222,6 +223,43 @@ export class BalanceService {
     const rates = await this.cbarExchange.getRates();
 
     const payment = await this.prisma.$transaction(async (tx) => {
+      // Serialize payments for both the invoice and account balance. Without these
+      // row locks, two concurrent requests can both observe the same OPEN invoice
+      // and the same balance, causing a duplicate charge or a lost balance update.
+      await tx.$queryRaw`SELECT "id" FROM "invoices" WHERE "id" = ${invoiceId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR UPDATE`;
+
+      const lockedInvoice = await tx.invoice.findFirst({
+        where: { id: invoiceId, userId },
+        include: {
+          payments: {
+            where: { status: PaymentStatus.COMPLETED },
+            select: { amount: true },
+          },
+        },
+      });
+      if (!lockedInvoice) throw new NotFoundException("Invoice not found");
+
+      const lockedInvoiceTotal = Number(lockedInvoice.total);
+      const lockedAlreadyPaid = lockedInvoice.payments.reduce(
+        (sum, item) => sum + Number(item.amount),
+        0,
+      );
+      const lockedAmountDue = Math.max(
+        0,
+        Number((lockedInvoiceTotal - lockedAlreadyPaid).toFixed(2)),
+      );
+
+      if (lockedInvoice.status === InvoiceStatus.PAID || lockedAmountDue <= 0) {
+        return {
+          alreadyPaid: true as const,
+          invoice: lockedInvoice,
+        };
+      }
+      if (lockedInvoice.status !== InvoiceStatus.OPEN) {
+        throw new BadRequestException("Invoice is not payable");
+      }
+
       const user = await tx.user.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException("User not found");
 
@@ -238,7 +276,7 @@ export class BalanceService {
         throw new BadRequestException("Insufficient account balance");
       }
 
-      const maxPayable = Math.min(balanceInInvoiceCurrency, amountDue);
+      const maxPayable = Math.min(balanceInInvoiceCurrency, lockedAmountDue);
       const paymentAmount =
         requestedAmount == null ? maxPayable : Number(Number(requestedAmount).toFixed(2));
 
@@ -263,8 +301,8 @@ export class BalanceService {
 
       const debit = new Prisma.Decimal(debitAmount.toFixed(2));
       const next = new Prisma.Decimal(balance.toFixed(2)).minus(debit);
-      const paidAfter = Number((alreadyPaid + paymentAmount).toFixed(2));
-      const fullyPaid = paidAfter >= invoiceTotal - 0.001;
+      const paidAfter = Number((lockedAlreadyPaid + paymentAmount).toFixed(2));
+      const fullyPaid = paidAfter >= lockedInvoiceTotal - 0.001;
       const fxNote =
         balanceCurrency !== invoiceCurrency
           ? ` (${debitAmount.toFixed(2)} ${balanceCurrency} → ${paymentAmount.toFixed(2)} ${invoiceCurrency})`
@@ -284,16 +322,16 @@ export class BalanceService {
           type: BalanceTxnType.INVOICE_PAYMENT,
           referenceNumber,
           note: fullyPaid
-            ? `Paid invoice ${invoice.invoiceNumber}${fxNote}`
-            : `Partial payment for invoice ${invoice.invoiceNumber}${fxNote}`,
-          invoiceId: invoice.id,
+            ? `Paid invoice ${lockedInvoice.invoiceNumber}${fxNote}`
+            : `Partial payment for invoice ${lockedInvoice.invoiceNumber}${fxNote}`,
+          invoiceId: lockedInvoice.id,
         },
       });
 
       const created = await tx.payment.create({
         data: {
           userId,
-          invoiceId: invoice.id,
+          invoiceId: lockedInvoice.id,
           amount: new Prisma.Decimal(paymentAmount.toFixed(2)),
           currency: invoice.currency,
           status: PaymentStatus.COMPLETED,
@@ -303,22 +341,23 @@ export class BalanceService {
 
       if (fullyPaid) {
         await tx.invoice.update({
-          where: { id: invoice.id },
+          where: { id: lockedInvoice.id },
           data: {
             status: InvoiceStatus.PAID,
             paidAt: new Date(),
           },
         });
 
-        if (invoice.orderId) {
+        if (lockedInvoice.orderId) {
           await tx.order.update({
-            where: { id: invoice.orderId },
+            where: { id: lockedInvoice.orderId },
             data: { status: OrderStatus.COMPLETED },
           });
         }
       }
 
       return {
+        alreadyPaid: false as const,
         created,
         fullyPaid,
         amount: paymentAmount,
@@ -328,6 +367,32 @@ export class BalanceService {
         balanceCurrency,
       };
     });
+
+    if (payment.alreadyPaid) {
+      if (payment.invoice.orderId) {
+        await this.orderFulfillmentService.fulfillOrder(payment.invoice.orderId);
+      } else {
+        await this.hostingBilling.activateAfterRenewalPayment(payment.invoice.id);
+        await this.domainBilling.activateAfterRenewalPayment(payment.invoice.id);
+      }
+      const remaining = await this.getBalance(userId);
+      return {
+        mode: "completed" as const,
+        id: null,
+        status: PaymentStatus.COMPLETED,
+        amount: 0,
+        currency: payment.invoice.currency,
+        gatewayRef: null,
+        invoiceId: payment.invoice.id,
+        orderId: payment.invoice.orderId,
+        paidWithBalance: true,
+        invoiceFullyPaid: true,
+        amountDue: 0,
+        remainingBalance: remaining.balance,
+        balanceCurrency: remaining.currency,
+        referenceNumber: null,
+      };
+    }
 
     if (payment.fullyPaid) {
       if (invoice.orderId) {

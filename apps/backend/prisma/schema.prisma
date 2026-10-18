@@ -70,7 +70,9 @@ model User {
    * Authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.).
    */
   totpEnabled                  Boolean    @default(false)
-  /** Base32 TOTP secret — set during setup; cleared when disabled. */
+  /**
+   * Base32 TOTP secret — set during setup; cleared when disabled.
+   */
   totpSecret                   String?
   /**
    * Client (exit) IP from the most recent successful login.
@@ -106,6 +108,7 @@ model User {
   whatsappApiKeys         WhatsappApiKey[]
   whatsappApiUsages       WhatsappApiUsage[]
   githubDeployConnection  UserGitHubConnection?
+  managedServers          ManagedServer[]
 
   @@map("users")
 }
@@ -261,7 +264,9 @@ model OAuthAccount {
   @@map("oauth_accounts")
 }
 
-/** GitHub OAuth token for private repo deploy (separate from login OAuth). */
+/**
+ * GitHub OAuth token for private repo deploy (separate from login OAuth).
+ */
 model UserGitHubConnection {
   id             String   @id @default(cuid())
   userId         String   @unique
@@ -337,6 +342,8 @@ model Product {
   price                   Decimal             @db.Decimal(10, 2)
   currency                String              @default("USD")
   billingCycle            BillingCycle
+  minimumQuantity         Int                 @default(1)
+  requiresQuote           Boolean             @default(false)
   isActive                Boolean             @default(true)
   sortOrder               Int                 @default(0)
   /**
@@ -377,6 +384,7 @@ enum PriceCurrency {
 enum PricePeriod {
   MONTHLY
   YEARLY
+  ONE_TIME
 }
 
 model ProductPrice {
@@ -437,47 +445,58 @@ enum DnsRecordType {
 }
 
 model Domain {
-  id               String               @id @default(cuid())
-  userId           String
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name             String               @unique
-  tld              String
-  status           DomainStatus         @default(PENDING)
-  managementMode   DomainManagementMode @default(REGISTRAR)
+  id                String               @id @default(cuid())
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String               @unique
+  tld               String
+  status            DomainStatus         @default(PENDING)
+  managementMode    DomainManagementMode @default(REGISTRAR)
   /**
    * Internal only — Natro, Hostinger, etc. Not shown to customers.
    */
-  registrarSource  String?
-  adminNotes       String?
-  registrarRef     String?
-  registeredAt     DateTime?
-  expiresAt        DateTime?
-  autoRenew        Boolean              @default(true)
-  nameservers      String[]             @default([])
+  registrarSource   String?
+  adminNotes        String?
+  registrarRef      String?
+  registeredAt      DateTime?
+  expiresAt         DateTime?
+  autoRenew         Boolean              @default(true)
+  nameservers       String[]             @default([])
+  dnsProvider       DnsProvider          @default(LOCAL)
+  dnsZoneRef        String?
+  dnsProviderStatus String?
+  dnsLastSyncedAt   DateTime?
   /**
    * Glue records: [{ "host": "ns1.example.com", "ip": "1.2.3.4" }]
    */
-  nsGlueRecords    Json                 @default("[]")
-  billingAmount    Decimal?             @db.Decimal(10, 2)
-  billingCurrency  String               @default("USD")
-  graceEndsAt      DateTime?
-  renewalInvoiceId String?
-  expiredAt        DateTime?
-  lateFeeAppliedAt DateTime?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  nsGlueRecords     Json                 @default("[]")
+  billingAmount     Decimal?             @db.Decimal(10, 2)
+  billingCurrency   String               @default("USD")
+  graceEndsAt       DateTime?
+  renewalInvoiceId  String?
+  expiredAt         DateTime?
+  lateFeeAppliedAt  DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
-  dnsRecords         DnsRecord[]
-  transfers          DomainTransfer[]
-  changeRequests     DomainChangeRequest[]
-  invoices           Invoice[]
-  expiryReminders    DomainExpiryReminder[]
+  dnsRecords      DnsRecord[]
+  transfers       DomainTransfer[]
+  changeRequests  DomainChangeRequest[]
+  invoices        Invoice[]
+  expiryReminders DomainExpiryReminder[]
 
   @@index([userId])
   @@index([managementMode])
+  @@index([dnsProvider])
   @@index([expiresAt])
   @@index([graceEndsAt])
   @@map("domains")
+}
+
+enum DnsProvider {
+  LOCAL
+  CLOUDFLARE
+  POWERDNS
 }
 
 enum DomainExpiryReminderKind {
@@ -497,11 +516,11 @@ enum DomainExpiryReminderKind {
 }
 
 model DomainExpiryReminder {
-  id        String                   @id @default(cuid())
-  domainId  String
-  domain    Domain                   @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  kind      DomainExpiryReminderKind
-  sentAt    DateTime                 @default(now())
+  id       String                   @id @default(cuid())
+  domainId String
+  domain   Domain                   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  kind     DomainExpiryReminderKind
+  sentAt   DateTime                 @default(now())
 
   @@unique([domainId, kind])
   @@index([domainId])
@@ -517,6 +536,7 @@ model DnsRecord {
   value     String
   ttl       Int           @default(3600)
   priority  Int?
+  proxied   Boolean       @default(false)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -703,6 +723,13 @@ enum PaymentMethodType {
   PAYPAL
 }
 
+enum PaymentMethodStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  REVOKED
+}
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -830,6 +857,7 @@ model Invoice {
   hostingAccount   HostingAccount? @relation(fields: [hostingAccountId], references: [id], onDelete: SetNull)
   domainId         String?
   domain           Domain?         @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  idempotencyKey   String?         @unique
   invoiceNumber    String          @unique
   status           InvoiceStatus   @default(OPEN)
   subtotal         Decimal         @db.Decimal(10, 2)
@@ -872,22 +900,32 @@ model InvoiceItem {
 }
 
 model PaymentMethod {
-  id          String            @id @default(cuid())
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        PaymentMethodType @default(CARD)
-  label       String
-  last4       String?
-  brand       String?
-  expiryMonth Int?
-  expiryYear  Int?
-  isDefault   Boolean           @default(false)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              PaymentMethodType   @default(CARD)
+  label             String
+  last4             String?
+  brand             String?
+  expiryMonth       Int?
+  expiryYear        Int?
+  isDefault         Boolean             @default(false)
+  provider          String?
+  providerTokenEnc  String?
+  providerTokenHash String?             @unique
+  status            PaymentMethodStatus @default(ACTIVE)
+  consentAt         DateTime?
+  consentIp         String?
+  consentVersion    String?
+  failureReason     String?
+  lastUsedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   payments Payment[]
 
   @@index([userId])
+  @@index([userId, provider, status])
   @@map("payment_methods")
 }
 
@@ -1018,6 +1056,13 @@ enum HostingManagementMode {
   MANUAL
 }
 
+enum DeployNodeHealth {
+  UNKNOWN
+  HEALTHY
+  DEGRADED
+  DOWN
+}
+
 enum ManualServiceCategory {
   HOSTING
   SERVER
@@ -1032,9 +1077,13 @@ model HostingServer {
   whmUsername      String
   whmPasswordEnc   String
   apiTokenEnc      String?
-  /** e.g. Ubuntu 22.04, AlmaLinux 9 — shown in admin, optional. */
+  /**
+   * e.g. Ubuntu 22.04, AlmaLinux 9 — shown in admin, optional.
+   */
   osVersion        String?
-  /** SSH login for auto-deploy; falls back to whmUsername when unset. */
+  /**
+   * SSH login for auto-deploy; falls back to whmUsername when unset.
+   */
   sshUsername      String?
   sshPasswordEnc   String?
   sshPort          Int          @default(22)
@@ -1044,12 +1093,24 @@ model HostingServer {
   accountCount     Int          @default(0)
   lastCheckedAt    DateTime?
   lastConnectionOk Boolean?
+  deployNodeEnabled Boolean          @default(false)
+  deployHealth      DeployNodeHealth @default(UNKNOWN)
+  deployHealthMessage String?
+  deployHealthCheckedAt DateTime?
+  deployCpuLoadPercent Int?
+  deployMemoryUsedMb Int?
+  deployMemoryTotalMb Int?
+  deployDiskUsedMb Int?
+  deployDiskTotalMb Int?
+  deployUptimeSeconds Int?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   accounts  HostingAccount[]
   plans     HostingPlan[]
   planLinks HostingPlanServer[]
+  autoDeployPlans HostingPlan[]    @relation("AutoDeployServer")
+  appDeployments  AppDeployment[]  @relation("DeploymentRuntimeServer")
 
   @@map("hosting_servers")
 }
@@ -1060,42 +1121,52 @@ enum HostingDistributionMode {
 }
 
 model HostingPlan {
-  id               String                  @id @default(cuid())
-  slug             String                  @unique
-  name             String
-  description      String?
-  panel            HostingPanel
-  diskGb           Int
-  bandwidthGb      Int
-  maxDomains       Int
-  maxEmails        Int
-  maxDatabases     Int
-  price            Decimal                 @db.Decimal(10, 2)
-  currency         String                  @default("USD")
-  billingCycle     BillingCycle            @default(MONTHLY)
-  isActive         Boolean                 @default(true)
-  sortOrder        Int                     @default(0)
+  id                String                  @id @default(cuid())
+  slug              String                  @unique
+  name              String
+  description       String?
+  panel             HostingPanel
+  diskGb            Int
+  bandwidthGb       Int
+  maxDomains        Int
+  maxEmails         Int
+  maxDatabases      Int
+  price             Decimal                 @db.Decimal(10, 2)
+  currency          String                  @default("USD")
+  billingCycle      BillingCycle            @default(MONTHLY)
+  isActive          Boolean                 @default(true)
+  sortOrder         Int                     @default(0)
   /**
    * Primary / legacy single-server link (kept in sync with first planServers row).
    */
-  serverId         String?
-  pleskPlanName    String?
+  serverId          String?
+  pleskPlanName     String?
   /**
    * When true, customers on this plan can use Git/Docker auto-deploy (Plesk plans only).
    */
   autoDeployEnabled Boolean                 @default(false)
+  autoDeployDiskGb Int                      @default(1)
+  autoDeployCpuPercent Int                  @default(100)
+  autoDeployMemoryMb Int                    @default(1024)
+  autoDeployMaxApps Int                     @default(1)
+  autoDeployAiEnabled Boolean               @default(false)
+  autoDeployAiMonthlyCredits Int            @default(0)
+  autoDeploySecurityScanEnabled Boolean     @default(true)
+  autoDeployServerId String?
   /**
    * FAILOVER = fill servers in priority order; BALANCED = prefer least-loaded.
    */
-  distributionMode HostingDistributionMode @default(FAILOVER)
-  server           HostingServer?          @relation(fields: [serverId], references: [id], onDelete: Restrict)
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
+  distributionMode  HostingDistributionMode @default(FAILOVER)
+  server            HostingServer?          @relation(fields: [serverId], references: [id], onDelete: Restrict)
+  autoDeployServer  HostingServer?          @relation("AutoDeployServer", fields: [autoDeployServerId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
   accounts    HostingAccount[]
   planServers HostingPlanServer[]
 
   @@index([serverId])
+  @@index([autoDeployServerId])
   @@map("hosting_plans")
 }
 
@@ -1154,10 +1225,16 @@ model HostingAccount {
   provisionStage        String?
   provisionError        String?
   provisionedAt         DateTime?
+  autoDeployDiskGbOverride Int?
+  autoDeployMaxAppsOverride Int?
+  autoDeployAiCreditsOverride Int?
+  autoDeployDiskUsedMb Int                    @default(0)
+  pleskDiskUsedMb      Int                    @default(0)
+  storageCheckedAt     DateTime?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
-  invoices     Invoice[]
+  invoices       Invoice[]
   appDeployments AppDeployment[]
 
   @@unique([userId, primaryDomain])
@@ -1177,12 +1254,19 @@ model HostingAccount {
 enum DeployStack {
   NEXTJS
   NESTJS
+  DOTNET
   DOCKER
 }
 
 enum DeploySource {
   GIT
   DOCKER_IMAGE
+  UPLOAD
+}
+
+enum DeployRuntime {
+  PM2
+  DOCKER
 }
 
 enum DeployStatus {
@@ -1198,39 +1282,44 @@ enum DeployDomainMode {
 }
 
 model AppDeployment {
-  id               String           @id @default(cuid())
-  hostingAccountId String
-  hostingAccount   HostingAccount   @relation(fields: [hostingAccountId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name             String
-  stack            DeployStack
-  source           DeploySource     @default(GIT)
-  domainMode       DeployDomainMode @default(SUBDOMAIN)
-  subdomain        String?
-  deployDomain     String
-  repoUrl          String           @default("")
-  imageRef         String?
-  branch           String           @default("main")
-  rootDirectory    String?
-  containerPort    Int              @default(3000)
-  hostPort         Int
-  envVarsEnc       String?
-  status           DeployStatus     @default(PENDING)
-  stage            String?
-  lastError        String?
-  pleskSiteId      String?
-  containerName    String?
-  deployPath       String?
-  lastDeployedAt   DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  hostingAccountId  String
+  hostingAccount    HostingAccount   @relation(fields: [hostingAccountId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deployServerId    String?
+  deployServer      HostingServer?    @relation("DeploymentRuntimeServer", fields: [deployServerId], references: [id], onDelete: SetNull)
+  name              String
+  stack             DeployStack
+  source            DeploySource     @default(GIT)
+  runtime           DeployRuntime    @default(DOCKER)
+  domainMode        DeployDomainMode @default(SUBDOMAIN)
+  subdomain         String?
+  deployDomain      String
+  repoUrl           String           @default("")
+  imageRef          String?
+  sourceArchivePath String?
+  branch            String           @default("main")
+  rootDirectory     String?
+  containerPort     Int              @default(3000)
+  hostPort          Int
+  envVarsEnc        String?
+  status            DeployStatus     @default(PENDING)
+  stage             String?
+  lastError         String?
+  pleskSiteId       String?
+  containerName     String?
+  deployPath        String?
+  lastDeployedAt    DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   runs DeploymentRun[]
 
   @@unique([hostingAccountId, name])
   @@index([hostingAccountId])
   @@index([userId])
+  @@index([deployServerId])
   @@index([hostPort])
   @@map("app_deployments")
 }
@@ -1247,6 +1336,125 @@ model DeploymentRun {
 
   @@index([deploymentId])
   @@map("deployment_runs")
+}
+
+enum ManagedServerStatus {
+  PENDING
+  ONLINE
+  DEGRADED
+  OFFLINE
+  ERROR
+}
+
+enum ManagedServerTaskType {
+  CONNECTION_CHECK
+  INSTALL
+  SECURITY_SCAN
+  OPTIMIZATION_SCAN
+  SECURITY_FIX
+}
+
+enum ManagedServerTaskStatus {
+  QUEUED
+  RUNNING
+  WAITING_APPROVAL
+  SUCCESS
+  FAILED
+}
+
+enum SecurityFindingSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SecurityFindingStatus {
+  OPEN
+  ACCEPTED
+  FIXED
+}
+
+model ManagedServer {
+  id                    String              @id @default(cuid())
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  host                  String
+  sshPort               Int                 @default(22)
+  sshUsername           String
+  sshPasswordEnc        String
+  packageCode           String              @default("CUSTOM")
+  selectedFeatures      String[]            @default([])
+  installedFeatures     String[]            @default([])
+  status                ManagedServerStatus @default(PENDING)
+  osVersion             String?
+  tools                 Json?
+  cpuLoadPercent        Int?
+  memoryUsedMb          Int?
+  memoryTotalMb         Int?
+  diskUsedMb            Int?
+  diskTotalMb           Int?
+  uptimeSeconds         Int?
+  securityScore         Int?
+  optimizationScore     Int?
+  lastError             String?
+  lastCheckedAt         DateTime?
+  lastSecurityScanAt    DateTime?
+  lastOptimizationAt    DateTime?
+  monitoringEnabled     Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  tasks                 ManagedServerTask[]
+  findings              ManagedServerFinding[]
+
+  @@unique([userId, host, sshPort])
+  @@index([userId, status])
+  @@index([monitoringEnabled, lastCheckedAt])
+  @@map("managed_servers")
+}
+
+model ManagedServerTask {
+  id                    String                  @id @default(cuid())
+  serverId              String
+  server                ManagedServer           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  type                  ManagedServerTaskType
+  status                ManagedServerTaskStatus @default(QUEUED)
+  requestedFeatures     String[]                @default([])
+  requestedById         String?
+  approvedById          String?
+  log                   String                  @default("") @db.Text
+  result                Json?
+  startedAt             DateTime?
+  finishedAt            DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@index([serverId, createdAt])
+  @@index([status, createdAt])
+  @@map("managed_server_tasks")
+}
+
+model ManagedServerFinding {
+  id                    String                  @id @default(cuid())
+  serverId              String
+  server                ManagedServer           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  key                   String
+  severity              SecurityFindingSeverity
+  status                SecurityFindingStatus   @default(OPEN)
+  title                 String
+  description           String
+  remediation           String?
+  autoFixAvailable      Boolean                 @default(false)
+  detectedAt            DateTime                @default(now())
+  resolvedAt            DateTime?
+  updatedAt             DateTime                @updatedAt
+
+  @@unique([serverId, key])
+  @@index([serverId, status, severity])
+  @@map("managed_server_findings")
 }
 
 model NavGroup {
@@ -1382,17 +1590,17 @@ model WhatsappGatewayAccount {
 }
 
 model WhatsappMessageLog {
-  id        String                @id @default(cuid())
-  toPhone   String
-  userId    String?
-  apiKeyId  String?
-  apiKey    WhatsappApiKey?       @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  id               String                  @id @default(cuid())
+  toPhone          String
+  userId           String?
+  apiKeyId         String?
+  apiKey           WhatsappApiKey?         @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
   gatewayAccountId String?
   gatewayAccount   WhatsappGatewayAccount? @relation(fields: [gatewayAccountId], references: [id], onDelete: SetNull)
-  body      String
-  status    WhatsappMessageStatus @default(PENDING)
-  error     String?
-  createdAt DateTime              @default(now())
+  body             String
+  status           WhatsappMessageStatus   @default(PENDING)
+  error            String?
+  createdAt        DateTime                @default(now())
 
   @@index([createdAt])
   @@index([userId])
@@ -1405,17 +1613,17 @@ model WhatsappMessageLog {
  * Admin-managed entitlement for use of the shared WhatsApp gateway.
  */
 model WhatsappApiAccess {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isEnabled           Boolean  @default(false)
-  monthlyLimit        Int      @default(0)
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isEnabled          Boolean  @default(false)
+  monthlyLimit       Int      @default(0)
   /**
    * Admin-granted access outside the purchase flow (legacy/manual customers).
    */
-  legacyManualAccess  Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  legacyManualAccess Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("whatsapp_api_access")
 }

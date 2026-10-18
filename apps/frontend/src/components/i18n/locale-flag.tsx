@@ -1,8 +1,8 @@
 import Image from "next/image";
 
 import type { AppLocale } from "@/i18n/routing";
-import { flagUrl } from "@/lib/i18n/locale-flags";
 import { cn } from "@/lib/cn";
+import { flagUrl } from "@/lib/i18n/locale-flags";
 
 export function LocaleFlag({
   locale,
@@ -22,6 +22,7 @@ export function LocaleFlag({
       aria-hidden
       width={size}
       height={Math.round(size * 0.75)}
+      style={{ width: size, height: Math.round(size * 0.75) }}
       className={cn("rounded-sm object-cover shadow-sm ring-1 ring-black/5", className)}
       unoptimized
     />

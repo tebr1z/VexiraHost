@@ -1,5 +1,5 @@
 ﻿import { HostingPanel } from "@prisma/client";
-import { IsEnum, IsObject, IsOptional, IsString, Matches, MinLength } from "class-validator";
+import { IsEnum, IsOptional, IsString, Matches, MinLength } from "class-validator";
 
 export class ListHostingPlansQueryDto {
   @IsOptional()

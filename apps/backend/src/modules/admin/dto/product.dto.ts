@@ -73,6 +73,15 @@ export class CreateProductDto {
   billingCycle?: BillingCycle;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  minimumQuantity?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresQuote?: boolean;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
@@ -157,6 +166,15 @@ export class UpdateProductDto {
   @IsOptional()
   @IsEnum(BillingCycle)
   billingCycle?: BillingCycle;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minimumQuantity?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresQuote?: boolean;
 
   @IsOptional()
   @IsBoolean()

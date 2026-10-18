@@ -6,9 +6,13 @@ import type {
   PaymentProvider,
 } from "../interfaces/payment-provider.interface";
 
+import { assertMockProviderAllowed } from "@/shared/providers/mock-provider.guard";
+
 @Injectable()
 export class MockPaymentProvider implements PaymentProvider {
   async charge(input: PaymentChargeInput): Promise<PaymentChargeResult> {
+    assertMockProviderAllowed("Mock payment provider");
+
     if (input.amount <= 0) {
       return {
         success: false,

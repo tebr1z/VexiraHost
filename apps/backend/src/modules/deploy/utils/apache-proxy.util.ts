@@ -1,13 +1,16 @@
-/** Apache additional directives for reverse proxy to a local Docker port. */
-export function buildApacheProxyDirectives(port: number): string {
+/** Apache additional directives for reverse proxy to a managed runtime node. */
+export function buildApacheProxyDirectives(port: number, targetHost = "127.0.0.1"): string {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9.:-]{0,252}$/.test(targetHost)) {
+    throw new Error("Invalid reverse proxy target host");
+  }
   return `# BEGIN VEXIRA_PROXY
 ProxyPreserveHost On
 ProxyRequests Off
 AllowEncodedSlashes NoDecode
 RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"
 RequestHeader set X-Real-IP "%{REMOTE_ADDR}s"
-ProxyPass / http://127.0.0.1:${port}/
-ProxyPassReverse / http://127.0.0.1:${port}/
+ProxyPass / http://${targetHost}:${port}/
+ProxyPassReverse / http://${targetHost}:${port}/
 # END VEXIRA_PROXY
 `;
 }

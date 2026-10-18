@@ -1,7 +1,9 @@
 ﻿import { Test, TestingModule } from "@nestjs/testing";
 
+import { CloudflareDnsProvider } from "../providers/cloudflare-dns.provider";
 import { MockRegistrarProvider } from "../providers/mock-registrar.provider";
 import { DomainsRepository } from "../repository/domains.repository";
+import { AuthoritativeDnsService } from "../service/authoritative-dns.service";
 import { DomainEmailService } from "../service/domain-email.service";
 import { DomainsService } from "../service/domains.service";
 
@@ -20,6 +22,8 @@ describe("DomainsService", () => {
         { provide: DomainEmailService, useValue: {} },
         { provide: StaffAlertService, useValue: { notify: jest.fn() } },
         { provide: SiteAccessService, useValue: { assertSectionOpen: jest.fn() } },
+        { provide: CloudflareDnsProvider, useValue: { isConfigured: jest.fn() } },
+        { provide: AuthoritativeDnsService, useValue: { replaceRecords: jest.fn() } },
       ],
     }).compile();
 

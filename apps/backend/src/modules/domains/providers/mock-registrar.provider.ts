@@ -9,6 +9,8 @@ import type {
 } from "../interfaces/registrar-provider.interface";
 import { TldPricingRepository } from "../repository/tld-pricing.repository";
 
+import { assertMockProviderAllowed } from "@/shared/providers/mock-provider.guard";
+
 const FALLBACK_TLD_PRICING: Record<string, number> = {
   com: 9.99,
   net: 11.99,
@@ -22,7 +24,11 @@ const FALLBACK_TLD_PRICING: Record<string, number> = {
 const DEFAULT_TLDS = ["com", "net", "org", "io"];
 
 function normalizeQuery(raw: string): string {
-  return raw.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "");
 }
 
 function parseDomain(input: string): { label: string; tld?: string } {
@@ -75,6 +81,8 @@ export class MockRegistrarProvider implements RegistrarProvider {
   }
 
   async search(query: string): Promise<DomainSearchResult[]> {
+    assertMockProviderAllowed("Mock domain registrar");
+
     const { label, tld } = parseDomain(query);
     if (!label) return [];
 
@@ -97,6 +105,8 @@ export class MockRegistrarProvider implements RegistrarProvider {
   }
 
   async register(domain: string): Promise<RegistrarRegistrationResult> {
+    assertMockProviderAllowed("Mock domain registrar");
+
     const normalized = normalizeQuery(domain);
     if (!isAvailable(normalized)) {
       throw new Error("Domain is not available");
@@ -108,11 +118,13 @@ export class MockRegistrarProvider implements RegistrarProvider {
     return {
       registrarRef: `mock-reg-${Date.now()}`,
       expiresAt,
-      nameservers: ["ns1.vexira.host", "ns2.vexira.host"],
+      nameservers: ["ns1.vexirahost.com", "ns2.vexirahost.com"],
     };
   }
 
   async initiateTransfer(domain: string, authCode: string): Promise<RegistrarTransferResult> {
+    assertMockProviderAllowed("Mock domain registrar");
+
     if (authCode.trim().length < 6) {
       throw new Error("Invalid authorization code");
     }
@@ -128,7 +140,7 @@ export class MockRegistrarProvider implements RegistrarProvider {
       { type: "A", name: "@", value: "192.0.2.10", ttl: 3600 },
       { type: "CNAME", name: "www", value: domain, ttl: 3600 },
       { type: "MX", name: "@", value: `mail.${domain}`, ttl: 3600, priority: 10 },
-      { type: "TXT", name: "@", value: "v=spf1 include:_spf.vexira.host ~all", ttl: 3600 },
+      { type: "TXT", name: "@", value: "v=spf1 include:_spf.vexirahost.com ~all", ttl: 3600 },
     ];
   }
 }

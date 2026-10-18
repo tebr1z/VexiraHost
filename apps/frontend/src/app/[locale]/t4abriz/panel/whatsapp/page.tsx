@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -376,7 +377,14 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
 
         {selectedGatewayId && qrDataUrl ? (
           <div className="border-outline-variant bg-surface-container-low/40 mt-5 flex flex-col items-center gap-3 rounded-xl border border-dashed p-6">
-            <img src={qrDataUrl} alt={tp("qrAlt")} className="h-64 w-64 rounded-lg bg-white p-2" />
+            <Image
+              src={qrDataUrl}
+              alt={tp("qrAlt")}
+              width={256}
+              height={256}
+              unoptimized
+              className="h-64 w-64 rounded-lg bg-white p-2"
+            />
             <p className="text-on-surface-variant max-w-md text-center text-sm">{tp("qrHelp")}</p>
           </div>
         ) : null}
@@ -423,9 +431,12 @@ export default function AdminWhatsappPage(): React.ReactElement | null {
         {(connectionStatus === "QR_READY" || connectionStatus === "CONNECTING") && (
           <div className="border-outline-variant bg-surface-container-low/40 mt-6 flex flex-col items-center gap-3 rounded-xl border border-dashed p-6">
             {qrDataUrl ? (
-              <img
+              <Image
                 src={qrDataUrl}
                 alt={tp("qrAlt")}
+                width={256}
+                height={256}
+                unoptimized
                 className="h-64 w-64 rounded-lg bg-white p-2"
               />
             ) : (

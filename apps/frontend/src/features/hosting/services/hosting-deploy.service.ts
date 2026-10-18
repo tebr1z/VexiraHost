@@ -1,15 +1,43 @@
 import { apiClient } from "@/services/api-client";
 
-export type DeployStack = "NEXTJS" | "NESTJS" | "DOCKER";
-export type DeploySource = "GIT" | "DOCKER_IMAGE";
+export type DeployStack = "NEXTJS" | "NESTJS" | "DOTNET" | "DOCKER";
+export type DeploySource = "GIT" | "DOCKER_IMAGE" | "UPLOAD";
 export type DeployDomainMode = "PRIMARY" | "SUBDOMAIN";
 export type DeployStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
+
+export interface TenantResources {
+  accountId: string;
+  ready: boolean;
+  mock: boolean;
+  checkedAt: string;
+  hasDeployments?: boolean;
+  memoryBytes: number | null;
+  diskBytes: number | null;
+  cpuPercent: number | null;
+  appliedCpuPercent: number | null;
+  appliedMemoryMb: number | null;
+  appliedDiskGb: number | null;
+  limits: { cpuPercent: number; memoryMb: number; diskGb: number; maxApps: number };
+}
+
+export async function getTenantResources(
+  accountId: string,
+  admin = false,
+): Promise<TenantResources> {
+  const result = await apiClient.request<TenantResources>(
+    admin
+      ? `/admin/hosting/accounts/${accountId}/resources`
+      : `/hosting/${accountId}/deployments/resources`,
+  );
+  return result.data as TenantResources;
+}
 
 export interface DeploymentSummary {
   id: string;
   name: string;
   stack: DeployStack;
   source?: DeploySource;
+  runtime?: "PM2" | "DOCKER";
   domainMode: DeployDomainMode;
   subdomain: string | null;
   deployDomain: string;
@@ -98,6 +126,39 @@ export async function createDeployment(
     queuePosition?: number;
     message: string;
   }>(`/hosting/${accountId}/deployments`, { method: "POST", body: input });
+  return res.data!;
+}
+
+export async function createUploadDeployment(
+  accountId: string,
+  input: Omit<CreateDeploymentInput, "source" | "repoUrl" | "githubRepoFullName" | "imageRef">,
+  file: File,
+): Promise<{
+  id: string;
+  deployDomain: string;
+  status: DeployStatus;
+  stage?: string | null;
+  queuePosition?: number;
+  message: string;
+}> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("name", input.name);
+  form.append("stack", input.stack);
+  form.append("domainMode", input.domainMode);
+  if (input.subdomain) form.append("subdomain", input.subdomain);
+  if (input.rootDirectory) form.append("rootDirectory", input.rootDirectory);
+  if (input.containerPort != null) form.append("containerPort", String(input.containerPort));
+  if (input.envVars) form.append("envVarsJson", JSON.stringify(input.envVars));
+
+  const res = await apiClient.request<{
+    id: string;
+    deployDomain: string;
+    status: DeployStatus;
+    stage?: string | null;
+    queuePosition?: number;
+    message: string;
+  }>(`/hosting/${accountId}/deployments/upload`, { method: "POST", body: form });
   return res.data!;
 }
 

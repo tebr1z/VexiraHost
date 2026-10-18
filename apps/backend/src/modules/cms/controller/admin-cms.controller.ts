@@ -1,18 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Put,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from "@nestjs/common";
 import { UserRole } from "@vexira/types";
-
-import { Roles } from "@/decorators/auth.decorators";
-import { RolesGuard } from "@/guards/roles.guard";
 
 import {
   CreateCmsPageDto,
@@ -22,6 +9,9 @@ import {
   UpdateCmsSectionDto,
 } from "../dto/cms.dto";
 import { AdminCmsService } from "../service/admin-cms.service";
+
+import { Roles } from "@/decorators/auth.decorators";
+import { RolesGuard } from "@/guards/roles.guard";
 
 @Controller("admin/cms")
 @UseGuards(RolesGuard)

@@ -1,6 +1,7 @@
 ﻿import { Module } from "@nestjs/common";
 
 import { PaymentsController } from "./controller/payments.controller";
+import { EpointPaymentProvider } from "./providers/epoint-payment.provider";
 import { KapitalPaymentProvider } from "./providers/kapital-payment.provider";
 import { MockPaymentProvider } from "./providers/mock-payment.provider";
 import { PaymentsRepository } from "./repository/payments.repository";
@@ -24,10 +25,17 @@ import { PricingModule } from "@/shared/pricing/pricing.module";
     BalanceEmailService,
     PaymentsRepository,
     MockPaymentProvider,
+    EpointPaymentProvider,
     KapitalConfigService,
     KapitalPaymentProvider,
     SmtpMailService,
   ],
-  exports: [PaymentsService, PaymentsRepository, KapitalConfigService, BalanceService],
+  exports: [
+    PaymentsService,
+    PaymentsRepository,
+    KapitalConfigService,
+    EpointPaymentProvider,
+    BalanceService,
+  ],
 })
 export class PaymentsModule {}

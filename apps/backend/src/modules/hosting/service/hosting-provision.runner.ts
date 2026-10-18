@@ -6,8 +6,10 @@ import { MockControlPanelProvider } from "../providers/mock-control-panel.provid
 import { HostingServersRepository } from "../repository/hosting-servers.repository";
 import { HostingRepository } from "../repository/hosting.repository";
 import { PROVISION_STAGES } from "../types/provision-stage";
+import { calculateHostingExpiry } from "../utils/hosting-renewal.util";
 import { isMockPanelServer } from "../utils/panel-endpoint.util";
 
+import { AuthoritativeDnsService } from "@/modules/domains/service/authoritative-dns.service";
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 import { encryptSecret } from "@/utils/crypto.util";
 
@@ -21,6 +23,7 @@ export class HostingProvisionRunner {
     private readonly hostingServersRepository: HostingServersRepository,
     private readonly controlPanel: MockControlPanelProvider,
     private readonly staffAlerts: StaffAlertService,
+    private readonly authoritativeDns: AuthoritativeDnsService,
   ) {}
 
   enqueue(accountId: string): void {
@@ -94,16 +97,45 @@ export class HostingProvisionRunner {
 
       await this.setStage(accountId, PROVISION_STAGES.FINALIZING, null);
 
+      const provisionedAt = new Date();
+      const expiresAt = calculateHostingExpiry(provisionedAt, plan.billingCycle);
+
       await this.hostingRepository.updateAccount(accountId, {
         status: ServiceStatus.ACTIVE,
         panelUrl: result.panelUrl,
         panelUsername: result.panelUsername,
         panelPasswordEnc: encryptSecret(result.panelPassword),
         panelRef: result.panelRef,
-        provisionedAt: new Date(),
+        provisionedAt,
+        expiresAt,
+        billingAmount: expiresAt ? Number(plan.price) : null,
+        billingCurrency: plan.currency.toUpperCase(),
+        autoRenew: expiresAt != null,
         provisionStage: PROVISION_STAGES.COMPLETED,
         provisionError: null,
       });
+
+      try {
+        await this.authoritativeDns.provisionHostingZone({
+          userId: account.userId,
+          domainName: account.primaryDomain,
+          serverAddress: server.ipAddress,
+        });
+      } catch (dnsError) {
+        const dnsMessage = dnsError instanceof Error ? dnsError.message : "DNS provisioning failed";
+        this.logger.warn(`Authoritative DNS provisioning failed for ${accountId}: ${dnsMessage}`);
+        const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+        this.staffAlerts.notify({
+          kind: "HOSTING_DNS_PROVISION_FAILED",
+          title: "Hosting DNS quraşdırması uğursuz",
+          lines: [
+            `Domen: ${account.primaryDomain}`,
+            `Server: ${server.name} (${server.ipAddress})`,
+            `Xəta: ${dnsMessage}`,
+          ],
+          url: `${appUrl}/t4abriz/panel/hosting/accounts`,
+        });
+      }
 
       await this.hostingServersRepository.incrementAccountCount(server.id);
     } catch (error) {

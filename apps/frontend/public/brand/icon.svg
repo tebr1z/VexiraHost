@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" fill="none">
+  <title>Vexira Host — V uplink</title>
+  <rect width="64" height="64" rx="18" fill="#1768e8"/>
+  <g id="vexira-symbol">
+    <path d="M12 17H23L32 37L38 24H49L36 51H28L12 17Z" fill="#ffffff"/>
+    <path d="M41 13H52L48 21H37L41 13Z" fill="#99f6e4"/>
+  </g>
+</svg>

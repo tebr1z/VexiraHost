@@ -1,6 +1,5 @@
-import { apiClient } from "@/services/api-client";
-
 import type { NavLabels } from "@/features/navigation/services/navigation.service";
+import { apiClient } from "@/services/api-client";
 
 export type { NavLabels };
 
@@ -81,6 +80,14 @@ export async function updateAdminNavGroup(
   return res.data as AdminNavGroup;
 }
 
+export async function reorderAdminNavGroups(ids: string[]): Promise<AdminNavGroup[]> {
+  const res = await apiClient.request<AdminNavGroup[]>("/admin/navigation/groups/reorder", {
+    method: "PUT",
+    body: { ids },
+  });
+  return res.data ?? [];
+}
+
 export async function deleteAdminNavGroup(id: string): Promise<void> {
   await apiClient.request(`/admin/navigation/groups/${id}`, { method: "DELETE" });
 }
@@ -105,6 +112,14 @@ export async function updateAdminNavItem(
     body: input,
   });
   return res.data as AdminNavItem;
+}
+
+export async function reorderAdminNavItems(groupId: string, ids: string[]): Promise<AdminNavGroup> {
+  const res = await apiClient.request<AdminNavGroup>(
+    `/admin/navigation/groups/${groupId}/items/reorder`,
+    { method: "PUT", body: { ids } },
+  );
+  return res.data as AdminNavGroup;
 }
 
 export async function deleteAdminNavItem(id: string): Promise<void> {

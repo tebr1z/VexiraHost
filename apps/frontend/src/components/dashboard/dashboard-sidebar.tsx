@@ -110,6 +110,7 @@ export function DashboardSidebar({
                     key={item.href}
                     href={item.href}
                     prefetch
+                    aria-current={active ? "page" : undefined}
                     onClick={onNavigate}
                     title={collapsed ? label : undefined}
                     className={cn(

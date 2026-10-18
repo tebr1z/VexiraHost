@@ -5,6 +5,8 @@ import {
   type ResolvedKapitalConfig,
 } from "../service/kapital-config.service";
 
+import { decryptSecret, encryptSecret } from "@/utils/crypto.util";
+
 export interface KapitalCreateOrderInput {
   amount: number;
   currency: string;
@@ -30,7 +32,9 @@ export interface KapitalOrderStatus {
   password?: string;
 }
 
-const PAID_STATUSES = new Set(["FullyPaid", "Fully paid", "Authorized", "Closed"]);
+// Only a fully cleared order can fulfil an invoice. `Authorized` means that
+// funds are merely blocked, while `Closed` does not prove the cleared amount.
+const PAID_STATUSES = new Set(["FullyPaid", "Fully paid"]);
 
 @Injectable()
 export class KapitalPaymentProvider {
@@ -50,9 +54,7 @@ export class KapitalPaymentProvider {
   buildHppUrl(hppUrl: string, id: number, password: string): string {
     const trimmed = hppUrl.replace(/\/$/, "");
     const base =
-      trimmed.endsWith("/flex") || trimmed.includes("/flex?")
-        ? trimmed
-        : `${trimmed}/flex`;
+      trimmed.endsWith("/flex") || trimmed.includes("/flex?") ? trimmed : `${trimmed}/flex`;
     const url = new URL(base.includes("://") ? base : `https://${base}`);
     url.searchParams.set("id", String(id));
     url.searchParams.set("password", password);
@@ -155,23 +157,18 @@ export class KapitalPaymentProvider {
     environment?: string,
   ): string {
     const fromJson =
-      payload?.errorDescription ||
-      payload?.errorCode ||
-      payload?.error ||
-      payload?.message ||
-      null;
+      payload?.errorDescription || payload?.errorCode || payload?.error || payload?.message || null;
 
     if (fromJson) return fromJson;
 
     const looksHtml = /^\s*</.test(rawText) || /cloudflare|cf-ray/i.test(rawText);
     if (status === 520 || status === 521 || status === 522 || looksHtml) {
-      const envHint = environment === "test"
-        ? "Check admin panel: Test should use txpgtst.kapitalbank.az."
-        : "Production merchant may need Ecommerce API activation.";
+      const envHint =
+        environment === "test"
+          ? "Check admin panel: Test should use txpgtst.kapitalbank.az."
+          : "Production merchant may need Ecommerce API activation.";
       return (
-        `HTTP ${status} from Kapital gateway (no JSON body). ` +
-        `${envHint} ` +
-        `Host: ${baseUrl}`
+        `HTTP ${status} from Kapital gateway (no JSON body). ` + `${envHint} ` + `Host: ${baseUrl}`
       );
     }
 
@@ -298,7 +295,7 @@ export class KapitalPaymentProvider {
   }
 
   encodeGatewayRef(kapitalOrderId: number, password: string): string {
-    return `kapital:${kapitalOrderId}:${password}`;
+    return `kapital:${kapitalOrderId}:enc:${encryptSecret(password)}`;
   }
 
   parseGatewayRef(gatewayRef: string | null | undefined): {
@@ -309,7 +306,18 @@ export class KapitalPaymentProvider {
     const parts = gatewayRef.split(":");
     if (parts.length < 3) return null;
     const kapitalOrderId = Number(parts[1]);
-    const password = parts.slice(2).join(":");
+    let password: string;
+    if (parts[2] === "enc") {
+      try {
+        password = decryptSecret(parts.slice(3).join(":"));
+      } catch {
+        return null;
+      }
+    } else {
+      // Backward compatibility for pending payments created before gateway
+      // order passwords were encrypted. New rows never use this format.
+      password = parts.slice(2).join(":");
+    }
     if (!Number.isFinite(kapitalOrderId) || !password) return null;
     return { kapitalOrderId, password };
   }

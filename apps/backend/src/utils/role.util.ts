@@ -1,5 +1,5 @@
-import { UserRole } from "@vexira/types";
 import { UserRole as PrismaUserRole } from "@prisma/client";
+import { UserRole } from "@vexira/types";
 
 export function mapPrismaRoleToApp(role: string): UserRole {
   switch (role) {

@@ -18,7 +18,7 @@ import type {
 import { AdminCatalogRepository } from "../repository/admin-catalog.repository";
 
 import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
-import { mapProductPrices } from "@/shared/pricing/product-price.util";
+import { mapProductPrices, oneTimeProductPrices } from "@/shared/pricing/product-price.util";
 import { expandProductPricesFromUsdSource } from "@/shared/pricing/usd-price-expand.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
@@ -79,6 +79,23 @@ function mapHostingPlan(plan: {
   sortOrder: number;
   pleskPlanName?: string | null;
   autoDeployEnabled?: boolean;
+  autoDeployDiskGb?: number;
+  autoDeployCpuPercent?: number;
+  autoDeployMemoryMb?: number;
+  autoDeployMaxApps?: number;
+  autoDeployAiEnabled?: boolean;
+  autoDeployAiMonthlyCredits?: number;
+  autoDeploySecurityScanEnabled?: boolean;
+  autoDeployServerId?: string | null;
+  autoDeployServer?: {
+    id: string;
+    name: string;
+    hostname: string;
+    ipAddress: string;
+    isActive: boolean;
+    deployNodeEnabled: boolean;
+    deployHealth: string;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   _count?: { accounts: number };
@@ -147,6 +164,15 @@ function mapHostingPlan(plan: {
     sortOrder: plan.sortOrder,
     pleskPlanName: plan.pleskPlanName ?? null,
     autoDeployEnabled: plan.autoDeployEnabled ?? false,
+    autoDeployDiskGb: plan.autoDeployDiskGb ?? 1,
+    autoDeployCpuPercent: plan.autoDeployCpuPercent ?? 100,
+    autoDeployMemoryMb: plan.autoDeployMemoryMb ?? 1024,
+    autoDeployMaxApps: plan.autoDeployMaxApps ?? 1,
+    autoDeployAiEnabled: plan.autoDeployAiEnabled ?? false,
+    autoDeployAiMonthlyCredits: plan.autoDeployAiMonthlyCredits ?? 0,
+    autoDeploySecurityScanEnabled: plan.autoDeploySecurityScanEnabled ?? true,
+    autoDeployServerId: plan.autoDeployServerId ?? null,
+    autoDeployServer: plan.autoDeployServer ?? null,
     accountCount: plan._count?.accounts ?? 0,
     createdAt: plan.createdAt,
     updatedAt: plan.updatedAt,
@@ -206,6 +232,8 @@ function mapProduct(product: {
   price: Decimal;
   currency: string;
   billingCycle: string;
+  minimumQuantity?: number;
+  requiresQuote?: boolean;
   isActive: boolean;
   sortOrder: number;
   deliveryMode?: string;
@@ -237,7 +265,9 @@ function mapProduct(product: {
     hostingPlanSlug: product.hostingPlanSlug,
     price: Number(product.price),
     currency: product.currency,
-    billingCycle: product.billingCycle,
+    billingCycle: product.category === "LICENSE" ? "ONE_TIME" : product.billingCycle,
+    minimumQuantity: Math.max(1, product.minimumQuantity ?? 1),
+    requiresQuote: product.requiresQuote ?? false,
     isActive: product.isActive,
     sortOrder: product.sortOrder,
     deliveryMode: product.deliveryMode ?? "NONE",
@@ -250,7 +280,13 @@ function mapProduct(product: {
     activationGuideImageUrl: product.activationGuideImageUrl ?? null,
     activationGuideVideoUrl: product.activationGuideVideoUrl ?? null,
     orderItemCount: product._count?.orderItems ?? 0,
-    prices: product.prices ? mapProductPrices(product.prices as never) : [],
+    prices: product.prices
+      ? mapProductPrices(
+          (product.category === "LICENSE"
+            ? oneTimeProductPrices(product.prices)
+            : product.prices) as never,
+        )
+      : [],
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
   };
@@ -290,12 +326,14 @@ export class AdminCatalogService {
   ) {}
 
   private async expandPricesFromUsd<
-    T extends { prices?: CreateProductDto["prices"]; isFree?: boolean },
+    T extends { prices?: CreateProductDto["prices"]; isFree?: boolean; category?: string },
   >(dto: T): Promise<T["prices"]> {
-    if (dto.isFree || !dto.prices?.length) return dto.prices;
+    const prices =
+      dto.category === "LICENSE" && dto.prices ? oneTimeProductPrices(dto.prices) : dto.prices;
+    if (dto.isFree || !prices?.length) return prices;
     const rates = await this.cbarExchange.getRates();
-    const yearlyEnabled = dto.prices.some((p) => p.period === "YEARLY");
-    return expandProductPricesFromUsdSource(dto.prices, rates, yearlyEnabled);
+    const yearlyEnabled = prices.some((p) => p.period === "YEARLY");
+    return expandProductPricesFromUsdSource(prices, rates, yearlyEnabled);
   }
 
   private async assertHostingServer(serverId: string, panel: HostingPanel) {
@@ -304,6 +342,19 @@ export class AdminCatalogService {
     if (!server.isActive) throw new BadRequestException("Selected hosting server is not active");
     if (server.panel !== panel) {
       throw new BadRequestException("Hosting server panel must match the plan panel");
+    }
+    return server;
+  }
+
+  private async assertAutoDeployServer(serverId: string) {
+    const server = await this.catalogRepository.findHostingServerById(serverId);
+    if (!server) throw new NotFoundException("Auto Deploy server not found");
+    if (!server.isActive)
+      throw new BadRequestException("Selected Auto Deploy server is not active");
+    if (!server.deployNodeEnabled) {
+      throw new BadRequestException(
+        "Selected server is not enabled as an Auto Deploy node. Enable it in server settings first.",
+      );
     }
     return server;
   }
@@ -336,6 +387,12 @@ export class AdminCatalogService {
       await this.assertHostingServer(serverId, dto.panel);
     }
     assertAutoDeployPlan(dto.panel, dto.autoDeployEnabled);
+    if (dto.autoDeployEnabled) {
+      if (!dto.autoDeployServerId) {
+        throw new BadRequestException("Select an Auto Deploy server");
+      }
+      await this.assertAutoDeployServer(dto.autoDeployServerId);
+    }
 
     const slug = dto.slug?.trim()
       ? await resolveUniqueSlug(slugify(dto.slug), (candidate) => this.slugTaken(candidate))
@@ -360,6 +417,16 @@ export class AdminCatalogService {
       sortOrder: dto.sortOrder ?? 0,
       pleskPlanName: dto.pleskPlanName?.trim() || null,
       autoDeployEnabled: dto.autoDeployEnabled ?? false,
+      autoDeployDiskGb: dto.autoDeployDiskGb ?? 1,
+      autoDeployCpuPercent: dto.autoDeployCpuPercent ?? 100,
+      autoDeployMemoryMb: dto.autoDeployMemoryMb ?? 1024,
+      autoDeployMaxApps: dto.autoDeployMaxApps ?? 1,
+      autoDeployAiEnabled: dto.autoDeployAiEnabled ?? false,
+      autoDeployAiMonthlyCredits: dto.autoDeployAiMonthlyCredits ?? 0,
+      autoDeploySecurityScanEnabled: dto.autoDeploySecurityScanEnabled ?? true,
+      ...(dto.autoDeployServerId
+        ? { autoDeployServer: { connect: { id: dto.autoDeployServerId } } }
+        : {}),
     });
     await this.catalogRepository.replacePlanServers(plan.id, serverIds);
     const created = await this.catalogRepository.findHostingPlanById(plan.id);
@@ -388,6 +455,14 @@ export class AdminCatalogService {
     const nextAutoDeploy =
       dto.autoDeployEnabled !== undefined ? dto.autoDeployEnabled : current.autoDeployEnabled;
     assertAutoDeployPlan(nextPanel, nextAutoDeploy);
+    const nextAutoDeployServerId =
+      dto.autoDeployServerId !== undefined ? dto.autoDeployServerId : current.autoDeployServerId;
+    if (nextAutoDeploy) {
+      if (!nextAutoDeployServerId) {
+        throw new BadRequestException("Select an Auto Deploy server");
+      }
+      await this.assertAutoDeployServer(nextAutoDeployServerId);
+    }
 
     await this.catalogRepository.updateHostingPlan(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
@@ -409,6 +484,28 @@ export class AdminCatalogService {
         ? { pleskPlanName: dto.pleskPlanName?.trim() || null }
         : {}),
       ...(dto.autoDeployEnabled !== undefined ? { autoDeployEnabled: dto.autoDeployEnabled } : {}),
+      ...(dto.autoDeployDiskGb !== undefined ? { autoDeployDiskGb: dto.autoDeployDiskGb } : {}),
+      ...(dto.autoDeployCpuPercent !== undefined
+        ? { autoDeployCpuPercent: dto.autoDeployCpuPercent }
+        : {}),
+      ...(dto.autoDeployMemoryMb !== undefined
+        ? { autoDeployMemoryMb: dto.autoDeployMemoryMb }
+        : {}),
+      ...(dto.autoDeployMaxApps !== undefined ? { autoDeployMaxApps: dto.autoDeployMaxApps } : {}),
+      ...(dto.autoDeployAiEnabled !== undefined
+        ? { autoDeployAiEnabled: dto.autoDeployAiEnabled }
+        : {}),
+      ...(dto.autoDeployAiMonthlyCredits !== undefined
+        ? { autoDeployAiMonthlyCredits: dto.autoDeployAiMonthlyCredits }
+        : {}),
+      ...(dto.autoDeploySecurityScanEnabled !== undefined
+        ? { autoDeploySecurityScanEnabled: dto.autoDeploySecurityScanEnabled }
+        : {}),
+      ...(dto.autoDeployServerId !== undefined
+        ? dto.autoDeployServerId
+          ? { autoDeployServer: { connect: { id: dto.autoDeployServerId } } }
+          : { autoDeployServer: { disconnect: true } }
+        : {}),
     });
     if (dto.serverIds || dto.serverId) {
       await this.catalogRepository.replacePlanServers(id, serverIds);
@@ -509,6 +606,9 @@ export class AdminCatalogService {
   }
 
   async createProduct(dto: CreateProductDto) {
+    if (dto.requiresQuote && dto.isFree) {
+      throw new BadRequestException("A quote-only product cannot also be free");
+    }
     const slug = dto.slug?.trim()
       ? await resolveUniqueSlug(slugify(dto.slug), (candidate) => this.productSlugTaken(candidate))
       : await resolveUniqueSlug(dto.name, (candidate) => this.productSlugTaken(candidate));
@@ -532,9 +632,12 @@ export class AdminCatalogService {
         : {}),
       hostingPlanSlug:
         dto.category === ProductCategory.HOSTING ? (dto.hostingPlanSlug?.trim() ?? null) : null,
-      price: new Decimal(dto.isFree ? 0 : dto.price),
+      price: new Decimal(dto.isFree || dto.requiresQuote ? 0 : dto.price),
       currency: dto.currency ?? "USD",
-      billingCycle: dto.isFree ? "ONE_TIME" : (dto.billingCycle ?? "MONTHLY"),
+      billingCycle:
+        dto.category === "LICENSE" || dto.isFree ? "ONE_TIME" : (dto.billingCycle ?? "MONTHLY"),
+      minimumQuantity: dto.minimumQuantity ?? 1,
+      requiresQuote: dto.requiresQuote ?? false,
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
       deliveryMode: digital.deliveryMode as never,
@@ -572,6 +675,9 @@ export class AdminCatalogService {
   async updateProduct(id: string, dto: UpdateProductDto) {
     const current = await this.catalogRepository.findProductById(id);
     if (!current) throw new NotFoundException("Product not found");
+    if ((dto.requiresQuote ?? current.requiresQuote) && (dto.isFree ?? current.isFree)) {
+      throw new BadRequestException("A quote-only product cannot also be free");
+    }
 
     const category = dto.category ?? current.category;
     const hostingPlanSlug =
@@ -634,14 +740,22 @@ export class AdminCatalogService {
             hostingPlanSlug: category === ProductCategory.HOSTING ? hostingPlanSlug : null,
           }
         : {}),
-      ...(dto.price !== undefined
-        ? { price: new Decimal(dto.isFree || current.isFree ? 0 : dto.price) }
+      ...(dto.price !== undefined || dto.requiresQuote === true
+        ? {
+            price: new Decimal(
+              (dto.isFree ?? current.isFree) || (dto.requiresQuote ?? current.requiresQuote)
+                ? 0
+                : (dto.price ?? Number(current.price)),
+            ),
+          }
         : {}),
       ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
-      ...(dto.billingCycle !== undefined || dto.isFree !== undefined
+      ...(dto.minimumQuantity !== undefined ? { minimumQuantity: dto.minimumQuantity } : {}),
+      ...(dto.requiresQuote !== undefined ? { requiresQuote: dto.requiresQuote } : {}),
+      ...(category === "LICENSE" || dto.billingCycle !== undefined || dto.isFree !== undefined
         ? {
             billingCycle:
-              (dto.isFree ?? current.isFree)
+              category === "LICENSE" || (dto.isFree ?? current.isFree)
                 ? "ONE_TIME"
                 : (dto.billingCycle ?? current.billingCycle),
           }
@@ -663,18 +777,28 @@ export class AdminCatalogService {
         : {}),
     });
 
-    if (dto.prices) {
+    const nextPrices =
+      dto.prices ??
+      (category === "LICENSE" && current.category !== "LICENSE"
+        ? oneTimeProductPrices(current.prices ?? []).map((row) => ({
+            ...row,
+            originalPrice: Number(row.originalPrice),
+            salePrice: Number(row.salePrice),
+          }))
+        : undefined);
+    if (nextPrices) {
       const expandedPrices = await this.expandPricesFromUsd({
-        prices: dto.prices,
+        prices: nextPrices,
         isFree: dto.isFree ?? current.isFree,
+        category,
       });
-      await this.catalogRepository.replaceProductPrices(product.id, expandedPrices ?? dto.prices);
+      await this.catalogRepository.replaceProductPrices(product.id, expandedPrices ?? nextPrices);
       const primaryMonthly =
-        (expandedPrices ?? dto.prices).find(
+        (expandedPrices ?? nextPrices).find(
           (p) => p.currency === "USD" && p.period === "MONTHLY",
         ) ??
-        (expandedPrices ?? dto.prices).find((p) => p.period === "MONTHLY") ??
-        (expandedPrices ?? dto.prices)[0];
+        (expandedPrices ?? nextPrices).find((p) => p.period === "MONTHLY") ??
+        (expandedPrices ?? nextPrices)[0];
       if (primaryMonthly) {
         await this.catalogRepository.updateProduct(product.id, {
           price: new Decimal(primaryMonthly.salePrice),

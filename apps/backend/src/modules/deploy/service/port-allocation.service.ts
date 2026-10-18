@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import type { HostingServer } from "@prisma/client";
 
 import { DeployRepository } from "../repository/deploy.repository";
+import type { DeployRuntime } from "../utils/deploy-runtime.util";
 import { resolveHostingServerSshOptions } from "../utils/server-ssh.util";
 
 import { SshService, type SshConnectionOptions } from "./ssh.service";
@@ -91,6 +92,7 @@ export class PortAllocationService {
     options: {
       prefer?: number | null;
       containerName?: string | null;
+      runtime?: DeployRuntime;
     },
   ): Promise<{ port: number; switchedFrom: number | null }> {
     const prefer = options.prefer && options.prefer > 0 ? options.prefer : null;
@@ -102,8 +104,11 @@ export class PortAllocationService {
         return { port: prefer, switchedFrom: null };
       }
       if (options.containerName) {
-        const owner = await this.portBoundByContainer(server, prefer);
-        if (owner === options.containerName) {
+        const owned =
+          options.runtime === "pm2"
+            ? await this.portBoundByPm2(server, options.containerName)
+            : (await this.portBoundByContainer(server, prefer)) === options.containerName;
+        if (owned) {
           return { port: prefer, switchedFrom: null };
         }
       }
@@ -116,6 +121,15 @@ export class PortAllocationService {
 
     const port = await this.allocate(server.id, { blockedExtra: listening });
     return { port, switchedFrom: null };
+  }
+
+  private async portBoundByPm2(server: HostingServer, processName: string): Promise<boolean> {
+    if (this.deployConfig.mockRemote) return true;
+    const ssh = this.buildSshOptions(server);
+    const result = await this.ssh.withSession(ssh, async (session) => {
+      return session.exec(`pm2 pid ${this.shellQuote(processName)} 2>/dev/null || echo 0`, 30_000);
+    });
+    return /^\d+$/.test(result.stdout.trim()) && result.stdout.trim() !== "0";
   }
 
   private async portBoundByContainer(
@@ -133,5 +147,9 @@ export class PortAllocationService {
     const line = result.stdout.trim();
     if (!line) return null;
     return line.split(/\s+/)[0] ?? null;
+  }
+
+  private shellQuote(value: string): string {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
   }
 }

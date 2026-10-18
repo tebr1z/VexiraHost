@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
 import { UserRole } from "@vexira/types";
 
-import { Roles } from "@/decorators/auth.decorators";
-import { RolesGuard } from "@/guards/roles.guard";
-
 import { UpdateSystemSettingsDto } from "../dto/system-settings.dto";
 import { AdminSystemService } from "../service/admin-system.service";
+
+import { Roles } from "@/decorators/auth.decorators";
+import { RolesGuard } from "@/guards/roles.guard";
 
 @Controller("admin/system")
 @UseGuards(RolesGuard)

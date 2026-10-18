@@ -167,8 +167,15 @@ function BootstrapProgressPanel({
   );
 }
 
-export function HostingServerSetupPanel({ serverId }: { serverId: string }): React.ReactElement {
+export function HostingServerSetupPanel({
+  serverId,
+  initialJobId,
+}: {
+  serverId: string;
+  initialJobId?: string | null;
+}): React.ReactElement {
   const t = useTranslations("admin.pages.hostingServers.setup");
+  const tr = useTranslations("deployResources");
   const [status, setStatus] = useState<ServerSetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [probing, setProbing] = useState(false);
@@ -177,6 +184,8 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
   const [bootstrapping, setBootstrapping] = useState(false);
   const [bootstrapJob, setBootstrapJob] = useState<BootstrapJob | null>(null);
   const [sshOutput, setSshOutput] = useState<string | null>(null);
+  const attachedJobId = useRef<string | null>(null);
+  const polling = useRef(false);
 
   const refreshStatus = useCallback(async () => {
     const data = await getServerSetupStatus(serverId);
@@ -197,6 +206,8 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
 
   const pollJob = useCallback(
     async (jobId: string) => {
+      if (polling.current) return true;
+      polling.current = true;
       try {
         const job = await getBootstrapJob(serverId, jobId);
         setBootstrapJob(job);
@@ -220,6 +231,8 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
         setBootstrapping(false);
         toast(getApiErrorMessage(err, t("bootstrapFailed")), "error");
         return false;
+      } finally {
+        polling.current = false;
       }
     },
     [serverId, t],
@@ -230,10 +243,12 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
   }, [load]);
 
   useEffect(() => {
-    if (!status?.activeBootstrapJobId) return;
+    const jobId = status?.activeBootstrapJobId ?? initialJobId;
+    if (!jobId || attachedJobId.current === jobId) return;
+    attachedJobId.current = jobId;
     setBootstrapping(true);
-    void pollJob(status.activeBootstrapJobId);
-  }, [status?.activeBootstrapJobId, pollJob]);
+    void pollJob(jobId);
+  }, [status?.activeBootstrapJobId, initialJobId, pollJob]);
 
   useEffect(() => {
     if (!bootstrapping || !bootstrapJob?.id) return;
@@ -312,6 +327,10 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 text-sm">
+        <h2 className="font-semibold">{tr("requirementsTitle")}</h2>
+        <p className="mt-2 leading-6 text-[var(--label-secondary)]">{tr("requirements")}</p>
+      </div>
       <div className="card-3d border-outline-variant/40 rounded-2xl border p-5">
         <h2 className="font-jakarta text-primary text-lg font-semibold">{t("title")}</h2>
         <p className="text-on-surface-variant mt-1 text-sm">{t("description")}</p>
@@ -326,6 +345,11 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
           <ToolRow
             label={t("osLabel")}
             value={status.server.osVersion ?? status.tools?.os ?? null}
+          />
+          <ToolRow
+            label={t("deployHealthLabel")}
+            value={status.server.deployHealthMessage ?? status.server.deployHealth}
+            ok={status.server.deployHealth === "HEALTHY"}
           />
           <ToolRow
             label={t("sshLabel")}
@@ -402,6 +426,9 @@ export function HostingServerSetupPanel({ serverId }: { serverId: string }): Rea
             value={status.tools.compose}
             ok={Boolean(status.tools.compose)}
           />
+          <ToolRow label="Node.js" value={status.tools.node} ok={Boolean(status.tools.node)} />
+          <ToolRow label="npm" value={status.tools.npm} ok={Boolean(status.tools.npm)} />
+          <ToolRow label="PM2" value={status.tools.pm2} ok={Boolean(status.tools.pm2)} />
         </div>
       )}
 

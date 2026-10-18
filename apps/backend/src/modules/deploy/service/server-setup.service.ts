@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { HostingServer } from "@prisma/client";
 
@@ -18,7 +25,7 @@ import {
   STORAGE_PROBE_COMMAND,
   type ServerStorageProbe,
 } from "../utils/server-storage.util";
-import { parseProbeLine, TOOLS_PROBE_COMMAND } from "../utils/server-tools.util";
+import { parseProbeLine, parseProbeNumber, TOOLS_PROBE_COMMAND } from "../utils/server-tools.util";
 
 import { ServerBootstrapService } from "./server-bootstrap.service";
 import { SshService } from "./ssh.service";
@@ -37,12 +44,19 @@ export type ServerSetupStatus = {
     sshUsername: string | null;
     sshPort: number;
     sshConfigured: boolean;
+    deployNodeEnabled: boolean;
+    deployHealth: string;
+    deployHealthMessage: string | null;
+    deployHealthCheckedAt: string | null;
   };
   mockRemote: boolean;
   tools: {
     git: string | null;
     docker: string | null;
     compose: string | null;
+    node: string | null;
+    npm: string | null;
+    pm2: string | null;
     os: string | null;
     probedAt: string;
   } | null;
@@ -52,7 +66,9 @@ export type ServerSetupStatus = {
 };
 
 @Injectable()
-export class ServerSetupService {
+export class ServerSetupService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ServerSetupService.name);
+  private monitorTimer: ReturnType<typeof setInterval> | null = null;
   private readonly bootstrapLogs = new Map<string, string>();
   private readonly bootstrapJobs = new Map<string, BootstrapJob>();
   private readonly activeJobByServer = new Map<string, string>();
@@ -63,6 +79,31 @@ export class ServerSetupService {
     private readonly ssh: SshService,
     private readonly configService: ConfigService,
   ) {}
+
+  onModuleInit(): void {
+    if (this.deployConfig.mockRemote) return;
+    const initial = setTimeout(() => void this.monitorDeployNodes(), 15_000);
+    initial.unref?.();
+    this.monitorTimer = setInterval(() => void this.monitorDeployNodes(), 5 * 60_000);
+    this.monitorTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.monitorTimer) clearInterval(this.monitorTimer);
+  }
+
+  private async monitorDeployNodes(): Promise<void> {
+    const nodes = await this.hostingServersRepository.findDeployNodes();
+    for (const server of nodes) {
+      try {
+        await this.probeTools(server.id);
+      } catch (error) {
+        this.logger.warn(
+          `Auto Deploy node ${server.name} check failed: ${error instanceof Error ? error.message : "unknown"}`,
+        );
+      }
+    }
+  }
 
   private get deployConfig(): DeployConfig {
     return this.configService.get<DeployConfig>("deploy")!;
@@ -99,6 +140,10 @@ export class ServerSetupService {
         sshUsername: server.sshUsername,
         sshPort: server.sshPort ?? 22,
         sshConfigured: hasDedicatedSshCredentials(server) || Boolean(server.whmPasswordEnc),
+        deployNodeEnabled: server.deployNodeEnabled,
+        deployHealth: server.deployHealth,
+        deployHealthMessage: server.deployHealthMessage,
+        deployHealthCheckedAt: server.deployHealthCheckedAt?.toISOString() ?? null,
       },
       mockRemote: this.deployConfig.mockRemote,
       tools: null,
@@ -119,6 +164,9 @@ export class ServerSetupService {
           git: "git version 2.39.0 (mock)",
           docker: "Docker version 24.0.0 (mock)",
           compose: "Docker Compose version v2.20.0 (mock)",
+          node: "v22.0.0 (mock)",
+          npm: "10.0.0 (mock)",
+          pm2: "5.4.0 (mock)",
           os: server.osVersion ?? "Ubuntu 22.04 LTS (mock)",
           probedAt: new Date().toISOString(),
         },
@@ -150,19 +198,65 @@ export class ServerSetupService {
     }
 
     const ssh = this.serverBootstrap.buildSshOptions(server);
-    const output = await this.ssh.execChecked(ssh, TOOLS_PROBE_COMMAND, 60_000);
-    const osOutput = await this.ssh.execChecked(ssh, OS_DETECT_COMMAND, 60_000);
-    const storageOutput = await this.ssh.execChecked(ssh, STORAGE_PROBE_COMMAND, 120_000);
+    let output: string;
+    let osOutput: string;
+    let storageOutput: string;
+    try {
+      output = await this.ssh.execChecked(ssh, TOOLS_PROBE_COMMAND, 60_000);
+      osOutput = await this.ssh.execChecked(ssh, OS_DETECT_COMMAND, 60_000);
+      storageOutput = await this.ssh.execChecked(ssh, STORAGE_PROBE_COMMAND, 120_000);
+    } catch (error) {
+      await this.hostingServersRepository.update(server.id, {
+        deployHealth: "DOWN",
+        deployHealthMessage: error instanceof Error ? error.message.slice(0, 500) : "SSH failed",
+        deployHealthCheckedAt: new Date(),
+        lastCheckedAt: new Date(),
+        lastConnectionOk: false,
+      });
+      throw error;
+    }
     const detected = parseDetectedOsOutput(osOutput);
     const storageParsed = parseStorageProbeOutput(storageOutput);
     const probedAt = new Date().toISOString();
+    const node = parseProbeLine(output, "NODE");
+    const npm = parseProbeLine(output, "NPM");
+    const pm2 = parseProbeLine(output, "PM2");
+    const diskUsedMb = parseProbeNumber(output, "DISK_USED_MB");
+    const diskTotalMb = parseProbeNumber(output, "DISK_TOTAL_MB");
+    const diskPercent =
+      diskUsedMb != null && diskTotalMb ? Math.round((diskUsedMb / diskTotalMb) * 100) : 0;
+    const missingRuntime = !node || !npm || !pm2;
+    const deployHealth = missingRuntime || diskPercent >= 90 ? "DEGRADED" : "HEALTHY";
+    const deployHealthMessage = missingRuntime
+      ? "Node.js, npm or PM2 is missing"
+      : diskPercent >= 90
+        ? `Root disk usage is ${diskPercent}%`
+        : "Auto Deploy node is healthy";
 
+    await this.hostingServersRepository.update(server.id, {
+      deployHealth,
+      deployHealthMessage,
+      deployHealthCheckedAt: new Date(),
+      deployCpuLoadPercent: parseProbeNumber(output, "CPU_PERCENT"),
+      deployMemoryUsedMb: parseProbeNumber(output, "MEM_USED_MB"),
+      deployMemoryTotalMb: parseProbeNumber(output, "MEM_TOTAL_MB"),
+      deployDiskUsedMb: diskUsedMb,
+      deployDiskTotalMb: diskTotalMb,
+      deployUptimeSeconds: parseProbeNumber(output, "UPTIME_SECONDS"),
+      lastCheckedAt: new Date(),
+      lastConnectionOk: true,
+    });
+
+    const refreshedStatus = this.buildStatus(await this.requireServer(server.id));
     return {
-      ...status,
+      ...refreshedStatus,
       tools: {
         git: parseProbeLine(output, "GIT"),
         docker: parseProbeLine(output, "DOCKER"),
         compose: parseProbeLine(output, "COMPOSE"),
+        node,
+        npm,
+        pm2,
         os: detected ? formatOsVersionLabel(detected) : null,
         probedAt,
       },

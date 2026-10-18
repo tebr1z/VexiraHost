@@ -5,6 +5,7 @@ import { BillingRepository } from "../repository/billing.repository";
 import { buildInvoicePdf } from "../utils/invoice-pdf.util";
 
 import { resolveUserEmailLocale } from "@/modules/auth/email/auth-email.locale";
+import { toPublicGatewayRef } from "@/modules/payments/utils/payment-reference.util";
 function mapInvoiceItem(item: {
   id: string;
   productId: string | null;
@@ -77,7 +78,7 @@ function mapInvoice(invoice: {
       id: payment.id,
       status: payment.status,
       amount: Number(payment.amount),
-      gatewayRef: payment.gatewayRef,
+      gatewayRef: toPublicGatewayRef(payment.gatewayRef),
       createdAt: payment.createdAt,
     })),
     createdAt: invoice.createdAt,

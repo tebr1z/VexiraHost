@@ -156,6 +156,7 @@ export class AdminCustomerHostingService {
       amount: input.amount,
       currency: input.currency,
       invoiceNumber: invoice.invoiceNumber,
+      invoiceId: invoice.id,
       dueDate: due,
       graceDays: GRACE_DAYS,
     });

@@ -1,5 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import type { DeployDomainMode, DeployStack, DeployStatus, Prisma } from "@prisma/client";
+import type {
+  DeployDomainMode,
+  DeployRuntime,
+  DeployStack,
+  DeployStatus,
+  Prisma,
+} from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
 
@@ -11,7 +17,10 @@ export class DeployRepository {
     return this.prisma.appDeployment.findUnique({
       where: { id },
       include: {
-        hostingAccount: { include: { server: true } },
+        deployServer: true,
+        hostingAccount: {
+          include: { server: true, plan: { include: { autoDeployServer: true } } },
+        },
         runs: { orderBy: { startedAt: "desc" }, take: 5 },
       },
     });
@@ -21,7 +30,10 @@ export class DeployRepository {
     return this.prisma.appDeployment.findFirst({
       where: { id, userId },
       include: {
-        hostingAccount: { include: { server: true } },
+        deployServer: true,
+        hostingAccount: {
+          include: { server: true, plan: { include: { autoDeployServer: true } } },
+        },
         runs: { orderBy: { startedAt: "desc" }, take: 5 },
       },
     });
@@ -32,6 +44,7 @@ export class DeployRepository {
       where: { hostingAccountId, userId },
       orderBy: { createdAt: "desc" },
       include: {
+        deployServer: true,
         runs: { orderBy: { startedAt: "desc" }, take: 1 },
       },
     });
@@ -41,7 +54,10 @@ export class DeployRepository {
     return this.prisma.appDeployment.findMany({
       where: { hostingAccountId },
       include: {
-        hostingAccount: { include: { server: true } },
+        deployServer: true,
+        hostingAccount: {
+          include: { server: true, plan: { include: { autoDeployServer: true } } },
+        },
       },
     });
   }
@@ -49,14 +65,17 @@ export class DeployRepository {
   create(data: {
     hostingAccountId: string;
     userId: string;
+    deployServerId: string;
     name: string;
     stack: DeployStack;
     domainMode: DeployDomainMode;
     subdomain?: string | null;
     deployDomain: string;
-    source?: "GIT" | "DOCKER_IMAGE";
+    source?: "GIT" | "DOCKER_IMAGE" | "UPLOAD";
+    runtime: DeployRuntime;
     repoUrl: string;
     imageRef?: string | null;
+    sourceArchivePath?: string | null;
     branch: string;
     rootDirectory?: string | null;
     containerPort: number;
@@ -112,9 +131,25 @@ export class DeployRepository {
   listUsedPortsOnServer(serverId: string): Promise<number[]> {
     return this.prisma.appDeployment
       .findMany({
-        where: { hostingAccount: { serverId } },
+        where: {
+          OR: [
+            { deployServerId: serverId },
+            { deployServerId: null, hostingAccount: { serverId } },
+          ],
+        },
         select: { hostPort: true },
       })
       .then((rows: Array<{ hostPort: number }>) => rows.map((row) => row.hostPort));
+  }
+
+  countForAccount(hostingAccountId: string): Promise<number> {
+    return this.prisma.appDeployment.count({ where: { hostingAccountId } });
+  }
+
+  updateAccountDeployUsage(hostingAccountId: string, autoDeployDiskUsedMb: number) {
+    return this.prisma.hostingAccount.update({
+      where: { id: hostingAccountId },
+      data: { autoDeployDiskUsedMb, storageCheckedAt: new Date() },
+    });
   }
 }

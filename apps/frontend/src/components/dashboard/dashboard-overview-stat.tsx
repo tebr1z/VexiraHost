@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 import { MaterialIcon } from "@/components/landing/material-icon";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
@@ -42,7 +40,6 @@ export function DashboardOverviewStat({
   value,
   icon,
   accent = "blue",
-  delay = 0,
 }: {
   href: string;
   label: string;
@@ -54,40 +51,33 @@ export function DashboardOverviewStat({
   const styles = ACCENT_STYLES[accent];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.38, delay, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -4 }}
+    <Link
+      href={href}
+      className={cn(
+        "vexira-overview-card group relative flex min-h-[126px] overflow-hidden rounded-[16px] border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 transition-colors hover:border-[var(--accent)]",
+      )}
     >
-      <Link
-        href={href}
-        className={cn(
-          "hover:border-[var(--accent)]/20 group relative flex min-h-[118px] overflow-hidden rounded-2xl border border-[var(--separator)] bg-[var(--bg-elevated)] p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-black/5",
-          "border-t-2",
-          styles.border,
-        )}
-      >
-        <div className="relative z-10 flex w-full items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-[var(--label-secondary)]">{label}</p>
-            <p className="mt-2 truncate text-3xl font-bold tabular-nums tracking-tight text-[var(--label-primary)]">
-              {value}
-            </p>
-          </div>
-          <div
-            className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110",
-              styles.iconBg,
-            )}
-          >
-            <MaterialIcon name={icon} className={cn("text-[24px]", styles.iconText)} />
-          </div>
+      <div className="relative z-10 flex w-full items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--label-tertiary)]">
+            {label}
+          </p>
+          <p className="mt-3 truncate text-[2rem] font-bold tabular-nums tracking-[-0.035em] text-[var(--label-primary)]">
+            {value}
+          </p>
         </div>
-        <span className="absolute bottom-3 right-4 translate-x-1 text-[var(--label-tertiary)] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
-          <MaterialIcon name="arrow_forward" className="text-[18px]" />
-        </span>
-      </Link>
-    </motion.div>
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            styles.iconBg,
+          )}
+        >
+          <MaterialIcon name={icon} className={cn("text-[24px]", styles.iconText)} />
+        </div>
+      </div>
+      <span className="absolute bottom-3 right-4 translate-x-1 text-[var(--label-tertiary)] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
+        <MaterialIcon name="arrow_forward" className="text-[18px]" />
+      </span>
+    </Link>
   );
 }

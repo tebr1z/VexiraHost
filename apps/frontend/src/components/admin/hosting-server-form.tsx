@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { getApiErrorMessage } from "@/lib/api-error";
+
 export interface HostingServerFormValues {
   name: string;
   hostname: string;
@@ -17,6 +19,8 @@ export interface HostingServerFormValues {
   sshPort: string;
   isDefault: boolean;
   isActive: boolean;
+  deployNodeEnabled: boolean;
+  setupAfterSave: boolean;
   maxAccounts: string;
 }
 
@@ -24,8 +28,8 @@ const DEFAULT_VALUES: HostingServerFormValues = {
   name: "",
   hostname: "",
   ipAddress: "",
-  panel: "CPANEL",
-  whmUsername: "root",
+  panel: "PLESK",
+  whmUsername: "admin",
   whmPassword: "",
   apiToken: "",
   osVersion: "",
@@ -34,6 +38,8 @@ const DEFAULT_VALUES: HostingServerFormValues = {
   sshPort: "22",
   isDefault: false,
   isActive: true,
+  deployNodeEnabled: false,
+  setupAfterSave: false,
   maxAccounts: "",
 };
 
@@ -42,13 +48,16 @@ export function HostingServerForm({
   submitLabel,
   onSubmit,
   onTest,
+  sshPasswordConfigured = false,
 }: {
   initialValues?: Partial<HostingServerFormValues>;
   submitLabel: string;
   onSubmit: (values: HostingServerFormValues) => Promise<void>;
   onTest?: () => Promise<void>;
+  sshPasswordConfigured?: boolean;
 }): React.ReactElement {
   const tf = useTranslations("admin.forms");
+  const tw = useTranslations("admin.forms.serverWorkflow");
   const [values, setValues] = useState<HostingServerFormValues>({
     ...DEFAULT_VALUES,
     ...initialValues,
@@ -57,6 +66,8 @@ export function HostingServerForm({
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
+  const needsSsh =
+    values.deployNodeEnabled && (!initialValues?.deployNodeEnabled || values.setupAfterSave);
 
   const update = (key: keyof HostingServerFormValues, value: string | boolean) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -69,11 +80,7 @@ export function HostingServerForm({
     try {
       await onSubmit(values);
     } catch (err) {
-      const msg =
-        err && typeof err === "object" && "error" in err
-          ? (err as { error?: { message?: string } }).error?.message
-          : tf("saveFailed");
-      setError(msg ?? tf("saveFailed"));
+      setError(getApiErrorMessage(err, tf("saveFailed")));
     } finally {
       setLoading(false);
     }
@@ -110,6 +117,7 @@ export function HostingServerForm({
           <Field label={tf("serverName")}>
             <input
               value={values.name}
+              minLength={2}
               onChange={(e) => update("name", e.target.value)}
               required
               className={inputClass}
@@ -122,12 +130,13 @@ export function HostingServerForm({
               onChange={(e) => update("ipAddress", e.target.value)}
               required
               className={inputClass}
-              placeholder={tf("ipPlaceholder")}
+              placeholder="192.0.2.10"
             />
           </Field>
           <Field label={tf("hostname")}>
             <input
               value={values.hostname}
+              minLength={3}
               onChange={(e) => update("hostname", e.target.value)}
               required
               className={inputClass}
@@ -137,7 +146,18 @@ export function HostingServerForm({
           <Field label={tf("panel")}>
             <select
               value={values.panel}
-              onChange={(e) => update("panel", e.target.value as "CPANEL" | "PLESK")}
+              onChange={(e) => {
+                const panel = e.target.value as "CPANEL" | "PLESK";
+                setValues((prev) => ({
+                  ...prev,
+                  panel,
+                  whmUsername: ["root", "admin"].includes(prev.whmUsername)
+                    ? panel === "PLESK"
+                      ? "admin"
+                      : "root"
+                    : prev.whmUsername,
+                }));
+              }}
               className={inputClass}
             >
               <option value="CPANEL">cPanel / WHM</option>
@@ -182,6 +202,7 @@ export function HostingServerForm({
             <input
               type="password"
               value={values.whmPassword}
+              minLength={4}
               onChange={(e) => update("whmPassword", e.target.value)}
               required={!initialValues}
               className={inputClass}
@@ -201,13 +222,15 @@ export function HostingServerForm({
       <section className="border-outline-variant/40 space-y-4 border-t pt-6">
         <div>
           <h2 className="text-on-surface text-sm font-semibold">{tf("deploySshSection")}</h2>
-          <p className="text-on-surface-variant mt-1 text-xs">{tf("deploySshSectionHint")}</p>
+          <p className="text-on-surface-variant mt-1 text-xs">{tw("sshHint")}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={tf("sshUsername")}>
             <input
               value={values.sshUsername}
               onChange={(e) => update("sshUsername", e.target.value)}
+              required={needsSsh}
+              autoComplete="off"
               className={inputClass}
               placeholder={tf("sshUsernamePlaceholder")}
             />
@@ -217,8 +240,13 @@ export function HostingServerForm({
               type="password"
               value={values.sshPassword}
               onChange={(e) => update("sshPassword", e.target.value)}
+              required={needsSsh && !sshPasswordConfigured}
+              minLength={4}
+              autoComplete="new-password"
               className={inputClass}
-              placeholder={initialValues ? tf("sshPasswordKeep") : tf("sshPasswordPlaceholder")}
+              placeholder={
+                sshPasswordConfigured ? tf("sshPasswordKeep") : tw("sshPasswordPlaceholder")
+              }
             />
           </Field>
           <Field label={tf("sshPort")}>
@@ -227,11 +255,58 @@ export function HostingServerForm({
               min={1}
               max={65535}
               value={values.sshPort}
+              required={needsSsh}
               onChange={(e) => update("sshPort", e.target.value)}
               className={inputClass}
             />
           </Field>
         </div>
+      </section>
+
+      <section className="border-primary/25 bg-primary/5 space-y-4 rounded-xl border p-5">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            className="accent-primary mt-1 size-4"
+            checked={values.deployNodeEnabled}
+            onChange={(e) =>
+              setValues((prev) => ({
+                ...prev,
+                deployNodeEnabled: e.target.checked,
+                setupAfterSave: e.target.checked ? prev.setupAfterSave : false,
+              }))
+            }
+          />
+          <span>
+            <span className="text-on-surface block text-sm font-semibold">
+              {tw("capabilityTitle")}
+            </span>
+            <span className="text-on-surface-variant mt-1 block text-sm">
+              {tw("capabilityHint")}
+            </span>
+          </span>
+        </label>
+        {values.deployNodeEnabled ? (
+          <div className="border-primary/15 space-y-3 border-t pt-4">
+            <p className="text-on-surface-variant text-xs leading-relaxed">{tw("runtimeHint")}</p>
+            <label className="flex cursor-pointer items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="accent-primary mt-1 size-4"
+                checked={values.setupAfterSave}
+                onChange={(e) => update("setupAfterSave", e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">{tw("setupAfterSave")}</span>
+                <span className="text-on-surface-variant mt-1 block text-xs leading-relaxed">
+                  {tw("setupHint")}
+                </span>
+              </span>
+            </label>
+          </div>
+        ) : (
+          <p className="text-on-surface-variant text-xs">{tw("hostingOnlyHint")}</p>
+        )}
       </section>
 
       <div className="border-outline-variant/40 flex flex-wrap gap-4 border-t pt-4">
@@ -253,7 +328,11 @@ export function HostingServerForm({
         </label>
       </div>
 
-      {error && <p className="text-error text-sm">{error}</p>}
+      {error && (
+        <p role="alert" className="text-error text-sm">
+          {error}
+        </p>
+      )}
       {testMessage && <p className="text-on-surface-variant text-sm">{testMessage}</p>}
 
       <div className="flex flex-wrap gap-3">
@@ -300,6 +379,7 @@ export function toServerPayload(values: HostingServerFormValues, isEdit = false)
     whmUsername: values.whmUsername.trim(),
     isDefault: values.isDefault,
     isActive: values.isActive,
+    deployNodeEnabled: values.deployNodeEnabled,
   };
 
   if (values.whmPassword.trim()) {

@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { TenantResourcePanel } from "@/components/hosting/tenant-resource-panel";
 import { PageHeader, StatusBadge } from "@/components/ui";
 import {
   deleteAdminHostingAccount,
@@ -12,6 +13,7 @@ import {
   reassignAdminHostingProvision,
   retryAdminHostingProvision,
   updateAdminHostingAccountStatus,
+  updateAdminHostingAutoDeployLimits,
   type AdminHostingAccount,
   type HostingServer,
 } from "@/features/admin";
@@ -21,16 +23,109 @@ import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "@/stores/toast-store";
 
+function AutoDeployLimitsEditor({
+  account,
+  editable,
+  onUpdated,
+  labels,
+}: {
+  account: AdminHostingAccount;
+  editable: boolean;
+  onUpdated: (account: AdminHostingAccount) => void;
+  labels: Record<"disk" | "apps" | "ai" | "edit" | "save" | "inherit" | "saved" | "failed", string>;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [disk, setDisk] = useState(account.autoDeployLimits.diskGbOverride?.toString() ?? "");
+  const [apps, setApps] = useState(account.autoDeployLimits.maxAppsOverride?.toString() ?? "");
+  const [ai, setAi] = useState(account.autoDeployLimits.aiCreditsOverride?.toString() ?? "");
+
+  const save = async () => {
+    const parse = (value: string) => (value.trim() ? Number.parseInt(value, 10) : null);
+    setSaving(true);
+    try {
+      const updated = await updateAdminHostingAutoDeployLimits(account.id, {
+        autoDeployDiskGbOverride: parse(disk),
+        autoDeployMaxAppsOverride: parse(apps),
+        autoDeployAiCreditsOverride: parse(ai),
+      });
+      onUpdated(updated);
+      setOpen(false);
+      toast(labels.saved, "success");
+    } catch (error) {
+      toast(getApiErrorMessage(error, labels.failed), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1 text-xs">
+      <p>
+        {labels.disk}: {account.autoDeployLimits.diskGb} GB
+      </p>
+      <p className="text-on-surface-variant">
+        {labels.apps}: {account.autoDeployLimits.maxApps} · {labels.ai}:{" "}
+        {account.autoDeployLimits.aiCredits}
+      </p>
+      {editable ? (
+        <>
+          <button
+            type="button"
+            className="text-primary font-semibold"
+            onClick={() => setOpen((value) => !value)}
+          >
+            {labels.edit}
+          </button>
+          {open ? (
+            <div className="space-y-2 rounded-xl border border-[var(--separator)] p-2">
+              {[
+                [labels.disk, disk, setDisk, 1],
+                [labels.apps, apps, setApps, 1],
+                [labels.ai, ai, setAi, 0],
+              ].map(([label, value, setter, min]) => (
+                <label key={String(label)} className="block">
+                  <span className="mb-1 block text-[10px] text-[var(--label-secondary)]">
+                    {String(label)}
+                  </span>
+                  <input
+                    type="number"
+                    min={Number(min)}
+                    value={String(value)}
+                    placeholder={labels.inherit}
+                    onChange={(event) => (setter as (value: string) => void)(event.target.value)}
+                    className="h-8 w-full rounded-lg border border-[var(--separator)] bg-[var(--bg-primary)] px-2"
+                  />
+                </label>
+              ))}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void save()}
+                className="bg-primary text-on-primary h-8 w-full rounded-lg font-semibold disabled:opacity-50"
+              >
+                {labels.save}
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AdminHostingAccountsPage(): React.ReactElement | null {
   useRequireAuth();
   const t = useTranslations("admin");
   const tp = useTranslations("admin.pages.hostingAccounts");
   const tStage = useTranslations("dashboard.provision.stages");
   const tu = useTranslations("ui");
+  const tr = useTranslations("deployResources");
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
 
   const [accounts, setAccounts] = useState<AdminHostingAccount[]>([]);
+  const [resourceAccount, setResourceAccount] = useState<AdminHostingAccount | null>(null);
   const [servers, setServers] = useState<HostingServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -361,6 +456,22 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
         </div>
       )}
 
+      {isAdmin && resourceAccount ? (
+        <div className="space-y-3 rounded-2xl border border-[var(--separator)] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">{resourceAccount.primaryDomain}</h2>
+            <button
+              type="button"
+              onClick={() => setResourceAccount(null)}
+              className="text-primary text-sm font-semibold"
+            >
+              {tr("close")}
+            </button>
+          </div>
+          <TenantResourcePanel key={resourceAccount.id} accountId={resourceAccount.id} admin />
+        </div>
+      ) : null}
+
       {isAdmin && atRiskAccounts.length > 0 && (
         <div className="rounded-2xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
           <h2 className="text-sm font-semibold text-amber-950 dark:text-amber-100">
@@ -464,6 +575,7 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                 )}
                 <th className="px-3 py-3">{tp("domain")}</th>
                 <th className="px-3 py-3">{tp("plan")}</th>
+                <th className="px-3 py-3">{tp("autoDeployLimits")}</th>
                 <th className="px-3 py-3">{t("nav.hostingServers")}</th>
                 <th className="px-3 py-3">{tu("table.status")}</th>
                 <th className="px-3 py-3">{tp("provisionStage")}</th>
@@ -507,6 +619,32 @@ export default function AdminHostingAccountsPage(): React.ReactElement | null {
                       </p>
                     </td>
                     <td className="px-3 py-3">{account.plan.name}</td>
+                    <td className="min-w-[220px] px-3 py-3">
+                      <AutoDeployLimitsEditor
+                        account={account}
+                        editable={isAdmin}
+                        onUpdated={updateAccountInList}
+                        labels={{
+                          disk: tp("autoDeployDisk"),
+                          apps: tp("autoDeployApps"),
+                          ai: tp("autoDeployAi"),
+                          edit: tp("editLimits"),
+                          save: tp("saveLimits"),
+                          inherit: tp("inheritPlan"),
+                          saved: tp("limitsSaved"),
+                          failed: tp("limitsSaveFailed"),
+                        }}
+                      />
+                      {isAdmin && account.panel === "PLESK" ? (
+                        <button
+                          type="button"
+                          onClick={() => setResourceAccount(account)}
+                          className="text-primary mt-2 text-xs font-semibold"
+                        >
+                          {tr("viewUsage")}
+                        </button>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-3">{account.server?.name ?? "—"}</td>
                     <td className="px-3 py-3">
                       <StatusBadge status={account.status} />

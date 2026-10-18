@@ -1,8 +1,8 @@
-﻿import { Module } from '@nestjs/common';
+﻿import { Module } from "@nestjs/common";
 
-import { BillingController } from './controller/billing.controller';
-import { BillingService } from './service/billing.service';
-import { BillingRepository } from './repository/billing.repository';
+import { BillingController } from "./controller/billing.controller";
+import { BillingRepository } from "./repository/billing.repository";
+import { BillingService } from "./service/billing.service";
 
 @Module({
   controllers: [BillingController],

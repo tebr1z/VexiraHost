@@ -8,3 +8,5 @@ export * from "./oauth.config";
 export * from "./registrar.config";
 export * from "./proxmox.config";
 export * from "./deploy.config";
+export * from "./cloudflare.config";
+export * from "./powerdns.config";

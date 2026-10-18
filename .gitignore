@@ -5,6 +5,7 @@ node_modules/
 # Build outputs
 dist/
 .next/
+.next-dev/
 out/
 build/
 *.tsbuildinfo
@@ -24,6 +25,7 @@ pnpm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+.jest-cache/
 playwright-report/
 test-results/
 

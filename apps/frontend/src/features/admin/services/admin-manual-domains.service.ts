@@ -14,6 +14,9 @@ export interface AdminManualDomain {
   billingCurrency: string;
   graceEndsAt: string | null;
   renewalInvoiceId: string | null;
+  dnsProvider: "LOCAL" | "CLOUDFLARE" | "POWERDNS";
+  dnsProviderStatus: string | null;
+  dnsLastSyncedAt: string | null;
   nameservers: string[];
   nsGlueRecords: Array<{ host: string; ip: string }>;
   dnsRecordCount: number;

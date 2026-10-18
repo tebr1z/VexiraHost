@@ -158,15 +158,6 @@ export async function seedHostingCmsPage(prisma: PrismaClient): Promise<void> {
                   ),
                 },
                 {
-                  icon: "cloud_sync",
-                  label: l(
-                    "Haftalık otomatik yedekleme",
-                    "Weekly automatic backups",
-                    "Еженедельные бэкапы",
-                    "Həftəlik avtomatik ehtiyat nüsxə",
-                  ),
-                },
-                {
                   icon: "mail",
                   label: l(
                     "Webmail e-posta erişimi",

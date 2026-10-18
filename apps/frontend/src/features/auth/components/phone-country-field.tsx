@@ -42,6 +42,7 @@ function CountryFlag({
       aria-hidden
       width={size}
       height={Math.round(size * 0.75)}
+      style={{ width: size, height: Math.round(size * 0.75) }}
       className={cn(
         "shrink-0 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10",
         className,

@@ -1,8 +1,46 @@
 import { BadRequestException } from "@nestjs/common";
 
+/** Accept a docker pull ref or a Docker Hub / registry URL and return a pullable image. */
+export function parseDockerImageInput(raw: string | null | undefined): string {
+  let value = (raw ?? "").trim();
+  if (!value) return "";
+  value = value.replace(/^docker\s+pull\s+/i, "").trim();
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.replace(/^www\./, "");
+      const parts = url.pathname.split("/").filter(Boolean);
+      const tag = url.searchParams.get("tag") || url.searchParams.get("name");
+
+      if (host === "hub.docker.com") {
+        let image = "";
+        if (parts[0] === "_" && parts[1]) image = parts[1];
+        else if (parts[0] === "r" && parts[1] && parts[2]) image = `${parts[1]}/${parts[2]}`;
+        else if (parts[0] === "repository" && parts[1] === "docker" && parts[2] && parts[3]) {
+          image = `${parts[2]}/${parts[3]}`;
+        }
+        if (image && tag && !image.includes(":")) return `${image}:${tag}`;
+        return image;
+      }
+
+      if (host.includes(".") && parts.length >= 1) {
+        const path = parts.join("/").replace(/\/+$/, "");
+        const image = `${host}/${path}`;
+        if (tag && !image.includes(":")) return `${image}:${tag}`;
+        return image;
+      }
+    } catch {
+      return value;
+    }
+  }
+
+  return value.replace(/^docker\.io\//i, "");
+}
+
 /** Reject shell metacharacters so the ref is safe in remote SSH commands. */
 export function sanitizeDockerImageRef(raw: string | null | undefined): string {
-  const value = (raw ?? "").trim();
+  const value = parseDockerImageInput(raw);
   if (value.length < 2 || value.length > 255) {
     throw new BadRequestException("Docker image must be 2–255 characters");
   }

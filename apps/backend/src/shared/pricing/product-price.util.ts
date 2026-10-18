@@ -6,15 +6,27 @@ import {
   parseCurrency,
   parsePeriod,
   type SupportedCurrency,
-  type SupportedPeriod,
 } from "@/shared/pricing/currency.util";
 
 export interface ResolvedProductPrice {
   currency: SupportedCurrency;
-  period: SupportedPeriod;
+  period: PricePeriod;
   originalPrice: number;
   salePrice: number;
   discountPercent: number;
+}
+
+/** One price per currency. Prefer explicit one-time prices, then legacy base prices. */
+export function oneTimeProductPrices<T extends { currency: string; period: string }>(
+  prices: T[],
+): Array<T & { period: "ONE_TIME" }> {
+  const rank = (period: string) => (period === "ONE_TIME" ? 0 : period === "MONTHLY" ? 1 : 2);
+  const selected = new Map<string, T>();
+  for (const row of prices) {
+    const current = selected.get(row.currency);
+    if (!current || rank(row.period) < rank(current.period)) selected.set(row.currency, row);
+  }
+  return [...selected.values()].map((row) => ({ ...row, period: "ONE_TIME" }));
 }
 
 export function resolveProductPrice(
@@ -25,12 +37,12 @@ export function resolveProductPrice(
   if (!prices.length) return null;
 
   const currency = parseCurrency(currencyInput);
-  const period = parsePeriod(periodInput);
+  const period = periodInput === "ONE_TIME" ? "ONE_TIME" : parsePeriod(periodInput);
 
   const pick = (
     row: ProductPrice,
     resolvedCurrency: SupportedCurrency,
-    resolvedPeriod: SupportedPeriod,
+    resolvedPeriod: PricePeriod,
   ) => {
     const originalPrice = Number(row.originalPrice);
     const salePrice = Number(row.salePrice);
@@ -43,6 +55,15 @@ export function resolveProductPrice(
     };
   };
 
+  if (period === "ONE_TIME") {
+    const rows = oneTimeProductPrices(prices);
+    const row =
+      rows.find((p) => p.currency === currency) ??
+      rows.find((p) => p.currency === "USD") ??
+      rows[0];
+    return row ? pick(row, row.currency as SupportedCurrency, "ONE_TIME") : null;
+  }
+
   const exact = prices.find((p) => p.currency === currency && p.period === period);
   if (exact) return pick(exact, currency, period);
 
@@ -53,11 +74,7 @@ export function resolveProductPrice(
 
   const sameCurrencyAny = prices.find((p) => p.currency === currency);
   if (sameCurrencyAny) {
-    return pick(
-      sameCurrencyAny,
-      currency,
-      sameCurrencyAny.period === PricePeriod.YEARLY ? "YEARLY" : "MONTHLY",
-    );
+    return pick(sameCurrencyAny, currency, sameCurrencyAny.period);
   }
 
   const requestedPeriodAny = prices.find((p) => p.period === period);
@@ -76,11 +93,7 @@ export function resolveProductPrice(
   }
 
   const first = prices[0];
-  return pick(
-    first,
-    first.currency as SupportedCurrency,
-    first.period === PricePeriod.YEARLY ? "YEARLY" : "MONTHLY",
-  );
+  return pick(first, first.currency as SupportedCurrency, first.period);
 }
 
 export function availableCurrenciesFromPrices(

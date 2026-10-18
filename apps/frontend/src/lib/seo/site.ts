@@ -20,7 +20,7 @@ export const SEO_PUBLIC_PATHS: Array<{
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/hosting", changeFrequency: "weekly", priority: 0.9 },
   { path: "/vps", changeFrequency: "weekly", priority: 0.9 },
-  { path: "/domains", changeFrequency: "weekly", priority: 0.85 },
+  { path: "/domains/search", changeFrequency: "weekly", priority: 0.85 },
   { path: "/products/whatsapp-api", changeFrequency: "weekly", priority: 0.85 },
   { path: "/about", changeFrequency: "monthly", priority: 0.7 },
   { path: "/design", changeFrequency: "monthly", priority: 0.8 },

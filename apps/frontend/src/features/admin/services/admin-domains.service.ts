@@ -13,6 +13,38 @@ export interface AdminTldPricing {
   updatedAt: string;
 }
 
+export interface AdminDomainInventoryItem {
+  id: string;
+  name: string;
+  status: string;
+  managementMode: "MANUAL" | "REGISTRAR";
+  registrarSource: string | null;
+  registrarRef: string | null;
+  expiresAt: string | null;
+  autoRenew: boolean;
+  dnsProvider: "LOCAL" | "CLOUDFLARE" | "POWERDNS";
+  dnsProviderStatus: string | null;
+  dnsLastSyncedAt: string | null;
+  billingAmount: number | null;
+  billingCurrency: string;
+  dnsRecordCount: number;
+  pendingChangeCount: number;
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  };
+}
+
+export async function listAdminDomains(q?: string): Promise<AdminDomainInventoryItem[]> {
+  const res = await apiClient.request<AdminDomainInventoryItem[]>("/admin/domains", {
+    params: q?.trim().length ? { q: q.trim() } : undefined,
+  });
+  return res.data ?? [];
+}
+
 export async function listAdminTlds(): Promise<AdminTldPricing[]> {
   const res = await apiClient.request<AdminTldPricing[]>("/admin/domains/tlds");
   return res.data ?? [];

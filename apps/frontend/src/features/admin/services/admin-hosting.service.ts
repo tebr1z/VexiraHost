@@ -18,6 +18,16 @@ export interface HostingServer {
   activeAccountCount: number;
   lastCheckedAt: string | null;
   lastConnectionOk: boolean | null;
+  deployNodeEnabled: boolean;
+  deployHealth: "UNKNOWN" | "HEALTHY" | "DEGRADED" | "DOWN";
+  deployHealthMessage: string | null;
+  deployHealthCheckedAt: string | null;
+  deployCpuLoadPercent: number | null;
+  deployMemoryUsedMb: number | null;
+  deployMemoryTotalMb: number | null;
+  deployDiskUsedMb: number | null;
+  deployDiskTotalMb: number | null;
+  deployUptimeSeconds: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +46,20 @@ export interface AdminHostingAccount {
   cancelRequestedAt?: string | null;
   cancelApprovedAt?: string | null;
   scheduledPurgeAt?: string | null;
+  autoDeployLimits: {
+    diskGb: number;
+    maxApps: number;
+    aiCredits: number;
+    diskGbOverride: number | null;
+    maxAppsOverride: number | null;
+    aiCreditsOverride: number | null;
+  };
+  storageUsage: {
+    autoDeployDiskUsedMb: number;
+    pleskDiskUsedMb: number;
+    pleskDiskLimitGb: number;
+    checkedAt: string | null;
+  };
   plan: { id: string; slug: string; name: string };
   server: {
     id: string;
@@ -76,6 +100,7 @@ export async function createHostingServer(input: {
   sshPort?: number;
   isDefault?: boolean;
   isActive?: boolean;
+  deployNodeEnabled?: boolean;
   maxAccounts?: number;
 }): Promise<HostingServer> {
   const res = await apiClient.request<HostingServer>("/admin/hosting/servers", {
@@ -101,6 +126,7 @@ export async function updateHostingServer(
     sshPort: number;
     isDefault: boolean;
     isActive: boolean;
+    deployNodeEnabled: boolean;
     maxAccounts: number | null;
   }>,
 ): Promise<HostingServer> {
@@ -196,6 +222,21 @@ export async function updateAdminHostingAccountStatus(
   return res.data as AdminHostingAccount;
 }
 
+export async function updateAdminHostingAutoDeployLimits(
+  id: string,
+  input: {
+    autoDeployDiskGbOverride: number | null;
+    autoDeployMaxAppsOverride: number | null;
+    autoDeployAiCreditsOverride: number | null;
+  },
+): Promise<AdminHostingAccount> {
+  const res = await apiClient.request<AdminHostingAccount>(
+    `/admin/hosting/accounts/${id}/auto-deploy-limits`,
+    { method: "PATCH", body: input },
+  );
+  return res.data as AdminHostingAccount;
+}
+
 export async function resolveAdminHostingCancelRequest(
   id: string,
   action: "approve" | "deactivate" | "delete" | "reject",
@@ -255,12 +296,19 @@ export interface ServerSetupStatus {
     sshUsername: string | null;
     sshPort: number;
     sshConfigured: boolean;
+    deployNodeEnabled: boolean;
+    deployHealth: "UNKNOWN" | "HEALTHY" | "DEGRADED" | "DOWN";
+    deployHealthMessage: string | null;
+    deployHealthCheckedAt: string | null;
   };
   mockRemote: boolean;
   tools: {
     git: string | null;
     docker: string | null;
     compose: string | null;
+    node: string | null;
+    npm: string | null;
+    pm2: string | null;
     os: string | null;
     probedAt: string;
   } | null;

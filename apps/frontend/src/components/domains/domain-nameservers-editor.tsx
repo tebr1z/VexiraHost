@@ -6,12 +6,14 @@ interface DomainNameserversEditorProps {
   nameservers: string[];
   onChange: (nameservers: string[]) => void;
   translationScope: "dashboard" | "admin";
+  disabled?: boolean;
 }
 
 export function DomainNameserversEditor({
   nameservers,
   onChange,
   translationScope,
+  disabled = false,
 }: DomainNameserversEditorProps): React.ReactElement {
   const t = useTranslations(
     translationScope === "dashboard" ? "dashboard.pages.domains" : "admin.pages.users.domains",
@@ -51,6 +53,7 @@ export function DomainNameserversEditor({
               <input
                 type="text"
                 value={ns}
+                disabled={disabled}
                 onChange={(e) => updateNameserver(index, e.target.value)}
                 placeholder={`ns${index + 1}.vexirahost.com`}
                 className="border-outline-variant/40 bg-surface-container-lowest w-full rounded-lg border px-3 py-2.5 font-mono text-sm"
@@ -59,7 +62,7 @@ export function DomainNameserversEditor({
             <button
               type="button"
               onClick={() => removeNameserver(index)}
-              disabled={nameservers.length <= 2}
+              disabled={disabled || nameservers.length <= 2}
               className="border-outline-variant/50 text-on-surface-variant hover:border-error/40 hover:text-error h-10 rounded-lg border px-4 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t("nsGlueDelete")}
@@ -70,8 +73,9 @@ export function DomainNameserversEditor({
 
       <button
         type="button"
+        disabled={disabled}
         onClick={addNameserver}
-        className="text-secondary text-sm font-semibold hover:underline"
+        className="text-secondary text-sm font-semibold hover:underline disabled:opacity-50"
       >
         {t("addNameserver")}
       </button>

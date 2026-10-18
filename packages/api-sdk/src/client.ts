@@ -88,9 +88,10 @@ export class ApiClient {
    */
   async request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const url = this.buildUrl(path, options.params);
+    const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
 
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...options.headers,
     };
 
@@ -104,7 +105,11 @@ export class ApiClient {
       response = await fetch(url.toString(), {
         method: options.method ?? "GET",
         headers,
-        body: options.body ? JSON.stringify(options.body) : undefined,
+        body: isFormData
+          ? (options.body as FormData)
+          : options.body
+            ? JSON.stringify(options.body)
+            : undefined,
       });
     } catch (err) {
       throw new ApiClientError({

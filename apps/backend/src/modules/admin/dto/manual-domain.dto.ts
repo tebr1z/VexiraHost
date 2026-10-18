@@ -18,6 +18,7 @@ import {
 } from "class-validator";
 
 import { DnsRecordDto, NsGlueEntryDto } from "@/modules/domains/dto";
+import { SUPPORTED_CURRENCIES } from "@/shared/pricing/currency.util";
 
 export class AssignManualDomainDto {
   @IsOptional()
@@ -137,7 +138,7 @@ export class AdminCreditBalanceDto {
   amount!: number;
 
   @IsOptional()
-  @IsString()
+  @IsIn([...SUPPORTED_CURRENCIES])
   currency?: string;
 
   @IsOptional()

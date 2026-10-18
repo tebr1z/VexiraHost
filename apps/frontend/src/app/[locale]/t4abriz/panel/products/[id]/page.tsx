@@ -55,6 +55,8 @@ export default function EditProductPage(): React.ReactElement | null {
           catalogCategoryId: product.catalogCategoryId ?? "",
           hostingPlanSlug: product.hostingPlanSlug ?? "",
           price: String(product.price),
+          minimumQuantity: String(product.minimumQuantity ?? 1),
+          requiresQuote: product.requiresQuote ?? false,
           isActive: product.isActive,
           sortOrder: String(product.sortOrder),
           ...pricingOptionsFromAdmin(product.prices),

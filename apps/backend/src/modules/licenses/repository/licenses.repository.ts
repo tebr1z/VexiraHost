@@ -30,7 +30,12 @@ export class LicensesRepository {
     expiresAt?: Date | null;
     provisionedAt?: Date;
   }) {
-    return this.prisma.addonService.create({ data });
+    return this.prisma.addonService.create({
+      data: {
+        ...data,
+        ...(data.type === "LICENSE" ? { autoRenew: false, expiresAt: null } : {}),
+      },
+    });
   }
 
   updateAddon(

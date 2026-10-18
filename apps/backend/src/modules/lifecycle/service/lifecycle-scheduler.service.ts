@@ -21,6 +21,11 @@ export class LifecycleSchedulerService implements OnModuleInit, OnModuleDestroy 
   ) {}
 
   async onModuleInit(): Promise<void> {
+    if (process.env.LIFECYCLE_JOBS_ENABLED === "false") {
+      this.logger.warn("Lifecycle schedulers disabled (LIFECYCLE_JOBS_ENABLED=false).");
+      return;
+    }
+
     if (!this.queue) {
       this.logger.warn("Redis queue unavailable; lifecycle jobs use single-process timers.");
       this.scheduleFallback(LifecycleJob.INVOICE_REMINDER, FIFTEEN_MINUTES);

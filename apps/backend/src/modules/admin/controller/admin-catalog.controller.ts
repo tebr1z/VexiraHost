@@ -1,9 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { UserRole } from "@vexira/types";
 
-import { Roles } from "@/decorators/auth.decorators";
-import { RolesGuard } from "@/guards/roles.guard";
-
 import {
   CreateHostingPlanDto,
   CreateProductDto,
@@ -13,6 +10,9 @@ import {
   UpdateServerPlanDto,
 } from "../dto";
 import { AdminCatalogService } from "../service/admin-catalog.service";
+
+import { Roles } from "@/decorators/auth.decorators";
+import { RolesGuard } from "@/guards/roles.guard";
 
 @Controller("admin")
 @UseGuards(RolesGuard)

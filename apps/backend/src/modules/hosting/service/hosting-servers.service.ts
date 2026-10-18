@@ -65,6 +65,16 @@ function mapServer(
     activeAccountCount: server._count?.accounts ?? server.accountCount,
     lastCheckedAt: server.lastCheckedAt,
     lastConnectionOk: server.lastConnectionOk,
+    deployNodeEnabled: server.deployNodeEnabled,
+    deployHealth: server.deployHealth,
+    deployHealthMessage: server.deployHealthMessage,
+    deployHealthCheckedAt: server.deployHealthCheckedAt,
+    deployCpuLoadPercent: server.deployCpuLoadPercent,
+    deployMemoryUsedMb: server.deployMemoryUsedMb,
+    deployMemoryTotalMb: server.deployMemoryTotalMb,
+    deployDiskUsedMb: server.deployDiskUsedMb,
+    deployDiskTotalMb: server.deployDiskTotalMb,
+    deployUptimeSeconds: server.deployUptimeSeconds,
     createdAt: server.createdAt,
     updatedAt: server.updatedAt,
   };
@@ -84,7 +94,21 @@ function mapAccount(account: {
   cancelRequestedAt?: Date | null;
   cancelApprovedAt?: Date | null;
   scheduledPurgeAt?: Date | null;
-  plan: { id: string; slug: string; name: string };
+  autoDeployDiskGbOverride?: number | null;
+  autoDeployMaxAppsOverride?: number | null;
+  autoDeployAiCreditsOverride?: number | null;
+  autoDeployDiskUsedMb?: number;
+  pleskDiskUsedMb?: number;
+  storageCheckedAt?: Date | null;
+  plan: {
+    id: string;
+    slug: string;
+    name: string;
+    diskGb?: number;
+    autoDeployDiskGb?: number;
+    autoDeployMaxApps?: number;
+    autoDeployAiMonthlyCredits?: number;
+  };
   user: { id: string; email: string; firstName: string | null; lastName: string | null };
   server?: {
     id: string;
@@ -108,6 +132,21 @@ function mapAccount(account: {
     cancelRequestedAt: account.cancelRequestedAt ?? null,
     cancelApprovedAt: account.cancelApprovedAt ?? null,
     scheduledPurgeAt: account.scheduledPurgeAt ?? null,
+    autoDeployLimits: {
+      diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb ?? 0,
+      maxApps: account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps ?? 0,
+      aiCredits:
+        account.autoDeployAiCreditsOverride ?? account.plan.autoDeployAiMonthlyCredits ?? 0,
+      diskGbOverride: account.autoDeployDiskGbOverride ?? null,
+      maxAppsOverride: account.autoDeployMaxAppsOverride ?? null,
+      aiCreditsOverride: account.autoDeployAiCreditsOverride ?? null,
+    },
+    storageUsage: {
+      autoDeployDiskUsedMb: account.autoDeployDiskUsedMb ?? 0,
+      pleskDiskUsedMb: account.pleskDiskUsedMb ?? 0,
+      pleskDiskLimitGb: account.plan.diskGb ?? 0,
+      checkedAt: account.storageCheckedAt ?? null,
+    },
     plan: {
       id: account.plan.id,
       slug: account.plan.slug,
@@ -172,7 +211,11 @@ export class HostingServersService {
     sshUsername?: string;
     sshPassword?: string;
     sshPort?: number;
+    deployNodeEnabled?: boolean;
   }) {
+    if (dto.deployNodeEnabled && (!dto.sshUsername?.trim() || !dto.sshPassword?.trim())) {
+      throw new BadRequestException("Auto Deploy requires a dedicated SSH username and password");
+    }
     const server = await this.hostingServersRepository.create({
       name: dto.name.trim(),
       hostname: normalizePanelHostnameForStorage(dto.hostname, dto.panel),
@@ -185,6 +228,7 @@ export class HostingServersService {
       sshUsername: dto.sshUsername?.trim() || undefined,
       sshPasswordEnc: dto.sshPassword ? encryptSecret(dto.sshPassword) : undefined,
       sshPort: dto.sshPort ?? 22,
+      deployNodeEnabled: dto.deployNodeEnabled ?? false,
       isDefault: dto.isDefault,
       isActive: dto.isActive ?? true,
       maxAccounts: dto.maxAccounts,
@@ -210,10 +254,33 @@ export class HostingServersService {
       sshUsername: string | null;
       sshPassword: string;
       sshPort: number;
+      deployNodeEnabled: boolean;
     }>,
   ) {
     const existing = await this.hostingServersRepository.findById(id);
     if (!existing) throw new NotFoundException("Hosting server not found");
+
+    const deployEnabled = dto.deployNodeEnabled ?? existing.deployNodeEnabled;
+    if (
+      deployEnabled &&
+      (!existing.deployNodeEnabled ||
+        dto.sshUsername !== undefined ||
+        dto.sshPassword !== undefined)
+    ) {
+      const username = dto.sshUsername === undefined ? existing.sshUsername : dto.sshUsername;
+      if (!username?.trim() || (!dto.sshPassword?.trim() && !existing.sshPasswordEnc)) {
+        throw new BadRequestException("Auto Deploy requires a dedicated SSH username and password");
+      }
+    }
+    if (
+      dto.deployNodeEnabled === false &&
+      existing.deployNodeEnabled &&
+      (await this.hostingServersRepository.countDeployDependents(id)) > 0
+    ) {
+      throw new ConflictException(
+        "Move linked Auto Deploy packages and applications before disabling this node",
+      );
+    }
 
     const server = await this.hostingServersRepository.update(id, {
       name: dto.name?.trim(),
@@ -231,6 +298,7 @@ export class HostingServersService {
       sshUsername: dto.sshUsername === null ? null : dto.sshUsername?.trim(),
       sshPasswordEnc: dto.sshPassword ? encryptSecret(dto.sshPassword) : undefined,
       sshPort: dto.sshPort,
+      deployNodeEnabled: dto.deployNodeEnabled,
       isDefault: dto.isDefault,
       isActive: dto.isActive,
       maxAccounts: dto.maxAccounts,
@@ -246,6 +314,15 @@ export class HostingServersService {
     const accountCount = await this.hostingServersRepository.countAccounts(id);
     if (accountCount > 0) {
       throw new ConflictException("Cannot delete a server that still has hosting accounts");
+    }
+    const [linkedPlans, deployDependents] = await Promise.all([
+      this.hostingServersRepository.countLinkedPlans(id),
+      this.hostingServersRepository.countDeployDependents(id),
+    ]);
+    if (linkedPlans > 0 || deployDependents > 0) {
+      throw new ConflictException(
+        "Move linked packages and Auto Deploy applications before deleting this server",
+      );
     }
 
     await this.hostingServersRepository.delete(id);
@@ -281,6 +358,20 @@ export class HostingServersService {
     return this.hostingServersRepository
       .findAllAccounts()
       .then((accounts) => accounts.map((account) => mapAccount(account)));
+  }
+
+  async updateAccountAutoDeployLimits(
+    id: string,
+    limits: {
+      autoDeployDiskGbOverride?: number | null;
+      autoDeployMaxAppsOverride?: number | null;
+      autoDeployAiCreditsOverride?: number | null;
+    },
+  ) {
+    const account = await this.hostingServersRepository.findAccountById(id);
+    if (!account) throw new NotFoundException("Hosting account not found");
+    const updated = await this.hostingServersRepository.updateAccount(id, limits);
+    return mapAccount(updated);
   }
 
   async updateAccountStatus(id: string, dto: UpdateHostingAccountStatusDto) {
@@ -325,6 +416,42 @@ export class HostingServersService {
         : {}),
     });
     return mapAccount(updated);
+  }
+
+  /**
+   * Payment is already committed when this runs, so a temporary panel outage must
+   * not make the invoice look unpaid. Keep the local service active and retrying
+   * the panel can be handled operationally from the logged error.
+   */
+  async resumeAccountAfterPayment(id: string) {
+    const account = await this.hostingServersRepository.findAccountById(id);
+    if (!account) throw new NotFoundException("Hosting account not found");
+
+    if (account.server && (account.username || account.panelRef)) {
+      try {
+        await this.controlPanel.unsuspendAccount?.({
+          server: account.server,
+          primaryDomain: account.primaryDomain,
+          username: account.username,
+          panelRef: account.panelRef,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Panel reactivation failed after payment for hosting ${id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    return this.hostingServersRepository.updateAccount(id, {
+      status: "ACTIVE",
+      graceEndsAt: null,
+      provisionError: null,
+      cancelRequestedAt: null,
+      cancelApprovedAt: null,
+      scheduledPurgeAt: null,
+    });
   }
 
   async resolveCancelRequest(id: string, action: "approve" | "deactivate" | "delete" | "reject") {

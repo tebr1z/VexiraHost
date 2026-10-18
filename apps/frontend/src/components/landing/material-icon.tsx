@@ -11,6 +11,7 @@ export function MaterialIcon({
 }: MaterialIconProps): React.ReactElement {
   return (
     <span
+      aria-hidden="true"
       className={`material-symbols-outlined ${filled ? "material-symbols-filled" : ""} ${className}`}
     >
       {name}

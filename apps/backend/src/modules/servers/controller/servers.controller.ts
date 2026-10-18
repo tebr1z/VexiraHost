@@ -1,12 +1,12 @@
 ﻿import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { ServerType } from "@prisma/client";
-
-import { Public } from "@/decorators/auth.decorators";
-import { User } from "@/decorators/user.decorator";
 import type { AuthUser } from "@vexira/types";
 
 import { ListPlansQueryDto, ProvisionServerDto, ServerPowerDto } from "../dto";
 import { ServersService } from "../service/servers.service";
+
+import { Public } from "@/decorators/auth.decorators";
+import { User } from "@/decorators/user.decorator";
 
 @Controller("servers")
 export class ServersController {

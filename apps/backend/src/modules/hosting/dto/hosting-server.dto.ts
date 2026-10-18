@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -47,6 +48,10 @@ export class CreateHostingServerDto {
   isActive?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  deployNodeEnabled?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   maxAccounts?: number;
@@ -69,6 +74,7 @@ export class CreateHostingServerDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(65535)
   sshPort?: number;
 }
 
@@ -114,6 +120,10 @@ export class UpdateHostingServerDto {
   isActive?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  deployNodeEnabled?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   maxAccounts?: number | null;
@@ -135,5 +145,6 @@ export class UpdateHostingServerDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(65535)
   sshPort?: number;
 }

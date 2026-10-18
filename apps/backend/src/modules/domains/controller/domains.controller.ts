@@ -35,6 +35,11 @@ export class DomainsController {
     return this.domainsService.getForUser(id, user.id);
   }
 
+  @Get(":id/nameserver-status")
+  getNameserverStatus(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.getNameserverStatus(id, user.id);
+  }
+
   @Post("register")
   register(@Body() dto: RegisterDomainDto, @User() user: AuthUser) {
     return this.domainsService.register(dto.name, user.id);
@@ -72,5 +77,25 @@ export class DomainsController {
   @Put(":id/ns-glue")
   updateNsGlue(@Param("id") id: string, @Body() dto: UpdateNsGlueDto, @User() user: AuthUser) {
     return this.domainsService.updateNsGlue(id, user.id, dto);
+  }
+
+  @Get(":id/cloudflare")
+  getCloudflareStatus(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.getCloudflareStatus(id, user.id);
+  }
+
+  @Post(":id/cloudflare/connect")
+  connectCloudflare(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.connectCloudflare(id, user.id);
+  }
+
+  @Post(":id/cloudflare/sync")
+  syncCloudflare(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.syncCloudflare(id, user.id);
+  }
+
+  @Post(":id/cloudflare/disconnect")
+  disconnectCloudflare(@Param("id") id: string, @User() user: AuthUser) {
+    return this.domainsService.disconnectCloudflare(id, user.id);
   }
 }

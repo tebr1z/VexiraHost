@@ -34,7 +34,7 @@ export const faqAz: FaqPageContent = {
           id: "general-4",
           question: "Məlumatlarım harada saxlanılır?",
           answer:
-            "Xidmət növünə görə məlumatlarınız təhlükəsiz məlumat mərkəzi infrastrukturunda, izolyasiya edilmiş hesablar və şifrələnmiş bağlantılar vasitəsilə saxlanılır.\nEhtiyat nüsxə, giriş logları və təhlükəsizlik divarı qatları xidmət paketinizə uyğun aktivləşdirilir.",
+            "Xidmət növünə görə məlumatlarınız təhlükəsiz məlumat mərkəzi infrastrukturunda, izolyasiya edilmiş hesablar və şifrələnmiş bağlantılar vasitəsilə saxlanılır.\nGiriş logları və təhlükəsizlik divarı qatları xidmət paketinizə uyğun aktivləşdirilir.",
         },
         {
           id: "general-5",
@@ -52,7 +52,7 @@ export const faqAz: FaqPageContent = {
           id: "hosting-1",
           question: "Veb hosting planlarınızda nələr daxildir?",
           answer:
-            "Planlarımızda NVMe yaddaş, pulsuz SSL, e-poçt hesabları, cPanel və ya Plesk idarəetmə paneli, həftəlik avtomatik ehtiyat nüsxə və 7/24 dəstək yer alır.\nPlan səviyyəsinə görə disk, trafik, domen və poçt qutusu limitləri artır.",
+            "Planlarımızda NVMe yaddaş, pulsuz SSL, e-poçt hesabları, cPanel və ya Plesk idarəetmə paneli və 7/24 dəstək yer alır.\nPlan səviyyəsinə görə disk, trafik, domen və poçt qutusu limitləri artır.",
         },
         {
           id: "hosting-2",
@@ -70,7 +70,7 @@ export const faqAz: FaqPageContent = {
           id: "hosting-4",
           question: "WordPress və digər CMS-ləri quraşdıra bilərəmmi?",
           answer:
-            "İdarəetmə panelindən bir kliklə WordPress, Joomla, Drupal və digər populyar CMS-ləri quraşdıra bilərsiniz.\nAvtomatik yeniləmələr, SSL və ehtiyat nüsxə ilə saytınız təhlükəsiz şəkildə yayımda qalır.",
+            "İdarəetmə panelindən bir kliklə WordPress, Joomla, Drupal və digər populyar CMS-ləri quraşdıra bilərsiniz.\nAvtomatik yeniləmələr və pulsuz SSL saytınızı təhlükəsiz saxlamağa kömək edir.",
         },
         {
           id: "hosting-5",
@@ -116,9 +116,9 @@ export const faqAz: FaqPageContent = {
         },
         {
           id: "servers-5",
-          question: "Server ehtiyat nüsxəsi necə işləyir?",
+          question: "Ehtiyat nüsxəni necə saxlamalıyam?",
           answer:
-            "Avtomatik snapshot və ehtiyat nüsxə seçimləri planınıza görə təklif edilir.\nKritik məlumatlarınız üçün əlavə ehtiyat nüsxə siyasətləri təyin edə, paneldən bərpa əməliyyatı başlada bilərsiniz.",
+            "Hazırda hosting paketinə idarə olunan backup xidməti daxil deyil.\nVacib məlumatlar üçün ayrıca, xarici yaddaşda müntəzəm ehtiyat nüsxə saxlamağınızı tövsiyə edirik.",
         },
       ],
     },

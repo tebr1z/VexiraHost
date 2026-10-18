@@ -155,6 +155,7 @@ export class HostingRepository {
       panelIp?: string;
       expiresAt?: Date | null;
       billingAmount?: number | null;
+      billingCurrency?: string;
       autoRenew?: boolean;
       cancelRequestedAt?: Date | null;
       cancelApprovedAt?: Date | null;
@@ -210,6 +211,7 @@ export class HostingRepository {
       include: {
         plan: {
           include: {
+            autoDeployServer: true,
             planServers: {
               where: { isActive: true },
               select: { serverId: true },

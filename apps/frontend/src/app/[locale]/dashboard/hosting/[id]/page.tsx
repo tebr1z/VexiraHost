@@ -10,6 +10,7 @@ import { useRequireAuth } from "@/features/auth";
 import {
   cancelHostingRenewal,
   getHostingAccount,
+  getHostingNameserverStatus,
   openHostingPanel,
   requestHostingCancellation,
   resumeHostingRenewal,
@@ -17,6 +18,7 @@ import {
   syncHostingPanelInfo,
   withdrawHostingCancellation,
   type HostingAccount,
+  type HostingNameserverStatus,
 } from "@/features/hosting";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { toast } from "@/stores/toast-store";
@@ -28,6 +30,8 @@ export default function HostingDetailPage(): React.ReactElement | null {
   const tp = useTranslations("dashboard.pages.hosting");
   const tprov = useTranslations("dashboard.provision");
   const [account, setAccount] = useState<HostingAccount | null>(null);
+  const [nameserverStatus, setNameserverStatus] = useState<HostingNameserverStatus | null>(null);
+  const [nameserverLoading, setNameserverLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [panelLoading, setPanelLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
@@ -53,6 +57,22 @@ export default function HostingDetailPage(): React.ReactElement | null {
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadNameserverStatus = useCallback(async () => {
+    if (!params.id) return;
+    setNameserverLoading(true);
+    try {
+      setNameserverStatus(await getHostingNameserverStatus(params.id));
+    } catch {
+      setNameserverStatus(null);
+    } finally {
+      setNameserverLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    void loadNameserverStatus();
+  }, [loadNameserverStatus]);
 
   useEffect(() => {
     if (!account || account.status !== "PROVISIONING") return;
@@ -128,6 +148,8 @@ export default function HostingDetailPage(): React.ReactElement | null {
   return (
     <HostingDetailView
       account={account}
+      nameserverStatus={nameserverStatus}
+      nameserverLoading={nameserverLoading}
       panelLoading={panelLoading}
       syncLoading={syncLoading}
       retryLoading={retryLoading}
@@ -137,6 +159,7 @@ export default function HostingDetailPage(): React.ReactElement | null {
       onPanelLogin={() => void handlePanelLogin()}
       onSyncPlesk={() => void handleSyncPlesk()}
       onRetry={() => void handleRetry()}
+      onNameserverRefresh={() => void loadNameserverStatus()}
       onCancelRenewal={() => {
         if (!confirm(tc("cancelRenewalConfirm"))) return;
         void (async () => {

@@ -6,25 +6,44 @@ type BuildPageMetadataInput = {
   title: string;
   description: string;
   path: string;
+  locale?: string;
   keywords?: string[];
   image?: string;
   type?: "website" | "article";
   publishedTime?: string;
   modifiedTime?: string;
   noIndex?: boolean;
+  absoluteTitle?: boolean;
 };
 
+const SEO_LOCALES = ["en", "tr", "ru", "az"] as const;
+
+function localizedPath(path: string, locale: string): string {
+  const normalizedPath = path === "/" ? "" : path.startsWith("/") ? path : `/${path}`;
+  return locale === "en" ? normalizedPath || "/" : `/${locale}${normalizedPath}`;
+}
+
+function languageAlternates(path: string): Record<string, string> {
+  return {
+    "x-default": absoluteUrl(localizedPath(path, "en")),
+    ...Object.fromEntries(
+      SEO_LOCALES.map((locale) => [locale, absoluteUrl(localizedPath(path, locale))]),
+    ),
+  };
+}
+
 export function buildPageMetadata(input: BuildPageMetadataInput): Metadata {
-  const url = absoluteUrl(input.path);
+  const url = absoluteUrl(localizedPath(input.path, input.locale ?? "en"));
   const image = absoluteUrl(input.image ?? "/logo.png");
   const ogType = input.type ?? "website";
 
   return {
-    title: input.title,
+    title: input.absoluteTitle ? { absolute: input.title } : input.title,
     description: input.description,
     keywords: input.keywords,
     alternates: {
       canonical: url,
+      languages: languageAlternates(input.path),
     },
     openGraph: {
       type: ogType,
@@ -68,6 +87,47 @@ export function buildPageMetadata(input: BuildPageMetadataInput): Metadata {
       "og:url": url,
       "twitter:url": url,
     },
+  };
+}
+
+export function serviceJsonLd(input: {
+  name: string;
+  description: string;
+  path: string;
+  locale: string;
+}): Record<string, unknown> {
+  const siteUrl = getSiteUrl();
+  return {
+    "@type": "Service",
+    "@id": `${absoluteUrl(localizedPath(input.path, input.locale))}#service`,
+    name: input.name,
+    description: input.description,
+    url: absoluteUrl(localizedPath(input.path, input.locale)),
+    provider: { "@id": `${siteUrl}/#organization` },
+    areaServed: "Worldwide",
+    serviceType: "Web hosting",
+    inLanguage: input.locale,
+  };
+}
+
+export function faqJsonLd(
+  items: Array<{ question?: string; answer?: string }>,
+): Record<string, unknown> | null {
+  const validItems = items.filter((item): item is { question: string; answer: string } =>
+    Boolean(item.question?.trim() && item.answer?.trim()),
+  );
+  if (validItems.length === 0) return null;
+
+  return {
+    "@type": "FAQPage",
+    mainEntity: validItems.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
   };
 }
 

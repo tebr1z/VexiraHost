@@ -1,4 +1,4 @@
-import { test, expect } from "@jest/globals";
+import { expect } from "@jest/globals";
 
 describe("Health API", () => {
   it("placeholder e2e test", () => {

@@ -68,19 +68,14 @@ export function normalizePanelHostname(value: string): string {
 }
 
 /** Strip login path from admin-entered panel URL — hostname only for public access. */
-export function normalizePanelHostnameForStorage(
-  value: string,
-  panel?: HostingPanel,
-): string {
+export function normalizePanelHostnameForStorage(value: string, panel?: HostingPanel): string {
   const trimmed = value.trim();
   if (!trimmed) return trimmed;
 
   if (/^https?:\/\//i.test(trimmed)) {
     try {
       const url = new URL(trimmed);
-      const port =
-        url.port ||
-        (panel === "PLESK" ? "8443" : panel === "CPANEL" ? "2083" : "");
+      const port = url.port || (panel === "PLESK" ? "8443" : panel === "CPANEL" ? "2083" : "");
       const portSuffix = port ? `:${port}` : "";
       return `${url.protocol}//${url.hostname.toLowerCase()}${portSuffix}`;
     } catch {
@@ -96,10 +91,12 @@ export function normalizePanelHostnameForStorage(
 }
 
 export function resolvePanelEndpoint(
-  server: Pick<{ hostname: string; ipAddress: string; panel: HostingPanel }, "hostname" | "ipAddress" | "panel">,
+  server: Pick<
+    { hostname: string; ipAddress: string; panel: HostingPanel },
+    "hostname" | "ipAddress" | "panel"
+  >,
 ): PanelEndpoint {
   const panel = server.panel;
-  const userPort = defaultPanelPort(panel);
   const adminPort = defaultAdminPort(panel);
 
   let customLoginPath: string | undefined;
@@ -159,9 +156,7 @@ export function isMockPanelServer(
 ): boolean {
   const combined = `${server.hostname} ${server.ipAddress}`.toLowerCase();
   return (
-    combined.includes(".local") ||
-    combined.includes("localhost") ||
-    combined.includes("127.0.0.1")
+    combined.includes(".local") || combined.includes("localhost") || combined.includes("127.0.0.1")
   );
 }
 

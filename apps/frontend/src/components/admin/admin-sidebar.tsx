@@ -57,15 +57,21 @@ export function AdminSidebar({
   usePrefetchRoutes(prefetchHrefs);
 
   return (
-    <aside className={cn("sidebar-lagom-dark flex h-full w-60 flex-col text-white", className)}>
-      <div className="flex h-14 items-center justify-between gap-2 border-b border-white/10 px-4">
-        <BrandLogo href="/t4abriz/panel" onClick={onNavigate} tone="light" />
+    <aside
+      className={cn(
+        "sidebar-lagom flex h-full flex-col text-[var(--label)]",
+        onNavigate ? "w-full" : "w-64",
+        className,
+      )}
+    >
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--separator)] px-4">
+        <BrandLogo href="/t4abriz/panel" onClick={onNavigate} />
         {onNavigate ? (
           <button
             type="button"
             onClick={onNavigate}
             aria-label={t("header.closeMenu")}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--label-secondary)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--label)]"
           >
             <span className="material-symbols-outlined text-[22px]" aria-hidden>
               close
@@ -77,7 +83,7 @@ export function AdminSidebar({
       <nav className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-2 py-3">
         {groups.map((group) => (
           <div key={group.id}>
-            <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--label-tertiary)]">
               {t(`nav.${group.labelKey}`)}
             </p>
             <div className="space-y-0.5">
@@ -89,12 +95,13 @@ export function AdminSidebar({
                     key={item.href}
                     href={item.href}
                     prefetch
+                    aria-current={active ? "page" : undefined}
                     onClick={onNavigate}
                     className={cn(
-                      "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                      "relative flex min-h-10 items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-sm transition-colors",
                       active
-                        ? "nav-item-lagom-dark-active text-white"
-                        : "text-white/70 hover:bg-white/5 hover:text-white",
+                        ? "nav-item-lagom-active"
+                        : "text-[var(--label-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--label)]",
                     )}
                   >
                     <NavIcon name={item.icon} />
@@ -107,11 +114,11 @@ export function AdminSidebar({
         ))}
       </nav>
 
-      <div className="space-y-0.5 border-t border-white/10 p-2">
+      <div className="space-y-0.5 border-t border-[var(--separator)] p-2">
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+          className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm text-[var(--label-secondary)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--label)]"
         >
           <NavIcon name="public" />
           <span>{t("nav.website")}</span>
@@ -119,7 +126,7 @@ export function AdminSidebar({
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+          className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-[var(--label-secondary)] transition hover:bg-[var(--bg-secondary)] hover:text-[var(--label)]"
         >
           <NavIcon name="logout" />
           <span>{t("nav.signOut")}</span>

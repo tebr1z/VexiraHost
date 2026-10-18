@@ -22,6 +22,7 @@ import { HostingProvisionRunner } from "./hosting-provision.runner";
 import { PanelSessionService } from "./panel-session.service";
 import { PleskPanelService } from "./plesk-panel.service";
 
+import { AuthoritativeDnsService } from "@/modules/domains/service/authoritative-dns.service";
 import {
   collectPlanServerCandidates,
   selectHostingServerForPlan,
@@ -36,6 +37,13 @@ function mapPlan(plan: HostingPlan) {
     description: plan.description,
     panel: plan.panel,
     autoDeployEnabled: plan.autoDeployEnabled,
+    autoDeployDiskGb: plan.autoDeployDiskGb,
+    autoDeployCpuPercent: plan.autoDeployCpuPercent,
+    autoDeployMemoryMb: plan.autoDeployMemoryMb,
+    autoDeployMaxApps: plan.autoDeployMaxApps,
+    autoDeployAiEnabled: plan.autoDeployAiEnabled,
+    autoDeployAiMonthlyCredits: plan.autoDeployAiMonthlyCredits,
+    autoDeploySecurityScanEnabled: plan.autoDeploySecurityScanEnabled,
     diskGb: plan.diskGb,
     bandwidthGb: plan.bandwidthGb,
     maxDomains: plan.maxDomains,
@@ -83,6 +91,15 @@ function mapAccount(
     scheduledPurgeAt: account.scheduledPurgeAt,
     graceEndsAt: account.graceEndsAt,
     renewalInvoiceId: account.renewalInvoiceId,
+    autoDeployLimits: {
+      cpuPercent: account.plan.autoDeployCpuPercent,
+      memoryMb: account.plan.autoDeployMemoryMb,
+      diskGb: account.autoDeployDiskGbOverride ?? account.plan.autoDeployDiskGb,
+      maxApps: account.autoDeployMaxAppsOverride ?? account.plan.autoDeployMaxApps,
+      aiCredits: account.autoDeployAiCreditsOverride ?? account.plan.autoDeployAiMonthlyCredits,
+    },
+    autoDeployDiskUsedMb: account.autoDeployDiskUsedMb,
+    storageCheckedAt: account.storageCheckedAt,
     server: mapServer(account.server),
     orderId: account.orderId,
     provisionedAt: account.provisionedAt,
@@ -113,6 +130,7 @@ export class HostingService {
     private readonly pleskPanel: PleskPanelService,
     private readonly provisionRunner: HostingProvisionRunner,
     private readonly ticketsService: TicketsService,
+    private readonly authoritativeDns: AuthoritativeDnsService,
   ) {}
 
   private async attachPleskInfo(
@@ -140,6 +158,13 @@ export class HostingService {
     const account = await this.hostingRepository.findByIdForUser(id, userId);
     if (!account) throw new NotFoundException("Hosting account not found");
     return this.attachPleskInfo(account);
+  }
+
+  async getNameserverStatus(id: string, userId: string) {
+    const account = await this.hostingRepository.findByIdForUser(id, userId);
+    if (!account) throw new NotFoundException("Hosting account not found");
+
+    return this.authoritativeDns.verifyNameserverDelegation(account.primaryDomain);
   }
 
   async syncPanelInfo(id: string, userId: string) {

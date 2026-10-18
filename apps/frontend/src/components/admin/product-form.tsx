@@ -21,7 +21,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { slugify } from "@/lib/slug";
 
 type Currency = "USD" | "EUR" | "AZN";
-type Period = "MONTHLY" | "YEARLY";
+type Period = "MONTHLY" | "YEARLY" | "ONE_TIME";
 type DeliveryMode = "NONE" | "LICENSE_KEY" | "FILE" | "KEY_AND_FILE" | "MANUAL";
 
 export interface ProductFormValues {
@@ -31,6 +31,8 @@ export interface ProductFormValues {
   catalogCategoryId: string;
   hostingPlanSlug: string;
   price: string;
+  minimumQuantity: string;
+  requiresQuote: boolean;
   isActive: boolean;
   sortOrder: string;
   enabledCurrencies: Currency[];
@@ -80,6 +82,10 @@ function defaultPrices(
       originalPrice: String(monthly),
       salePrice: String(monthly),
     };
+    values[priceKey(currency, "ONE_TIME")] = {
+      originalPrice: String(monthly),
+      salePrice: String(monthly),
+    };
     if (yearlyEnabled) {
       const yearlyOriginal = convertUsdPreview(usd * 12, currency, rates);
       const yearlySale = convertUsdPreview(usd * 10, currency, rates);
@@ -99,6 +105,8 @@ const DEFAULT: ProductFormValues = {
   catalogCategoryId: "",
   hostingPlanSlug: "",
   price: "12",
+  minimumQuantity: "1",
+  requiresQuote: false,
   isActive: true,
   sortOrder: "0",
   enabledCurrencies: [...CURRENCIES],
@@ -137,21 +145,32 @@ export function pricesFromAdmin(
   rates: Pick<ExchangeRates, "usdToAzn" | "usdToEur"> = FALLBACK_EXCHANGE_RATES,
 ): ProductFormValues["prices"] {
   const options = pricingOptionsFromAdmin(list);
-  const base = defaultPrices(String(fallbackUsd), options.yearlyEnabled, rates);
+  const usdSource =
+    list?.find((row) => row.currency === "USD" && row.period === "ONE_TIME") ??
+    list?.find((row) => row.currency === "USD" && row.period === "MONTHLY");
+  const base = defaultPrices(
+    String(usdSource?.salePrice ?? fallbackUsd),
+    options.yearlyEnabled,
+    rates,
+  );
   for (const row of list ?? []) {
-    if (row.currency === "USD") {
-      base[priceKey(row.currency, row.period)] = {
-        originalPrice: String(row.originalPrice),
-        salePrice: String(row.salePrice),
-      };
-    }
+    base[priceKey(row.currency, row.period)] = {
+      originalPrice: String(row.originalPrice),
+      salePrice: String(row.salePrice),
+    };
   }
-  const usdMonthly = base[priceKey("USD", "MONTHLY")]?.salePrice ?? String(fallbackUsd);
-  return defaultPrices(usdMonthly, options.yearlyEnabled, rates);
+  return base;
 }
 
 export function toProductPayload(values: ProductFormValues) {
-  const periods: Period[] = values.yearlyEnabled ? ["MONTHLY", "YEARLY"] : ["MONTHLY"];
+  const isLicense = values.category === "LICENSE";
+  const periods: Period[] = values.requiresQuote
+    ? []
+    : isLicense
+      ? ["ONE_TIME"]
+      : values.yearlyEnabled
+        ? ["MONTHLY", "YEARLY"]
+        : ["MONTHLY"];
   const prices: AdminProductPrice[] = [];
 
   for (const currency of CURRENCIES) {
@@ -166,8 +185,7 @@ export function toProductPayload(values: ProductFormValues) {
     }
   }
 
-  const primary = values.prices[priceKey("USD", "MONTHLY")];
-  const isLicense = values.category === "LICENSE";
+  const primary = values.prices[priceKey("USD", isLicense ? "ONE_TIME" : "MONTHLY")];
 
   return {
     name: values.name.trim(),
@@ -175,9 +193,14 @@ export function toProductPayload(values: ProductFormValues) {
     category: values.category,
     catalogCategoryId: values.catalogCategoryId || null,
     hostingPlanSlug: values.category === "HOSTING" ? values.hostingPlanSlug || null : null,
-    price: values.isFree && isLicense ? 0 : Number(primary?.salePrice || values.price || 0),
+    price:
+      values.requiresQuote || (values.isFree && isLicense)
+        ? 0
+        : Number(primary?.salePrice || values.price || 0),
     currency: "USD",
-    billingCycle: values.isFree && isLicense ? "ONE_TIME" : "MONTHLY",
+    billingCycle: isLicense ? "ONE_TIME" : "MONTHLY",
+    minimumQuantity: Math.max(1, Number(values.minimumQuantity) || 1),
+    requiresQuote: values.requiresQuote,
     isActive: values.isActive,
     sortOrder: Number(values.sortOrder) || 0,
     prices,
@@ -205,6 +228,7 @@ export function ProductForm({
   onSubmit: (values: ProductFormValues) => Promise<void>;
 }): React.ReactElement {
   const tf = useTranslations("admin.forms");
+  const tl = useTranslations("licenseBilling");
   const accessTokenReady = useAccessTokenReady();
   const [values, setValues] = useState<ProductFormValues>({
     ...DEFAULT,
@@ -227,7 +251,11 @@ export function ProductForm({
     values.deliveryMode === "FILE" ||
     values.deliveryMode === "KEY_AND_FILE" ||
     values.deliveryMode === "MANUAL";
-  const activePeriods: Period[] = values.yearlyEnabled ? PERIODS : ["MONTHLY"];
+  const activePeriods: Period[] = isLicense
+    ? ["ONE_TIME"]
+    : values.yearlyEnabled
+      ? PERIODS
+      : ["MONTHLY"];
 
   useEffect(() => {
     fetchExchangeRates()
@@ -262,7 +290,18 @@ export function ProductForm({
           : (prev.prices[priceKey("USD", "MONTHLY")]?.salePrice ?? prev.price);
 
       const nextPrices = { ...prev.prices, [key]: usdCell };
-      if (key === priceKey("USD", "MONTHLY")) {
+      if (key === priceKey("USD", "ONE_TIME")) {
+        for (const currency of CURRENCIES) {
+          nextPrices[priceKey(currency, "ONE_TIME")] = {
+            originalPrice: String(
+              convertUsdPreview(Number(usdCell.originalPrice) || 0, currency, exchangeRates),
+            ),
+            salePrice: String(
+              convertUsdPreview(Number(usdCell.salePrice) || 0, currency, exchangeRates),
+            ),
+          };
+        }
+      } else if (key === priceKey("USD", "MONTHLY")) {
         Object.assign(nextPrices, defaultPrices(monthlyUsd, prev.yearlyEnabled, exchangeRates));
         nextPrices[key] = usdCell;
       } else if (key === priceKey("USD", "YEARLY")) {
@@ -275,7 +314,12 @@ export function ProductForm({
 
       return {
         ...prev,
-        price: key === priceKey("USD", "MONTHLY") ? monthlyUsd : prev.price,
+        price:
+          key === priceKey("USD", "ONE_TIME")
+            ? usdCell.salePrice
+            : key === priceKey("USD", "MONTHLY")
+              ? monthlyUsd
+              : prev.price,
         prices: nextPrices,
       };
     });
@@ -329,6 +373,33 @@ export function ProductForm({
         ) : (
           <p className="text-on-surface-variant mt-1 text-xs">{tf("seoSlugHelp")}</p>
         )}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">{tf("minimumQuantity")}</label>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={values.minimumQuantity}
+            onChange={(e) => set("minimumQuantity", e.target.value)}
+            required
+            className={field}
+          />
+          <p className="text-on-surface-variant mt-1 text-xs">{tf("minimumQuantityHint")}</p>
+        </div>
+        <label className="border-outline-variant/60 bg-surface-container-low/40 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm">
+          <input
+            type="checkbox"
+            checked={values.requiresQuote}
+            onChange={(e) => set("requiresQuote", e.target.checked)}
+          />
+          <span>
+            <strong className="block">{tf("requiresQuote")}</strong>
+            <span className="text-on-surface-variant text-xs">{tf("requiresQuoteHint")}</span>
+          </span>
+        </label>
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">{tf("description")}</label>
@@ -531,7 +602,7 @@ export function ProductForm({
         </div>
       )}
 
-      {!values.isFree && (
+      {!values.isFree && !values.requiresQuote && (
         <>
           <div>
             <label className="mb-1 block text-sm font-medium">{tf("price")} (USD)</label>
@@ -562,15 +633,21 @@ export function ProductForm({
               <p className="text-on-surface-variant mt-1 text-xs">{tf("pricingOptionsHint")}</p>
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={values.yearlyEnabled}
-                onChange={(e) => toggleYearly(e.target.checked)}
-              />
-              {tf("yearlyEnabled")}
-            </label>
-            <p className="text-on-surface-variant text-xs">{tf("yearlyEnabledHint")}</p>
+            {isLicense ? (
+              <p className="text-sm text-[var(--label-secondary)]">{tl("adminHint")}</p>
+            ) : (
+              <>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.yearlyEnabled}
+                    onChange={(e) => toggleYearly(e.target.checked)}
+                  />
+                  {tf("yearlyEnabled")}
+                </label>
+                <p className="text-on-surface-variant text-xs">{tf("yearlyEnabledHint")}</p>
+              </>
+            )}
           </div>
 
           <div>
@@ -596,7 +673,11 @@ export function ProductForm({
                         <tr key={key} className="border-outline-variant/40 border-t">
                           <td className="px-3 py-2 font-medium">{currency}</td>
                           <td className="px-3 py-2">
-                            {period === "MONTHLY" ? tf("periodMonthly") : tf("periodYearly")}
+                            {period === "ONE_TIME"
+                              ? tl("label")
+                              : period === "MONTHLY"
+                                ? tf("periodMonthly")
+                                : tf("periodYearly")}
                           </td>
                           <td className="px-3 py-2">
                             <input

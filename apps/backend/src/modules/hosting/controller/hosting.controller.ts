@@ -123,6 +123,11 @@ export class HostingController {
     return this.hostingService.resumeRenewal(id, user.id);
   }
 
+  @Get(":id/nameserver-status")
+  getNameserverStatus(@Param("id") id: string, @User() user: AuthUser) {
+    return this.hostingService.getNameserverStatus(id, user.id);
+  }
+
   @Get(":id")
   getOne(@Param("id") id: string, @User() user: AuthUser) {
     return this.hostingService.getForUser(id, user.id);

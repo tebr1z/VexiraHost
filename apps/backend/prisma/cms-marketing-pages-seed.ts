@@ -416,7 +416,7 @@ export async function seedEmailCmsPage(prisma: PrismaClient): Promise<void> {
           template: "catalog",
           categorySlug: "email",
           anchorId: "email-products",
-          productSlugs: ["google-workspace"],
+          productSlugs: ["google-workspace", "google-workspace-pro-plus"],
           eyebrow: l(
             "Google Workspace",
             "Google Workspace",

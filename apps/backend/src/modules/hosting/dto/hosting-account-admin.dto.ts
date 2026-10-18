@@ -1,4 +1,4 @@
-import { ArrayNotEmpty, IsArray, IsIn, IsString } from "class-validator";
+import { ArrayNotEmpty, IsArray, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
 
 export class UpdateHostingAccountStatusDto {
   @IsIn(["ACTIVE", "SUSPENDED"])
@@ -18,4 +18,21 @@ export class MigrateHostingAccountsDto {
 
   @IsString()
   targetServerId!: string;
+}
+
+export class UpdateHostingAutoDeployLimitsDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  autoDeployDiskGbOverride?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  autoDeployMaxAppsOverride?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  autoDeployAiCreditsOverride?: number | null;
 }

@@ -27,6 +27,13 @@ export class HostingServersRepository {
     return this.prisma.hostingServer.findUnique({ where: { id } });
   }
 
+  findDeployNodes() {
+    return this.prisma.hostingServer.findMany({
+      where: { isActive: true, deployNodeEnabled: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
   countAll() {
     return this.prisma.hostingServer.count();
   }
@@ -58,6 +65,7 @@ export class HostingServersRepository {
     apiTokenEnc?: string;
     isDefault?: boolean;
     isActive?: boolean;
+    deployNodeEnabled?: boolean;
     maxAccounts?: number;
     osVersion?: string;
     sshUsername?: string;
@@ -96,6 +104,7 @@ export class HostingServersRepository {
       apiTokenEnc: string | null;
       isDefault: boolean;
       isActive: boolean;
+      deployNodeEnabled: boolean;
       maxAccounts: number | null;
       osVersion: string | null;
       sshUsername: string | null;
@@ -103,6 +112,15 @@ export class HostingServersRepository {
       sshPort: number;
       lastCheckedAt: Date;
       lastConnectionOk: boolean | null;
+      deployHealth: "UNKNOWN" | "HEALTHY" | "DEGRADED" | "DOWN";
+      deployHealthMessage: string | null;
+      deployHealthCheckedAt: Date | null;
+      deployCpuLoadPercent: number | null;
+      deployMemoryUsedMb: number | null;
+      deployMemoryTotalMb: number | null;
+      deployDiskUsedMb: number | null;
+      deployDiskTotalMb: number | null;
+      deployUptimeSeconds: number | null;
     }>,
   ) {
     return this.prisma.$transaction(async (tx) => {
@@ -126,6 +144,28 @@ export class HostingServersRepository {
 
   countAccounts(serverId: string) {
     return this.prisma.hostingAccount.count({ where: { serverId } });
+  }
+
+  async countDeployDependents(serverId: string) {
+    const [plans, deployments] = await Promise.all([
+      this.prisma.hostingPlan.count({
+        where: { autoDeployServerId: serverId, autoDeployEnabled: true },
+      }),
+      this.prisma.appDeployment.count({ where: { deployServerId: serverId } }),
+    ]);
+    return plans + deployments;
+  }
+
+  countLinkedPlans(serverId: string) {
+    return this.prisma.hostingPlan.count({
+      where: {
+        OR: [
+          { serverId },
+          { autoDeployServerId: serverId },
+          { planServers: { some: { serverId } } },
+        ],
+      },
+    });
   }
 
   incrementAccountCount(serverId: string) {
@@ -183,6 +223,11 @@ export class HostingServersRepository {
       scheduledPurgeAt?: Date | null;
       autoRenew?: boolean;
       renewalInvoiceId?: string | null;
+      autoDeployDiskGbOverride?: number | null;
+      autoDeployMaxAppsOverride?: number | null;
+      autoDeployAiCreditsOverride?: number | null;
+      autoDeployDiskUsedMb?: number;
+      storageCheckedAt?: Date | null;
     },
   ) {
     return this.prisma.hostingAccount.update({
@@ -193,6 +238,13 @@ export class HostingServersRepository {
         server: true,
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
       },
+    });
+  }
+
+  updateAccountDeployUsage(id: string, autoDeployDiskUsedMb: number) {
+    return this.prisma.hostingAccount.update({
+      where: { id },
+      data: { autoDeployDiskUsedMb, storageCheckedAt: new Date() },
     });
   }
 

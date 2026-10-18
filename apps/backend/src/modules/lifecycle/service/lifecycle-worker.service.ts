@@ -31,6 +31,11 @@ export class LifecycleWorkerService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
+    if (process.env.LIFECYCLE_JOBS_ENABLED === "false") {
+      this.logger.warn("Lifecycle worker disabled (LIFECYCLE_JOBS_ENABLED=false).");
+      return;
+    }
+
     if (!this.queue) return;
     this.worker = createWorker(
       LIFECYCLE_QUEUE_NAME,

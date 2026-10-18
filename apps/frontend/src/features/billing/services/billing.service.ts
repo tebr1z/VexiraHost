@@ -116,43 +116,36 @@ export async function getAccountBalance(): Promise<{ balance: number; currency: 
   return res.data as { balance: number; currency: string };
 }
 
-export async function createPaymentMethod() {
-  const res = await apiClient.request<{ id: string }>("/payments/methods", {
-    method: "POST",
-    body: {
-      type: "CARD",
-      label: "Visa •••• 4242",
-      last4: "4242",
-      brand: "Visa",
-      expiryMonth: 12,
-      expiryYear: 2030,
-      isDefault: true,
-    },
-  });
-  return res.data as { id: string };
+export interface PaymentMethod {
+  id: string;
+  type: string;
+  label: string;
+  last4: string | null;
+  brand: string | null;
+  isDefault: boolean;
+  provider: string | null;
+  status: "PENDING" | "ACTIVE" | "FAILED" | "REVOKED";
 }
 
-export async function listPaymentMethods(): Promise<
-  {
-    id: string;
-    type: string;
-    label: string;
-    last4: string | null;
-    brand: string | null;
-    isDefault: boolean;
-  }[]
-> {
-  const res = await apiClient.request<
-    {
-      id: string;
-      type: string;
-      label: string;
-      last4: string | null;
-      brand: string | null;
-      isDefault: boolean;
-    }[]
-  >("/payments/methods");
+export async function listPaymentMethods(): Promise<PaymentMethod[]> {
+  const res = await apiClient.request<PaymentMethod[]>("/payments/methods");
   return res.data ?? [];
+}
+
+export async function registerEpointCard(): Promise<{ methodId: string; redirectUrl: string }> {
+  const res = await apiClient.request<{ methodId: string; redirectUrl: string }>(
+    "/payments/epoint/cards/register",
+    { method: "POST" },
+  );
+  return res.data as { methodId: string; redirectUrl: string };
+}
+
+export async function setDefaultPaymentMethod(methodId: string): Promise<void> {
+  await apiClient.request(`/payments/methods/${methodId}/default`, { method: "POST" });
+}
+
+export async function disablePaymentMethod(methodId: string): Promise<void> {
+  await apiClient.request(`/payments/methods/${methodId}`, { method: "DELETE" });
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { HostingMailCountBadge } from "@/components/hosting/hosting-mail-count-badge";
 import { StatusBadge } from "@/components/ui";
@@ -12,7 +12,12 @@ import {
   LoginIcon,
   PencilIcon,
 } from "@/components/ui/edit-icon-button";
-import { openHostingPanel, type HostingAccount } from "@/features/hosting";
+import {
+  getHostingNameserverStatus,
+  openHostingPanel,
+  type HostingAccount,
+  type HostingNameserverStatus,
+} from "@/features/hosting";
 import { Link, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/i18n/format";
@@ -28,13 +33,30 @@ export function HostingAccountCard({
 }): React.ReactElement {
   const tu = useTranslations("ui");
   const tc = useTranslations("dashboard.common");
+  const tp = useTranslations("dashboard.pages.hosting");
   const router = useRouter();
   const startNav = useNavigationProgressStore((s) => s.start);
   const [panelLoading, setPanelLoading] = useState(false);
+  const [nameserverStatus, setNameserverStatus] = useState<HostingNameserverStatus | null>(null);
   const detailHref = `/dashboard/hosting/${account.id}`;
   const isManual = account.managementMode === "MANUAL";
   const isServer = account.serviceCategory === "SERVER";
   const isSuspended = account.status === "SUSPENDED";
+
+  useEffect(() => {
+    if (account.status === "CANCELLED" || account.status === "EXPIRED") return;
+    let active = true;
+    void getHostingNameserverStatus(account.id)
+      .then((status) => {
+        if (active) setNameserverStatus(status);
+      })
+      .catch(() => {
+        if (active) setNameserverStatus(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [account.id, account.status]);
 
   const subtitle = isManual
     ? [
@@ -152,6 +174,48 @@ export function HostingAccountCard({
           </Link>
         </div>
       )}
+
+      {account.status !== "CANCELLED" && account.status !== "EXPIRED" ? (
+        <div className="mt-4 rounded-xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={cn(
+                  "material-symbols-outlined text-[18px]",
+                  nameserverStatus?.isUsingVexiraNameservers
+                    ? "text-emerald-600"
+                    : "text-amber-600",
+                )}
+              >
+                {nameserverStatus?.isUsingVexiraNameservers ? "verified" : "dns"}
+              </span>
+              <p className="text-xs font-semibold text-[var(--label-primary)]">
+                {tp("nsStatusTitle")}
+              </p>
+            </div>
+            <span
+              className={cn(
+                "rounded-full px-2 py-1 text-[10px] font-bold",
+                nameserverStatus?.isUsingVexiraNameservers
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+              )}
+            >
+              {nameserverStatus?.isUsingVexiraNameservers
+                ? tp("nsStatusConnected")
+                : tp("nsStatusPending")}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-[var(--label-secondary)]">
+            {(nameserverStatus?.requiredNameservers.length
+              ? nameserverStatus.requiredNameservers
+              : ["ns1.vexirahost.com", "ns2.vexirahost.com"]
+            ).map((nameserver) => (
+              <span key={nameserver}>{nameserver}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div
         className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--separator)] pt-4"

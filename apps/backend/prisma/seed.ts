@@ -20,15 +20,16 @@ import { seedMarketingCmsPages } from "./cms-marketing-pages-seed";
 
 const prisma = new PrismaClient();
 
-function multiCurrencyPrices(usdMonthly: number) {
-  return expandUsdPricesToAllCurrencies(
+function multiCurrencyPrices(usdMonthly: number, oneTime = false) {
+  const rows = expandUsdPricesToAllCurrencies(
     {
       monthlyOriginal: usdMonthly,
       monthlySale: usdMonthly,
-      yearlyEnabled: true,
+      yearlyEnabled: !oneTime,
     },
     FALLBACK_EXCHANGE_RATES,
   );
+  return oneTime ? rows.map((row) => ({ ...row, period: "ONE_TIME" as const })) : rows;
 }
 
 function fixedAznPackagePrices(azn: number) {
@@ -52,10 +53,40 @@ const products = [
     name: "Web Hosting Starter",
     description: "Shared hosting for startups and portfolios.",
     category: ProductCategory.HOSTING,
-    hostingPlanSlug: "web-starter",
-    price: 12,
+    hostingPlanSlug: "plus",
+    price: 9,
     billingCycle: BillingCycle.MONTHLY,
     sortOrder: 1,
+  },
+  {
+    slug: "web-hosting-pro",
+    name: "Web Hosting Pro",
+    description: "Professional hosting with 3 Auto Deploy applications and AI analysis credits.",
+    category: ProductCategory.HOSTING,
+    hostingPlanSlug: "pro",
+    price: 19,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 2,
+  },
+  {
+    slug: "web-hosting-pro-plus",
+    name: "Web Hosting Pro+",
+    description: "Growth hosting with 8 Auto Deploy applications and expanded AI analysis.",
+    category: ProductCategory.HOSTING,
+    hostingPlanSlug: "pro-plus",
+    price: 35,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 3,
+  },
+  {
+    slug: "web-hosting-business",
+    name: "Web Hosting Business",
+    description: "Business hosting with 20 Auto Deploy applications and priority capacity.",
+    category: ProductCategory.HOSTING,
+    hostingPlanSlug: "business",
+    price: 59,
+    billingCycle: BillingCycle.MONTHLY,
+    sortOrder: 4,
   },
   {
     slug: "vps-pro",
@@ -200,6 +231,7 @@ const products = [
     category: ProductCategory.SSL,
     price: 29,
     billingCycle: BillingCycle.YEARLY,
+    isActive: false,
     sortOrder: 16,
   },
   {
@@ -214,13 +246,26 @@ const products = [
   },
   {
     slug: "google-workspace",
-    name: "Google Workspace",
+    name: "Google Workspace Business Standard",
     description:
-      "Google Workspace for your domain — Gmail, Drive, Meet.\n• Professional @yourdomain.com\n• Admin console & collaboration tools",
+      "Google Workspace for growing teams.\n• 2 TB pooled Google Drive storage per user\n• Business Gmail on your own domain\n• Google Meet for up to 150 participants with recording\n• Shared drives and central Admin console\n• Gemini in Gmail, Docs, Meet and more\n• Minimum order: 3 users",
     category: ProductCategory.EMAIL,
-    price: 12,
+    price: 10.5,
     billingCycle: BillingCycle.MONTHLY,
+    minimumQuantity: 3,
     sortOrder: 18,
+  },
+  {
+    slug: "google-workspace-pro-plus",
+    name: "Google Workspace Pro+",
+    description:
+      "Advanced Google Workspace for teams that need more capacity and control.\n• 5 TB pooled Google Drive storage per user\n• Business Gmail with eDiscovery and retention\n• Google Meet for up to 500 participants with attendance tracking\n• Google Vault and advanced endpoint management\n• Advanced security and administration controls\n• Minimum order: 3 users",
+    category: ProductCategory.EMAIL,
+    price: 0,
+    billingCycle: BillingCycle.MONTHLY,
+    minimumQuantity: 3,
+    requiresQuote: true,
+    sortOrder: 19,
   },
   {
     slug: "backup-daily",
@@ -229,7 +274,8 @@ const products = [
     category: ProductCategory.BACKUP,
     price: 9,
     billingCycle: BillingCycle.MONTHLY,
-    sortOrder: 19,
+    isActive: false,
+    sortOrder: 20,
   },
   {
     slug: "whatsapp-api-5000",
@@ -343,40 +389,70 @@ const hostingServers = [
 
 const hostingPlans = [
   {
-    slug: "web-starter",
-    name: "Web Starter",
+    slug: "plus",
+    name: "Plus",
     description:
-      "Shared cPanel hosting for personal sites and portfolios.\n• Free SSL & weekly backups\n• Webmail included",
-    panel: HostingPanel.CPANEL,
-    serverSlug: "cpanel-primary",
+      "Başlanğıc saytlar üçün Plesk hosting.\n• 10 GB Plesk yaddaşı\n• 1 GB Auto Deploy yaddaşı\n• 1 tətbiq",
+    panel: HostingPanel.PLESK,
+    serverSlug: "plesk-primary",
     diskGb: 10,
     bandwidthGb: 100,
     maxDomains: 1,
     maxEmails: 5,
     maxDatabases: 2,
-    price: 12,
+    price: 9,
     sortOrder: 1,
+    autoDeployEnabled: true,
+    autoDeployDiskGb: 1,
+    autoDeployMaxApps: 1,
+    autoDeployAiEnabled: false,
+    autoDeployAiMonthlyCredits: 0,
   },
   {
-    slug: "web-pro",
-    name: "Web Pro",
+    slug: "pro",
+    name: "Pro",
     description:
-      "cPanel hosting with room for multiple sites and email accounts.\n• Free SSL & weekly backups\n• Webmail + one-click WordPress",
-    panel: HostingPanel.CPANEL,
-    serverSlug: "cpanel-primary",
-    diskGb: 50,
-    bandwidthGb: 500,
-    maxDomains: 10,
-    maxEmails: 25,
-    maxDatabases: 10,
-    price: 29,
+      "Peşəkar saytlar üçün balanslı paket.\n• 25 GB Plesk yaddaşı\n• 3 GB Auto Deploy yaddaşı\n• 3 tətbiq və 50 AI krediti",
+    panel: HostingPanel.PLESK,
+    serverSlug: "plesk-primary",
+    diskGb: 25,
+    bandwidthGb: 300,
+    maxDomains: 5,
+    maxEmails: 15,
+    maxDatabases: 5,
+    price: 19,
     sortOrder: 2,
+    autoDeployEnabled: true,
+    autoDeployDiskGb: 3,
+    autoDeployMaxApps: 3,
+    autoDeployAiEnabled: true,
+    autoDeployAiMonthlyCredits: 50,
   },
   {
-    slug: "business-plesk",
-    name: "Business Plesk",
+    slug: "pro-plus",
+    name: "Pro+",
     description:
-      "Plesk-powered hosting for agencies and growing businesses.\n• Free SSL & weekly backups\n• Webmail + multi-site tools",
+      "Böyüyən layihələr və komandalar üçün.\n• 50 GB Plesk yaddaşı\n• 7 GB Auto Deploy yaddaşı\n• 8 tətbiq və 200 AI krediti",
+    panel: HostingPanel.PLESK,
+    serverSlug: "plesk-primary",
+    diskGb: 50,
+    bandwidthGb: 600,
+    maxDomains: 12,
+    maxEmails: 30,
+    maxDatabases: 12,
+    price: 35,
+    sortOrder: 3,
+    autoDeployEnabled: true,
+    autoDeployDiskGb: 7,
+    autoDeployMaxApps: 8,
+    autoDeployAiEnabled: true,
+    autoDeployAiMonthlyCredits: 200,
+  },
+  {
+    slug: "business",
+    name: "Business",
+    description:
+      "Agentlik və yüksək trafikli biznes layihələri üçün.\n• 100 GB Plesk yaddaşı\n• 15 GB Auto Deploy yaddaşı\n• 20 tətbiq və 1000 AI krediti",
     panel: HostingPanel.PLESK,
     serverSlug: "plesk-primary",
     diskGb: 100,
@@ -384,8 +460,13 @@ const hostingPlans = [
     maxDomains: 25,
     maxEmails: 50,
     maxDatabases: 25,
-    price: 49,
-    sortOrder: 3,
+    price: 59,
+    sortOrder: 4,
+    autoDeployEnabled: true,
+    autoDeployDiskGb: 15,
+    autoDeployMaxApps: 20,
+    autoDeployAiEnabled: true,
+    autoDeployAiMonthlyCredits: 1000,
   },
 ];
 
@@ -401,32 +482,41 @@ const tldPricing = [
 
 async function main(): Promise<void> {
   for (const product of products) {
+    const data =
+      product.category === ProductCategory.LICENSE
+        ? { ...product, billingCycle: BillingCycle.ONE_TIME }
+        : product;
     const saved = await prisma.product.upsert({
       where: { slug: product.slug },
-      update: product,
-      create: product,
+      update: data,
+      create: data,
     });
 
-    for (const price of product.category === ProductCategory.WHATSAPP_API
-      ? fixedAznPackagePrices(Number(product.price))
-      : multiCurrencyPrices(Number(product.price))) {
-      await prisma.productPrice.upsert({
-        where: {
-          productId_currency_period: {
-            productId: saved.id,
-            currency: price.currency,
-            period: price.period,
+    if (!("requiresQuote" in product && product.requiresQuote)) {
+      for (const price of product.category === ProductCategory.WHATSAPP_API
+        ? fixedAznPackagePrices(Number(product.price))
+        : multiCurrencyPrices(
+            Number(product.price),
+            product.category === ProductCategory.LICENSE,
+          )) {
+        await prisma.productPrice.upsert({
+          where: {
+            productId_currency_period: {
+              productId: saved.id,
+              currency: price.currency,
+              period: price.period,
+            },
           },
-        },
-        update: {
-          originalPrice: price.originalPrice,
-          salePrice: price.salePrice,
-        },
-        create: {
-          productId: saved.id,
-          ...price,
-        },
-      });
+          update: {
+            originalPrice: price.originalPrice,
+            salePrice: price.salePrice,
+          },
+          create: {
+            productId: saved.id,
+            ...price,
+          },
+        });
+      }
     }
   }
 
@@ -450,6 +540,7 @@ async function main(): Promise<void> {
         whmUsername: server.whmUsername,
         isDefault: server.isDefault,
         isActive: true,
+        deployNodeEnabled: server.panel === HostingPanel.PLESK,
       },
       create: {
         id: server.slug,
@@ -461,6 +552,7 @@ async function main(): Promise<void> {
         whmPasswordEnc: encryptSecret("ChangeMe123!"),
         isDefault: server.isDefault,
         isActive: true,
+        deployNodeEnabled: server.panel === HostingPanel.PLESK,
       },
     });
     serverIds[server.slug] = saved.id;
@@ -471,10 +563,24 @@ async function main(): Promise<void> {
     const serverId = serverIds[serverSlug];
     await prisma.hostingPlan.upsert({
       where: { slug: plan.slug },
-      update: { ...planData, server: { connect: { id: serverId } } },
-      create: { ...planData, server: { connect: { id: serverId } } },
+      update: {
+        ...planData,
+        server: { connect: { id: serverId } },
+        autoDeployServer: { connect: { id: serverId } },
+      },
+      create: {
+        ...planData,
+        server: { connect: { id: serverId } },
+        autoDeployServer: { connect: { id: serverId } },
+      },
     });
   }
+
+  // Keep accounts linked to retired plans intact, but remove old catalog duplicates.
+  await prisma.hostingPlan.updateMany({
+    where: { slug: { in: ["business-plesk"] } },
+    data: { isActive: false },
+  });
 
   for (const tld of tldPricing) {
     await prisma.tldPricing.upsert({

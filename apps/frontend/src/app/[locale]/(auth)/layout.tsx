@@ -18,7 +18,7 @@ export default async function AuthLayout({
   const t = await getTranslations("auth");
 
   return (
-    <div className="panel-mesh-bg min-h-screen">
+    <div className="auth-workspace panel-mesh-bg min-h-screen">
       <header className="header-3d border-outline-variant/30 lg:px-margin-desktop sticky top-0 z-50 border-b px-4 py-3 sm:px-6">
         <div className="max-w-container-max mx-auto flex items-center justify-between gap-4">
           <BrandLogo href="/" />

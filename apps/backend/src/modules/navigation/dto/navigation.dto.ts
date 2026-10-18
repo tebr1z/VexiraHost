@@ -1,5 +1,8 @@
 import { Type } from "class-transformer";
 import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsInt,
   IsOptional,
@@ -7,6 +10,14 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
+
+export class ReorderNavigationDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsString({ each: true })
+  ids!: string[];
+}
 
 export class NavLabelsDto {
   @IsString()

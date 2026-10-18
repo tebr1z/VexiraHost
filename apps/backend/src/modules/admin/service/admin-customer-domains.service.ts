@@ -39,6 +39,9 @@ function mapAdminDomain(domain: {
   billingCurrency: string;
   graceEndsAt: Date | null;
   renewalInvoiceId: string | null;
+  dnsProvider: string;
+  dnsProviderStatus: string | null;
+  dnsLastSyncedAt: Date | null;
   nameservers: string[];
   nsGlueRecords: unknown;
   createdAt: Date;
@@ -60,6 +63,9 @@ function mapAdminDomain(domain: {
     billingCurrency: domain.billingCurrency,
     graceEndsAt: domain.graceEndsAt,
     renewalInvoiceId: domain.renewalInvoiceId,
+    dnsProvider: domain.dnsProvider,
+    dnsProviderStatus: domain.dnsProviderStatus,
+    dnsLastSyncedAt: domain.dnsLastSyncedAt,
     nameservers: domain.nameservers,
     nsGlueRecords: parseNsGlueRecords(domain.nsGlueRecords),
     dnsRecordCount: domain._count.dnsRecords,
@@ -121,9 +127,7 @@ export class AdminCustomerDomainsService {
   }
 
   listUserManualDomains(userId: string) {
-    return this.domainsRepository
-      .findAll({ managementMode: DomainManagementMode.MANUAL, userId })
-      .then((rows) => rows.map(mapAdminDomain));
+    return this.domainsRepository.findAll({ userId }).then((rows) => rows.map(mapAdminDomain));
   }
 
   private async issueRenewalInvoice(input: {
@@ -168,6 +172,7 @@ export class AdminCustomerDomainsService {
       amount: input.amount,
       currency: input.currency,
       invoiceNumber: invoice.invoiceNumber,
+      invoiceId: invoice.id,
       dueDate: due,
       graceDays: DOMAIN_GRACE_DAYS,
     });

@@ -9,9 +9,11 @@ import { PrismaService } from "@/database/database.module";
 import { OauthConfigService } from "@/modules/auth/service/oauth-config.service";
 import { SiteAccessService, SITE_SECTIONS } from "@/modules/auth/service/site-access.service";
 import { TurnstileService } from "@/modules/auth/service/turnstile.service";
+import { CloudflareDnsProvider } from "@/modules/domains/providers/cloudflare-dns.provider";
+import { AuthoritativeDnsService } from "@/modules/domains/service/authoritative-dns.service";
+import { EpointPaymentProvider } from "@/modules/payments/providers/epoint-payment.provider";
 import {
   KapitalConfigService,
-  KAPITAL_PRESETS,
   type KapitalEnvironment,
 } from "@/modules/payments/service/kapital-config.service";
 import { DEFAULT_QUEUE } from "@/queue/queue.module";
@@ -59,9 +61,12 @@ export class AdminSystemService {
     private readonly configService: ConfigService,
     private readonly systemRepository: AdminSystemRepository,
     private readonly kapitalConfigService: KapitalConfigService,
+    private readonly epointPaymentProvider: EpointPaymentProvider,
     private readonly oauthConfigService: OauthConfigService,
     private readonly turnstileService: TurnstileService,
     private readonly siteAccessService: SiteAccessService,
+    private readonly cloudflareDns: CloudflareDnsProvider,
+    private readonly authoritativeDns: AuthoritativeDnsService,
     @Inject(DEFAULT_QUEUE) private readonly queue: Queue | null,
   ) {}
 
@@ -157,10 +162,22 @@ export class AdminSystemService {
       providers,
       envDefaults,
       kapital: await this.kapitalConfigService.getAdminSettings(),
-      kapitalPresets: KAPITAL_PRESETS,
+      kapitalPresets: this.kapitalConfigService.getPresets(),
+      epoint: {
+        configured: this.epointPaymentProvider.isConfigured(),
+        callbackUrl: `${(process.env.API_PUBLIC_URL ?? "http://localhost:4000/api/v1").replace(/\/$/, "")}/payments/epoint/callback`,
+      },
       googleOAuth: await this.oauthConfigService.getGoogleAdminSettings(),
       githubOAuth: await this.oauthConfigService.getGitHubAdminSettings(),
       turnstile: await this.turnstileService.getAdminSettings(),
+      cloudflareDns: {
+        configured: this.cloudflareDns.isConfigured(),
+        canCreateZones: this.cloudflareDns.canCreateZones(),
+      },
+      authoritativeDns: {
+        configured: this.authoritativeDns.isConfigured(),
+        nameservers: this.authoritativeDns.getNameservers(),
+      },
       access: await this.siteAccessService.getConfig(),
       maintenance: await this.resolveMaintenance(),
       announcement: await this.resolveAnnouncement(),

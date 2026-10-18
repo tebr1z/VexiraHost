@@ -60,13 +60,37 @@ ensure_docker_running() {
   fi
 }
 
+ensure_node_pm2() {
+  NODE_MAJOR=0
+  if command -v node >/dev/null 2>&1; then
+    NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 0)
+  fi
+
+  if [ "$NODE_MAJOR" -lt 22 ]; then
+    log "Installing Node.js 22..."
+    if [ "$FAMILY" = "debian" ]; then
+      curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+      apt-get install -y -qq nodejs
+    else
+      curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
+      $PKG -y install nodejs
+    fi
+  fi
+
+  log "Installing/upgrading PM2, pnpm and yarn..."
+  npm install -g pm2@latest pnpm@9.15.0 yarn
+  PM2_USER=$(id -un)
+  PM2_HOME_DIR=$(getent passwd "$PM2_USER" | cut -d: -f6)
+  pm2 startup systemd -u "$PM2_USER" --hp "$PM2_HOME_DIR" >/dev/null 2>&1 || true
+}
+
 bootstrap_debian() {
   export DEBIAN_FRONTEND=noninteractive
   log "Updating apt indexes..."
   apt-get update -qq
 
   log "Installing/upgrading base packages..."
-  apt-get install -y -qq git curl ca-certificates gnupg lsb-release ca-certificates curl
+  apt-get install -y -qq git curl unzip ca-certificates gnupg lsb-release xfsprogs util-linux
 
   if command -v docker >/dev/null 2>&1; then
     log "Upgrading docker packages..."
@@ -93,8 +117,8 @@ bootstrap_rhel() {
   $PKG -y makecache || true
 
   log "Installing/upgrading base packages..."
-  $PKG -y install git curl ca-certificates yum-utils device-mapper-persistent-data lvm2 || \\
-    $PKG -y install git curl ca-certificates || true
+  $PKG -y install git curl unzip ca-certificates xfsprogs util-linux yum-utils device-mapper-persistent-data lvm2 || \\
+    $PKG -y install git curl unzip ca-certificates xfsprogs util-linux
 
   if command -v docker >/dev/null 2>&1; then
     log "Upgrading docker packages..."
@@ -119,6 +143,8 @@ case "$FAMILY" in
   *) log "No bootstrap recipe for family=$FAMILY"; exit 1 ;;
 esac
 
+ensure_node_pm2
+
 if ! command -v git >/dev/null 2>&1; then
   log "git is still missing after bootstrap"
   exit 1
@@ -136,6 +162,9 @@ fi
 
 log "git: $(git --version)"
 log "docker: $(docker --version)"
+log "node: $(node --version)"
+log "npm: $(npm --version)"
+log "pm2: $(pm2 --version)"
 echo "VX_BOOTSTRAP_OK=1"
 `;
 }

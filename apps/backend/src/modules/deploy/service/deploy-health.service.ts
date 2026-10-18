@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import type { AppDeployment, HostingServer } from "@prisma/client";
 
 import { buildDockerComposeProjectName } from "../utils/docker-templates.util";
+import { tenantRuntimeUnit } from "../utils/tenant-resources.util";
 
 import { ApacheProxyService } from "./remote-deploy.service";
 import { SshService } from "./ssh.service";
@@ -50,7 +51,7 @@ function httpResponding(code: string): boolean {
 function describeHttpReachability(code: string, target: string): string {
   if (code === "000") return `No HTTP response from ${target}`;
   if (code === "502" || code === "503" || code === "504") {
-    return `HTTPS ${code} for ${target} — proxy cannot reach the container`;
+    return `HTTPS ${code} for ${target} — proxy cannot reach the application runtime`;
   }
   if (code.startsWith("2") || code.startsWith("3")) {
     return `HTTP ${code} from ${target}`;
@@ -99,6 +100,7 @@ export class DeployHealthService {
   }
 
   async check(deployment: AppDeployment, server: HostingServer): Promise<DeployHealthResult> {
+    const runtime = deployment.runtime === "PM2" ? "pm2" : "docker";
     const checkedAt = new Date().toISOString();
     const base = {
       checkedAt,
@@ -113,7 +115,12 @@ export class DeployHealthService {
         ...base,
         ok: true,
         checks: [
-          { id: "container", ok: true, label: "Container", detail: "running (mock)" },
+          {
+            id: "container",
+            ok: true,
+            label: runtime === "pm2" ? "PM2 process" : "Container",
+            detail: "running (mock)",
+          },
           {
             id: "port",
             ok: true,
@@ -139,8 +146,8 @@ export class DeployHealthService {
           {
             id: "container",
             ok: false,
-            label: "Container",
-            detail: "No container recorded — redeploy may be required",
+            label: runtime === "pm2" ? "PM2 process" : "Container",
+            detail: "No runtime process recorded — redeploy may be required",
           },
         ],
       };
@@ -158,33 +165,51 @@ export class DeployHealthService {
         const hostPort = deployment.hostPort;
         const domain = deployment.deployDomain;
 
-        const inspect = await session.exec(
-          `docker inspect -f '{{.State.Status}} restarts={{.RestartCount}}' ${shellQuote(containerName)} 2>/dev/null || echo 'missing'`,
-          30_000,
-        );
+        const inspect =
+          runtime === "pm2"
+            ? await session.exec(
+                `systemctl show ${shellQuote(tenantRuntimeUnit(containerName))} --property=MainPID --value 2>/dev/null || echo 0`,
+                30_000,
+              )
+            : await session.exec(
+                `docker inspect -f '{{.State.Status}} restarts={{.RestartCount}}' ${shellQuote(containerName)} 2>/dev/null || echo 'missing'`,
+                30_000,
+              );
         const inspectLine = inspect.stdout.trim();
-        const containerStatus = inspectLine.split(/\s+/)[0] ?? "missing";
-        const restarting = /restarts=([1-9]\d*)/.test(inspectLine);
+        const containerStatus =
+          runtime === "pm2"
+            ? /^\d+$/.test(inspectLine) && inspectLine !== "0"
+              ? "running"
+              : "missing"
+            : (inspectLine.split(/\s+/)[0] ?? "missing");
+        const restarting = runtime === "docker" && /restarts=([1-9]\d*)/.test(inspectLine);
 
         checks.push({
           id: "container",
           ok: containerStatus === "running" && !restarting,
-          label: "Container",
+          label: runtime === "pm2" ? "PM2 process" : "Container",
           detail:
             containerStatus === "running"
               ? restarting
                 ? `Docker container "${containerName}" is running but restarting (${inspectLine})`
-                : `Docker container "${containerName}" is running`
-              : `Container status: ${inspectLine || "not found"}`,
+                : runtime === "pm2"
+                  ? `PM2 process "${containerName}" is online (PID ${inspectLine})`
+                  : `Docker container "${containerName}" is running`
+              : `${runtime === "pm2" ? "PM2 process" : "Container"} status: ${inspectLine || "not found"}`,
         });
 
-        const portMap = await session.exec(
-          `docker port ${shellQuote(containerName)} ${deployment.containerPort} 2>/dev/null || true`,
-          30_000,
-        );
+        const portMap =
+          runtime === "docker"
+            ? await session.exec(
+                `docker port ${shellQuote(containerName)} ${deployment.containerPort} 2>/dev/null || true`,
+                30_000,
+              )
+            : { stdout: "PM2 binds directly", stderr: "" };
         const portDetail = portMap.stdout.trim() || portMap.stderr.trim();
         const portMapped =
-          portDetail.includes(`127.0.0.1:${hostPort}`) || portDetail.includes(`:${hostPort}`);
+          runtime === "pm2" ||
+          portDetail.includes(`127.0.0.1:${hostPort}`) ||
+          portDetail.includes(`:${hostPort}`);
 
         const localProbe = await probeHttpPaths(
           (cmd, timeout) => session.exec(cmd, timeout),
@@ -206,12 +231,14 @@ export class DeployHealthService {
             portDetailText += ` · socket: ${listen.stdout.trim()}`;
           }
           const logs = await session.exec(
-            `docker logs --tail 25 ${shellQuote(containerName)} 2>&1`,
+            runtime === "pm2"
+              ? `journalctl -u ${shellQuote(tenantRuntimeUnit(containerName))} --no-pager -n 25 2>&1 || true`
+              : `docker logs --tail 25 ${shellQuote(containerName)} 2>&1`,
             30_000,
           );
           const logTail = logs.stdout.trim().split("\n").slice(-8).join("\n");
           if (logTail) {
-            portDetailText += `\n--- recent container logs ---\n${logTail}`;
+            portDetailText += `\n--- recent ${runtime === "pm2" ? "PM2" : "container"} logs ---\n${logTail}`;
           }
         }
 
@@ -339,13 +366,19 @@ export class DeployHealthService {
       return {
         containerName,
         lines: tail,
-        logs: "[mock] No container logs in DEPLOY_MOCK_REMOTE mode.\n",
+        logs: "[mock] No application logs in DEPLOY_MOCK_REMOTE mode.\n",
         checkedAt,
       };
     }
 
     const ssh = this.apacheProxy.buildSshOptions(server);
     const result = await this.ssh.withSession(ssh, async (session) => {
+      if (deployment.runtime === "PM2") {
+        return session.exec(
+          `journalctl -u ${shellQuote(tenantRuntimeUnit(containerName))} --no-pager -n ${tail} 2>&1 || true`,
+          60_000,
+        );
+      }
       return session.exec(
         [
           `NAME=${shellQuote(containerName)}`,

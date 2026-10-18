@@ -13,7 +13,7 @@ import {
 } from "class-validator";
 
 const INTEGRATION_PROVIDER_VALUES = ["mock", "real", "stripe", "whm"] as const;
-const PAYMENT_PROVIDER_VALUES = ["mock", "kapital"] as const;
+const PAYMENT_PROVIDER_VALUES = ["mock", "kapital", "epoint"] as const;
 const KAPITAL_ENVIRONMENT_VALUES = ["test", "production"] as const;
 
 function toBoolean({ value }: { value: unknown }) {

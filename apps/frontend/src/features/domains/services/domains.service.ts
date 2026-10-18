@@ -23,6 +23,9 @@ export interface UserDomain {
   billingCurrency?: string;
   graceEndsAt?: string | null;
   renewalInvoiceId?: string | null;
+  dnsProvider: "LOCAL" | "CLOUDFLARE" | "POWERDNS";
+  dnsProviderStatus: string | null;
+  dnsLastSyncedAt: string | null;
   dnsRecordCount: number;
   createdAt: string;
 }
@@ -44,6 +47,33 @@ export interface DnsRecord {
   value: string;
   ttl: number;
   priority?: number | null;
+  proxied?: boolean;
+}
+
+export interface CloudflareDnsStatus {
+  configured: boolean;
+  connected: boolean;
+  status: string | null;
+  nameservers: string[];
+  lastSyncedAt: string | null;
+}
+
+export interface CloudflareSyncResult {
+  domain: UserDomain;
+  records: DnsRecord[];
+}
+
+export interface NameserverStatus {
+  domain: string;
+  requiredNameservers: string[];
+  configuredNameservers: string[];
+  detectedNameservers: string[];
+  missingNameservers: string[];
+  unexpectedNameservers: string[];
+  isUsingVexiraNameservers: boolean;
+  lookupStatus: "OK" | "PENDING" | "ERROR";
+  lookupError: string | null;
+  checkedAt: string;
 }
 
 export async function searchDomains(query: string): Promise<DomainSearchResult[]> {
@@ -80,6 +110,11 @@ export async function initiateTransfer(
 export async function getDomain(domainId: string): Promise<UserDomain> {
   const res = await apiClient.request<UserDomain>(`/domains/${domainId}`);
   return res.data as UserDomain;
+}
+
+export async function getNameserverStatus(domainId: string): Promise<NameserverStatus> {
+  const res = await apiClient.request<NameserverStatus>(`/domains/${domainId}/nameserver-status`);
+  return res.data as NameserverStatus;
 }
 
 export async function updateNsGlue(
@@ -122,14 +157,43 @@ export async function updateDnsRecords(
   const res = await apiClient.request<DnsRecord[]>(`/domains/${domainId}/dns`, {
     method: "PUT",
     body: {
-      records: records.map(({ type, name, value, ttl, priority }) => ({
+      records: records.map(({ type, name, value, ttl, priority, proxied }) => ({
         type,
         name,
         value,
         ttl,
         priority: priority ?? undefined,
+        proxied: proxied ?? false,
       })),
     },
   });
   return res.data ?? [];
+}
+
+export async function getCloudflareDnsStatus(domainId: string): Promise<CloudflareDnsStatus> {
+  const res = await apiClient.request<CloudflareDnsStatus>(`/domains/${domainId}/cloudflare`);
+  return res.data as CloudflareDnsStatus;
+}
+
+export async function connectCloudflareDns(domainId: string): Promise<CloudflareSyncResult> {
+  const res = await apiClient.request<CloudflareSyncResult>(
+    `/domains/${domainId}/cloudflare/connect`,
+    { method: "POST" },
+  );
+  return res.data as CloudflareSyncResult;
+}
+
+export async function syncCloudflareDns(domainId: string): Promise<CloudflareSyncResult> {
+  const res = await apiClient.request<CloudflareSyncResult>(
+    `/domains/${domainId}/cloudflare/sync`,
+    { method: "POST" },
+  );
+  return res.data as CloudflareSyncResult;
+}
+
+export async function disconnectCloudflareDns(domainId: string): Promise<UserDomain> {
+  const res = await apiClient.request<UserDomain>(`/domains/${domainId}/cloudflare/disconnect`, {
+    method: "POST",
+  });
+  return res.data as UserDomain;
 }

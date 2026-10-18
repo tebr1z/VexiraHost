@@ -210,7 +210,19 @@ export class OrdersService {
     const lineItems = productIds.map((productId) => {
       const product = productMap.get(productId)!;
       const quantity = merged.get(productId)!;
-      const resolved = resolveProductPrice(product.prices, currency, period);
+      if (product.requiresQuote) {
+        throw new BadRequestException("This product requires a sales quote");
+      }
+      if (quantity < product.minimumQuantity) {
+        throw new BadRequestException({
+          message: `Minimum quantity for ${product.name} is ${product.minimumQuantity}`,
+          messageKey: "product_minimum_quantity",
+          messageParams: { name: product.name, minimum: product.minimumQuantity },
+        });
+      }
+      const oneTime =
+        product.category === ProductCategory.LICENSE || product.billingCycle === "ONE_TIME";
+      const resolved = resolveProductPrice(product.prices, currency, oneTime ? "ONE_TIME" : period);
       const unitPrice = new Decimal(resolved?.salePrice ?? Number(product.price));
       const totalPrice = unitPrice.mul(quantity);
       const checkoutItem = dto.items.find((item) => item.productId === productId);
@@ -225,7 +237,8 @@ export class OrdersService {
         metadata: {
           ...(checkoutItem?.metadata ?? {}),
           currency: resolved?.currency ?? currency,
-          period: resolved?.period ?? period,
+          period: oneTime ? "ONE_TIME" : (resolved?.period ?? period),
+          ...(oneTime ? { billingCycle: "ONE_TIME", autoRenew: false } : {}),
           originalPrice: resolved?.originalPrice,
         } as Prisma.InputJsonValue,
       };

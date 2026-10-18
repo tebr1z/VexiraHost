@@ -145,6 +145,7 @@ export class DomainExpiryJobService {
           dueDate: graceEndsAt,
           feeAmount: fee,
           feeDescription: `Processing fee 1% — ${domain.name}`,
+          idempotencyKey: `domain-renewal:${domain.id}:${domain.expiresAt?.toISOString() ?? "unknown"}`,
         });
         invoiceId = invoice.id;
         invoiceNumber = invoice.invoiceNumber;

@@ -4,14 +4,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { CurrencySwitcher } from "@/components/layout/currency-switcher";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggleGroup } from "@/components/layout/theme-toggle";
 import { cn } from "@/lib/cn";
 
 export function NavPreferencesMenu({ className }: { className?: string }): React.ReactElement {
   const t = useTranslations("nav");
-  const tp = useTranslations("pricing");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -60,15 +58,6 @@ export function NavPreferencesMenu({ className }: { className?: string }): React
             className="shadow-apple-md absolute right-0 top-full isolate z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-[16px] border border-[var(--separator)] bg-[var(--bg-elevated)] p-3"
           >
             <div className="space-y-3">
-              <div className="rounded-[14px] bg-[var(--bg-secondary)] p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--label-tertiary)]">
-                  {tp("currency")}
-                </p>
-                <CurrencySwitcher
-                  variant="segmented"
-                  className="apple-segmented-block apple-segmented-solid [&_.apple-segmented-item]:flex-1"
-                />
-              </div>
               <div className="rounded-[14px] bg-[var(--bg-secondary)] p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--label-tertiary)]">
                   {t("language")}

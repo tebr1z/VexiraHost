@@ -6,7 +6,6 @@ import { HostingServersRepository } from "./repository/hosting-servers.repositor
 import { HostingRepository } from "./repository/hosting.repository";
 import { HostingBillingService } from "./service/hosting-billing.service";
 import { HostingEmailService } from "./service/hosting-email.service";
-import { HostingExpiryJobService } from "./service/hosting-expiry-job.service";
 import { HostingProvisionRunner } from "./service/hosting-provision.runner";
 import { HostingServersService } from "./service/hosting-servers.service";
 import { HostingService } from "./service/hosting.service";
@@ -16,13 +15,20 @@ import { PleskMailService } from "./service/plesk-mail.service";
 import { PleskPanelService } from "./service/plesk-panel.service";
 
 import { DeployModule } from "@/modules/deploy/deploy.module";
+import { DomainsModule } from "@/modules/domains/domains.module";
 import { LicensesModule } from "@/modules/licenses/licenses.module";
 import { TicketsModule } from "@/modules/tickets/tickets.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 import { StaffAlertsModule } from "@/shared/staff-alerts/staff-alerts.module";
 
 @Module({
-  imports: [LicensesModule, StaffAlertsModule, TicketsModule, forwardRef(() => DeployModule)],
+  imports: [
+    LicensesModule,
+    StaffAlertsModule,
+    TicketsModule,
+    DomainsModule,
+    forwardRef(() => DeployModule),
+  ],
   controllers: [HostingController],
 
   providers: [
@@ -50,8 +56,6 @@ import { StaffAlertsModule } from "@/shared/staff-alerts/staff-alerts.module";
 
     HostingBillingService,
 
-    HostingExpiryJobService,
-
     SmtpMailService,
   ],
 
@@ -62,7 +66,6 @@ import { StaffAlertsModule } from "@/shared/staff-alerts/staff-alerts.module";
     HostingRepository,
     HostingBillingService,
     HostingEmailService,
-    HostingExpiryJobService,
     HostingServersRepository,
   ],
 })

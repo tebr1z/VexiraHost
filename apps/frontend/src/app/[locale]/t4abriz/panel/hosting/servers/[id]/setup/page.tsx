@@ -1,19 +1,28 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { HostingServerSetupPanel } from "@/components/admin/hosting-server-setup";
-import { PageHeader } from "@/components/ui";
+import { LoadingSkeletonList, PageHeader } from "@/components/ui";
 import { getHostingServer, type HostingServer } from "@/features/admin";
 import { useRequireAuth } from "@/features/auth";
 import { Link } from "@/i18n/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 
 export default function HostingServerSetupPage(): React.ReactElement | null {
+  return (
+    <Suspense fallback={<LoadingSkeletonList rows={3} />}>
+      <HostingServerSetupContent />
+    </Suspense>
+  );
+}
+
+function HostingServerSetupContent(): React.ReactElement | null {
   useRequireAuth();
   const params = useParams<{ id: string }>();
+  const query = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
   const ta = useTranslations("admin");
@@ -28,6 +37,7 @@ export default function HostingServerSetupPage(): React.ReactElement | null {
     if (!isAdmin || !params.id) return;
     getHostingServer(params.id)
       .then(setServer)
+      .catch(() => setServer(null))
       .finally(() => setLoading(false));
   }, [isAdmin, params.id]);
 
@@ -62,7 +72,7 @@ export default function HostingServerSetupPage(): React.ReactElement | null {
         }
       />
 
-      <HostingServerSetupPanel serverId={server.id} />
+      <HostingServerSetupPanel serverId={server.id} initialJobId={query.get("jobId")} />
     </div>
   );
 }

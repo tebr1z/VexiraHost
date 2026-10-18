@@ -7,7 +7,6 @@ import { MaterialIcon } from "@/components/landing/material-icon";
 const INCLUDED = [
   { key: "ssl", icon: "lock" },
   { key: "migration", icon: "sync_alt" },
-  { key: "backup", icon: "cloud_sync" },
   { key: "support", icon: "support_agent" },
   { key: "panel", icon: "dashboard" },
   { key: "uptime", icon: "verified" },

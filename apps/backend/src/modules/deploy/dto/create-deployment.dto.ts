@@ -22,9 +22,8 @@ export class CreateDeploymentDto {
   @Matches(/^[a-z0-9]([a-z0-9-]{0,46}[a-z0-9])?$/)
   name!: string;
 
-  @ValidateIf((dto: CreateDeploymentDto) => dto.source !== DeploySource.DOCKER_IMAGE)
   @IsEnum(DeployStack)
-  stack?: DeployStack;
+  stack!: DeployStack;
 
   @IsOptional()
   @IsEnum(DeploySource)
@@ -40,7 +39,7 @@ export class CreateDeploymentDto {
 
   @ValidateIf(
     (dto: CreateDeploymentDto) =>
-      dto.source !== DeploySource.DOCKER_IMAGE && !dto.githubRepoFullName?.trim(),
+      (dto.source == null || dto.source === DeploySource.GIT) && !dto.githubRepoFullName?.trim(),
   )
   @IsString()
   @MaxLength(500)
@@ -48,7 +47,8 @@ export class CreateDeploymentDto {
   repoUrl?: string;
 
   @ValidateIf(
-    (dto: CreateDeploymentDto) => dto.source !== DeploySource.DOCKER_IMAGE && !dto.repoUrl?.trim(),
+    (dto: CreateDeploymentDto) =>
+      (dto.source == null || dto.source === DeploySource.GIT) && !dto.repoUrl?.trim(),
   )
   @IsString()
   @MaxLength(200)
@@ -57,7 +57,7 @@ export class CreateDeploymentDto {
 
   @ValidateIf((dto: CreateDeploymentDto) => dto.source === DeploySource.DOCKER_IMAGE)
   @IsString()
-  @MaxLength(255)
+  @MaxLength(500)
   imageRef?: string;
 
   @IsOptional()
@@ -80,6 +80,42 @@ export class CreateDeploymentDto {
   @IsOptional()
   @IsObject()
   envVars?: Record<string, string>;
+}
+
+export class CreateUploadDeploymentDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(48)
+  @Matches(/^[a-z0-9]([a-z0-9-]{0,46}[a-z0-9])?$/)
+  name!: string;
+
+  @IsEnum(DeployStack)
+  stack!: DeployStack;
+
+  @IsEnum(DeployDomainMode)
+  domainMode!: DeployDomainMode;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/)
+  subdomain?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  rootDirectory?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  containerPort?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100_000)
+  envVarsJson?: string;
 }
 
 export class TriggerDeployDto {

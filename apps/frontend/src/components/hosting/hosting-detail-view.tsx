@@ -4,12 +4,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { HostingDeploySection } from "@/components/hosting/hosting-deploy-section";
+import { DomainNameserverStatusCard } from "@/components/domains/domain-nameserver-status-card";
+import { HostingAutoDeployPanel } from "@/components/hosting/hosting-auto-deploy-panel";
 import { HostingMailSection } from "@/components/hosting/hosting-mail-section";
 import { ProvisionProgress } from "@/components/hosting/provision-progress";
 import { MaterialIcon } from "@/components/landing/material-icon";
 import { PageHeader, StatusBadge } from "@/components/ui";
-import type { HostingAccount } from "@/features/hosting";
+import type { HostingAccount, HostingNameserverStatus } from "@/features/hosting";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { formatDate, formatDateTime } from "@/lib/i18n/format";
@@ -148,6 +149,8 @@ function InfoItem({
 
 export function HostingDetailView({
   account,
+  nameserverStatus,
+  nameserverLoading,
   panelLoading,
   syncLoading,
   retryLoading,
@@ -157,12 +160,15 @@ export function HostingDetailView({
   onPanelLogin,
   onSyncPlesk,
   onRetry,
+  onNameserverRefresh,
   onCancelRenewal,
   onResumeRenewal,
   onRequestCancellation,
   onWithdrawCancellation,
 }: {
   account: HostingAccount;
+  nameserverStatus: HostingNameserverStatus | null;
+  nameserverLoading: boolean;
   panelLoading: boolean;
   syncLoading: boolean;
   retryLoading: boolean;
@@ -172,6 +178,7 @@ export function HostingDetailView({
   onPanelLogin: () => void;
   onSyncPlesk: () => void;
   onRetry: () => void;
+  onNameserverRefresh: () => void;
   onCancelRenewal?: () => void;
   onResumeRenewal?: () => void;
   onRequestCancellation?: () => void;
@@ -255,6 +262,13 @@ export function HostingDetailView({
           { label: t("nav.hosting"), href: "/dashboard/hosting" },
           { label: account.primaryDomain },
         ]}
+      />
+
+      <DomainNameserverStatusCard
+        status={nameserverStatus}
+        loading={nameserverLoading}
+        onRefresh={onNameserverRefresh}
+        translationScope="hosting"
       />
 
       {(account.status === "PROVISIONING" || account.status === "FAILED") && (
@@ -680,11 +694,13 @@ export function HostingDetailView({
       {activeTab === "deploy" && showDeployTab ? (
         <div id="hosting-deploy">
           {isPleskManaged && account.status === "ACTIVE" && account.plan.autoDeployEnabled ? (
-            <HostingDeploySection
+            <HostingAutoDeployPanel
               accountId={account.id}
               primaryDomain={account.primaryDomain}
-              enabled
-              embedded
+              panelLoading={panelLoading}
+              onPanelLogin={onPanelLogin}
+              limits={account.autoDeployLimits}
+              diskUsedMb={account.autoDeployDiskUsedMb}
             />
           ) : (
             <DashboardSectionCard title={td("title")} icon="rocket_launch">
@@ -711,6 +727,10 @@ export function HostingDetailView({
                 <li className="flex items-center gap-2">
                   <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
                   {td("featureDocker")}
+                </li>
+                <li className="flex items-center gap-2">
+                  <MaterialIcon name="check_circle" className="text-[14px] text-[var(--accent)]" />
+                  {td("featureDockerImage")}
                 </li>
               </ul>
             </DashboardSectionCard>

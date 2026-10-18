@@ -1,9 +1,10 @@
-﻿import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from "@nestjs/testing";
 
-import { ServersService } from '../service/servers.service';
-import { ServersRepository } from '../repository/servers.repository';
+import { MockProxmoxProvider } from "../providers/mock-proxmox.provider";
+import { ServersRepository } from "../repository/servers.repository";
+import { ServersService } from "../service/servers.service";
 
-describe('ServersService', () => {
+describe("ServersService", () => {
   let service: ServersService;
 
   beforeEach(async () => {
@@ -11,13 +12,14 @@ describe('ServersService', () => {
       providers: [
         ServersService,
         { provide: ServersRepository, useValue: {} },
+        { provide: MockProxmoxProvider, useValue: {} },
       ],
     }).compile();
 
     service = module.get<ServersService>(ServersService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 });

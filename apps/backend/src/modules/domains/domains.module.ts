@@ -1,26 +1,31 @@
 import { Module } from "@nestjs/common";
 
 import { DomainsController } from "./controller/domains.controller";
+import { CloudflareDnsProvider } from "./providers/cloudflare-dns.provider";
 import { MockRegistrarProvider } from "./providers/mock-registrar.provider";
+import { PowerDnsProvider } from "./providers/powerdns.provider";
 import { DomainsRepository } from "./repository/domains.repository";
 import { TldPricingRepository } from "./repository/tld-pricing.repository";
+import { AuthoritativeDnsService } from "./service/authoritative-dns.service";
 import { DomainBillingService } from "./service/domain-billing.service";
 import { DomainEmailService } from "./service/domain-email.service";
 import { DomainExpiryJobService } from "./service/domain-expiry-job.service";
 import { DomainsService } from "./service/domains.service";
 
 import { AuthModule } from "@/modules/auth/auth.module";
-import { HostingModule } from "@/modules/hosting/hosting.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 
 @Module({
-  imports: [AuthModule, HostingModule],
+  imports: [AuthModule],
   controllers: [DomainsController],
   providers: [
     DomainsService,
     DomainsRepository,
     TldPricingRepository,
     MockRegistrarProvider,
+    CloudflareDnsProvider,
+    PowerDnsProvider,
+    AuthoritativeDnsService,
     DomainEmailService,
     DomainBillingService,
     DomainExpiryJobService,
@@ -32,6 +37,9 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     TldPricingRepository,
     DomainBillingService,
     DomainExpiryJobService,
+    CloudflareDnsProvider,
+    PowerDnsProvider,
+    AuthoritativeDnsService,
   ],
 })
 export class DomainsModule {}

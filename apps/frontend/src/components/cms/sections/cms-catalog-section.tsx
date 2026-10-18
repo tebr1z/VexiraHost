@@ -12,6 +12,7 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAddToCartNavigation } from "@/features/auth/lib/use-add-to-cart-navigation";
 import { listCatalogProducts, type CatalogProduct } from "@/features/catalog";
 import type { PublicCmsSection } from "@/features/cms/types";
+import { useRouter } from "@/i18n/navigation";
 import { buildCartItemFromProduct } from "@/lib/cart-pricing";
 import { cn } from "@/lib/cn";
 import { filterCatalogProductsForPeriod } from "@/lib/hosting-catalog";
@@ -21,6 +22,7 @@ import { toast } from "@/stores/toast-store";
 
 export function CmsCatalogSection({ section }: { section: PublicCmsSection }): React.ReactElement {
   const t = useTranslations("pricing");
+  const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
   const continueAfterAdd = useAddToCartNavigation();
   const currency = usePricingStore((s) => s.currency);
@@ -58,6 +60,10 @@ export function CmsCatalogSection({ section }: { section: PublicCmsSection }): R
     products.length === 0 ? 0 : Math.max(...products.map((p) => p.yearlySavingsPercent ?? 0));
 
   const handleBuy = (product: CatalogProduct) => {
+    if (product.requiresQuote) {
+      router.push("/contact");
+      return;
+    }
     addItem(buildCartItemFromProduct(product));
     toast(t("addedToCart"), "success");
     continueAfterAdd();
@@ -75,7 +81,11 @@ export function CmsCatalogSection({ section }: { section: PublicCmsSection }): R
           }
           controls={
             <>
-              <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+              {products.some(
+                (product) => product.category !== "LICENSE" && product.billingCycle !== "ONE_TIME",
+              ) ? (
+                <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+              ) : null}
               <CurrencySwitcher variant="segmented" />
             </>
           }

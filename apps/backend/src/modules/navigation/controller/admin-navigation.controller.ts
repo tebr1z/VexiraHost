@@ -1,16 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from "@nestjs/common";
 import { UserRole } from "@vexira/types";
-
-import { Roles } from "@/decorators/auth.decorators";
-import { RolesGuard } from "@/guards/roles.guard";
 
 import {
   CreateNavGroupDto,
   CreateNavItemDto,
+  ReorderNavigationDto,
   UpdateNavGroupDto,
   UpdateNavItemDto,
 } from "../dto/navigation.dto";
 import { AdminNavigationService } from "../service/admin-navigation.service";
+
+import { Roles } from "@/decorators/auth.decorators";
+import { RolesGuard } from "@/guards/roles.guard";
 
 @Controller("admin/navigation")
 @UseGuards(RolesGuard)
@@ -29,6 +30,12 @@ export class AdminNavigationController {
     return this.adminNavigationService.createGroup(dto);
   }
 
+  @Put("groups/reorder")
+  @Roles(UserRole.ADMIN)
+  reorderGroups(@Body() dto: ReorderNavigationDto) {
+    return this.adminNavigationService.reorderGroups(dto.ids);
+  }
+
   @Patch("groups/:id")
   @Roles(UserRole.ADMIN)
   updateGroup(@Param("id") id: string, @Body() dto: UpdateNavGroupDto) {
@@ -45,6 +52,12 @@ export class AdminNavigationController {
   @Roles(UserRole.ADMIN)
   createItem(@Param("groupId") groupId: string, @Body() dto: CreateNavItemDto) {
     return this.adminNavigationService.createItem(groupId, dto);
+  }
+
+  @Put("groups/:groupId/items/reorder")
+  @Roles(UserRole.ADMIN)
+  reorderItems(@Param("groupId") groupId: string, @Body() dto: ReorderNavigationDto) {
+    return this.adminNavigationService.reorderItems(groupId, dto.ids);
   }
 
   @Patch("items/:id")

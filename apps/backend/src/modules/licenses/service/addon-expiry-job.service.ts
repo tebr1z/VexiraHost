@@ -16,6 +16,7 @@ export class AddonExpiryJobService {
       const result = await this.prisma.addonService.updateMany({
         where: {
           status: "ACTIVE",
+          type: { not: "LICENSE" },
           expiresAt: { lte: new Date() },
         },
         data: { status: "EXPIRED" },

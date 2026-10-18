@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 import { MaterialIcon } from "./material-icon";
 
-import { CurrencySwitcher } from "@/components/layout/currency-switcher";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useAuthHydration } from "@/features/auth/hooks/use-auth";
@@ -110,7 +110,11 @@ export function MobileMenuDrawer({
             aria-label={t("menu")}
           >
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--separator)] bg-[var(--bg-elevated)] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-              <span className="text-[15px] font-semibold text-[var(--label)]">{t("menu")}</span>
+              <BrandLogo
+                href="/"
+                onClick={close}
+                labelClassName="!h-9 [&_img]:!h-9 [&_img]:!w-auto"
+              />
               <button
                 type="button"
                 aria-label={t("closeMenu")}
@@ -122,14 +126,13 @@ export function MobileMenuDrawer({
             </div>
 
             <div className="shrink-0 border-b border-[var(--separator)] bg-[var(--bg-elevated)] px-3 py-3">
-              <div className="flex items-center justify-between gap-1 rounded-2xl bg-[var(--bg-secondary)] px-1.5 py-1.5 [&_ul]:left-0 [&_ul]:right-auto">
+              <div className="flex items-center justify-between gap-1 rounded-2xl border border-[var(--separator)] bg-[var(--bg-secondary)] px-1.5 py-1.5 [&_ul]:left-0 [&_ul]:right-auto">
                 <LanguageSwitcher />
-                <CurrencySwitcher />
                 <ThemeToggle />
               </div>
             </div>
 
-            <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-elevated)] px-2 py-2">
+            <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[var(--bg-elevated)] px-3 py-3">
               {groups.map((group) => {
                 const expanded = expandedKey === group.key;
                 const groupActive = group.items.some((item) =>
@@ -137,13 +140,13 @@ export function MobileMenuDrawer({
                 );
 
                 return (
-                  <div key={group.key} className="mb-1">
+                  <div key={group.key} className="mb-1.5">
                     <button
                       type="button"
                       aria-expanded={expanded}
                       onClick={() => toggleGroup(group.key)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-xl px-3 py-3 text-left text-[15px] font-semibold transition-colors",
+                        "flex w-full items-center justify-between gap-2 rounded-2xl px-3 py-3 text-left text-[15px] font-semibold transition-colors",
                         groupActive || expanded
                           ? "bg-[var(--bg-secondary)] text-[var(--label)]"
                           : "text-[var(--label)] active:bg-[var(--bg-secondary)]",
@@ -169,13 +172,13 @@ export function MobileMenuDrawer({
                           transition={{ duration: 0.18, ease: "easeOut" }}
                           className="overflow-hidden"
                         >
-                          <div className="mb-1 ml-1 mt-0.5 flex flex-col border-l border-[var(--separator)] pl-2">
+                          <div className="mb-2 ml-3 mt-1 flex flex-col border-l border-[var(--separator)] pl-2">
                             {group.items.map((item) => {
                               const active = item.pathMatch
                                 ? pathname.startsWith(item.pathMatch)
                                 : false;
                               const itemClass = cn(
-                                "rounded-xl px-3 py-2.5 text-[14px] transition-colors",
+                                "rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors",
                                 active
                                   ? "bg-[var(--bg-secondary)] font-medium text-[var(--label)]"
                                   : "text-[var(--label-secondary)] active:bg-[var(--bg-secondary)] active:text-[var(--label)]",

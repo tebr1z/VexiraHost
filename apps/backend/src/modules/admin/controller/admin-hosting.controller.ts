@@ -14,11 +14,13 @@ import { UserRole } from "@vexira/types";
 
 import { Roles } from "@/decorators/auth.decorators";
 import { RolesGuard } from "@/guards/roles.guard";
+import { DeployService } from "@/modules/deploy/service/deploy.service";
 import { ServerSetupService } from "@/modules/deploy/service/server-setup.service";
 import {
   MigrateHostingAccountsDto,
   ResolveHostingCancelRequestDto,
   UpdateHostingAccountStatusDto,
+  UpdateHostingAutoDeployLimitsDto,
 } from "@/modules/hosting/dto/hosting-account-admin.dto";
 import {
   CreateHostingServerDto,
@@ -32,12 +34,19 @@ export class AdminHostingController {
   constructor(
     private readonly hostingServersService: HostingServersService,
     private readonly serverSetupService: ServerSetupService,
+    private readonly deployService: DeployService,
   ) {}
 
   @Get("servers")
   @Roles(UserRole.ADMIN)
   listServers() {
     return this.hostingServersService.listServers();
+  }
+
+  @Get("accounts/:id/resources")
+  @Roles(UserRole.ADMIN)
+  accountResources(@Param("id") id: string) {
+    return this.deployService.adminResources(id);
   }
 
   @Post("servers")
@@ -134,6 +143,15 @@ export class AdminHostingController {
   @Roles(UserRole.ADMIN)
   updateAccountStatus(@Param("id") id: string, @Body() dto: UpdateHostingAccountStatusDto) {
     return this.hostingServersService.updateAccountStatus(id, dto);
+  }
+
+  @Patch("accounts/:id/auto-deploy-limits")
+  @Roles(UserRole.ADMIN)
+  updateAccountAutoDeployLimits(
+    @Param("id") id: string,
+    @Body() dto: UpdateHostingAutoDeployLimitsDto,
+  ) {
+    return this.hostingServersService.updateAccountAutoDeployLimits(id, dto);
   }
 
   @Post("accounts/:id/cancel-request")

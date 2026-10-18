@@ -2,9 +2,9 @@ import { Injectable } from "@nestjs/common";
 import {
   InvoiceStatus,
   OrderStatus,
+  PaymentMethodStatus,
   PaymentStatus,
   Prisma,
-  type PaymentMethodType,
 } from "@prisma/client";
 
 import { PrismaService } from "@/database/database.module";
@@ -15,7 +15,7 @@ export class PaymentsRepository {
 
   findMethodsByUserId(userId: string) {
     return this.prisma.paymentMethod.findMany({
-      where: { userId },
+      where: { userId, status: { not: PaymentMethodStatus.REVOKED } },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
   }
@@ -23,28 +23,6 @@ export class PaymentsRepository {
   findMethodByIdForUser(id: string, userId: string) {
     return this.prisma.paymentMethod.findFirst({
       where: { id, userId },
-    });
-  }
-
-  createMethod(data: {
-    userId: string;
-    type: PaymentMethodType;
-    label: string;
-    last4?: string;
-    brand?: string;
-    expiryMonth?: number;
-    expiryYear?: number;
-    isDefault?: boolean;
-  }) {
-    return this.prisma.$transaction(async (tx) => {
-      if (data.isDefault) {
-        await tx.paymentMethod.updateMany({
-          where: { userId: data.userId },
-          data: { isDefault: false },
-        });
-      }
-
-      return tx.paymentMethod.create({ data });
     });
   }
 

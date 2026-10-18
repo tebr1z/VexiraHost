@@ -17,6 +17,7 @@ export const DASHBOARD_NAV_KEYS = {
   domains: "domains",
   hosting: "hosting",
   servers: "servers",
+  managedServers: "managedServers",
   services: "services",
   orders: "orders",
   invoices: "invoices",
@@ -69,6 +70,12 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
         labelKey: "servers",
         icon: "memory",
         matchPrefix: "/dashboard/servers",
+      },
+      {
+        href: "/dashboard/managed-servers",
+        labelKey: "managedServers",
+        icon: "admin_panel_settings",
+        matchPrefix: "/dashboard/managed-servers",
       },
       {
         href: "/dashboard/services",

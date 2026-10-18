@@ -43,6 +43,23 @@ export interface AdminHostingPlan {
   accountCount: number;
   pleskPlanName: string | null;
   autoDeployEnabled: boolean;
+  autoDeployDiskGb: number;
+  autoDeployCpuPercent: number;
+  autoDeployMemoryMb: number;
+  autoDeployMaxApps: number;
+  autoDeployAiEnabled: boolean;
+  autoDeployAiMonthlyCredits: number;
+  autoDeploySecurityScanEnabled: boolean;
+  autoDeployServerId: string | null;
+  autoDeployServer: {
+    id: string;
+    name: string;
+    hostname: string;
+    ipAddress: string;
+    isActive: boolean;
+    deployNodeEnabled: boolean;
+    deployHealth: "UNKNOWN" | "HEALTHY" | "DEGRADED" | "DOWN";
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,7 +87,7 @@ export interface AdminServerPlan {
 
 export interface AdminProductPrice {
   currency: "USD" | "EUR" | "AZN";
-  period: "MONTHLY" | "YEARLY";
+  period: "MONTHLY" | "YEARLY" | "ONE_TIME";
   originalPrice: number;
   salePrice: number;
 }
@@ -86,6 +103,8 @@ export interface AdminProduct {
   price: number;
   currency: string;
   billingCycle: string;
+  minimumQuantity?: number;
+  requiresQuote?: boolean;
   isActive: boolean;
   sortOrder: number;
   orderItemCount: number;
@@ -123,6 +142,7 @@ export async function createAdminHostingPlan(
     | "updatedAt"
     | "server"
     | "servers"
+    | "autoDeployServer"
     | "currency"
     | "billingCycle"
   > & {
@@ -144,7 +164,14 @@ export async function updateAdminHostingPlan(
   input: Partial<
     Omit<
       AdminHostingPlan,
-      "id" | "slug" | "accountCount" | "createdAt" | "updatedAt" | "server" | "servers"
+      | "id"
+      | "slug"
+      | "accountCount"
+      | "createdAt"
+      | "updatedAt"
+      | "server"
+      | "servers"
+      | "autoDeployServer"
     > & { serverIds?: string[] }
   >,
 ): Promise<AdminHostingPlan> {

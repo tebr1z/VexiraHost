@@ -9,6 +9,7 @@ import {
   availableCurrenciesFromPrices,
   hasYearlyPricing,
   mapProductPrices,
+  oneTimeProductPrices,
   resolveProductPrice,
 } from "@/shared/pricing/product-price.util";
 
@@ -30,6 +31,8 @@ function mapProduct(
     price: { toString(): string } | number;
     currency: string;
     billingCycle: string;
+    minimumQuantity?: number;
+    requiresQuote?: boolean;
     isFree?: boolean;
     deliveryMode?: string;
     downloadUrl?: string | null;
@@ -45,8 +48,10 @@ function mapProduct(
   currency?: string,
   period?: string,
 ) {
-  const resolved = resolveProductPrice(product.prices as never, currency, period);
-  const allPrices = mapProductPrices(product.prices as never);
+  const oneTime = product.category === "LICENSE" || product.billingCycle === "ONE_TIME";
+  const priceRows = oneTime ? oneTimeProductPrices(product.prices) : product.prices;
+  const resolved = resolveProductPrice(priceRows as never, currency, oneTime ? "ONE_TIME" : period);
+  const allPrices = mapProductPrices(priceRows as never);
 
   const monthly = allPrices.find(
     (p) => p.currency === (resolved?.currency ?? "USD") && p.period === "MONTHLY",
@@ -68,7 +73,10 @@ function mapProduct(
     price: product.isFree ? 0 : (resolved?.salePrice ?? Number(product.price)),
     originalPrice: product.isFree ? 0 : (resolved?.originalPrice ?? Number(product.price)),
     currency: resolved?.currency ?? product.currency,
-    billingCycle: product.isFree ? "ONE_TIME" : (resolved?.period ?? product.billingCycle),
+    billingCycle:
+      oneTime || product.isFree ? "ONE_TIME" : (resolved?.period ?? product.billingCycle),
+    minimumQuantity: Math.max(1, product.minimumQuantity ?? 1),
+    requiresQuote: product.requiresQuote ?? false,
     discountPercent: product.isFree ? 0 : (resolved?.discountPercent ?? 0),
     yearlySavingsPercent:
       product.isFree || !monthly || !yearly

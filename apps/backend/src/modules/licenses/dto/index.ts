@@ -1,5 +1,5 @@
-﻿import { IsEnum, IsOptional, IsString, MinLength } from "class-validator";
-import { AddonServiceType } from "@prisma/client";
+﻿import { AddonServiceType } from "@prisma/client";
+import { IsEnum, IsOptional, IsString, MinLength } from "class-validator";
 
 export class ProvisionAddonDto {
   @IsEnum(AddonServiceType)

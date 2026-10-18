@@ -7,6 +7,11 @@ export interface HostingPlan {
   description: string | null;
   panel: "CPANEL" | "PLESK";
   autoDeployEnabled?: boolean;
+  autoDeployDiskGb?: number;
+  autoDeployMaxApps?: number;
+  autoDeployAiEnabled?: boolean;
+  autoDeployAiMonthlyCredits?: number;
+  autoDeploySecurityScanEnabled?: boolean;
   diskGb: number;
   bandwidthGb: number;
   maxDomains: number;
@@ -65,6 +70,15 @@ export interface HostingAccount {
   scheduledPurgeAt?: string | null;
   graceEndsAt?: string | null;
   renewalInvoiceId?: string | null;
+  autoDeployLimits?: {
+    diskGb: number;
+    maxApps: number;
+    aiCredits: number;
+    cpuPercent?: number;
+    memoryMb?: number;
+  };
+  autoDeployDiskUsedMb?: number;
+  storageCheckedAt?: string | null;
   server: HostingServerSummary | null;
   orderId: string | null;
   provisionedAt: string | null;
@@ -73,6 +87,19 @@ export interface HostingAccount {
   createdAt: string;
   plan: HostingPlan;
   pleskInfo: PleskWebspaceInfo | null;
+}
+
+export interface HostingNameserverStatus {
+  domain: string;
+  requiredNameservers: string[];
+  configuredNameservers: string[];
+  detectedNameservers: string[];
+  missingNameservers: string[];
+  unexpectedNameservers: string[];
+  isUsingVexiraNameservers: boolean;
+  lookupStatus: "OK" | "PENDING" | "ERROR";
+  lookupError: string | null;
+  checkedAt: string;
 }
 
 export async function listHostingPlans(): Promise<HostingPlan[]> {
@@ -88,6 +115,11 @@ export async function listHostingAccounts(): Promise<HostingAccount[]> {
 export async function getHostingAccount(id: string): Promise<HostingAccount> {
   const res = await apiClient.request<HostingAccount>(`/hosting/${id}`);
   return res.data as HostingAccount;
+}
+
+export async function getHostingNameserverStatus(id: string): Promise<HostingNameserverStatus> {
+  const res = await apiClient.request<HostingNameserverStatus>(`/hosting/${id}/nameserver-status`);
+  return res.data as HostingNameserverStatus;
 }
 
 export async function retryHostingProvision(id: string): Promise<HostingAccount> {

@@ -3,7 +3,9 @@ export {
   articleJsonLd,
   breadcrumbJsonLd,
   buildPageMetadata,
+  faqJsonLd,
   organizationJsonLd,
+  serviceJsonLd,
   websiteJsonLd,
 } from "@/lib/seo/metadata";
 export {

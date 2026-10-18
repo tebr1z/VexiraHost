@@ -7,7 +7,6 @@ export type KapitalEnvironment = "test" | "production";
 export interface KapitalPreset {
   label: string;
   username: string;
-  password: string;
   baseUrl: string;
 }
 
@@ -15,6 +14,7 @@ export interface AdminKapitalSettings {
   environment: KapitalEnvironment;
   username: string;
   password: string;
+  passwordConfigured: boolean;
   baseUrl: string;
   configured: boolean;
   source: "database" | "env" | "preset";
@@ -79,9 +79,21 @@ export interface AdminSystemStatus {
   };
   kapital: AdminKapitalSettings;
   kapitalPresets: Record<KapitalEnvironment, KapitalPreset>;
+  epoint: {
+    configured: boolean;
+    callbackUrl: string;
+  };
   googleOAuth: AdminGoogleOAuthSettings;
   githubOAuth: AdminGitHubOAuthSettings;
   turnstile: AdminTurnstileSettings;
+  cloudflareDns: {
+    configured: boolean;
+    canCreateZones: boolean;
+  };
+  authoritativeDns: {
+    configured: boolean;
+    nameservers: string[];
+  };
   access: SiteAccessConfig;
   maintenance: AdminMaintenanceSettings;
   announcement: AdminAnnouncementSettings;
@@ -140,6 +152,8 @@ function normalizeAdminSystemStatus(data: AdminSystemStatus): AdminSystemStatus 
   const hours = Number(data.ticketAutoCloseHours);
   return {
     ...data,
+    epoint: data.epoint ?? { configured: false, callbackUrl: "" },
+    cloudflareDns: data.cloudflareDns ?? { configured: false, canCreateZones: false },
     githubOAuth: data.githubOAuth ?? {
       clientId: "",
       callbackUrl: "",

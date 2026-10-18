@@ -49,7 +49,7 @@ services:
     container_name: vexira-backend
     restart: unless-stopped
     ports:
-      - "${BACKEND_HOST_PORT:-4000}:4000"
+      - "127.0.0.1:${BACKEND_HOST_PORT:-4000}:4000"
     env_file:
       - ../deploy/.env.docker
     environment:
@@ -64,8 +64,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
     volumes:
       - whatsapp_auth:/app/apps/backend/.whatsapp-auth
+      - backend_storage:/app/apps/backend/storage
     networks:
       - vexira
 
@@ -79,13 +92,26 @@ services:
     container_name: vexira-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_HOST_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
     networks:
       - vexira
 
@@ -93,6 +119,7 @@ volumes:
   postgres_data:
   redis_data:
   whatsapp_auth:
+  backend_storage:
 
 networks:
   vexira:

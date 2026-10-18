@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -24,7 +25,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/i18n/format";
 import { toast } from "@/stores/toast-store";
 
-const ADDON_TYPES: AddonType[] = ["LICENSE", "SSL", "EMAIL", "BACKUP"];
+const ADDON_TYPES: AddonType[] = ["LICENSE", "EMAIL"];
 
 function metaString(meta: Record<string, unknown> | null | undefined, key: string): string | null {
   const value = meta?.[key];
@@ -59,9 +60,10 @@ export default function ServicesPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.services");
+  const tl = useTranslations("licenseBilling");
   const [services, setServices] = useState<AddonService[]>([]);
   const [pleskServices, setPleskServices] = useState<HostingAccount[]>([]);
-  const [type, setType] = useState<AddonType>("SSL");
+  const [type, setType] = useState<AddonType>("EMAIL");
   const [name, setName] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
@@ -109,8 +111,8 @@ export default function ServicesPage(): React.ReactElement | null {
       const msg =
         err && typeof err === "object" && "error" in err
           ? (err as { error?: { message?: string } }).error?.message
-          : "Failed to activate service";
-      setError(msg ?? "Failed to activate service");
+          : tp("activateFailed");
+      setError(msg ?? tp("activateFailed"));
     } finally {
       setLoading(false);
     }
@@ -131,7 +133,7 @@ export default function ServicesPage(): React.ReactElement | null {
         onSubmit={handleProvision}
         className="card-3d border-outline-variant/50 bg-surface grid gap-4 rounded-2xl border p-6 sm:grid-cols-2"
       >
-        <h2 className="text-primary font-semibold sm:col-span-2">Activate new service</h2>
+        <h2 className="text-primary font-semibold sm:col-span-2">{tp("activateTitle")}</h2>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as AddonType)}
@@ -146,14 +148,14 @@ export default function ServicesPage(): React.ReactElement | null {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Service name"
+          placeholder={tp("serviceNamePlaceholder")}
           required
           className="border-outline-variant h-12 rounded-xl border px-4"
         />
         <input
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
-          placeholder="Domain / email (optional)"
+          placeholder={tp("identifierPlaceholder")}
           className="border-outline-variant h-12 rounded-xl border px-4"
         />
         {error && <p className="text-error text-sm sm:col-span-2">{error}</p>}
@@ -162,7 +164,7 @@ export default function ServicesPage(): React.ReactElement | null {
           disabled={loading}
           className="bg-primary text-on-primary h-12 rounded-xl font-semibold disabled:opacity-60 sm:col-span-2"
         >
-          {loading ? "Provisioning..." : "Activate service"}
+          {loading ? tp("activating") : tp("activateAction")}
         </button>
       </form>
 
@@ -332,9 +334,12 @@ export default function ServicesPage(): React.ReactElement | null {
                           </p>
                         )}
                         {guideImage && (
-                          <img
+                          <Image
                             src={guideImage}
                             alt={tp("howToActivate")}
+                            width={960}
+                            height={540}
+                            unoptimized
                             className="mt-3 max-h-64 w-full rounded-lg object-contain"
                           />
                         )}
@@ -361,13 +366,18 @@ export default function ServicesPage(): React.ReactElement | null {
                   </div>
                 )}
 
-                {service.expiresAt && (
+                {service.type === "LICENSE" ? (
+                  <p className="text-on-surface-variant mt-3 text-xs">{tl("hint")}</p>
+                ) : null}
+                {service.type !== "LICENSE" && service.expiresAt && (
                   <p className="text-on-surface-variant mt-3 text-sm">
                     {tp("expires")}: {formatDate(service.expiresAt, locale)}
                   </p>
                 )}
 
-                {service.status === "ACTIVE" && service.autoRenew !== false ? (
+                {service.type !== "LICENSE" &&
+                service.status === "ACTIVE" &&
+                service.autoRenew !== false ? (
                   <button
                     type="button"
                     disabled={cancellingId === service.id}
@@ -391,7 +401,9 @@ export default function ServicesPage(): React.ReactElement | null {
                     {cancellingId === service.id ? tc("cancelling") : tc("cancelRenewal")}
                   </button>
                 ) : null}
-                {service.status === "ACTIVE" && service.autoRenew === false ? (
+                {service.type !== "LICENSE" &&
+                service.status === "ACTIVE" &&
+                service.autoRenew === false ? (
                   <p className="text-on-surface-variant mt-3 text-xs">
                     {tc("renewalCancelledHint", {
                       date: service.expiresAt

@@ -5,11 +5,13 @@ import { LoggerModule } from "nestjs-pino";
 import { AppCoreModule } from "./common/app-core.module";
 import { HealthController } from "./common/health/health.controller";
 import { appConfig } from "./config/app.config";
+import { cloudflareConfig } from "./config/cloudflare.config";
 import { databaseConfig } from "./config/database.config";
 import { deployConfig } from "./config/deploy.config";
 import { jwtConfig } from "./config/jwt.config";
 import { oauthConfig } from "./config/oauth.config";
 import { paymentConfig } from "./config/payment.config";
+import { powerDnsConfig } from "./config/powerdns.config";
 import { proxmoxConfig } from "./config/proxmox.config";
 import { redisConfig } from "./config/redis.config";
 import { registrarConfig } from "./config/registrar.config";
@@ -28,6 +30,7 @@ import { GeoModule } from "./modules/geo/geo.module";
 import { HostingModule } from "./modules/hosting/hosting.module";
 import { LicensesModule } from "./modules/licenses/licenses.module";
 import { LifecycleModule } from "./modules/lifecycle/lifecycle.module";
+import { ManagedServersModule } from "./modules/managed-servers/managed-servers.module";
 import { MarketingModule } from "./modules/marketing/marketing.module";
 import { NavigationModule } from "./modules/navigation/navigation.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
@@ -57,6 +60,8 @@ import { StorageModule } from "./shared/storage/storage.module";
         proxmoxConfig,
         paymentConfig,
         deployConfig,
+        cloudflareConfig,
+        powerDnsConfig,
       ],
       envFilePath: [".env.local", ".env"],
     }),
@@ -95,6 +100,7 @@ import { StorageModule } from "./shared/storage/storage.module";
     ContactModule,
     GeoModule,
     MarketingModule,
+    ManagedServersModule,
     WhatsappModule,
     LifecycleModule,
     AppCoreModule,

@@ -69,6 +69,14 @@ export class NavigationRepository {
     return this.prisma.navGroup.delete({ where: { id } });
   }
 
+  reorderGroups(ids: string[]) {
+    return this.prisma.$transaction(
+      ids.map((id, sortOrder) =>
+        this.prisma.navGroup.update({ where: { id }, data: { sortOrder } }),
+      ),
+    );
+  }
+
   findItemById(id: string) {
     return this.prisma.navItem.findUnique({ where: { id } });
   }
@@ -83,5 +91,13 @@ export class NavigationRepository {
 
   deleteItem(id: string) {
     return this.prisma.navItem.delete({ where: { id } });
+  }
+
+  reorderItems(ids: string[]) {
+    return this.prisma.$transaction(
+      ids.map((id, sortOrder) =>
+        this.prisma.navItem.update({ where: { id }, data: { sortOrder } }),
+      ),
+    );
   }
 }

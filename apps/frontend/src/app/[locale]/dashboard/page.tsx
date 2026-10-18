@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { DashboardOverviewStat } from "@/components/dashboard/dashboard-overview-stat";
-import { LoadingSkeleton } from "@/components/ui";
+import { HomeIcon } from "@/components/landing/home-icon";
+import { LoadingSkeleton, PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
 import { getAccountBalance, listInvoices } from "@/features/billing";
 import { listDomains } from "@/features/domains";
@@ -95,38 +96,22 @@ export default function DashboardPage(): React.ReactElement | null {
 
   return (
     <div className="space-y-8">
-      <section className="dashboard-hero relative overflow-hidden rounded-3xl border border-[var(--separator)] px-5 py-7 shadow-sm sm:px-8 sm:py-9">
-        <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div className="max-w-2xl">
-            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90 backdrop-blur">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
-              {th("title")}
-            </span>
-            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{welcome}</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
-              {to("sectionTitle")}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/dashboard/products"
-              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-slate-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-xl"
-            >
-              <span className="material-symbols-outlined text-[19px]">add_circle</span>
+      <PageHeader
+        title={th("title")}
+        description={welcome}
+        actions={
+          <>
+            <Link href="/dashboard/products" className="dashboard-btn-primary">
+              <HomeIcon name="plus" className="h-[18px] w-[18px]" />
               {to("buyService")}
             </Link>
-            <Link
-              href="/dashboard/tickets/new"
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20"
-            >
-              <span className="material-symbols-outlined text-[19px]">support_agent</span>
+            <Link href="/dashboard/tickets/new" className="dashboard-btn-secondary">
+              <HomeIcon name="support" className="h-[18px] w-[18px]" />
               {to("openTicket")}
             </Link>
-          </div>
-        </div>
-        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-28 left-1/3 h-60 w-60 rounded-full bg-cyan-300/15 blur-3xl" />
-      </section>
+          </>
+        }
+      />
 
       {showAttention ? (
         <section
@@ -170,10 +155,9 @@ export default function DashboardPage(): React.ReactElement | null {
             <h2 className="text-lg font-bold tracking-tight text-[var(--label-primary)]">
               {to("sectionTitle")}
             </h2>
-            <div className="mt-1 h-1 w-10 rounded-full bg-[var(--accent)]" />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {counts ? (
             <>
               <DashboardOverviewStat

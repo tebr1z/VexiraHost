@@ -10,6 +10,8 @@ import type {
   ProductDeliveryConfig,
 } from "../interfaces/addon-provider.interface";
 
+import { assertMockProviderAllowed } from "@/shared/providers/mock-provider.guard";
+
 function hashSeed(input: string): number {
   let hash = 0;
   for (let i = 0; i < input.length; i += 1) {
@@ -78,6 +80,8 @@ function resolveDownloadUrl(
 @Injectable()
 export class MockAddonProvider implements AddonProvider {
   async provision(input: AddonProvisionInput, appUrl?: string): Promise<AddonProvisionResult> {
+    assertMockProviderAllowed("Mock add-on provider");
+
     const seed = hashSeed(`${input.type}:${input.name}:${input.identifier ?? ""}`);
     const now = new Date();
     const baseUrl = (appUrl ?? "http://localhost:3000").replace(/\/$/, "");
@@ -110,7 +114,7 @@ export class MockAddonProvider implements AddonProvider {
             activationGuideImageUrl: delivery?.activationGuideImageUrl ?? null,
             activationGuideVideoUrl: delivery?.activationGuideVideoUrl ?? null,
           },
-          expiresAt: delivery?.isFree ? null : addYears(now, 1),
+          expiresAt: null,
           remainingLicenseKeys: pooledKey ? remaining : undefined,
         };
       }

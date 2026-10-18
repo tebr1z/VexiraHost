@@ -1,15 +1,7 @@
 import { cn } from "@/lib/cn";
 
 export function LoadingSkeleton({ className }: { className?: string }): React.ReactElement {
-  return (
-    <div
-      className={cn(
-        "animate-pulse rounded-2xl bg-gradient-to-r from-[var(--fill-secondary)] via-[var(--fill)] to-[var(--fill-secondary)] bg-[length:200%_100%]",
-        className,
-      )}
-      aria-hidden
-    />
-  );
+  return <div className={cn("vexira-skeleton", className)} aria-hidden />;
 }
 
 export function LoadingSkeletonList({

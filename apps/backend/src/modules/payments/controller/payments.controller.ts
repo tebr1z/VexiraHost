@@ -1,8 +1,8 @@
-﻿import { Body, Controller, Get, Post, Query, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
-import { ChargePaymentDto, CreatePaymentMethodDto } from "../dto";
+import { ChargePaymentDto, EpointCallbackDto } from "../dto";
 import { PaymentsService } from "../service/payments.service";
 
 import { Public } from "@/decorators/auth.decorators";
@@ -22,20 +22,37 @@ export class PaymentsController {
     return this.paymentsService.getBalance(user.id);
   }
 
-  @Post("methods")
-  createMethod(@Body() dto: CreatePaymentMethodDto, @User() user: AuthUser) {
-    return this.paymentsService.createMethod(user.id, dto);
-  }
-
   @Post("charge")
   charge(@Body() dto: ChargePaymentDto, @User() user: AuthUser) {
     return this.paymentsService.charge(user.id, dto);
   }
 
-  /**
-   * Kapital Bank HPP redirect target.
-   * Sample: /payments/kapital/callback?ID=1234&STATUS=FullyPaid
-   */
+  @Post("epoint/cards/register")
+  registerEpointCard(@User() user: AuthUser, @Req() req: Request) {
+    const forwarded = req.headers["x-forwarded-for"];
+    const clientIp = Array.isArray(forwarded)
+      ? forwarded[0]
+      : forwarded?.split(",")[0]?.trim() || req.ip;
+    return this.paymentsService.registerEpointCard(user.id, clientIp);
+  }
+
+  @Post("methods/:id/default")
+  setDefaultMethod(@Param("id") id: string, @User() user: AuthUser) {
+    return this.paymentsService.setDefaultMethod(user.id, id);
+  }
+
+  @Delete("methods/:id")
+  disableMethod(@Param("id") id: string, @User() user: AuthUser) {
+    return this.paymentsService.disableMethod(user.id, id);
+  }
+
+  @Public()
+  @Post("epoint/callback")
+  epointCallback(@Body() dto: EpointCallbackDto) {
+    return this.paymentsService.handleEpointCallback(dto.data, dto.signature);
+  }
+
+  /** Kapital Bank HPP redirect target. */
   @Public()
   @Get("kapital/callback")
   async kapitalCallback(

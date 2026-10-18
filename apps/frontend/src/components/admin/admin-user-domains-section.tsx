@@ -403,6 +403,11 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={domain.status} />
+                  {domain.dnsProvider === "CLOUDFLARE" ? (
+                    <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:text-orange-300">
+                      Cloudflare · {domain.dnsProviderStatus ?? "pending"}
+                    </span>
+                  ) : null}
                   {domain.pendingChangeCount > 0 && (
                     <Link
                       href="/t4abriz/panel/domains/changes?status=PENDING"
@@ -411,17 +416,20 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
                       {tp("pendingChanges", { count: domain.pendingChangeCount })}
                     </Link>
                   )}
-                  <button
-                    type="button"
-                    disabled={updatingId === domain.id}
-                    onClick={() =>
-                      setEditingId((current) => (current === domain.id ? null : domain.id))
-                    }
-                    className="border-outline-variant/40 bg-surface rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                  >
-                    {editingId === domain.id ? tp("cancelEdit") : tp("edit")}
-                  </button>
-                  {domain.status === "SUSPENDED" || domain.status === "EXPIRED" ? (
+                  {domain.managementMode === "MANUAL" ? (
+                    <button
+                      type="button"
+                      disabled={updatingId === domain.id}
+                      onClick={() =>
+                        setEditingId((current) => (current === domain.id ? null : domain.id))
+                      }
+                      className="border-outline-variant/40 bg-surface rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    >
+                      {editingId === domain.id ? tp("cancelEdit") : tp("edit")}
+                    </button>
+                  ) : null}
+                  {domain.managementMode === "MANUAL" &&
+                  (domain.status === "SUSPENDED" || domain.status === "EXPIRED") ? (
                     <button
                       type="button"
                       disabled={updatingId === domain.id}
@@ -431,14 +439,16 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
                       {tp("activate")}
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    disabled={updatingId === domain.id}
-                    onClick={() => void handleDelete(domain)}
-                    className="border-error/40 text-error hover:bg-error/10 rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                  >
-                    {tp("delete")}
-                  </button>
+                  {domain.managementMode === "MANUAL" ? (
+                    <button
+                      type="button"
+                      disabled={updatingId === domain.id}
+                      onClick={() => void handleDelete(domain)}
+                      className="border-error/40 text-error hover:bg-error/10 rounded-xl border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    >
+                      {tp("delete")}
+                    </button>
+                  ) : null}
                 </div>
               </div>
               {editingId === domain.id ? (
@@ -478,18 +488,20 @@ export function AdminUserDomainsSection({ userId }: { userId: string }): React.R
                   )}
                 </>
               )}
-              <DomainBillingRow
-                domain={domain}
-                disabled={updatingId === domain.id}
-                onSave={(amount, currency) => void handlePriceSave(domain.id, amount, currency)}
-                onCreateInvoice={() => void handleCreateInvoice(domain.id)}
-                labels={{
-                  amount: tp("billingAmount"),
-                  save: tp("savePrice"),
-                  createInvoice: tp("createInvoiceAction"),
-                  invoiceLinked: tp("invoiceLinked"),
-                }}
-              />
+              {domain.managementMode === "MANUAL" ? (
+                <DomainBillingRow
+                  domain={domain}
+                  disabled={updatingId === domain.id}
+                  onSave={(amount, currency) => void handlePriceSave(domain.id, amount, currency)}
+                  onCreateInvoice={() => void handleCreateInvoice(domain.id)}
+                  labels={{
+                    amount: tp("billingAmount"),
+                    save: tp("savePrice"),
+                    createInvoice: tp("createInvoiceAction"),
+                    invoiceLinked: tp("invoiceLinked"),
+                  }}
+                />
+              ) : null}
             </li>
           ))}
         </ul>

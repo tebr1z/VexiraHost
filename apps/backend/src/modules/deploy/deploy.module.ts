@@ -43,6 +43,6 @@ import { HostingModule } from "@/modules/hosting/hosting.module";
     ApacheProxyService,
     RemoteDeployService,
   ],
-  exports: [DeployService, ServerSetupService, GitHubDeployService],
+  exports: [DeployService, ServerSetupService, GitHubDeployService, SshService],
 })
 export class DeployModule {}

@@ -1,11 +1,32 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import type { AuthUser } from "@vexira/types";
+import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
+import { extname, resolve } from "node:path";
 
-import { CreateDeploymentDto } from "../dto/create-deployment.dto";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { AuthUser } from "@vexira/types";
+import { diskStorage } from "multer";
+
+import { CreateDeploymentDto, CreateUploadDeploymentDto } from "../dto/create-deployment.dto";
 import { UpdateDeploymentEnvDto } from "../dto/update-deployment-env.dto";
 import { DeployService } from "../service/deploy.service";
 
 import { User } from "@/decorators/user.decorator";
+
+const DEPLOY_UPLOAD_ROOT = resolve(process.cwd(), "storage", "deploy-uploads");
+mkdirSync(DEPLOY_UPLOAD_ROOT, { recursive: true });
 
 @Controller("hosting/:accountId/deployments")
 export class DeployController {
@@ -14,6 +35,11 @@ export class DeployController {
   @Get()
   list(@Param("accountId") accountId: string, @User() user: AuthUser) {
     return this.deployService.list(accountId, user.id);
+  }
+
+  @Get("resources")
+  resources(@Param("accountId") accountId: string, @User() user: AuthUser) {
+    return this.deployService.resources(accountId, user.id);
   }
 
   @Get(":deploymentId")
@@ -32,6 +58,33 @@ export class DeployController {
     @User() user: AuthUser,
   ) {
     return this.deployService.create(accountId, user.id, dto);
+  }
+
+  @Post("upload")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: diskStorage({
+        destination: DEPLOY_UPLOAD_ROOT,
+        filename: (_req, file, callback) =>
+          callback(null, `${randomUUID()}${extname(file.originalname).toLowerCase()}`),
+      }),
+      limits: { files: 1, fileSize: 2 * 1024 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        if (extname(file.originalname).toLowerCase() !== ".zip") {
+          callback(new BadRequestException("Only .zip source archives are accepted"), false);
+          return;
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  createFromUpload(
+    @Param("accountId") accountId: string,
+    @Body() dto: CreateUploadDeploymentDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @User() user: AuthUser,
+  ) {
+    return this.deployService.createFromUpload(accountId, user.id, dto, file);
   }
 
   @Post(":deploymentId/redeploy")

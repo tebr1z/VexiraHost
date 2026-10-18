@@ -1,9 +1,4 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-} from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
@@ -17,7 +12,16 @@ export function hashToken(token: string): string {
 }
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.HOSTING_CREDENTIALS_KEY ?? "vexira-dev-hosting-key-change-me";
+  const configured = process.env.HOSTING_CREDENTIALS_KEY;
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!configured || configured.length < 32 || /change-me/i.test(configured))
+  ) {
+    throw new Error(
+      "HOSTING_CREDENTIALS_KEY must be a unique secret of at least 32 characters in production",
+    );
+  }
+  const secret = configured ?? "vexira-dev-hosting-key-change-me";
   return createHash("sha256").update(secret).digest();
 }
 

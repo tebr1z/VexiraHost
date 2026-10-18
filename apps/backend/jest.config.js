@@ -7,8 +7,10 @@ module.exports = {
   },
   collectCoverageFrom: ["**/*.(t|j)s"],
   coverageDirectory: "../coverage",
+  cacheDirectory: "<rootDir>/.jest-cache",
   testEnvironment: "node",
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
+    "^otplib$": "<rootDir>/test/mocks/otplib.ts",
   },
 };
