@@ -8,6 +8,10 @@ export const powerDnsConfig = registerAs("powerdns", () => ({
     .split(",")
     .map((value) => value.trim().toLowerCase().replace(/\.$/, ""))
     .filter(Boolean),
+  monitorDomain: (process.env.POWERDNS_MONITOR_DOMAIN ?? "vexirahost.com")
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, ""),
 }));
 
 export type PowerDnsConfig = ReturnType<typeof powerDnsConfig>;

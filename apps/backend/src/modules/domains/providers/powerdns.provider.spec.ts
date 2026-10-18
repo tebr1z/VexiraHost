@@ -54,6 +54,16 @@ describe("PowerDnsProvider", () => {
     );
   });
 
+  it("reports the primary API health without leaking request failures", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: "localhost", type: "Server" }))
+      .mockRejectedValueOnce(new Error("connect timeout"));
+
+    await expect(provider().checkApi()).resolves.toBe(true);
+    await expect(provider().checkApi()).resolves.toBe(false);
+  });
+
   it("replaces application records without deleting the authoritative apex NS set", async () => {
     global.fetch = jest
       .fn()

@@ -9,6 +9,7 @@ import type { SystemHealthItem, SystemHealthSnapshot } from "../system-report.ty
 import { resolveOverallHealth } from "../utils/system-report-email.util";
 
 import { PrismaService } from "@/database/database.module";
+import { AuthoritativeDnsService } from "@/modules/domains/service/authoritative-dns.service";
 import { WhatsappRepository } from "@/modules/whatsapp/repository/whatsapp.repository";
 import { WhatsappSessionService } from "@/modules/whatsapp/service/whatsapp-session.service";
 import { DEFAULT_QUEUE } from "@/queue/queue.module";
@@ -20,11 +21,12 @@ export class SystemHealthService {
     private readonly config: ConfigService,
     private readonly whatsappRepository: WhatsappRepository,
     private readonly whatsappSession: WhatsappSessionService,
+    private readonly authoritativeDns: AuthoritativeDnsService,
     @Inject(DEFAULT_QUEUE) private readonly queue: Queue | null,
   ) {}
 
   async collectSnapshot(): Promise<SystemHealthSnapshot> {
-    const [databaseOk, redisState, queueStats, smtpConfigured, whatsapp, maintenance] =
+    const [databaseOk, redisState, queueStats, smtpConfigured, whatsapp, maintenance, dns] =
       await Promise.all([
         this.checkDatabase(),
         this.checkRedis(),
@@ -32,6 +34,7 @@ export class SystemHealthService {
         Promise.resolve(this.isSmtpConfigured()),
         this.checkWhatsappGateway(),
         this.checkMaintenance(),
+        this.authoritativeDns.getHealthStatus(),
       ]);
 
     const items: SystemHealthItem[] = [
@@ -76,6 +79,12 @@ export class SystemHealthService {
       },
       whatsapp,
       maintenance,
+      {
+        key: "authoritative-dns",
+        label: "Vexira authoritative DNS",
+        state: dns.state,
+        message: dns.message,
+      },
     ];
 
     return {

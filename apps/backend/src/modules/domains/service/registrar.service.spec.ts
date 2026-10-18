@@ -11,7 +11,10 @@ function setup(storedProvider: string | null, namesiloConfigured = true) {
     },
   };
   const config = { get: jest.fn().mockReturnValue("mock") };
-  const mock = { search: jest.fn().mockResolvedValue([{ domain: "mock.example" }]) };
+  const mock = {
+    search: jest.fn().mockResolvedValue([{ domain: "mock.example" }]),
+    defaultDnsRecords: jest.fn().mockReturnValue([{ type: "A", name: "@", value: "203.0.113.10" }]),
+  };
   const namesilo = {
     isConfigured: jest.fn().mockReturnValue(namesiloConfigured),
     search: jest.fn().mockResolvedValue([{ domain: "live.example" }]),
@@ -43,5 +46,13 @@ describe("RegistrarService", () => {
   it("fails closed when NameSilo is selected without credentials", async () => {
     const { service } = setup("namesilo", false);
     await expect(service.search("example.com")).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it("keeps deterministic platform DNS defaults independent of the active registrar", () => {
+    const { service, mock } = setup("namesilo");
+    expect(service.defaultDnsRecords("example.com")).toEqual([
+      { type: "A", name: "@", value: "203.0.113.10" },
+    ]);
+    expect(mock.defaultDnsRecords).toHaveBeenCalledWith("example.com");
   });
 });

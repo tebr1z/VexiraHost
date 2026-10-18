@@ -28,7 +28,42 @@ Hər iki DNS node-da public internetdən aşağıdakılar açıq olmalıdır:
 
 PowerDNS HTTP API portu (adətən `8081`) public internetə açılmamalıdır. Yalnız Vexira backend-in private/VPN IP-si primary API-yə qoşula bilməlidir.
 
-## Primary nümunə konfiqurasiyası
+## Hazır Docker qurulumu
+
+Repo daxilində primary və secondary üçün ayrıca, production-a uyğun Compose paketləri var:
+
+- `deploy/dns/docker-compose.primary.yml`
+- `deploy/dns/docker-compose.secondary.yml`
+- `deploy/dns/powerdns-schema.sql`
+- `deploy/dns/configure-firewall.sh`
+
+Hər iki serverdə `deploy/dns/.env.example` faylını `.env` adı ilə kopyalayın və real, eyni dəyərləri daxil edin. Sonra fərqli serverlərdə müvafiq əmri işlədin:
+
+```bash
+# ns1 / primary
+docker compose --env-file deploy/dns/.env \
+  -f deploy/dns/docker-compose.primary.yml up -d
+
+# ns2 / secondary
+docker compose --env-file deploy/dns/.env \
+  -f deploy/dns/docker-compose.secondary.yml up -d
+```
+
+Compose paketləri PowerDNS `5.0.7` image-ni pin edir, bazanı avtomatik yaradır, primary-də AXFR/NOTIFY-ni yalnız secondary IP-yə açır və secondary-də supermaster qeydini idempotent şəkildə yaradır. Image versiyasını plansız `latest` etiketinə dəyişməyin; əvvəl staging-də schema və transfer testi edin.
+
+Firewall qaydalarını mövcud UFW konfiqurasiyasını silmədən əlavə etmək üçün:
+
+```bash
+# primary
+sudo bash deploy/dns/configure-firewall.sh primary SECONDARY_PUBLIC_IP BACKEND_PRIVATE_CIDR
+
+# secondary
+sudo bash deploy/dns/configure-firewall.sh secondary PRIMARY_PUBLIC_IP
+```
+
+Skriptin sonunda çıxan qaydaları nəzərdən keçirin. `8081` üçün `Anywhere` qaydası olmamalıdır.
+
+## Manual konfiqurasiya alternativi
 
 `/etc/powerdns/pdns.conf` üçün əsas parametrlər:
 
@@ -94,9 +129,10 @@ POWERDNS_API_URL=http://10.0.0.10:8081/api/v1
 POWERDNS_API_KEY=CHANGE_TO_A_LONG_RANDOM_SECRET
 POWERDNS_SERVER_ID=localhost
 AUTHORITATIVE_NAMESERVERS=ns1.vexirahost.com,ns2.vexirahost.com
+POWERDNS_MONITOR_DOMAIN=vexirahost.com
 ```
 
-Migration tətbiq edildikdən və backend yenidən başladıldıqdan sonra admin sistem statusunda “Vexira authoritative DNS” hazır görünməlidir.
+Backend monitorinqi primary API-yə qoşulur, `ns1` və `ns2`-yə birbaşa SOA sorğusu göndərir və serialların eyni olduğunu yoxlayır. Migration tətbiq edildikdən və backend yenidən başladıldıqdan sonra admin sistem statusunda “Vexira authoritative DNS” yalnız API, glue və replikasiya birlikdə sağlam olduqda hazır görünür.
 
 ## Yoxlama
 
@@ -110,6 +146,17 @@ dig +trace example.com
 ```
 
 Hər iki authoritative cavab eyni serial və eyni Plesk IP-sini göstərməlidir. Secondary cavab vermədən nameserver-ləri müştərilərə təqdim etməyin.
+
+Eyni yoxlamanı avtomatik və CI/monitoring üçün exit-code ilə işlətmək olar:
+
+```bash
+DNS_TEST_DOMAIN=example.com \
+DNS_EXPECTED_ADDRESS=PLESK_SERVER_PUBLIC_IP \
+AUTHORITATIVE_NAMESERVERS=ns1.vexirahost.com,ns2.vexirahost.com \
+node deploy/dns/verify-authoritative-dns.mjs
+```
+
+Altı Plesk serverinin hər biri üçün ayrıca test domeni yaradıb `DNS_EXPECTED_ADDRESS` dəyərini həmin serverin public IP-si ilə yoxlayın. Backend hosting yaradılarkən seçilmiş serverin IP-sini `@`, `www`, `mail`, `MX` və SPF qeydlərinə avtomatik yazır; nameserver cütü dəyişmir.
 
 ## Cloudflare ilə münasibət
 

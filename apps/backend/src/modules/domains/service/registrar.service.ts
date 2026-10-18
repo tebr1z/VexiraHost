@@ -69,6 +69,6 @@ export class RegistrarService implements RegistrarProvider {
   }
 
   defaultDnsRecords(domain: string) {
-    return this.namesilo.defaultDnsRecords(domain);
+    return this.mock.defaultDnsRecords(domain);
   }
 }

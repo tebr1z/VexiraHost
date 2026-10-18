@@ -1,0 +1,72 @@
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: powerdns
+      POSTGRES_USER: powerdns
+      POSTGRES_PASSWORD: ${DNS_DB_PASSWORD:?DNS_DB_PASSWORD is required}
+    volumes:
+      - secondary_database:/var/lib/postgresql/data
+      - ./powerdns-schema.sql:/docker-entrypoint-initdb.d/10-powerdns.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U powerdns -d powerdns"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [dns_private]
+
+  register-primary:
+    image: postgres:17-alpine
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DNS_DB_PASSWORD:?DNS_DB_PASSWORD is required}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        psql -h database -U powerdns -d powerdns -v ON_ERROR_STOP=1 \
+          -v primary_ip="${PRIMARY_PUBLIC_IP:?PRIMARY_PUBLIC_IP is required}" \
+          -v ns1_host="${NS1_HOST:-ns1.vexirahost.com}" \
+          -c "INSERT INTO supermasters (ip, nameserver, account) VALUES (:'primary_ip', :'ns1_host', 'vexira') ON CONFLICT (ip, nameserver) DO NOTHING"
+    restart: "no"
+    networks: [dns_private]
+
+  authoritative:
+    image: powerdns/pdns-auth-50:5.0.7
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      register-primary:
+        condition: service_completed_successfully
+    command:
+      - --launch=gpgsql
+      - --gpgsql-host=database
+      - --gpgsql-dbname=powerdns
+      - --gpgsql-user=powerdns
+      - --gpgsql-password=${DNS_DB_PASSWORD:?DNS_DB_PASSWORD is required}
+      - --primary=no
+      - --secondary=yes
+      - --autosecondary=yes
+      - --allow-notify-from=${PRIMARY_PUBLIC_IP:?PRIMARY_PUBLIC_IP is required}/32
+      - --default-ttl=300
+      - --loglevel=4
+    ports:
+      - ${DNS_LISTEN_ADDRESS:-0.0.0.0}:53:53/udp
+      - ${DNS_LISTEN_ADDRESS:-0.0.0.0}:53:53/tcp
+    healthcheck:
+      test: ["CMD", "pdns_control", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [dns_private]
+
+volumes:
+  secondary_database:
+
+networks:
+  dns_private:
+    driver: bridge

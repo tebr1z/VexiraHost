@@ -1,4 +1,4 @@
-import { resolveNs } from "node:dns/promises";
+import { Resolver, resolve4, resolve6, resolveNs } from "node:dns/promises";
 import { isIP } from "node:net";
 
 import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
@@ -36,6 +36,72 @@ export class AuthoritativeDnsService {
 
   getNameservers(): string[] {
     return this.powerDns.getNameservers();
+  }
+
+  async getHealthStatus(): Promise<{
+    state: "ok" | "warning" | "down" | "disabled";
+    message: string;
+  }> {
+    if (!this.isConfigured()) {
+      return { state: "disabled", message: "PowerDNS API yapılandırılmamış" };
+    }
+
+    const nameservers = this.getNameservers();
+    if (nameservers.length < 2) {
+      return { state: "down", message: "En az iki authoritative nameserver gerekli" };
+    }
+
+    const apiOk = await this.powerDns.checkApi();
+    if (!apiOk) return { state: "down", message: "PowerDNS primary API yanıt vermiyor" };
+
+    const monitorDomain = this.powerDns.getMonitorDomain();
+    const results = await Promise.all(
+      nameservers.slice(0, 2).map(async (nameserver) => {
+        try {
+          const addresses = await this.withTimeout(
+            Promise.all([
+              resolve4(nameserver).catch(() => []),
+              resolve6(nameserver).catch(() => []),
+            ]),
+            3_000,
+          );
+          const address = [...addresses[0], ...addresses[1]][0];
+          if (!address) throw new Error("NO_ADDRESS");
+          const resolver = new Resolver();
+          resolver.setServers([address]);
+          const soa = await this.withTimeout(resolver.resolveSoa(monitorDomain), 3_000);
+          return { nameserver, address, serial: soa.serial };
+        } catch (error) {
+          return {
+            nameserver,
+            address: null,
+            serial: null,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }),
+    );
+
+    const failed = results.filter((result) => result.serial == null);
+    if (failed.length > 0) {
+      return {
+        state: "down",
+        message: `${failed.map((result) => result.nameserver).join(", ")} authoritative SOA yanıtı vermiyor`,
+      };
+    }
+
+    const serials = new Set(results.map((result) => result.serial));
+    if (serials.size !== 1) {
+      return {
+        state: "warning",
+        message: `Primary/secondary SOA serial eşleşmiyor (${results.map((result) => `${result.nameserver}:${result.serial}`).join(", ")})`,
+      };
+    }
+
+    return {
+      state: "ok",
+      message: `${nameservers.slice(0, 2).join(" ve ")} hazır; SOA serial ${results[0]?.serial}`,
+    };
   }
 
   async verifyNameserverDelegation(domainName: string, configured: string[] = []) {
@@ -250,5 +316,19 @@ export class AuthoritativeDnsService {
     if (ipv4WithPort && isIP(ipv4WithPort) === 4) return ipv4WithPort;
 
     throw new BadRequestException("Hosting server must have a public IPv4 or IPv6 address for DNS");
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error("DNS_TIMEOUT")), milliseconds);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 }

@@ -42,6 +42,20 @@ export class PowerDnsProvider {
       .filter(Boolean);
   }
 
+  getMonitorDomain(): string {
+    return this.config.get<string>("powerdns.monitorDomain")?.trim() || "vexirahost.com";
+  }
+
+  async checkApi(): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    try {
+      await this.request<unknown>(`servers/${encodeURIComponent(this.serverId())}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async ensureZone(domainName: string): Promise<PowerDnsZone> {
     const existing = await this.getZone(domainName);
     if (existing) return existing;
