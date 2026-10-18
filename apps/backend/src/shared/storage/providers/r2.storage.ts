@@ -1,30 +1,51 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 import type { StorageFile, StorageProvider, UploadOptions } from "../storage.interface";
 
+import { requireS3Options, S3CompatibleStorage } from "./s3-compatible.storage";
+
 /**
- * Cloudflare R2 storage provider — architecture scaffold.
- * Implement R2 SDK integration when needed.
+ * Cloudflare R2 provider using its S3-compatible API.
  */
 @Injectable()
 export class R2StorageProvider implements StorageProvider {
-  async upload(_options: UploadOptions): Promise<StorageFile> {
-    throw new Error("R2 storage provider not implemented");
+  private storage: S3CompatibleStorage | null = null;
+
+  constructor(private readonly config: ConfigService) {}
+
+  private client(): S3CompatibleStorage {
+    if (this.storage) return this.storage;
+    const accountId = this.config.get<string>("storage.r2.accountId", "").trim();
+    const options = requireS3Options("R2", {
+      bucket: this.config.get<string>("storage.r2.bucket"),
+      region: "auto",
+      accessKey: this.config.get<string>("storage.r2.accessKey"),
+      secretKey: this.config.get<string>("storage.r2.secretKey"),
+      endpoint: accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined,
+      signedUrlTtlSeconds: this.config.get<number>("storage.signedUrlTtlSeconds", 900),
+    });
+    if (!accountId) throw new Error("R2 storage config missing: accountId");
+    return (this.storage = new S3CompatibleStorage(options));
   }
 
-  async download(_key: string): Promise<Buffer> {
-    throw new Error("R2 storage provider not implemented");
+  upload(options: UploadOptions): Promise<StorageFile> {
+    return this.client().upload(options);
   }
 
-  async delete(_key: string): Promise<void> {
-    throw new Error("R2 storage provider not implemented");
+  download(key: string): Promise<Buffer> {
+    return this.client().download(key);
   }
 
-  async getUrl(_key: string): Promise<string> {
-    throw new Error("R2 storage provider not implemented");
+  delete(key: string): Promise<void> {
+    return this.client().delete(key);
   }
 
-  async exists(_key: string): Promise<boolean> {
-    throw new Error("R2 storage provider not implemented");
+  getUrl(key: string): Promise<string> {
+    return this.client().getUrl(key);
+  }
+
+  exists(key: string): Promise<boolean> {
+    return this.client().exists(key);
   }
 }

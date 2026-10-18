@@ -35,10 +35,13 @@ export const jwtEnvSchema = z.object({
 export const storageEnvSchema = z.object({
   STORAGE_DRIVER: z.enum(["local", "s3", "r2"]).default("local"),
   STORAGE_LOCAL_PATH: z.string().default("./storage"),
+  STORAGE_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(900),
   STORAGE_S3_BUCKET: z.string().optional(),
   STORAGE_S3_REGION: z.string().optional(),
   STORAGE_S3_ACCESS_KEY: z.string().optional(),
   STORAGE_S3_SECRET_KEY: z.string().optional(),
+  STORAGE_S3_ENDPOINT: z.string().url().optional(),
+  STORAGE_S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).default("false"),
   STORAGE_R2_BUCKET: z.string().optional(),
   STORAGE_R2_ACCOUNT_ID: z.string().optional(),
   STORAGE_R2_ACCESS_KEY: z.string().optional(),

@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
+import { assertStorageKey } from "../storage-key.util";
 import type { StorageFile, StorageProvider, UploadOptions } from "../storage.interface";
 
 @Injectable()
@@ -15,7 +16,8 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async upload(options: UploadOptions): Promise<StorageFile> {
-    const filePath = path.join(this.basePath, options.key);
+    const key = assertStorageKey(options.key);
+    const filePath = path.join(this.basePath, key);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
 
     const buffer = Buffer.isBuffer(options.body)
@@ -25,28 +27,28 @@ export class LocalStorageProvider implements StorageProvider {
     await fs.writeFile(filePath, buffer);
 
     return {
-      key: options.key,
+      key,
       size: buffer.length,
       mimeType: options.mimeType,
-      url: await this.getUrl(options.key),
+      url: await this.getUrl(key),
     };
   }
 
   async download(key: string): Promise<Buffer> {
-    return fs.readFile(path.join(this.basePath, key));
+    return fs.readFile(path.join(this.basePath, assertStorageKey(key)));
   }
 
   async delete(key: string): Promise<void> {
-    await fs.unlink(path.join(this.basePath, key));
+    await fs.unlink(path.join(this.basePath, assertStorageKey(key)));
   }
 
   async getUrl(key: string): Promise<string> {
-    return `/storage/${key}`;
+    return `/storage/${assertStorageKey(key)}`;
   }
 
   async exists(key: string): Promise<boolean> {
     try {
-      await fs.access(path.join(this.basePath, key));
+      await fs.access(path.join(this.basePath, assertStorageKey(key)));
       return true;
     } catch {
       return false;

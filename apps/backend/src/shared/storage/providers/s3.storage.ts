@@ -1,30 +1,50 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 import type { StorageFile, StorageProvider, UploadOptions } from "../storage.interface";
 
+import { requireS3Options, S3CompatibleStorage } from "./s3-compatible.storage";
+
 /**
- * S3 storage provider — architecture scaffold.
- * Implement AWS SDK integration when needed.
+ * AWS S3 provider with private objects and short-lived download URLs.
  */
 @Injectable()
 export class S3StorageProvider implements StorageProvider {
-  async upload(_options: UploadOptions): Promise<StorageFile> {
-    throw new Error("S3 storage provider not implemented");
+  private storage: S3CompatibleStorage | null = null;
+
+  constructor(private readonly config: ConfigService) {}
+
+  private client(): S3CompatibleStorage {
+    if (this.storage) return this.storage;
+    const options = requireS3Options("S3", {
+      bucket: this.config.get<string>("storage.s3.bucket"),
+      region: this.config.get<string>("storage.s3.region"),
+      accessKey: this.config.get<string>("storage.s3.accessKey"),
+      secretKey: this.config.get<string>("storage.s3.secretKey"),
+      endpoint: this.config.get<string>("storage.s3.endpoint"),
+      forcePathStyle: this.config.get<boolean>("storage.s3.forcePathStyle", false),
+      signedUrlTtlSeconds: this.config.get<number>("storage.signedUrlTtlSeconds", 900),
+    });
+    return (this.storage = new S3CompatibleStorage(options));
   }
 
-  async download(_key: string): Promise<Buffer> {
-    throw new Error("S3 storage provider not implemented");
+  upload(options: UploadOptions): Promise<StorageFile> {
+    return this.client().upload(options);
   }
 
-  async delete(_key: string): Promise<void> {
-    throw new Error("S3 storage provider not implemented");
+  download(key: string): Promise<Buffer> {
+    return this.client().download(key);
   }
 
-  async getUrl(_key: string): Promise<string> {
-    throw new Error("S3 storage provider not implemented");
+  delete(key: string): Promise<void> {
+    return this.client().delete(key);
   }
 
-  async exists(_key: string): Promise<boolean> {
-    throw new Error("S3 storage provider not implemented");
+  getUrl(key: string): Promise<string> {
+    return this.client().getUrl(key);
+  }
+
+  exists(key: string): Promise<boolean> {
+    return this.client().exists(key);
   }
 }
