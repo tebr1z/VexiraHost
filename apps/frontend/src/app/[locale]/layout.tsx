@@ -38,6 +38,7 @@ export default async function LocaleLayout({
       key={resolvedLocale}
       locale={resolvedLocale}
       messages={messages as unknown as AbstractIntlMessages}
+      timeZone="Asia/Baku"
     >
       <LocaleHtmlUpdater />
       <LocaleShell>{children}</LocaleShell>

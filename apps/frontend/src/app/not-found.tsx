@@ -11,7 +11,7 @@ import { localeMessages } from "@/lib/i18n/messages";
  */
 export default function RootNotFoundPage(): React.ReactElement {
   return (
-    <NextIntlClientProvider locale="en" messages={localeMessages.en}>
+    <NextIntlClientProvider locale="en" messages={localeMessages.en} timeZone="Asia/Baku">
       <NotFoundView />
     </NextIntlClientProvider>
   );

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test.describe("Theme toggle", () => {
   test("cycles theme and applies dark class on html", async ({ page }) => {
@@ -11,7 +11,9 @@ test.describe("Theme toggle", () => {
     await toggle.click();
 
     const htmlClass = await page.locator("html").getAttribute("class");
-    expect(htmlClass === null || htmlClass.includes("dark") || !htmlClass.includes("dark")).toBeTruthy();
+    expect(
+      htmlClass === null || htmlClass.includes("dark") || !htmlClass.includes("dark"),
+    ).toBeTruthy();
   });
 
   test("theme group buttons switch modes on 403 page", async ({ page }) => {

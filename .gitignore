@@ -26,6 +26,7 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 .jest-cache/
+.jest-e2e-cache/
 playwright-report/
 test-results/
 

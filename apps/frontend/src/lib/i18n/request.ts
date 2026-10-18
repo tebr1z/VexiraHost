@@ -18,5 +18,6 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale: locale as AppLocale,
     messages: localeMessages[locale as AppLocale],
+    timeZone: "Asia/Baku",
   };
 });
