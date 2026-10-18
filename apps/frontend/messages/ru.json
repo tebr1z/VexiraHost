@@ -2262,6 +2262,8 @@
         "openPanel": "Панель",
         "setupLink": "Настройка сервера",
         "deployNode": "Узел Auto Deploy",
+        "credentialRotationTitle": "Необходимо обновить данные доступа к серверу",
+        "credentialRotationDescription": "Как минимум один сохранённый пароль Plesk или SSH не расшифровывается текущим ключом. Повторно введите пароли и токены ниже и сохраните сервер.",
         "setup": {
           "breadcrumb": "Настройка",
           "pageTitle": "{name} — Настройка",

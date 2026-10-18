@@ -2268,6 +2268,8 @@
         "openPanel": "Panel",
         "setupLink": "Server quraşdırması",
         "deployNode": "Auto Deploy node",
+        "credentialRotationTitle": "Server giriş məlumatları yenilənməlidir",
+        "credentialRotationDescription": "Saxlanmış Plesk və ya SSH məlumatlarından ən az biri cari şifrələmə açarı ilə oxunmur. Aşağıdakı sahələrə şifrə və tokenləri yenidən yazıb serveri yadda saxlayın.",
         "setup": {
           "breadcrumb": "Quraşdırma",
           "pageTitle": "{name} — Quraşdırma",

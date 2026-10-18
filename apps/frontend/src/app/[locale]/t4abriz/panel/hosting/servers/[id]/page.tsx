@@ -138,6 +138,16 @@ export default function EditHostingServerPage(): React.ReactElement | null {
 
       <HostingServerPackages server={server} />
 
+      {server.credentialHealth.rotationRequired ? (
+        <div
+          role="alert"
+          className="border-error/35 bg-error-container/35 text-on-error-container rounded-2xl border px-5 py-4"
+        >
+          <p className="font-semibold">{ts("credentialRotationTitle")}</p>
+          <p className="mt-1 text-sm">{ts("credentialRotationDescription")}</p>
+        </div>
+      ) : null}
+
       <HostingServerForm
         initialValues={initialValues}
         sshPasswordConfigured={server.sshPasswordConfigured}

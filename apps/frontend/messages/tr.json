@@ -2270,6 +2270,8 @@
         "openPanel": "Panel",
         "setupLink": "Sunucu kurulumu",
         "deployNode": "Auto Deploy node",
+        "credentialRotationTitle": "Sunucu giriş bilgileri yenilenmeli",
+        "credentialRotationDescription": "Kayıtlı Plesk veya SSH bilgilerinden en az biri mevcut şifreleme anahtarıyla açılamıyor. Aşağıdaki alanlara şifreleri ve tokenleri yeniden girip sunucuyu kaydedin.",
         "setup": {
           "breadcrumb": "Kurulum",
           "pageTitle": "{name} — Kurulum",

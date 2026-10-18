@@ -94,10 +94,33 @@ describe("Hosting server / Auto Deploy workflow", () => {
       sshPasswordConfigured: true,
       deployNodeEnabled: true,
       sshPort: 2222,
+      credentialHealth: {
+        panelPassword: "readable",
+        apiToken: "missing",
+        sshPassword: "readable",
+        rotationRequired: false,
+      },
     });
     expect(result).not.toHaveProperty("sshPassword");
     expect(result).not.toHaveProperty("sshPasswordEnc");
     expect(JSON.stringify(result)).not.toContain("ssh-test-password");
+  });
+
+  it("marks credentials encrypted with another key for rotation without leaking them", async () => {
+    const { service } = setup({
+      whmPasswordEnc: "invalid:encrypted:payload",
+      sshUsername: "root",
+      sshPasswordEnc: "invalid:encrypted:payload",
+    });
+
+    await expect(service.getServer("server-1")).resolves.toMatchObject({
+      credentialHealth: {
+        panelPassword: "unreadable",
+        apiToken: "missing",
+        sshPassword: "unreadable",
+        rotationRequired: true,
+      },
+    });
   });
 
   it("rejects enabling Auto Deploy on an existing server without SSH", async () => {

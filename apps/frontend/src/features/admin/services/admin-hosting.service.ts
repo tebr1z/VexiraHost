@@ -11,6 +11,12 @@ export interface HostingServer {
   sshUsername: string | null;
   sshPort: number;
   sshPasswordConfigured: boolean;
+  credentialHealth: {
+    panelPassword: "missing" | "readable" | "unreadable";
+    apiToken: "missing" | "readable" | "unreadable";
+    sshPassword: "missing" | "readable" | "unreadable";
+    rotationRequired: boolean;
+  };
   isDefault: boolean;
   isActive: boolean;
   maxAccounts: number | null;

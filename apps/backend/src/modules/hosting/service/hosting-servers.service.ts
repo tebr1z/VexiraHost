@@ -28,7 +28,12 @@ import { HostingProvisionRunner } from "./hosting-provision.runner";
 
 import { DeployService } from "@/modules/deploy/service/deploy.service";
 import { TicketsService } from "@/modules/tickets/service/tickets.service";
-import { decryptSecret, encryptSecret, maskSecret } from "@/utils/crypto.util";
+import {
+  decryptSecret,
+  encryptSecret,
+  inspectEncryptedSecret,
+  maskSecret,
+} from "@/utils/crypto.util";
 import { resolveUniqueSlug, slugify } from "@/utils/slug.util";
 
 function toPleskCredentials(server: HostingServer): PleskServerCredentials {
@@ -46,6 +51,14 @@ function mapServer(
   server: HostingServer & { _count?: { accounts: number } },
   includeSecrets = false,
 ) {
+  const panelPasswordState = inspectEncryptedSecret(server.whmPasswordEnc);
+  const apiTokenState = inspectEncryptedSecret(server.apiTokenEnc);
+  const sshPasswordState = inspectEncryptedSecret(server.sshPasswordEnc);
+  const credentialRotationRequired =
+    panelPasswordState === "unreadable" ||
+    apiTokenState === "unreadable" ||
+    sshPasswordState === "unreadable";
+
   return {
     id: server.id,
     name: server.name,
@@ -58,6 +71,12 @@ function mapServer(
     sshUsername: server.sshUsername,
     sshPort: server.sshPort,
     sshPasswordConfigured: Boolean(server.sshPasswordEnc),
+    credentialHealth: {
+      panelPassword: panelPasswordState,
+      apiToken: apiTokenState,
+      sshPassword: sshPasswordState,
+      rotationRequired: credentialRotationRequired,
+    },
     isDefault: server.isDefault,
     isActive: server.isActive,
     maxAccounts: server.maxAccounts,

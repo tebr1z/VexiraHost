@@ -23,7 +23,7 @@ import {
   sumDiskUsage,
 } from "../utils/plesk-xml.util";
 
-import { decryptSecret } from "@/utils/crypto.util";
+import { decryptCredential } from "@/utils/crypto.util";
 
 export const PLESK_SESSION_TTL_MS = 4 * 60 * 1000;
 
@@ -88,10 +88,10 @@ function httpsPost(
 
 function buildAuthHeaders(server: PleskServerCredentials): Record<string, string> {
   if (server.apiTokenEnc) {
-    return { KEY: decryptSecret(server.apiTokenEnc) };
+    return { KEY: decryptCredential(server.apiTokenEnc, "Plesk API token") };
   }
 
-  const password = decryptSecret(server.whmPasswordEnc);
+  const password = decryptCredential(server.whmPasswordEnc, "Plesk admin password");
   return {
     HTTP_AUTH_LOGIN: server.whmUsername,
     HTTP_AUTH_PASSWD: password,

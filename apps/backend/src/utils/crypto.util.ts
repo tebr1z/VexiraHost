@@ -46,6 +46,32 @@ export function decryptSecret(payload: string): string {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
 }
 
+export type EncryptedSecretState = "missing" | "readable" | "unreadable";
+
+/**
+ * Checks whether a stored secret can be opened with the active encryption key
+ * without exposing its plaintext to API callers or logs.
+ */
+export function inspectEncryptedSecret(payload?: string | null): EncryptedSecretState {
+  if (!payload) return "missing";
+  try {
+    decryptSecret(payload);
+    return "readable";
+  } catch {
+    return "unreadable";
+  }
+}
+
+export function decryptCredential(payload: string, label: string): string {
+  try {
+    return decryptSecret(payload);
+  } catch {
+    throw new Error(
+      `Stored ${label} credential cannot be decrypted. Re-enter it in the admin panel; the active HOSTING_CREDENTIALS_KEY does not match the value used when it was saved.`,
+    );
+  }
+}
+
 export function maskSecret(value: string): string {
   if (value.length <= 4) return "****";
   return `${"*".repeat(Math.min(value.length - 2, 8))}${value.slice(-2)}`;

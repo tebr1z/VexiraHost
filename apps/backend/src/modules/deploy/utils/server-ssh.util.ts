@@ -2,7 +2,7 @@ import type { HostingServer } from "@prisma/client";
 
 import type { SshConnectionOptions } from "../service/ssh.service";
 
-import { decryptSecret } from "@/utils/crypto.util";
+import { decryptCredential } from "@/utils/crypto.util";
 
 function resolveSshHost(ipAddress: string): string {
   const trimmed = ipAddress.trim();
@@ -22,7 +22,10 @@ export function resolveHostingServerSshOptions(
     host: resolveSshHost(server.ipAddress),
     port: server.sshPort ?? globalPortFallback,
     username: server.sshUsername?.trim() || server.whmUsername,
-    password: decryptSecret(server.sshPasswordEnc ?? server.whmPasswordEnc),
+    password: decryptCredential(
+      server.sshPasswordEnc ?? server.whmPasswordEnc,
+      server.sshPasswordEnc ? "SSH password" : "panel password",
+    ),
   };
 }
 

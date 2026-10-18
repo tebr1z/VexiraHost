@@ -2361,6 +2361,8 @@
         "openPanel": "Panel",
         "setupLink": "Server setup",
         "deployNode": "Auto Deploy node",
+        "credentialRotationTitle": "Server credentials must be updated",
+        "credentialRotationDescription": "At least one saved Plesk or SSH credential cannot be opened with the active encryption key. Re-enter the passwords and tokens below, then save the server.",
         "setup": {
           "breadcrumb": "Setup",
           "pageTitle": "{name} — Setup",
