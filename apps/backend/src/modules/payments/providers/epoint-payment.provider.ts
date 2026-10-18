@@ -20,9 +20,10 @@ export interface EpointCallbackPayload {
   amount?: string | number;
   order_id?: string;
   other_attr?: unknown;
+  trace_id?: string;
 }
 
-interface EpointResponse {
+export interface EpointResponse extends EpointCallbackPayload {
   status?: string;
   message?: string;
   transaction?: string;
@@ -33,7 +34,14 @@ interface EpointResponse {
   rrn?: string;
   card_name?: string;
   card_mask?: string;
-  amount?: string | number;
+}
+
+export interface EpointReadiness {
+  configured: boolean;
+  ready: boolean;
+  baseUrl: string;
+  resultUrl: string;
+  issues: string[];
 }
 
 @Injectable()
@@ -47,7 +55,9 @@ export class EpointPaymentProvider {
       baseUrl: string;
       returnUrl: string;
       cardReturnUrl: string;
+      resultUrl: string;
       language: string;
+      allowInsecure: boolean;
     }>("payment.epoint");
     return {
       publicKey: configured?.publicKey?.trim() ?? "",
@@ -55,9 +65,11 @@ export class EpointPaymentProvider {
       baseUrl: (configured?.baseUrl ?? "https://epoint.az/api/1").replace(/\/$/, ""),
       returnUrl: configured?.returnUrl ?? "http://localhost:3000/payment/result",
       cardReturnUrl: configured?.cardReturnUrl ?? "http://localhost:3000/dashboard/payments",
+      resultUrl: configured?.resultUrl ?? "http://localhost:4000/api/v1/payments/epoint/callback",
       language: (["az", "en", "ru"].includes(configured?.language ?? "az")
         ? configured?.language
         : "az") as EpointLanguage,
+      allowInsecure: configured?.allowInsecure === true,
     };
   }
 
@@ -68,6 +80,38 @@ export class EpointPaymentProvider {
 
   getReturnUrl(): string {
     return this.settings().returnUrl;
+  }
+
+  getReadiness(): EpointReadiness {
+    const settings = this.settings();
+    const issues: string[] = [];
+    if (!settings.publicKey) issues.push("EPOINT_PUBLIC_KEY is missing");
+    if (!settings.privateKey) issues.push("EPOINT_PRIVATE_KEY is missing");
+
+    for (const [label, value] of [
+      ["EPOINT_BASE_URL", settings.baseUrl],
+      ["EPOINT_RETURN_URL", settings.returnUrl],
+      ["EPOINT_CARD_RETURN_URL", settings.cardReturnUrl],
+      ["EPOINT_RESULT_URL", settings.resultUrl],
+    ] as const) {
+      try {
+        const url = new URL(value);
+        const local = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+        if (url.protocol !== "https:" && !(settings.allowInsecure && local)) {
+          issues.push(`${label} must use HTTPS`);
+        }
+      } catch {
+        issues.push(`${label} is not a valid URL`);
+      }
+    }
+
+    return {
+      configured: this.isConfigured(),
+      ready: issues.length === 0,
+      baseUrl: settings.baseUrl,
+      resultUrl: settings.resultUrl,
+      issues,
+    };
   }
 
   private signature(data: string): string {
@@ -83,7 +127,11 @@ export class EpointPaymentProvider {
     return { data, signature: this.signature(data) };
   }
 
-  private async post(path: string, payload: Record<string, unknown>): Promise<EpointResponse> {
+  private async post(
+    path: string,
+    payload: Record<string, unknown>,
+    allowFailedStatus = false,
+  ): Promise<EpointResponse> {
     if (!this.isConfigured()) {
       throw new BadRequestException("Epoint payment is not configured");
     }
@@ -103,7 +151,10 @@ export class EpointPaymentProvider {
     } catch {
       throw new Error(`Epoint returned an invalid response (${response.status})`);
     }
-    if (!response.ok || parsed.status === "error" || parsed.status === "failed") {
+    if (
+      !response.ok ||
+      (!allowFailedStatus && (parsed.status === "error" || parsed.status === "failed"))
+    ) {
       throw new Error(parsed.message || `Epoint request failed (${response.status})`);
     }
     return parsed;
@@ -174,6 +225,19 @@ export class EpointPaymentProvider {
     });
   }
 
+  async getPaymentStatus(transaction: string): Promise<EpointResponse> {
+    const settings = this.settings();
+    return this.post(
+      "get-status",
+      {
+        public_key: settings.publicKey,
+        language: settings.language,
+        transaction,
+      },
+      true,
+    );
+  }
+
   decodeAndVerifyCallback(data: string, suppliedSignature: string): EpointCallbackPayload {
     if (!data || !suppliedSignature) throw new Error("Missing Epoint callback signature");
     const expected = Buffer.from(this.signature(data), "utf8");
@@ -182,7 +246,13 @@ export class EpointPaymentProvider {
       throw new Error("Invalid Epoint callback signature");
     }
     try {
-      return JSON.parse(Buffer.from(data, "base64").toString("utf8")) as EpointCallbackPayload;
+      const decoded = JSON.parse(
+        Buffer.from(data, "base64").toString("utf8"),
+      ) as EpointCallbackPayload;
+      if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+        throw new Error("Invalid Epoint callback payload");
+      }
+      return decoded;
     } catch {
       throw new Error("Invalid Epoint callback payload");
     }

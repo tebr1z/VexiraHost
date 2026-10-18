@@ -2664,7 +2664,9 @@
           "title": "Epoint recurring",
           "description": "EPOINT_PUBLIC_KEY и EPOINT_PRIVATE_KEY хранятся в .env сервера. Укажите callback URL ниже как result_url в Epoint.",
           "configured": "Ключи Epoint настроены",
-          "notConfigured": "Ключи Epoint не настроены"
+          "notConfigured": "Ключи Epoint не настроены",
+          "ready": "Готово к реальным платежам",
+          "notReady": "Настройка реальных платежей не завершена"
         },
         "googleOAuth": {
           "title": "Вход через Google",

@@ -39,7 +39,11 @@ export const paymentConfig = registerAs("payment", () => {
       cardReturnUrl:
         process.env.EPOINT_CARD_RETURN_URL ??
         `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/payments`,
+      resultUrl:
+        process.env.EPOINT_RESULT_URL ??
+        `${process.env.API_PUBLIC_URL ?? "http://localhost:4000/api/v1"}/payments/epoint/callback`,
       language: process.env.EPOINT_LANGUAGE ?? "az",
+      allowInsecure: process.env.EPOINT_ALLOW_INSECURE === "true",
     },
   };
 });

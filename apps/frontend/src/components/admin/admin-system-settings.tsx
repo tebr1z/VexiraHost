@@ -728,11 +728,18 @@ export function AdminSystemSettings({ isAdmin }: { isAdmin: boolean }): React.Re
                 <p className="text-on-surface font-semibold">{tp("epoint.title")}</p>
                 <p className="text-on-surface-variant">{tp("epoint.description")}</p>
                 <p className="text-on-surface-variant font-mono text-xs">
-                  {status.epoint.callbackUrl}
+                  {status.epoint.resultUrl}
                 </p>
-                <p className={status.epoint.configured ? "text-emerald-600" : "text-amber-600"}>
-                  {tp(status.epoint.configured ? "epoint.configured" : "epoint.notConfigured")}
+                <p className={status.epoint.ready ? "text-emerald-600" : "text-amber-600"}>
+                  {tp(status.epoint.ready ? "epoint.ready" : "epoint.notReady")}
                 </p>
+                {!status.epoint.ready && status.epoint.issues.length > 0 ? (
+                  <ul className="text-on-surface-variant list-disc space-y-1 pl-5 text-xs">
+                    {status.epoint.issues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             ) : null}
             <ProviderSelect

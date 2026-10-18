@@ -81,7 +81,10 @@ export interface AdminSystemStatus {
   kapitalPresets: Record<KapitalEnvironment, KapitalPreset>;
   epoint: {
     configured: boolean;
-    callbackUrl: string;
+    ready: boolean;
+    baseUrl: string;
+    resultUrl: string;
+    issues: string[];
   };
   googleOAuth: AdminGoogleOAuthSettings;
   githubOAuth: AdminGitHubOAuthSettings;
@@ -152,7 +155,13 @@ function normalizeAdminSystemStatus(data: AdminSystemStatus): AdminSystemStatus 
   const hours = Number(data.ticketAutoCloseHours);
   return {
     ...data,
-    epoint: data.epoint ?? { configured: false, callbackUrl: "" },
+    epoint: data.epoint ?? {
+      configured: false,
+      ready: false,
+      baseUrl: "",
+      resultUrl: "",
+      issues: ["Epoint status unavailable"],
+    },
     cloudflareDns: data.cloudflareDns ?? { configured: false, canCreateZones: false },
     githubOAuth: data.githubOAuth ?? {
       clientId: "",

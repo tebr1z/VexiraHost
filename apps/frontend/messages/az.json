@@ -2661,7 +2661,9 @@
           "title": "Epoint recurring",
           "description": "EPOINT_PUBLIC_KEY və EPOINT_PRIVATE_KEY server .env-də saxlanılır. Aşağıdakı callback URL-ni Epoint kabinetində result_url kimi qeyd edin.",
           "configured": "Epoint açarları hazırdır",
-          "notConfigured": "Epoint açarları qurulmayıb"
+          "notConfigured": "Epoint açarları qurulmayıb",
+          "ready": "Canlı ödəniş üçün hazırdır",
+          "notReady": "Canlı ödəniş üçün tamamlanmalıdır"
         },
         "googleOAuth": {
           "title": "Google ilə giriş",

@@ -10,7 +10,9 @@ const settings = {
   baseUrl: "https://epoint.example/api/1",
   returnUrl: "https://vexira.example/payment/result",
   cardReturnUrl: "https://vexira.example/dashboard/payments",
+  resultUrl: "https://api.vexira.example/api/v1/payments/epoint/callback",
   language: "az",
+  allowInsecure: false,
 };
 
 function provider() {
@@ -67,6 +69,48 @@ describe("EpointPaymentProvider", () => {
     expect(JSON.parse(Buffer.from(data, "base64").toString("utf8"))).toMatchObject({
       public_key: settings.publicKey,
       refund: 0,
+    });
+  });
+
+  it("checks a transaction status using the signed production contract", async () => {
+    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "success",
+          code: "000",
+          transaction: "te-1",
+          amount: "19.90",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(provider().getPaymentStatus("te-1")).resolves.toMatchObject({
+      status: "success",
+      transaction: "te-1",
+    });
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://epoint.example/api/1/get-status");
+    const body = request?.body as URLSearchParams;
+    const decoded = JSON.parse(
+      Buffer.from(body.get("data") ?? "", "base64").toString("utf8"),
+    ) as Record<string, unknown>;
+    expect(decoded).toMatchObject({ public_key: settings.publicKey, transaction: "te-1" });
+  });
+
+  it("reports production readiness and rejects insecure callback URLs", () => {
+    expect(provider().getReadiness()).toMatchObject({ configured: true, ready: true, issues: [] });
+
+    const insecure = new EpointPaymentProvider({
+      get: jest.fn().mockReturnValue({
+        ...settings,
+        resultUrl: "http://api.vexira.example/payments/epoint/callback",
+      }),
+    } as never as ConfigService);
+    expect(insecure.getReadiness()).toMatchObject({
+      configured: true,
+      ready: false,
+      issues: ["EPOINT_RESULT_URL must use HTTPS"],
     });
   });
 });

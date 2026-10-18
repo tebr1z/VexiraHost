@@ -163,10 +163,7 @@ export class AdminSystemService {
       envDefaults,
       kapital: await this.kapitalConfigService.getAdminSettings(),
       kapitalPresets: this.kapitalConfigService.getPresets(),
-      epoint: {
-        configured: this.epointPaymentProvider.isConfigured(),
-        callbackUrl: `${(process.env.API_PUBLIC_URL ?? "http://localhost:4000/api/v1").replace(/\/$/, "")}/payments/epoint/callback`,
-      },
+      epoint: this.epointPaymentProvider.getReadiness(),
       googleOAuth: await this.oauthConfigService.getGoogleAdminSettings(),
       githubOAuth: await this.oauthConfigService.getGitHubAdminSettings(),
       turnstile: await this.turnstileService.getAdminSettings(),

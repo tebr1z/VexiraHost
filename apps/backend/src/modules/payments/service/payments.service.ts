@@ -336,6 +336,12 @@ export class PaymentsService {
     return status === "success" && (!result.code || result.code === "000");
   }
 
+  private amountMatches(expected: number, received: string | number | undefined): boolean {
+    if (received === undefined) return true;
+    const numeric = Number(received);
+    return Number.isFinite(numeric) && Math.round(numeric * 100) === Math.round(expected * 100);
+  }
+
   private async fulfillPaidInvoice(invoiceId: string, orderId: string | null): Promise<void> {
     if (orderId) {
       await this.orderFulfillmentService.fulfillOrder(orderId);
@@ -429,6 +435,11 @@ export class PaymentsService {
 
     if (!this.epointSucceeded(result) || !result.transaction) {
       const reason = result.message || result.bank_response || "Epoint payment declined";
+      await this.paymentsRepository.failPendingPayment(pending.id, reason);
+      throw new BadRequestException(reason);
+    }
+    if (!this.amountMatches(amount, result.amount)) {
+      const reason = `Epoint amount mismatch: expected ${amount.toFixed(2)} AZN`;
       await this.paymentsRepository.failPendingPayment(pending.id, reason);
       throw new BadRequestException(reason);
     }
@@ -563,6 +574,29 @@ export class PaymentsService {
         payload.message || payload.bank_response || "Epoint payment failed",
       );
       return { ok: false, reason: "payment_failed" };
+    }
+
+    let verified;
+    try {
+      verified = await this.epointGateway.getPaymentStatus(payload.transaction);
+    } catch (error) {
+      this.logger.error(
+        `Epoint status verification failed for ${payload.transaction}: ${
+          error instanceof Error ? error.message : "unknown"
+        }`,
+      );
+      return { ok: false, reason: "status_check_failed" };
+    }
+    if (!this.epointSucceeded(verified) || verified.transaction !== payload.transaction) {
+      return { ok: false, reason: "status_not_confirmed" };
+    }
+    const expectedAmount = Number(pending.amount);
+    const reportedAmount = verified.amount ?? payload.amount;
+    if (!this.amountMatches(expectedAmount, reportedAmount)) {
+      this.logger.error(
+        `Epoint amount mismatch for ${payload.transaction}: expected ${expectedAmount.toFixed(2)} AZN`,
+      );
+      return { ok: false, reason: "amount_mismatch" };
     }
 
     await this.paymentsRepository.completePendingPayment({

@@ -2754,7 +2754,9 @@
           "title": "Epoint recurring",
           "description": "EPOINT_PUBLIC_KEY and EPOINT_PRIVATE_KEY stay in the server environment. Register the callback URL below as result_url in Epoint.",
           "configured": "Epoint keys are configured",
-          "notConfigured": "Epoint keys are not configured"
+          "notConfigured": "Epoint keys are not configured",
+          "ready": "Ready for live payments",
+          "notReady": "Live payment setup is incomplete"
         },
         "googleOAuth": {
           "title": "Google sign-in",

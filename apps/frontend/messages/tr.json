@@ -2663,7 +2663,9 @@
           "title": "Epoint abonelik",
           "description": "EPOINT_PUBLIC_KEY ve EPOINT_PRIVATE_KEY sunucu .env dosyasında tutulur. Aşağıdaki callback URL'sini Epoint'te result_url olarak kaydedin.",
           "configured": "Epoint anahtarları hazır",
-          "notConfigured": "Epoint anahtarları ayarlanmamış"
+          "notConfigured": "Epoint anahtarları ayarlanmamış",
+          "ready": "Canlı ödeme için hazır",
+          "notReady": "Canlı ödeme için tamamlanmalı"
         },
         "googleOAuth": {
           "title": "Google ile giriş",
