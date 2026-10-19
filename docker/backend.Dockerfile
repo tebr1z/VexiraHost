@@ -30,7 +30,9 @@ RUN pnpm --filter @vexira/types build \
     ok=0; \
     for mirror in $mirrors; do \
       echo "Trying PRISMA_ENGINES_MIRROR=$mirror"; \
-      if PRISMA_ENGINES_MIRROR="$mirror" pnpm --filter @vexira/backend prisma:generate; then \
+      if DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+         PRISMA_ENGINES_MIRROR="$mirror" \
+         pnpm --filter @vexira/backend prisma:generate; then \
         ok=1; \
         break; \
       fi; \
