@@ -31,6 +31,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://vexira:vexira@localhost:5432/vexira_host
         run: pnpm --filter @vexira/backend prisma:generate
 
       - name: Build
