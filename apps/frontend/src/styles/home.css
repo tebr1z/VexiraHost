@@ -187,7 +187,8 @@
 .home-tech-banner:hover .home-tech-track { animation-play-state: paused; }
 .home-tech-row { display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding-right: 10px; }
 .home-tech-item { display: inline-flex; min-height: 42px; align-items: center; gap: 9px; padding: 6px 13px 6px 7px; border: 1px solid color-mix(in srgb,var(--home-line) 88%,transparent); border-radius: 13px; background: color-mix(in srgb,var(--home-surface) 90%,transparent); color: var(--home-ink); font-size: 12px; font-weight: 650; white-space: nowrap; box-shadow: 0 3px 12px rgba(17,44,87,.035); }
-.home-tech-mark { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 9px; background: color-mix(in srgb,var(--tech-color) 13%,transparent); color: var(--tech-color); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: 10px; font-weight: 800; letter-spacing: -.04em; }
+.home-tech-mark { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 9px; background: color-mix(in srgb,var(--tech-color) 12%,transparent); color: var(--tech-color); }
+.home-tech-logo { width: 21px; height: 21px; overflow: visible; }
 @keyframes home-tech-scroll { to { transform: translateX(-50%); } }
 .home-development-cta { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 18px; padding: 24px 27px; border: 1px solid var(--home-line); border-radius: 18px; background: var(--home-blue-soft); }
 .home-development-cta strong { color: var(--home-ink); font-size: 17px; font-weight: 650; }

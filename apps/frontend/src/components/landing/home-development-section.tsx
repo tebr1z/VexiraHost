@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { HomeIcon, type HomeIconName } from "./home-icon";
+import { TechnologyLogo } from "./technology-logo";
 
 import { Link } from "@/i18n/navigation";
 
@@ -13,22 +14,22 @@ const services: Array<{ key: "web" | "mobile" | "desktop"; icon: HomeIconName; s
 ];
 
 const technologies = [
-  { name: "React", mark: "R", color: "#61dafb" },
-  { name: "Node.js", mark: "N", color: "#5fa04e" },
-  { name: "Vue.js", mark: "V", color: "#42b883" },
-  { name: "Next.js", mark: "N", color: "#111827" },
-  { name: "NestJS", mark: "N", color: "#e0234e" },
-  { name: "TypeScript", mark: "TS", color: "#3178c6" },
-  { name: "JavaScript", mark: "JS", color: "#c7a900" },
-  { name: ".NET", mark: ".N", color: "#512bd4" },
-  { name: "Python", mark: "Py", color: "#3776ab" },
-  { name: "PHP", mark: "P", color: "#777bb4" },
-  { name: "Java", mark: "J", color: "#e76f00" },
-  { name: "Kotlin", mark: "K", color: "#7f52ff" },
-  { name: "Flutter", mark: "F", color: "#02569b" },
-  { name: "Go", mark: "Go", color: "#00add8" },
-  { name: "Docker", mark: "D", color: "#2496ed" },
-  { name: "PostgreSQL", mark: "Pg", color: "#4169e1" },
+  { name: "React", color: "#087ea4" },
+  { name: "Node.js", color: "#5fa04e" },
+  { name: "Vue.js", color: "#42b883" },
+  { name: "Next.js", color: "var(--home-ink)" },
+  { name: "NestJS", color: "#e0234e" },
+  { name: "TypeScript", color: "#3178c6" },
+  { name: "JavaScript", color: "#f7df1e" },
+  { name: ".NET", color: "#512bd4" },
+  { name: "Python", color: "#3776ab" },
+  { name: "PHP", color: "#777bb4" },
+  { name: "Java", color: "#e76f00" },
+  { name: "Kotlin", color: "#7f52ff" },
+  { name: "Flutter", color: "#02569b" },
+  { name: "Go", color: "#00add8" },
+  { name: "Docker", color: "#2496ed" },
+  { name: "PostgreSQL", color: "#4169e1" },
 ] as const;
 
 function TechnologyRow({ hidden = false }: { hidden?: boolean }): React.ReactElement {
@@ -41,7 +42,7 @@ function TechnologyRow({ hidden = false }: { hidden?: boolean }): React.ReactEle
             style={{ "--tech-color": technology.color } as React.CSSProperties}
             aria-hidden="true"
           >
-            {technology.mark}
+            <TechnologyLogo name={technology.name} />
           </span>
           {technology.name}
         </span>
