@@ -4,64 +4,13 @@ import type { ApiResponse } from "@vexira/types";
 
 import { refreshAuthSession } from "@/features/auth/services/auth-session.service";
 import { useAuthStore } from "@/stores/auth-store";
-import { useMaintenanceStore } from "@/stores/maintenance-store";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 
 const innerClient = new ApiClient({ baseUrl: API_BASE_URL });
 
-const IGNORE_UNAVAILABLE_PATHS = ["/health", "/auth/refresh"];
-
-function shouldIgnorePath(path: string): boolean {
-  return IGNORE_UNAVAILABLE_PATHS.some((p) => path === p || path.endsWith(p));
-}
-
 function isUnauthorizedError(err: unknown): boolean {
   return err instanceof ApiClientError && err.payload.error?.code === "UNAUTHORIZED";
-}
-
-function isBackendUnavailableError(err: unknown): boolean {
-  if (!(err instanceof ApiClientError)) return true;
-
-  const code = (err.payload.error?.code ?? "").toUpperCase();
-
-  // Auth failures are not "backend down" — keep the session flow intact.
-  if (
-    code === "UNAUTHORIZED" ||
-    code === "FORBIDDEN" ||
-    code === "BAD_REQUEST" ||
-    code === "VALIDATION_ERROR" ||
-    code === "NOT_FOUND" ||
-    code === "CONFLICT"
-  ) {
-    return false;
-  }
-
-  if (
-    code === "NETWORK_ERROR" ||
-    code === "INVALID_RESPONSE" ||
-    code === "TIMEOUT" ||
-    code === "REQUEST_TIMEOUT" ||
-    code === "SERVICE_UNAVAILABLE" ||
-    code === "BAD_GATEWAY" ||
-    code === "GATEWAY_TIMEOUT"
-  ) {
-    return true;
-  }
-
-  if (/\b(502|503|504)\b/.test(code)) return true;
-
-  return false;
-}
-
-function markApiOk(): void {
-  if (typeof window === "undefined") return;
-  useMaintenanceStore.getState().setApiUnavailable(false);
-}
-
-function markApiUnavailable(): void {
-  if (typeof window === "undefined") return;
-  useMaintenanceStore.getState().setApiUnavailable(true);
 }
 
 function handleUnauthorized(): void {
@@ -82,12 +31,9 @@ async function requestWithAuth<T>(
   allowRefresh = true,
 ): Promise<ApiResponse<T>> {
   const isRefreshRoute = path === "/auth/refresh" || path.endsWith("/auth/refresh");
-  const trackAvailability = !shouldIgnorePath(path);
 
   try {
-    const result = await innerClient.request<T>(path, options);
-    if (trackAvailability) markApiOk();
-    return result;
+    return await innerClient.request<T>(path, options);
   } catch (err) {
     if (allowRefresh && !isRefreshRoute && isUnauthorizedError(err)) {
       const refreshed = await refreshAuthSession();
@@ -96,18 +42,14 @@ async function requestWithAuth<T>(
         throw err;
       }
       try {
-        const result = await innerClient.request<T>(path, options);
-        if (trackAvailability) markApiOk();
-        return result;
+        return await innerClient.request<T>(path, options);
       } catch (retryErr) {
         if (isUnauthorizedError(retryErr)) handleUnauthorized();
-        else if (trackAvailability && isBackendUnavailableError(retryErr)) markApiUnavailable();
         throw retryErr;
       }
     }
 
     if (isUnauthorizedError(err)) handleUnauthorized();
-    else if (trackAvailability && isBackendUnavailableError(err)) markApiUnavailable();
     throw err;
   }
 }
