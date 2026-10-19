@@ -479,13 +479,18 @@ export class AuthService {
         throw new UnauthorizedException("Account is suspended");
       }
       await this.siteAccessService.assertLoginOpen(existingOAuth.user.role);
+      const profileUser = profile.avatarUrl
+        ? await this.authRepository.updateOAuthProfile(existingOAuth.user.id, {
+            avatarUrl: profile.avatarUrl,
+          })
+        : existingOAuth.user;
       const withLocale = await this.recordLocaleQuietly(
-        existingOAuth.user.id,
-        existingOAuth.user.localeHistory,
+        profileUser.id,
+        profileUser.localeHistory,
         meta?.locale,
       );
       // OAuth proves Google identity only — still require app 2FA when enabled.
-      return this.completeLoginOrTwoFactor(withLocale ?? existingOAuth.user, meta, {
+      return this.completeLoginOrTwoFactor(withLocale ?? profileUser, meta, {
         rememberMe: true,
         locale,
       });
@@ -525,12 +530,18 @@ export class AuthService {
       } else {
         user = existingUser;
       }
+      if (profile.avatarUrl) {
+        user = await this.authRepository.updateOAuthProfile(user.id, {
+          avatarUrl: profile.avatarUrl,
+        });
+      }
     } else {
       await this.siteAccessService.assertRegisterOpen();
       user = await this.authRepository.createOAuthUser({
         email: profile.email,
         firstName: profile.firstName,
         lastName: profile.lastName,
+        avatarUrl: profile.avatarUrl,
         emailVerified: profile.emailVerified,
         marketingOptIn: true,
         unsubscribeToken: generateSecureToken(24),
@@ -668,6 +679,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      avatarUrl: user.avatarUrl,
       role: mapPrismaRoleToApp(user.role),
       emailVerified: Boolean(user.emailVerifiedAt),
       status: user.status,

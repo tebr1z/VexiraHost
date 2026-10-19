@@ -5,6 +5,7 @@ export interface AuthUserResponse {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  avatarUrl: string | null;
   role: UserRole;
   emailVerified: boolean;
   status: string;

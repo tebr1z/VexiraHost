@@ -1,10 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { stashAuthNext } from "../lib/auth-redirect";
 import { buildOAuthUrl } from "../lib/oauth-url";
+
+import { GoogleIcon } from "./google-icon";
 
 import { getLastGoogleAccount, type LastGoogleAccount } from "@/lib/last-google-account";
 
@@ -23,6 +26,7 @@ export function GoogleAccountPrompt({
   const locale = useLocale();
   const [account, setAccount] = useState<LastGoogleAccount | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
     setAccount(getLastGoogleAccount());
@@ -31,7 +35,6 @@ export function GoogleAccountPrompt({
   if (!account) return null;
 
   const displayName = account.name?.trim() || account.email;
-  const initial = displayName.charAt(0).toUpperCase();
   const locked = disabled || confirming;
 
   const continueWithAccount = () => {
@@ -67,8 +70,20 @@ export function GoogleAccountPrompt({
   return (
     <div className="border-outline-variant bg-surface-container-low mb-4 rounded-2xl border p-4">
       <div className="flex items-center gap-3">
-        <span className="ring-outline-variant/40 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-lg font-bold text-[#4285F4] shadow-sm ring-1">
-          {initial}
+        <span className="ring-outline-variant/40 relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1">
+          {account.avatarUrl && !avatarFailed ? (
+            <Image
+              src={account.avatarUrl}
+              alt={displayName}
+              fill
+              sizes="48px"
+              className="object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => setAvatarFailed(true)}
+            />
+          ) : (
+            <GoogleIcon className="h-6 w-6" />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-on-surface truncate text-sm font-semibold">{displayName}</p>

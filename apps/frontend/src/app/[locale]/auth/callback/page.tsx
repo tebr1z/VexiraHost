@@ -110,6 +110,7 @@ function OAuthCallbackHandler(): React.ReactElement {
           saveLastGoogleAccount({
             email: user.email,
             name: fullName || undefined,
+            avatarUrl: user.avatarUrl || undefined,
           });
         }
         setSession(
@@ -141,6 +142,7 @@ function OAuthCallbackHandler(): React.ReactElement {
         saveLastGoogleAccount({
           email: session.user.email,
           name: fullName || undefined,
+          avatarUrl: session.user.avatarUrl || undefined,
         });
       }
       setSession(session, { rememberMe: true });

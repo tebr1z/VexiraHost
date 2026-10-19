@@ -52,6 +52,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       id: string;
       emails?: { value: string; verified?: boolean }[];
       name?: { givenName?: string; familyName?: string };
+      photos?: { value: string }[];
     },
     done: VerifyCallback,
   ): void {
@@ -67,6 +68,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
       email,
       firstName: profile.name?.givenName,
       lastName: profile.name?.familyName,
+      avatarUrl: profile.photos?.[0]?.value,
       emailVerified: profile.emails?.[0]?.verified ?? true,
     } satisfies OAuthProfile);
   }

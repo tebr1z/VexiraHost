@@ -336,10 +336,20 @@ export class AuthRepository {
     });
   }
 
+  updateOAuthProfile(userId: string, data: { avatarUrl?: string }): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.avatarUrl ? { avatarUrl: data.avatarUrl } : {}),
+      },
+    });
+  }
+
   createOAuthUser(data: {
     email: string;
     firstName?: string;
     lastName?: string;
+    avatarUrl?: string;
     emailVerified: boolean;
     marketingOptIn?: boolean;
     unsubscribeToken?: string;
@@ -350,6 +360,7 @@ export class AuthRepository {
         email: data.email.toLowerCase(),
         firstName: data.firstName,
         lastName: data.lastName,
+        avatarUrl: data.avatarUrl,
         status: data.emailVerified ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION,
         emailVerifiedAt: data.emailVerified ? new Date() : null,
         marketingOptIn,
