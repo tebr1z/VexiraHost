@@ -117,7 +117,10 @@ jobs:
       - run: pnpm --filter @vexira/backend exec prisma migrate deploy
       - id: backup
         run: echo "path=$(DATABASE_URL="$DATABASE_URL" ./scripts/backup-postgres.sh "$RUNNER_TEMP/backups")" >> "$GITHUB_OUTPUT"
-      - run: createdb "postgresql://vexira:vexira@localhost:5432/vexira_restore_ci"
+      - name: Create restore database
+        env:
+          PGPASSWORD: vexira
+        run: createdb --host=localhost --username=vexira vexira_restore_ci
       - run: RESTORE_DATABASE_URL="postgresql://vexira:vexira@localhost:5432/vexira_restore_ci" ./scripts/verify-postgres-restore.sh "${{ steps.backup.outputs.path }}"
       - uses: actions/upload-artifact@v4
         with:
