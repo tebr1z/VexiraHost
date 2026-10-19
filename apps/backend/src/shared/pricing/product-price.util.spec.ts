@@ -65,6 +65,46 @@ describe("one-time product prices", () => {
     });
     expect(resolveProductPrice(prices, "USD", "MONTHLY")?.salePrice).toBe(49);
   });
+  it("applies a currently active campaign after the package price", () => {
+    expect(
+      resolveProductPrice(prices, "USD", "MONTHLY", {
+        campaignDiscountPercent: 30,
+        campaignStartsAt: new Date("2020-01-01T00:00:00.000Z"),
+        campaignEndsAt: new Date("2099-01-01T00:00:00.000Z"),
+      }),
+    ).toMatchObject({
+      originalPrice: 49,
+      salePrice: 34.3,
+      discountPercent: 30,
+      campaignActive: true,
+    });
+  });
+  it("ignores an expired campaign", () => {
+    expect(
+      resolveProductPrice(prices, "USD", "MONTHLY", {
+        campaignDiscountPercent: 30,
+        campaignEndsAt: new Date("2020-01-01T00:00:00.000Z"),
+      })?.salePrice,
+    ).toBe(49);
+  });
+  it("keeps 3 and 6-month package rows when expanding currencies", () => {
+    const rows = expandProductPricesFromUsdSource(
+      [
+        { currency: "USD", period: "MONTHLY", originalPrice: 10, salePrice: 10 },
+        { currency: "USD", period: "QUARTERLY", originalPrice: 30, salePrice: 27 },
+        { currency: "USD", period: "SEMIANNUAL", originalPrice: 60, salePrice: 48 },
+        { currency: "USD", period: "YEARLY", originalPrice: 120, salePrice: 84 },
+      ],
+      { usdToAzn: 1.7, usdToEur: 0.9 },
+      true,
+    );
+    expect(
+      rows.find((row) => row.currency === "AZN" && row.period === "QUARTERLY")?.salePrice,
+    ).toBe(45.9);
+    expect(
+      rows.find((row) => row.currency === "USD" && row.period === "SEMIANNUAL")?.salePrice,
+    ).toBe(48);
+  });
   it("expands USD one-time prices without generating yearly prices", () => {
     const rows = expandProductPricesFromUsdSource(
       [{ currency: "USD", period: "ONE_TIME", originalPrice: 60, salePrice: 49 }],

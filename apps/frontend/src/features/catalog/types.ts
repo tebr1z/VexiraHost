@@ -24,6 +24,15 @@ export interface CatalogProduct {
   requiresQuote?: boolean;
   period?: string;
   yearlySavingsPercent?: number | null;
+  availablePeriods?: string[];
+  periodDiscounts?: {
+    QUARTERLY?: number;
+    SEMIANNUAL?: number;
+    YEARLY?: number;
+  };
+  campaignActive?: boolean;
+  campaignDiscountPercent?: number;
+  campaignEndsAt?: string | null;
   availableCurrencies?: string[];
   yearlyAvailable?: boolean;
   prices?: CatalogProductPrice[];

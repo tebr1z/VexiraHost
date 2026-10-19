@@ -87,7 +87,7 @@ export interface AdminServerPlan {
 
 export interface AdminProductPrice {
   currency: "USD" | "EUR" | "AZN";
-  period: "MONTHLY" | "YEARLY" | "ONE_TIME";
+  period: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY" | "ONE_TIME";
   originalPrice: number;
   salePrice: number;
 }
@@ -100,6 +100,7 @@ export interface AdminProduct {
   category: string;
   catalogCategoryId: string | null;
   hostingPlanSlug: string | null;
+  costPrice?: number;
   price: number;
   currency: string;
   billingCycle: string;
@@ -107,6 +108,12 @@ export interface AdminProduct {
   requiresQuote?: boolean;
   isActive: boolean;
   sortOrder: number;
+  discount3Months?: number;
+  discount6Months?: number;
+  discount12Months?: number;
+  campaignDiscountPercent?: number;
+  campaignStartsAt?: string | null;
+  campaignEndsAt?: string | null;
   orderItemCount: number;
   prices?: AdminProductPrice[];
   deliveryMode?: "NONE" | "LICENSE_KEY" | "FILE" | "KEY_AND_FILE" | "MANUAL";

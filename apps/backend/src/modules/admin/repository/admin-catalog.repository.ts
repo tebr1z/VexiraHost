@@ -204,7 +204,7 @@ export class AdminCatalogRepository {
     productId: string,
     prices: Array<{
       currency: "USD" | "EUR" | "AZN";
-      period: "MONTHLY" | "YEARLY" | "ONE_TIME";
+      period: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY" | "ONE_TIME";
       originalPrice: number;
       salePrice: number;
     }>,

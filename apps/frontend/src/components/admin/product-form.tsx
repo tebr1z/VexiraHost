@@ -22,7 +22,7 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { slugify } from "@/lib/slug";
 
 type Currency = "USD" | "EUR" | "AZN";
-type Period = "MONTHLY" | "YEARLY" | "ONE_TIME";
+type Period = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY" | "ONE_TIME";
 type DeliveryMode = "NONE" | "LICENSE_KEY" | "FILE" | "KEY_AND_FILE" | "MANUAL";
 
 export interface ProductFormValues {
@@ -32,6 +32,13 @@ export interface ProductFormValues {
   catalogCategoryId: string;
   hostingPlanSlug: string;
   price: string;
+  costPrice: string;
+  discount3Months: string;
+  discount6Months: string;
+  discount12Months: string;
+  campaignDiscountPercent: string;
+  campaignStartsAt: string;
+  campaignEndsAt: string;
   minimumQuantity: string;
   requiresQuote: boolean;
   isActive: boolean;
@@ -62,7 +69,7 @@ const CATEGORIES = [
   "WHATSAPP_API",
 ] as const;
 const CURRENCIES: Currency[] = ["USD", "EUR", "AZN"];
-const PERIODS: Period[] = ["MONTHLY", "YEARLY"];
+const PERIODS: Period[] = ["MONTHLY", "QUARTERLY", "SEMIANNUAL", "YEARLY"];
 const DELIVERY_MODES: DeliveryMode[] = ["MANUAL", "LICENSE_KEY", "FILE", "KEY_AND_FILE", "NONE"];
 
 function priceKey(currency: Currency, period: Period) {
@@ -73,6 +80,11 @@ function defaultPrices(
   usdMonthly = "12",
   yearlyEnabled = true,
   rates: Pick<ExchangeRates, "usdToAzn" | "usdToEur"> = FALLBACK_EXCHANGE_RATES,
+  discounts: { three: number; six: number; twelve: number } = {
+    three: 0,
+    six: 0,
+    twelve: 0,
+  },
 ): ProductFormValues["prices"] {
   const usd = Number(usdMonthly) || 0;
   const values: ProductFormValues["prices"] = {};
@@ -87,9 +99,19 @@ function defaultPrices(
       originalPrice: String(monthly),
       salePrice: String(monthly),
     };
+    for (const [period, months, discount] of [
+      ["QUARTERLY", 3, discounts.three],
+      ["SEMIANNUAL", 6, discounts.six],
+    ] as const) {
+      const original = convertUsdPreview(usd * months, currency, rates);
+      values[priceKey(currency, period)] = {
+        originalPrice: String(original),
+        salePrice: String(Math.round(original * (1 - discount / 100) * 100) / 100),
+      };
+    }
     if (yearlyEnabled) {
       const yearlyOriginal = convertUsdPreview(usd * 12, currency, rates);
-      const yearlySale = convertUsdPreview(usd * 10, currency, rates);
+      const yearlySale = Math.round(yearlyOriginal * (1 - discounts.twelve / 100) * 100) / 100;
       values[priceKey(currency, "YEARLY")] = {
         originalPrice: String(yearlyOriginal),
         salePrice: String(yearlySale),
@@ -99,6 +121,16 @@ function defaultPrices(
   return values;
 }
 
+function durationDiscounts(
+  values: Pick<ProductFormValues, "discount3Months" | "discount6Months" | "discount12Months">,
+) {
+  return {
+    three: Math.min(99, Math.max(0, Number(values.discount3Months) || 0)),
+    six: Math.min(99, Math.max(0, Number(values.discount6Months) || 0)),
+    twelve: Math.min(99, Math.max(0, Number(values.discount12Months) || 0)),
+  };
+}
+
 const DEFAULT: ProductFormValues = {
   name: "",
   description: "",
@@ -106,6 +138,13 @@ const DEFAULT: ProductFormValues = {
   catalogCategoryId: "",
   hostingPlanSlug: "",
   price: "12",
+  costPrice: "0",
+  discount3Months: "0",
+  discount6Months: "0",
+  discount12Months: "0",
+  campaignDiscountPercent: "0",
+  campaignStartsAt: "",
+  campaignEndsAt: "",
   minimumQuantity: "1",
   requiresQuote: false,
   isActive: true,
@@ -170,8 +209,8 @@ export function toProductPayload(values: ProductFormValues) {
     : isLicense
       ? ["ONE_TIME"]
       : values.yearlyEnabled
-        ? ["MONTHLY", "YEARLY"]
-        : ["MONTHLY"];
+        ? PERIODS
+        : ["MONTHLY", "QUARTERLY", "SEMIANNUAL"];
   const prices: AdminProductPrice[] = [];
 
   for (const currency of CURRENCIES) {
@@ -198,6 +237,15 @@ export function toProductPayload(values: ProductFormValues) {
       values.requiresQuote || (values.isFree && isLicense)
         ? 0
         : Number(primary?.salePrice || values.price || 0),
+    costPrice: Number(values.costPrice || 0),
+    discount3Months: Number(values.discount3Months || 0),
+    discount6Months: Number(values.discount6Months || 0),
+    discount12Months: Number(values.discount12Months || 0),
+    campaignDiscountPercent: Number(values.campaignDiscountPercent || 0),
+    campaignStartsAt: values.campaignStartsAt
+      ? new Date(values.campaignStartsAt).toISOString()
+      : null,
+    campaignEndsAt: values.campaignEndsAt ? new Date(values.campaignEndsAt).toISOString() : null,
     currency: "USD",
     billingCycle: isLicense ? "ONE_TIME" : "MONTHLY",
     minimumQuantity: Math.max(1, Number(values.minimumQuantity) || 1),
@@ -256,7 +304,7 @@ export function ProductForm({
     ? ["ONE_TIME"]
     : values.yearlyEnabled
       ? PERIODS
-      : ["MONTHLY"];
+      : ["MONTHLY", "QUARTERLY", "SEMIANNUAL"];
 
   useEffect(() => {
     fetchExchangeRates()
@@ -303,10 +351,13 @@ export function ProductForm({
           };
         }
       } else if (key === priceKey("USD", "MONTHLY")) {
-        Object.assign(nextPrices, defaultPrices(monthlyUsd, prev.yearlyEnabled, exchangeRates));
+        Object.assign(
+          nextPrices,
+          defaultPrices(monthlyUsd, prev.yearlyEnabled, exchangeRates, durationDiscounts(prev)),
+        );
         nextPrices[key] = usdCell;
       } else if (key === priceKey("USD", "YEARLY")) {
-        const regenerated = defaultPrices(monthlyUsd, true, exchangeRates);
+        const regenerated = defaultPrices(monthlyUsd, true, exchangeRates, durationDiscounts(prev));
         for (const currency of CURRENCIES) {
           nextPrices[priceKey(currency, "YEARLY")] = regenerated[priceKey(currency, "YEARLY")];
         }
@@ -330,8 +381,26 @@ export function ProductForm({
     setValues((prev) => ({
       ...prev,
       yearlyEnabled,
-      prices: defaultPrices(prev.price, yearlyEnabled, exchangeRates),
+      prices: defaultPrices(prev.price, yearlyEnabled, exchangeRates, durationDiscounts(prev)),
     }));
+  };
+
+  const setDurationDiscount = (
+    key: "discount3Months" | "discount6Months" | "discount12Months",
+    value: string,
+  ) => {
+    setValues((prev) => {
+      const next = { ...prev, [key]: value };
+      return {
+        ...next,
+        prices: defaultPrices(
+          next.price,
+          next.yearlyEnabled,
+          exchangeRates,
+          durationDiscounts(next),
+        ),
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -494,7 +563,7 @@ export function ProductForm({
                   isFree: free,
                   price: free ? "0" : prev.price === "0" ? "12" : prev.price,
                   prices: free
-                    ? defaultPrices("0", prev.yearlyEnabled, exchangeRates)
+                    ? defaultPrices("0", prev.yearlyEnabled, exchangeRates, durationDiscounts(prev))
                     : prev.prices,
                 }));
               }}
@@ -605,27 +674,128 @@ export function ProductForm({
 
       {!values.isFree && !values.requiresQuote && (
         <>
-          <div>
-            <label className="mb-1 block text-sm font-medium">{tf("price")} (USD)</label>
-            <input
-              value={values.price}
-              onChange={(e) => {
-                const nextPrice = e.target.value;
-                setValues((prev) => ({
-                  ...prev,
-                  price: nextPrice,
-                  prices: defaultPrices(nextPrice, prev.yearlyEnabled, exchangeRates),
-                }));
-              }}
-              required
-              className={field}
-            />
-            <p className="text-on-surface-variant mt-1 text-xs">
-              {tf("exchangeRatesHint", {
-                date: exchangeRates.date,
-                usdAzn: exchangeRates.usdToAzn.toFixed(4),
-              })}
-            </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium">{tf("costPrice")} (USD)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.costPrice}
+                onChange={(e) => set("costPrice", e.target.value)}
+                className={field}
+              />
+              <p className="text-on-surface-variant mt-1 text-xs">{tf("costPriceHint")}</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">{tf("salePrice")} (USD)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.price}
+                onChange={(e) => {
+                  const nextPrice = e.target.value;
+                  setValues((prev) => ({
+                    ...prev,
+                    price: nextPrice,
+                    prices: defaultPrices(
+                      nextPrice,
+                      prev.yearlyEnabled,
+                      exchangeRates,
+                      durationDiscounts(prev),
+                    ),
+                  }));
+                }}
+                required
+                className={field}
+              />
+              <p className="text-on-surface-variant mt-1 text-xs">
+                {tf("exchangeRatesHint", {
+                  date: exchangeRates.date,
+                  usdAzn: exchangeRates.usdToAzn.toFixed(4),
+                })}
+              </p>
+            </div>
+          </div>
+
+          {!isLicense ? (
+            <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-3 rounded-xl border p-4">
+              <div>
+                <h3 className="text-sm font-semibold">{tf("durationDiscounts")}</h3>
+                <p className="text-on-surface-variant mt-1 text-xs">
+                  {tf("durationDiscountsHint")}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(
+                  [
+                    ["discount3Months", "discount3Months"],
+                    ["discount6Months", "discount6Months"],
+                    ["discount12Months", "discount12Months"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <div key={key}>
+                    <label className="mb-1 block text-sm font-medium">{tf(label)}</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        step="1"
+                        value={values[key]}
+                        onChange={(e) => setDurationDiscount(key, e.target.value)}
+                        className={`${field} pr-9`}
+                      />
+                      <span className="text-on-surface-variant pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm">
+                        %
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-3 rounded-xl border p-4">
+            <div>
+              <h3 className="text-sm font-semibold">{tf("campaignDiscount")}</h3>
+              <p className="text-on-surface-variant mt-1 text-xs">{tf("campaignDiscountHint")}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  {tf("campaignDiscountPercent")}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  step="1"
+                  value={values.campaignDiscountPercent}
+                  onChange={(e) => set("campaignDiscountPercent", e.target.value)}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">{tf("campaignStartsAt")}</label>
+                <input
+                  type="datetime-local"
+                  value={values.campaignStartsAt}
+                  onChange={(e) => set("campaignStartsAt", e.target.value)}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">{tf("campaignEndsAt")}</label>
+                <input
+                  type="datetime-local"
+                  value={values.campaignEndsAt}
+                  onChange={(e) => set("campaignEndsAt", e.target.value)}
+                  className={field}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="border-outline-variant/60 bg-surface-container-low/40 space-y-3 rounded-xl border p-4">
@@ -669,7 +839,8 @@ export function ProductForm({
                     activePeriods.map((period) => {
                       const key = priceKey(currency, period);
                       const cell = values.prices[key] ?? { originalPrice: "0", salePrice: "0" };
-                      const editable = currency === "USD";
+                      const editable =
+                        currency === "USD" && (period === "MONTHLY" || period === "ONE_TIME");
                       return (
                         <tr key={key} className="border-outline-variant/40 border-t">
                           <td className="px-3 py-2 font-medium">{currency}</td>
@@ -678,7 +849,11 @@ export function ProductForm({
                               ? tl("label")
                               : period === "MONTHLY"
                                 ? tf("periodMonthly")
-                                : tf("periodYearly")}
+                                : period === "QUARTERLY"
+                                  ? tf("periodQuarterly")
+                                  : period === "SEMIANNUAL"
+                                    ? tf("periodSemiannual")
+                                    : tf("periodYearly")}
                           </td>
                           <td className="px-3 py-2">
                             <input

@@ -69,7 +69,7 @@ export function resolveCheckoutPeriod(items: CartItem[], fallback: string): stri
   }
   const cycles = [...new Set(items.map((item) => item.billingCycle.toUpperCase()))];
   if (cycles.length === 1) {
-    return cycles[0] === "YEARLY" ? "YEARLY" : "MONTHLY";
+    return ["QUARTERLY", "SEMIANNUAL", "YEARLY"].includes(cycles[0] ?? "") ? cycles[0]! : "MONTHLY";
   }
   return fallback;
 }

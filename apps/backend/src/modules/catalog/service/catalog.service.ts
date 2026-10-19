@@ -8,6 +8,7 @@ import { yearlySavingsPercent } from "@/shared/pricing/currency.util";
 import {
   availableCurrenciesFromPrices,
   hasYearlyPricing,
+  isProductCampaignActive,
   mapProductPrices,
   oneTimeProductPrices,
   resolveProductPrice,
@@ -38,6 +39,12 @@ function mapProduct(
     downloadUrl?: string | null;
     downloadFileName?: string | null;
     promoText?: string | null;
+    discount3Months?: number;
+    discount6Months?: number;
+    discount12Months?: number;
+    campaignDiscountPercent?: number;
+    campaignStartsAt?: Date | null;
+    campaignEndsAt?: Date | null;
     prices: Array<{
       currency: string;
       period: string;
@@ -50,8 +57,19 @@ function mapProduct(
 ) {
   const oneTime = product.category === "LICENSE" || product.billingCycle === "ONE_TIME";
   const priceRows = oneTime ? oneTimeProductPrices(product.prices) : product.prices;
-  const resolved = resolveProductPrice(priceRows as never, currency, oneTime ? "ONE_TIME" : period);
-  const allPrices = mapProductPrices(priceRows as never);
+  const campaign = {
+    campaignDiscountPercent: product.campaignDiscountPercent,
+    campaignStartsAt: product.campaignStartsAt,
+    campaignEndsAt: product.campaignEndsAt,
+  };
+  const campaignActive = isProductCampaignActive(campaign);
+  const resolved = resolveProductPrice(
+    priceRows as never,
+    currency,
+    oneTime ? "ONE_TIME" : period,
+    campaign,
+  );
+  const allPrices = mapProductPrices(priceRows as never, campaign);
 
   const monthly = allPrices.find(
     (p) => p.currency === (resolved?.currency ?? "USD") && p.period === "MONTHLY",
@@ -84,6 +102,15 @@ function mapProduct(
         : yearlySavingsPercent(monthly.salePrice, yearly.salePrice),
     availableCurrencies,
     yearlyAvailable,
+    availablePeriods: [...new Set(allPrices.map((row) => row.period))],
+    periodDiscounts: {
+      QUARTERLY: product.discount3Months ?? 0,
+      SEMIANNUAL: product.discount6Months ?? 0,
+      YEARLY: product.discount12Months ?? 0,
+    },
+    campaignActive,
+    campaignDiscountPercent: campaignActive ? (product.campaignDiscountPercent ?? 0) : 0,
+    campaignEndsAt: campaignActive ? (product.campaignEndsAt ?? null) : null,
     prices: allPrices,
     isFree: product.isFree ?? false,
     deliveryMode: product.deliveryMode ?? "NONE",

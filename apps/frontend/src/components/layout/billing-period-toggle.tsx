@@ -11,10 +11,12 @@ const subscribe = () => () => {};
 export function BillingPeriodToggle({
   className,
   savingsPercent = 0,
+  discounts,
 }: {
   className?: string;
   /** Max yearly savings vs 12× monthly — shown on the yearly option. */
   savingsPercent?: number;
+  discounts?: Partial<Record<AppPeriod, number>>;
 }): React.ReactElement {
   const t = useTranslations("publicHosting");
   const storedPeriod = usePricingStore((s) => s.period);
@@ -29,9 +31,28 @@ export function BillingPeriodToggle({
   const options: { value: AppPeriod; label: string; badge?: string }[] = [
     { value: "MONTHLY", label: t("periodMonthly") },
     {
+      value: "QUARTERLY",
+      label: t("periodQuarterly"),
+      badge:
+        (discounts?.QUARTERLY ?? 0) > 0
+          ? t("periodSavingsBadge", { percent: discounts?.QUARTERLY ?? 0 })
+          : undefined,
+    },
+    {
+      value: "SEMIANNUAL",
+      label: t("periodSemiannual"),
+      badge:
+        (discounts?.SEMIANNUAL ?? 0) > 0
+          ? t("periodSavingsBadge", { percent: discounts?.SEMIANNUAL ?? 0 })
+          : undefined,
+    },
+    {
       value: "YEARLY",
       label: t("periodYearly"),
-      badge: savingsPercent > 0 ? t("yearlySavingsBadge", { percent: savingsPercent }) : undefined,
+      badge:
+        (discounts?.YEARLY ?? savingsPercent) > 0
+          ? t("periodSavingsBadge", { percent: discounts?.YEARLY ?? savingsPercent })
+          : undefined,
     },
   ];
 

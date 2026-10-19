@@ -11,7 +11,7 @@ import type {
   HostingServer,
   ServiceStatus,
 } from "@prisma/client";
-import { HostingManagementMode as HostingManagementModeEnum } from "@prisma/client";
+import { BillingCycle, HostingManagementMode as HostingManagementModeEnum } from "@prisma/client";
 
 import type { ProvisionHostingDto } from "../dto";
 import { HostingRepository } from "../repository/hosting.repository";
@@ -83,6 +83,7 @@ function mapAccount(
     panelUsername: account.panelUsername,
     panelRef: account.panelRef,
     expiresAt: account.expiresAt,
+    billingCycle: account.billingCycle,
     billingAmount: account.billingAmount != null ? Number(account.billingAmount) : null,
     billingCurrency: account.billingCurrency,
     autoRenew: account.autoRenew,
@@ -195,7 +196,13 @@ export class HostingService {
   async provision(
     userId: string,
     dto: ProvisionHostingDto,
-    options?: { orderId?: string; requirePaidOrder?: boolean },
+    options?: {
+      orderId?: string;
+      requirePaidOrder?: boolean;
+      billingCycle?: BillingCycle;
+      billingAmount?: number;
+      billingCurrency?: string;
+    },
   ) {
     if (options?.requirePaidOrder && !options.orderId) {
       throw new BadRequestException(
@@ -254,6 +261,9 @@ export class HostingService {
       primaryDomain,
       username,
       panel: plan.panel,
+      billingCycle: options?.billingCycle ?? plan.billingCycle,
+      billingAmount: options?.billingAmount ?? Number(plan.price),
+      billingCurrency: options?.billingCurrency ?? plan.currency,
       status: "PROVISIONING" as ServiceStatus,
       provisionStage: PROVISION_STAGES.PAYMENT_CONFIRMED,
     });

@@ -81,13 +81,25 @@ export function PricingCard({
       ]
     : [];
   const billing =
-    cycle === "YEARLY" ? t("yearly") : cycle === "ONE_TIME" ? t("oneTime") : t("monthly");
+    cycle === "QUARTERLY"
+      ? t("quarterly")
+      : cycle === "SEMIANNUAL"
+        ? t("semiannual")
+        : cycle === "YEARLY"
+          ? t("yearly")
+          : cycle === "ONE_TIME"
+            ? t("oneTime")
+            : t("monthly");
   const billingDetail =
     quoteOnly || cycle === "ONE_TIME"
       ? null
-      : cycle === "YEARLY"
-        ? th("annualTotal")
-        : th("monthlyTotal");
+      : cycle === "QUARTERLY"
+        ? t("quarterlyTotal")
+        : cycle === "SEMIANNUAL"
+          ? t("semiannualTotal")
+          : cycle === "YEARLY"
+            ? th("annualTotal")
+            : th("monthlyTotal");
 
   return (
     <article className={cn("home-price-card", featured && "home-price-card-featured")}>
@@ -106,8 +118,18 @@ export function PricingCard({
           </div>
         ) : (
           <div>
+            {(product.originalPrice ?? product.price) > product.price ? (
+              <span className="mr-2 text-sm font-semibold text-[var(--label-tertiary)] line-through">
+                {formatPlanPrice(product.originalPrice ?? product.price, product.currency)}
+              </span>
+            ) : null}
             <strong>{formatPlanPrice(product.price, product.currency)}</strong>
             <span>{billing}</span>
+            {(product.discountPercent ?? 0) > 0 ? (
+              <em className="bg-emerald-500/12 ml-2 inline-flex rounded-full px-2 py-1 text-xs font-bold not-italic text-emerald-700 dark:text-emerald-300">
+                −{product.discountPercent}%
+              </em>
+            ) : null}
           </div>
         )}
         {billingDetail || minimumQuantity > 1 ? (

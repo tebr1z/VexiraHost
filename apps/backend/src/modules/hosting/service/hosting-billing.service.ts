@@ -78,7 +78,7 @@ export class HostingBillingService {
     const account = invoice.hostingAccount;
     const base =
       account.expiresAt && account.expiresAt > new Date() ? account.expiresAt : new Date();
-    const nextExpires = calculateHostingExpiry(base, account.plan.billingCycle);
+    const nextExpires = calculateHostingExpiry(base, account.billingCycle);
     if (!nextExpires) return null;
 
     await this.hostingServers.resumeAccountAfterPayment(account.id);

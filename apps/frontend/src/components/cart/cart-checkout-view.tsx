@@ -274,9 +274,13 @@ export function CartCheckoutView({
   const billingLabel = (cycle: string) =>
     cycle.toUpperCase() === "ONE_TIME"
       ? tl("label")
-      : cycle.toUpperCase() === "YEARLY"
-        ? t("billingYearly")
-        : t("billingMonthly");
+      : cycle.toUpperCase() === "QUARTERLY"
+        ? t("billingQuarterly")
+        : cycle.toUpperCase() === "SEMIANNUAL"
+          ? t("billingSemiannual")
+          : cycle.toUpperCase() === "YEARLY"
+            ? t("billingYearly")
+            : t("billingMonthly");
 
   const handleCheckout = async () => {
     setLoading(true);

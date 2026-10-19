@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ProductCategory } from "@prisma/client";
+import { BillingCycle, ProductCategory } from "@prisma/client";
 
 import { HostingService } from "./hosting.service";
 
@@ -9,6 +9,8 @@ import { LicensesService } from "@/modules/licenses/service/licenses.service";
 interface OrderItemMetadata {
   primaryDomain?: string;
   planSlug?: string;
+  period?: string;
+  currency?: string;
 }
 
 const ADDON_CATEGORIES = new Set<ProductCategory>([
@@ -68,6 +70,7 @@ export class OrderFulfillmentService {
     item: {
       id: string;
       metadata: unknown;
+      unitPrice: { toString(): string };
       product: { hostingPlanSlug: string | null };
     },
   ): Promise<void> {
@@ -83,7 +86,19 @@ export class OrderFulfillmentService {
     }
 
     try {
-      await this.hostingService.provision(userId, { planSlug, primaryDomain }, { orderId });
+      const billingCycle = Object.values(BillingCycle).includes(metadata.period as BillingCycle)
+        ? (metadata.period as BillingCycle)
+        : BillingCycle.MONTHLY;
+      await this.hostingService.provision(
+        userId,
+        { planSlug, primaryDomain },
+        {
+          orderId,
+          billingCycle,
+          billingAmount: Number(item.unitPrice),
+          billingCurrency: metadata.currency ?? "USD",
+        },
+      );
     } catch (error) {
       this.logger.error(
         `Hosting fulfillment failed for order ${orderId}, item ${item.id}: ${

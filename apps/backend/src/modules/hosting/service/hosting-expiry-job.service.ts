@@ -210,7 +210,7 @@ export class HostingExpiryJobService {
     for (const account of accounts) {
       const expiresAt = calculateHostingExpiry(
         account.provisionedAt ?? account.createdAt,
-        account.plan.billingCycle,
+        account.billingCycle,
       );
       await this.prisma.hostingAccount.update({
         where: { id: account.id },
@@ -299,7 +299,7 @@ export class HostingExpiryJobService {
     for (const account of accounts) {
       const amount = account.billingAmount != null ? Number(account.billingAmount) : 0;
       if (!Number.isFinite(amount) || amount <= 0) continue;
-      if (account.plan.billingCycle === BillingCycle.ONE_TIME) continue;
+      if (account.billingCycle === BillingCycle.ONE_TIME) continue;
 
       const graceEndsAt = new Date(now);
       graceEndsAt.setDate(graceEndsAt.getDate() + GRACE_DAYS);

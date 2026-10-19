@@ -1,7 +1,7 @@
 import type { CatalogCategory, CatalogProduct } from "@/features/catalog";
 import type { HostingPlan } from "@/features/hosting";
 
-export type BillingPeriod = "MONTHLY" | "YEARLY";
+export type BillingPeriod = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY";
 
 /** Same category key the home pricing section uses (catalog id or slug). */
 export function resolveHostingCategoryRef(categories: CatalogCategory[]): string {
@@ -30,7 +30,9 @@ export function findCatalogProductForPlan(
 }
 
 function normalizePeriod(period: string): BillingPeriod {
-  return period.toUpperCase() === "YEARLY" ? "YEARLY" : "MONTHLY";
+  const upper = period.toUpperCase();
+  if (upper === "QUARTERLY" || upper === "SEMIANNUAL" || upper === "YEARLY") return upper;
+  return "MONTHLY";
 }
 
 function productMatchesBillingPeriod(product: CatalogProduct, period: BillingPeriod): boolean {
@@ -46,7 +48,7 @@ function hostingProductScore(product: CatalogProduct, period: BillingPeriod): nu
   if (product.billingCycle.toUpperCase() === period) score += 3;
   if (
     prices.some((row) => row.period === "MONTHLY") &&
-    prices.some((row) => row.period === "YEARLY")
+    prices.some((row) => row.period !== "MONTHLY" && row.period !== "ONE_TIME")
   ) {
     score += 2;
   }

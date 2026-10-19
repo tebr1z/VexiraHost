@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type AppCurrency = "USD" | "EUR" | "AZN";
-export type AppPeriod = "MONTHLY" | "YEARLY";
+export type AppPeriod = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY";
 
 interface PricingState {
   currency: AppCurrency;
@@ -30,7 +30,9 @@ function parseCurrency(value?: string | null): AppCurrency {
 }
 
 function parsePeriod(value?: string | null): AppPeriod {
-  return value?.toUpperCase() === "YEARLY" ? "YEARLY" : "MONTHLY";
+  const upper = value?.toUpperCase();
+  if (upper === "QUARTERLY" || upper === "SEMIANNUAL" || upper === "YEARLY") return upper;
+  return "MONTHLY";
 }
 
 export const usePricingStore = create<PricingState>()(

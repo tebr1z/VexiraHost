@@ -177,20 +177,20 @@ enum NotificationOutboxStatus {
 }
 
 model NotificationOutbox {
-  id          String                   @id @default(cuid())
+  id          String                    @id @default(cuid())
   userId      String?
   channel     NotificationOutboxChannel
   recipient   String
   template    String
   payload     Json
-  status      NotificationOutboxStatus @default(PENDING)
-  dedupeKey   String                   @unique
-  attempts    Int                      @default(0)
-  lastError   String?                  @db.Text
-  availableAt DateTime                 @default(now())
+  status      NotificationOutboxStatus  @default(PENDING)
+  dedupeKey   String                    @unique
+  attempts    Int                       @default(0)
+  lastError   String?                   @db.Text
+  availableAt DateTime                  @default(now())
   sentAt      DateTime?
-  createdAt   DateTime                 @default(now())
-  updatedAt   DateTime                 @updatedAt
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
 
   @@index([status, availableAt])
   @@index([userId, createdAt])
@@ -336,6 +336,8 @@ enum DigitalDeliveryMode {
 
 enum BillingCycle {
   MONTHLY
+  QUARTERLY
+  SEMIANNUAL
   YEARLY
   ONE_TIME
 }
@@ -372,6 +374,7 @@ model Product {
   catalogCategoryId       String?
   catalogCategory         CatalogCategory?    @relation(fields: [catalogCategoryId], references: [id], onDelete: SetNull)
   hostingPlanSlug         String?
+  costPrice               Decimal             @default(0) @db.Decimal(10, 2)
   price                   Decimal             @db.Decimal(10, 2)
   currency                String              @default("USD")
   billingCycle            BillingCycle
@@ -379,6 +382,12 @@ model Product {
   requiresQuote           Boolean             @default(false)
   isActive                Boolean             @default(true)
   sortOrder               Int                 @default(0)
+  discount3Months         Int                 @default(0)
+  discount6Months         Int                 @default(0)
+  discount12Months        Int                 @default(0)
+  campaignDiscountPercent Int                 @default(0)
+  campaignStartsAt        DateTime?
+  campaignEndsAt          DateTime?
   /**
    * Digital delivery for LICENSE (and similar) products
    */
@@ -416,6 +425,8 @@ enum PriceCurrency {
 
 enum PricePeriod {
   MONTHLY
+  QUARTERLY
+  SEMIANNUAL
   YEARLY
   ONE_TIME
 }
@@ -1107,48 +1118,48 @@ enum ManualServiceCategory {
 }
 
 model HostingServer {
-  id               String       @id @default(cuid())
-  name             String
-  hostname         String
-  ipAddress        String
-  panel            HostingPanel
-  whmUsername      String
-  whmPasswordEnc   String
-  apiTokenEnc      String?
+  id                    String           @id @default(cuid())
+  name                  String
+  hostname              String
+  ipAddress             String
+  panel                 HostingPanel
+  whmUsername           String
+  whmPasswordEnc        String
+  apiTokenEnc           String?
   /**
    * e.g. Ubuntu 22.04, AlmaLinux 9 — shown in admin, optional.
    */
-  osVersion        String?
+  osVersion             String?
   /**
    * SSH login for auto-deploy; falls back to whmUsername when unset.
    */
-  sshUsername      String?
-  sshPasswordEnc   String?
-  sshPort          Int          @default(22)
-  isDefault        Boolean      @default(false)
-  isActive         Boolean      @default(true)
-  maxAccounts      Int?
-  accountCount     Int          @default(0)
-  lastCheckedAt    DateTime?
-  lastConnectionOk Boolean?
-  deployNodeEnabled Boolean          @default(false)
-  deployHealth      DeployNodeHealth @default(UNKNOWN)
-  deployHealthMessage String?
+  sshUsername           String?
+  sshPasswordEnc        String?
+  sshPort               Int              @default(22)
+  isDefault             Boolean          @default(false)
+  isActive              Boolean          @default(true)
+  maxAccounts           Int?
+  accountCount          Int              @default(0)
+  lastCheckedAt         DateTime?
+  lastConnectionOk      Boolean?
+  deployNodeEnabled     Boolean          @default(false)
+  deployHealth          DeployNodeHealth @default(UNKNOWN)
+  deployHealthMessage   String?
   deployHealthCheckedAt DateTime?
-  deployCpuLoadPercent Int?
-  deployMemoryUsedMb Int?
-  deployMemoryTotalMb Int?
-  deployDiskUsedMb Int?
-  deployDiskTotalMb Int?
-  deployUptimeSeconds Int?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  deployCpuLoadPercent  Int?
+  deployMemoryUsedMb    Int?
+  deployMemoryTotalMb   Int?
+  deployDiskUsedMb      Int?
+  deployDiskTotalMb     Int?
+  deployUptimeSeconds   Int?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  accounts  HostingAccount[]
-  plans     HostingPlan[]
-  planLinks HostingPlanServer[]
-  autoDeployPlans HostingPlan[]    @relation("AutoDeployServer")
-  appDeployments  AppDeployment[]  @relation("DeploymentRuntimeServer")
+  accounts        HostingAccount[]
+  plans           HostingPlan[]
+  planLinks       HostingPlanServer[]
+  autoDeployPlans HostingPlan[]       @relation("AutoDeployServer")
+  appDeployments  AppDeployment[]     @relation("DeploymentRuntimeServer")
 
   @@map("hosting_servers")
 }
@@ -1159,46 +1170,46 @@ enum HostingDistributionMode {
 }
 
 model HostingPlan {
-  id                String                  @id @default(cuid())
-  slug              String                  @unique
-  name              String
-  description       String?
-  panel             HostingPanel
-  diskGb            Int
-  bandwidthGb       Int
-  maxDomains        Int
-  maxEmails         Int
-  maxDatabases      Int
-  price             Decimal                 @db.Decimal(10, 2)
-  currency          String                  @default("USD")
-  billingCycle      BillingCycle            @default(MONTHLY)
-  isActive          Boolean                 @default(true)
-  sortOrder         Int                     @default(0)
+  id                            String                  @id @default(cuid())
+  slug                          String                  @unique
+  name                          String
+  description                   String?
+  panel                         HostingPanel
+  diskGb                        Int
+  bandwidthGb                   Int
+  maxDomains                    Int
+  maxEmails                     Int
+  maxDatabases                  Int
+  price                         Decimal                 @db.Decimal(10, 2)
+  currency                      String                  @default("USD")
+  billingCycle                  BillingCycle            @default(MONTHLY)
+  isActive                      Boolean                 @default(true)
+  sortOrder                     Int                     @default(0)
   /**
    * Primary / legacy single-server link (kept in sync with first planServers row).
    */
-  serverId          String?
-  pleskPlanName     String?
+  serverId                      String?
+  pleskPlanName                 String?
   /**
    * When true, customers on this plan can use Git/Docker auto-deploy (Plesk plans only).
    */
-  autoDeployEnabled Boolean                 @default(false)
-  autoDeployDiskGb Int                      @default(1)
-  autoDeployCpuPercent Int                  @default(100)
-  autoDeployMemoryMb Int                    @default(1024)
-  autoDeployMaxApps Int                     @default(1)
-  autoDeployAiEnabled Boolean               @default(false)
-  autoDeployAiMonthlyCredits Int            @default(0)
-  autoDeploySecurityScanEnabled Boolean     @default(true)
-  autoDeployServerId String?
+  autoDeployEnabled             Boolean                 @default(false)
+  autoDeployDiskGb              Int                     @default(1)
+  autoDeployCpuPercent          Int                     @default(100)
+  autoDeployMemoryMb            Int                     @default(1024)
+  autoDeployMaxApps             Int                     @default(1)
+  autoDeployAiEnabled           Boolean                 @default(false)
+  autoDeployAiMonthlyCredits    Int                     @default(0)
+  autoDeploySecurityScanEnabled Boolean                 @default(true)
+  autoDeployServerId            String?
   /**
    * FAILOVER = fill servers in priority order; BALANCED = prefer least-loaded.
    */
-  distributionMode  HostingDistributionMode @default(FAILOVER)
-  server            HostingServer?          @relation(fields: [serverId], references: [id], onDelete: Restrict)
-  autoDeployServer  HostingServer?          @relation("AutoDeployServer", fields: [autoDeployServerId], references: [id], onDelete: SetNull)
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
+  distributionMode              HostingDistributionMode @default(FAILOVER)
+  server                        HostingServer?          @relation(fields: [serverId], references: [id], onDelete: Restrict)
+  autoDeployServer              HostingServer?          @relation("AutoDeployServer", fields: [autoDeployServerId], references: [id], onDelete: SetNull)
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
 
   accounts    HostingAccount[]
   planServers HostingPlanServer[]
@@ -1229,50 +1240,51 @@ model HostingPlanServer {
 }
 
 model HostingAccount {
-  id                    String                 @id @default(cuid())
-  userId                String
-  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId                String
-  plan                  HostingPlan            @relation(fields: [planId], references: [id])
-  serverId              String?
-  server                HostingServer?         @relation(fields: [serverId], references: [id], onDelete: SetNull)
-  orderId               String?
-  order                 Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  primaryDomain         String
-  username              String                 @unique
-  panel                 HostingPanel
-  managementMode        HostingManagementMode  @default(AUTOMATED)
-  serviceCategory       ManualServiceCategory?
-  status                ServiceStatus          @default(PROVISIONING)
-  panelIp               String?
-  panelUrl              String?
-  panelUsername         String?
-  panelPasswordEnc      String?
-  panelRef              String?
-  panelSessionTokenEnc  String?
-  panelSessionExpiresAt DateTime?
-  expiresAt             DateTime?
-  billingAmount         Decimal?               @db.Decimal(10, 2)
-  billingCurrency       String                 @default("USD")
-  autoRenew             Boolean                @default(true)
-  cancelRequestedAt     DateTime?
-  cancelApprovedAt      DateTime?
-  scheduledPurgeAt      DateTime?
-  graceEndsAt           DateTime?
-  renewalInvoiceId      String?
-  provisionStage        String?
-  provisionError        String?
-  provisionedAt         DateTime?
-  autoDeployDiskGbOverride Int?
+  id                           String                 @id @default(cuid())
+  userId                       String
+  user                         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                       String
+  plan                         HostingPlan            @relation(fields: [planId], references: [id])
+  serverId                     String?
+  server                       HostingServer?         @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  orderId                      String?
+  order                        Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  primaryDomain                String
+  username                     String                 @unique
+  panel                        HostingPanel
+  managementMode               HostingManagementMode  @default(AUTOMATED)
+  serviceCategory              ManualServiceCategory?
+  status                       ServiceStatus          @default(PROVISIONING)
+  panelIp                      String?
+  panelUrl                     String?
+  panelUsername                String?
+  panelPasswordEnc             String?
+  panelRef                     String?
+  panelSessionTokenEnc         String?
+  panelSessionExpiresAt        DateTime?
+  expiresAt                    DateTime?
+  billingCycle                 BillingCycle           @default(MONTHLY)
+  billingAmount                Decimal?               @db.Decimal(10, 2)
+  billingCurrency              String                 @default("USD")
+  autoRenew                    Boolean                @default(true)
+  cancelRequestedAt            DateTime?
+  cancelApprovedAt             DateTime?
+  scheduledPurgeAt             DateTime?
+  graceEndsAt                  DateTime?
+  renewalInvoiceId             String?
+  provisionStage               String?
+  provisionError               String?
+  provisionedAt                DateTime?
+  autoDeployDiskGbOverride     Int?
   autoDeployCpuPercentOverride Int?
-  autoDeployMemoryMbOverride Int?
-  autoDeployMaxAppsOverride Int?
-  autoDeployAiCreditsOverride Int?
-  autoDeployDiskUsedMb Int                    @default(0)
-  pleskDiskUsedMb      Int                    @default(0)
-  storageCheckedAt     DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  autoDeployMemoryMbOverride   Int?
+  autoDeployMaxAppsOverride    Int?
+  autoDeployAiCreditsOverride  Int?
+  autoDeployDiskUsedMb         Int                    @default(0)
+  pleskDiskUsedMb              Int                    @default(0)
+  storageCheckedAt             DateTime?
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
 
   invoices       Invoice[]
   appDeployments AppDeployment[]
@@ -1328,7 +1340,7 @@ model AppDeployment {
   userId            String
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   deployServerId    String?
-  deployServer      HostingServer?    @relation("DeploymentRuntimeServer", fields: [deployServerId], references: [id], onDelete: SetNull)
+  deployServer      HostingServer?   @relation("DeploymentRuntimeServer", fields: [deployServerId], references: [id], onDelete: SetNull)
   name              String
   stack             DeployStack
   source            DeploySource     @default(GIT)
@@ -1417,39 +1429,39 @@ enum SecurityFindingStatus {
 }
 
 model ManagedServer {
-  id                    String              @id @default(cuid())
-  userId                String
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                  String
-  host                  String
-  sshPort               Int                 @default(22)
-  sshUsername           String
-  sshPasswordEnc        String
-  sshHostFingerprint    String?
-  packageCode           String              @default("CUSTOM")
-  selectedFeatures      String[]            @default([])
-  installedFeatures     String[]            @default([])
-  status                ManagedServerStatus @default(PENDING)
-  osVersion             String?
-  tools                 Json?
-  cpuLoadPercent        Int?
-  memoryUsedMb          Int?
-  memoryTotalMb         Int?
-  diskUsedMb            Int?
-  diskTotalMb           Int?
-  uptimeSeconds         Int?
-  securityScore         Int?
-  optimizationScore     Int?
-  lastError             String?
-  lastCheckedAt         DateTime?
-  lastSecurityScanAt    DateTime?
-  lastOptimizationAt    DateTime?
-  monitoringEnabled     Boolean             @default(true)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                 String              @id @default(cuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  host               String
+  sshPort            Int                 @default(22)
+  sshUsername        String
+  sshPasswordEnc     String
+  sshHostFingerprint String?
+  packageCode        String              @default("CUSTOM")
+  selectedFeatures   String[]            @default([])
+  installedFeatures  String[]            @default([])
+  status             ManagedServerStatus @default(PENDING)
+  osVersion          String?
+  tools              Json?
+  cpuLoadPercent     Int?
+  memoryUsedMb       Int?
+  memoryTotalMb      Int?
+  diskUsedMb         Int?
+  diskTotalMb        Int?
+  uptimeSeconds      Int?
+  securityScore      Int?
+  optimizationScore  Int?
+  lastError          String?
+  lastCheckedAt      DateTime?
+  lastSecurityScanAt DateTime?
+  lastOptimizationAt DateTime?
+  monitoringEnabled  Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  tasks                 ManagedServerTask[]
-  findings              ManagedServerFinding[]
+  tasks    ManagedServerTask[]
+  findings ManagedServerFinding[]
 
   @@unique([userId, host, sshPort])
   @@index([userId, status])
@@ -1458,20 +1470,20 @@ model ManagedServer {
 }
 
 model ManagedServerTask {
-  id                    String                  @id @default(cuid())
-  serverId              String
-  server                ManagedServer           @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  type                  ManagedServerTaskType
-  status                ManagedServerTaskStatus @default(QUEUED)
-  requestedFeatures     String[]                @default([])
-  requestedById         String?
-  approvedById          String?
-  log                   String                  @default("") @db.Text
-  result                Json?
-  startedAt             DateTime?
-  finishedAt            DateTime?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  id                String                  @id @default(cuid())
+  serverId          String
+  server            ManagedServer           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  type              ManagedServerTaskType
+  status            ManagedServerTaskStatus @default(QUEUED)
+  requestedFeatures String[]                @default([])
+  requestedById     String?
+  approvedById      String?
+  log               String                  @default("") @db.Text
+  result            Json?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
   @@index([serverId, createdAt])
   @@index([status, createdAt])
@@ -1479,19 +1491,19 @@ model ManagedServerTask {
 }
 
 model ManagedServerFinding {
-  id                    String                  @id @default(cuid())
-  serverId              String
-  server                ManagedServer           @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  key                   String
-  severity              SecurityFindingSeverity
-  status                SecurityFindingStatus   @default(OPEN)
-  title                 String
-  description           String
-  remediation           String?
-  autoFixAvailable      Boolean                 @default(false)
-  detectedAt            DateTime                @default(now())
-  resolvedAt            DateTime?
-  updatedAt             DateTime                @updatedAt
+  id               String                  @id @default(cuid())
+  serverId         String
+  server           ManagedServer           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  key              String
+  severity         SecurityFindingSeverity
+  status           SecurityFindingStatus   @default(OPEN)
+  title            String
+  description      String
+  remediation      String?
+  autoFixAvailable Boolean                 @default(false)
+  detectedAt       DateTime                @default(now())
+  resolvedAt       DateTime?
+  updatedAt        DateTime                @updatedAt
 
   @@unique([serverId, key])
   @@index([serverId, status, severity])

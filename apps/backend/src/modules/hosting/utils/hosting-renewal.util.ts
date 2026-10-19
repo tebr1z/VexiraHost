@@ -15,7 +15,8 @@ export function calculateHostingExpiry(from: Date, cycle: BillingCycle): Date | 
   if (cycle === BillingCycle.YEARLY) {
     next.setUTCFullYear(next.getUTCFullYear() + 1);
   } else {
-    next.setUTCMonth(next.getUTCMonth() + 1);
+    const months = cycle === BillingCycle.QUARTERLY ? 3 : cycle === BillingCycle.SEMIANNUAL ? 6 : 1;
+    next.setUTCMonth(next.getUTCMonth() + months);
   }
 
   next.setUTCDate(Math.min(originalDay, daysInUtcMonth(next.getUTCFullYear(), next.getUTCMonth())));

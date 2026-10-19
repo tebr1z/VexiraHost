@@ -62,6 +62,21 @@ export default function DashboardProductsPage(): React.ReactElement | null {
     return Math.max(...products.map((product) => product.yearlySavingsPercent ?? 0));
   }, [products]);
 
+  const maxPeriodDiscounts = useMemo(
+    () => ({
+      QUARTERLY: Math.max(0, ...products.map((product) => product.periodDiscounts?.QUARTERLY ?? 0)),
+      SEMIANNUAL: Math.max(
+        0,
+        ...products.map((product) => product.periodDiscounts?.SEMIANNUAL ?? 0),
+      ),
+      YEARLY: Math.max(
+        maxYearlySavings,
+        ...products.map((product) => product.periodDiscounts?.YEARLY ?? 0),
+      ),
+    }),
+    [maxYearlySavings, products],
+  );
+
   const categories = useMemo(() => {
     const present = new Set(products.map((p) => p.category));
     return CATEGORY_ORDER.filter((c) => c === "ALL" || present.has(c));
@@ -113,7 +128,11 @@ export default function DashboardProductsPage(): React.ReactElement | null {
       {!loading && products.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <BillingPeriodToggle savingsPercent={maxYearlySavings} className="mb-0" />
+            <BillingPeriodToggle
+              savingsPercent={maxYearlySavings}
+              discounts={maxPeriodDiscounts}
+              className="mb-0"
+            />
             <CurrencySwitcher variant="segmented" />
           </div>
         </div>
@@ -166,7 +185,23 @@ export default function DashboardProductsPage(): React.ReactElement | null {
               {product.promoText && (
                 <p className="mt-2 text-sm text-[var(--label-secondary)]">{product.promoText}</p>
               )}
-              <p className="font-jakarta mt-5 text-2xl font-bold tracking-tight text-[var(--label-primary)]">
+              {product.originalPrice != null && product.originalPrice > product.price ? (
+                <p className="mt-5 flex items-center gap-2 text-sm">
+                  <span className="text-[var(--label-tertiary)] line-through">
+                    {formatMoney(product.originalPrice, product.currency, locale)}
+                  </span>
+                  <span className="font-semibold text-emerald-600">
+                    −{product.discountPercent}%
+                  </span>
+                </p>
+              ) : null}
+              <p
+                className={`font-jakarta text-2xl font-bold tracking-tight text-[var(--label-primary)] ${
+                  product.originalPrice != null && product.originalPrice > product.price
+                    ? "mt-1"
+                    : "mt-5"
+                }`}
+              >
                 {product.requiresQuote
                   ? tp("quotePrice")
                   : product.isFree
@@ -177,9 +212,13 @@ export default function DashboardProductsPage(): React.ReactElement | null {
                     /{" "}
                     {product.billingCycle.toUpperCase() === "YEARLY"
                       ? tPricing("yearly")
-                      : product.billingCycle.toUpperCase() === "ONE_TIME"
-                        ? tPricing("oneTime")
-                        : tPricing("monthly")}
+                      : product.billingCycle.toUpperCase() === "SEMIANNUAL"
+                        ? tPricing("semiannual")
+                        : product.billingCycle.toUpperCase() === "QUARTERLY"
+                          ? tPricing("quarterly")
+                          : product.billingCycle.toUpperCase() === "ONE_TIME"
+                            ? tPricing("oneTime")
+                            : tPricing("monthly")}
                   </span>
                 )}
               </p>

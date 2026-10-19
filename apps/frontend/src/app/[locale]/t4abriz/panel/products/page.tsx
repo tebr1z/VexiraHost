@@ -16,6 +16,7 @@ export default function AdminProductsPage(): React.ReactElement | null {
   const locale = useLocale();
   const t = useTranslations("admin");
   const tp = useTranslations("admin.pages.products");
+  const tf = useTranslations("admin.forms");
   const tu = useTranslations("ui");
   const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -82,9 +83,34 @@ export default function AdminProductsPage(): React.ReactElement | null {
             render: (row) => (row as unknown as AdminProduct).hostingPlanSlug ?? "—",
           },
           {
+            key: "costPrice",
+            header: tf("costPrice"),
+            render: (row) => {
+              const p = row as unknown as AdminProduct;
+              return formatMoney(p.costPrice ?? 0, p.currency, locale);
+            },
+          },
+          {
             key: "price",
-            header: tu("table.amount"),
-            render: (row) => formatMoney((row as unknown as AdminProduct).price, "USD", locale),
+            header: tf("salePrice"),
+            render: (row) => {
+              const p = row as unknown as AdminProduct;
+              return formatMoney(p.price, p.currency, locale);
+            },
+          },
+          {
+            key: "profit",
+            header: tf("profitMargin"),
+            render: (row) => {
+              const p = row as unknown as AdminProduct;
+              const profit = p.price - (p.costPrice ?? 0);
+              const margin = p.price > 0 ? (profit / p.price) * 100 : 0;
+              return (
+                <span className={profit >= 0 ? "text-emerald-600" : "text-error"}>
+                  {formatMoney(profit, p.currency, locale)} · {margin.toFixed(1)}%
+                </span>
+              );
+            },
           },
           {
             key: "isActive",

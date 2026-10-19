@@ -15,6 +15,10 @@ export interface UsdPriceMatrixInput {
   yearlyOriginal?: number;
   yearlySale?: number;
   yearlyEnabled?: boolean;
+  quarterlyOriginal?: number;
+  quarterlySale?: number;
+  semiannualOriginal?: number;
+  semiannualSale?: number;
 }
 
 function roundMoney(value: number): number {
@@ -48,6 +52,30 @@ export function expandUsdPricesToAllCurrencies(
       originalPrice: convertUsd(monthlyOriginal, currency, rates),
       salePrice: convertUsd(monthlySale, currency, rates),
     });
+  }
+
+  const durationRows = [
+    {
+      period: "QUARTERLY" as const,
+      original: input.quarterlyOriginal,
+      sale: input.quarterlySale,
+    },
+    {
+      period: "SEMIANNUAL" as const,
+      original: input.semiannualOriginal,
+      sale: input.semiannualSale,
+    },
+  ];
+  for (const duration of durationRows) {
+    if (duration.original == null || duration.sale == null) continue;
+    for (const currency of currencies) {
+      rows.push({
+        currency,
+        period: duration.period,
+        originalPrice: convertUsd(duration.original, currency, rates),
+        salePrice: convertUsd(duration.sale, currency, rates),
+      });
+    }
   }
 
   if (input.yearlyEnabled !== false) {
@@ -90,6 +118,8 @@ export function expandProductPricesFromUsdSource(
     prices.find((p) => p.currency === "USD" && p.period === "MONTHLY") ??
     prices.find((p) => p.period === "MONTHLY");
   const usdYearly = prices.find((p) => p.currency === "USD" && p.period === "YEARLY");
+  const usdQuarterly = prices.find((p) => p.currency === "USD" && p.period === "QUARTERLY");
+  const usdSemiannual = prices.find((p) => p.currency === "USD" && p.period === "SEMIANNUAL");
 
   if (!usdMonthly) {
     return prices as ExpandedProductPrice[];
@@ -102,6 +132,10 @@ export function expandProductPricesFromUsdSource(
       yearlyEnabled: yearlyEnabled && (!!usdYearly || yearlyEnabled),
       yearlyOriginal: usdYearly?.originalPrice,
       yearlySale: usdYearly?.salePrice,
+      quarterlyOriginal: usdQuarterly?.originalPrice,
+      quarterlySale: usdQuarterly?.salePrice,
+      semiannualOriginal: usdSemiannual?.originalPrice,
+      semiannualSale: usdSemiannual?.salePrice,
     },
     rates,
   );

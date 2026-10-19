@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type {
+  BillingCycle,
   HostingManagementMode,
   HostingPanel,
   ManualServiceCategory,
@@ -137,6 +138,7 @@ export class HostingRepository {
     expiresAt?: Date;
     billingAmount?: number;
     billingCurrency?: string;
+    billingCycle?: BillingCycle;
     provisionStage?: string | null;
     provisionError?: string | null;
   }) {
@@ -156,6 +158,7 @@ export class HostingRepository {
       expiresAt?: Date | null;
       billingAmount?: number | null;
       billingCurrency?: string;
+      billingCycle?: BillingCycle;
       autoRenew?: boolean;
       cancelRequestedAt?: Date | null;
       cancelApprovedAt?: Date | null;

@@ -37,6 +37,13 @@ function assertAutoDeployPlan(panel: HostingPanel, autoDeployEnabled?: boolean) 
   }
 }
 
+function assertCampaignWindow(startsAt?: string | Date | null, endsAt?: string | Date | null) {
+  if (!startsAt || !endsAt) return;
+  if (new Date(startsAt).getTime() >= new Date(endsAt).getTime()) {
+    throw new BadRequestException("Campaign end date must be after its start date");
+  }
+}
+
 function mapHostingPlan(plan: {
   id: string;
   slug: string;
@@ -231,6 +238,7 @@ function mapProduct(product: {
   category: string;
   catalogCategoryId?: string | null;
   hostingPlanSlug: string | null;
+  costPrice?: Decimal;
   price: Decimal;
   currency: string;
   billingCycle: string;
@@ -238,6 +246,12 @@ function mapProduct(product: {
   requiresQuote?: boolean;
   isActive: boolean;
   sortOrder: number;
+  discount3Months?: number;
+  discount6Months?: number;
+  discount12Months?: number;
+  campaignDiscountPercent?: number;
+  campaignStartsAt?: Date | null;
+  campaignEndsAt?: Date | null;
   deliveryMode?: string;
   isFree?: boolean;
   licenseKeys?: string | null;
@@ -265,6 +279,7 @@ function mapProduct(product: {
     category: product.category,
     catalogCategoryId: product.catalogCategoryId ?? null,
     hostingPlanSlug: product.hostingPlanSlug,
+    costPrice: Number(product.costPrice ?? 0),
     price: Number(product.price),
     currency: product.currency,
     billingCycle: product.category === "LICENSE" ? "ONE_TIME" : product.billingCycle,
@@ -272,6 +287,12 @@ function mapProduct(product: {
     requiresQuote: product.requiresQuote ?? false,
     isActive: product.isActive,
     sortOrder: product.sortOrder,
+    discount3Months: product.discount3Months ?? 0,
+    discount6Months: product.discount6Months ?? 0,
+    discount12Months: product.discount12Months ?? 0,
+    campaignDiscountPercent: product.campaignDiscountPercent ?? 0,
+    campaignStartsAt: product.campaignStartsAt ?? null,
+    campaignEndsAt: product.campaignEndsAt ?? null,
     deliveryMode: product.deliveryMode ?? "NONE",
     isFree: product.isFree ?? false,
     licenseKeys: product.licenseKeys ?? null,
@@ -648,6 +669,7 @@ export class AdminCatalogService {
     if (dto.requiresQuote && dto.isFree) {
       throw new BadRequestException("A quote-only product cannot also be free");
     }
+    assertCampaignWindow(dto.campaignStartsAt, dto.campaignEndsAt);
     const slug = dto.slug?.trim()
       ? await resolveUniqueSlug(slugify(dto.slug), (candidate) => this.productSlugTaken(candidate))
       : await resolveUniqueSlug(dto.name, (candidate) => this.productSlugTaken(candidate));
@@ -671,6 +693,7 @@ export class AdminCatalogService {
         : {}),
       hostingPlanSlug:
         dto.category === ProductCategory.HOSTING ? (dto.hostingPlanSlug?.trim() ?? null) : null,
+      costPrice: new Decimal(dto.costPrice ?? 0),
       price: new Decimal(dto.isFree || dto.requiresQuote ? 0 : dto.price),
       currency: dto.currency ?? "USD",
       billingCycle:
@@ -679,6 +702,12 @@ export class AdminCatalogService {
       requiresQuote: dto.requiresQuote ?? false,
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
+      discount3Months: dto.discount3Months ?? 0,
+      discount6Months: dto.discount6Months ?? 0,
+      discount12Months: dto.discount12Months ?? 0,
+      campaignDiscountPercent: dto.campaignDiscountPercent ?? 0,
+      campaignStartsAt: dto.campaignStartsAt ? new Date(dto.campaignStartsAt) : null,
+      campaignEndsAt: dto.campaignEndsAt ? new Date(dto.campaignEndsAt) : null,
       deliveryMode: digital.deliveryMode as never,
       isFree: digital.isFree,
       licenseKeys: digital.licenseKeys,
@@ -717,6 +746,10 @@ export class AdminCatalogService {
     if ((dto.requiresQuote ?? current.requiresQuote) && (dto.isFree ?? current.isFree)) {
       throw new BadRequestException("A quote-only product cannot also be free");
     }
+    assertCampaignWindow(
+      dto.campaignStartsAt !== undefined ? dto.campaignStartsAt : current.campaignStartsAt,
+      dto.campaignEndsAt !== undefined ? dto.campaignEndsAt : current.campaignEndsAt,
+    );
 
     const category = dto.category ?? current.category;
     const hostingPlanSlug =
@@ -788,6 +821,7 @@ export class AdminCatalogService {
             ),
           }
         : {}),
+      ...(dto.costPrice !== undefined ? { costPrice: new Decimal(dto.costPrice) } : {}),
       ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
       ...(dto.minimumQuantity !== undefined ? { minimumQuantity: dto.minimumQuantity } : {}),
       ...(dto.requiresQuote !== undefined ? { requiresQuote: dto.requiresQuote } : {}),
@@ -801,6 +835,18 @@ export class AdminCatalogService {
         : {}),
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+      ...(dto.discount3Months !== undefined ? { discount3Months: dto.discount3Months } : {}),
+      ...(dto.discount6Months !== undefined ? { discount6Months: dto.discount6Months } : {}),
+      ...(dto.discount12Months !== undefined ? { discount12Months: dto.discount12Months } : {}),
+      ...(dto.campaignDiscountPercent !== undefined
+        ? { campaignDiscountPercent: dto.campaignDiscountPercent }
+        : {}),
+      ...(dto.campaignStartsAt !== undefined
+        ? { campaignStartsAt: dto.campaignStartsAt ? new Date(dto.campaignStartsAt) : null }
+        : {}),
+      ...(dto.campaignEndsAt !== undefined
+        ? { campaignEndsAt: dto.campaignEndsAt ? new Date(dto.campaignEndsAt) : null }
+        : {}),
       ...(digitalPatch
         ? {
             deliveryMode: digitalPatch.deliveryMode as never,

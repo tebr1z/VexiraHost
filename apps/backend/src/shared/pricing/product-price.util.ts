@@ -14,6 +14,40 @@ export interface ResolvedProductPrice {
   originalPrice: number;
   salePrice: number;
   discountPercent: number;
+  campaignActive: boolean;
+}
+
+export interface ProductCampaignPricing {
+  campaignDiscountPercent?: number | null;
+  campaignStartsAt?: Date | null;
+  campaignEndsAt?: Date | null;
+}
+
+export function isProductCampaignActive(
+  campaign?: ProductCampaignPricing | null,
+  now = new Date(),
+): boolean {
+  const percent = campaign?.campaignDiscountPercent ?? 0;
+  if (percent <= 0 || percent >= 100) return false;
+  if (campaign?.campaignStartsAt && campaign.campaignStartsAt > now) return false;
+  if (campaign?.campaignEndsAt && campaign.campaignEndsAt <= now) return false;
+  return true;
+}
+
+function applyCampaignPrice(
+  originalPrice: number,
+  salePrice: number,
+  campaign?: ProductCampaignPricing | null,
+) {
+  if (!isProductCampaignActive(campaign)) {
+    return { originalPrice, salePrice, campaignActive: false };
+  }
+  const percent = campaign?.campaignDiscountPercent ?? 0;
+  return {
+    originalPrice: salePrice,
+    salePrice: Math.round(salePrice * (1 - percent / 100) * 100) / 100,
+    campaignActive: true,
+  };
 }
 
 /** One price per currency. Prefer explicit one-time prices, then legacy base prices. */
@@ -33,6 +67,7 @@ export function resolveProductPrice(
   prices: ProductPrice[],
   currencyInput?: string | null,
   periodInput?: string | null,
+  campaign?: ProductCampaignPricing | null,
 ): ResolvedProductPrice | null {
   if (!prices.length) return null;
 
@@ -44,14 +79,14 @@ export function resolveProductPrice(
     resolvedCurrency: SupportedCurrency,
     resolvedPeriod: PricePeriod,
   ) => {
-    const originalPrice = Number(row.originalPrice);
-    const salePrice = Number(row.salePrice);
+    const priced = applyCampaignPrice(Number(row.originalPrice), Number(row.salePrice), campaign);
     return {
       currency: resolvedCurrency,
       period: resolvedPeriod,
-      originalPrice,
-      salePrice,
-      discountPercent: discountPercent(originalPrice, salePrice),
+      originalPrice: priced.originalPrice,
+      salePrice: priced.salePrice,
+      discountPercent: discountPercent(priced.originalPrice, priced.salePrice),
+      campaignActive: priced.campaignActive,
     };
   };
 
@@ -111,12 +146,16 @@ export function hasYearlyPricing(prices: Array<{ period: string }>): boolean {
   return prices.some((p) => p.period === "YEARLY" || p.period === PricePeriod.YEARLY);
 }
 
-export function mapProductPrices(prices: ProductPrice[]) {
-  return prices.map((p) => ({
-    currency: p.currency,
-    period: p.period,
-    originalPrice: Number(p.originalPrice),
-    salePrice: Number(p.salePrice),
-    discountPercent: discountPercent(Number(p.originalPrice), Number(p.salePrice)),
-  }));
+export function mapProductPrices(prices: ProductPrice[], campaign?: ProductCampaignPricing | null) {
+  return prices.map((p) => {
+    const priced = applyCampaignPrice(Number(p.originalPrice), Number(p.salePrice), campaign);
+    return {
+      currency: p.currency,
+      period: p.period,
+      originalPrice: priced.originalPrice,
+      salePrice: priced.salePrice,
+      discountPercent: discountPercent(priced.originalPrice, priced.salePrice),
+      campaignActive: priced.campaignActive,
+    };
+  });
 }

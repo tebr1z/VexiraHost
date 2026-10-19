@@ -118,7 +118,7 @@ export class HostingProvisionRunner {
       await this.setStage(accountId, PROVISION_STAGES.FINALIZING, null);
 
       const provisionedAt = new Date();
-      const expiresAt = calculateHostingExpiry(provisionedAt, plan.billingCycle);
+      const expiresAt = calculateHostingExpiry(provisionedAt, account.billingCycle);
 
       await this.hostingRepository.updateAccount(accountId, {
         status: ServiceStatus.ACTIVE,
@@ -128,8 +128,8 @@ export class HostingProvisionRunner {
         panelRef: result.panelRef,
         provisionedAt,
         expiresAt,
-        billingAmount: expiresAt ? Number(plan.price) : null,
-        billingCurrency: plan.currency.toUpperCase(),
+        billingAmount: expiresAt ? Number(account.billingAmount ?? plan.price) : null,
+        billingCurrency: account.billingCurrency.toUpperCase(),
         autoRenew: expiresAt != null,
         provisionStage: PROVISION_STAGES.COMPLETED,
         provisionError: null,

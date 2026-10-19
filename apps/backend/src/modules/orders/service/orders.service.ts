@@ -222,7 +222,16 @@ export class OrdersService {
       }
       const oneTime =
         product.category === ProductCategory.LICENSE || product.billingCycle === "ONE_TIME";
-      const resolved = resolveProductPrice(product.prices, currency, oneTime ? "ONE_TIME" : period);
+      const resolved = resolveProductPrice(
+        product.prices,
+        currency,
+        oneTime ? "ONE_TIME" : period,
+        {
+          campaignDiscountPercent: product.campaignDiscountPercent,
+          campaignStartsAt: product.campaignStartsAt,
+          campaignEndsAt: product.campaignEndsAt,
+        },
+      );
       const unitPrice = new Decimal(resolved?.salePrice ?? Number(product.price));
       const totalPrice = unitPrice.mul(quantity);
       const checkoutItem = dto.items.find((item) => item.productId === productId);
@@ -240,6 +249,7 @@ export class OrdersService {
           period: oneTime ? "ONE_TIME" : (resolved?.period ?? period),
           ...(oneTime ? { billingCycle: "ONE_TIME", autoRenew: false } : {}),
           originalPrice: resolved?.originalPrice,
+          campaignActive: resolved?.campaignActive ?? false,
         } as Prisma.InputJsonValue,
       };
     });

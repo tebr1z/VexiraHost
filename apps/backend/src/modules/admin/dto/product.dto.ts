@@ -9,11 +9,13 @@ import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
   MinLength,
   ValidateNested,
@@ -63,6 +65,43 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   price!: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  discount3Months?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  discount6Months?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  discount12Months?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  campaignDiscountPercent?: number;
+
+  @IsOptional()
+  @IsDateString()
+  campaignStartsAt?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  campaignEndsAt?: string | null;
 
   @IsOptional()
   @IsString()
@@ -158,6 +197,43 @@ export class UpdateProductDto {
   @IsNumber()
   @Min(0)
   price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  discount3Months?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  discount6Months?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  discount12Months?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  campaignDiscountPercent?: number;
+
+  @IsOptional()
+  @IsDateString()
+  campaignStartsAt?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  campaignEndsAt?: string | null;
 
   @IsOptional()
   @IsString()

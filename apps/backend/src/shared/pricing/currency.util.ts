@@ -1,7 +1,7 @@
 export const SUPPORTED_CURRENCIES = ["USD", "EUR", "AZN"] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
-export const SUPPORTED_PERIODS = ["MONTHLY", "YEARLY"] as const;
+export const SUPPORTED_PERIODS = ["MONTHLY", "QUARTERLY", "SEMIANNUAL", "YEARLY"] as const;
 export type SupportedPeriod = (typeof SUPPORTED_PERIODS)[number];
 
 /** Kept for catalog/admin tooling; geo default no longer auto-selects EUR. */
@@ -49,7 +49,16 @@ export function parseCurrency(value?: string | null): SupportedCurrency {
 }
 
 export function parsePeriod(value?: string | null): SupportedPeriod {
-  return value?.toUpperCase() === "YEARLY" ? "YEARLY" : "MONTHLY";
+  const upper = value?.toUpperCase();
+  if (upper === "QUARTERLY" || upper === "SEMIANNUAL" || upper === "YEARLY") return upper;
+  return "MONTHLY";
+}
+
+export function periodMonths(period: string): number {
+  if (period === "QUARTERLY") return 3;
+  if (period === "SEMIANNUAL") return 6;
+  if (period === "YEARLY") return 12;
+  return 1;
 }
 
 export function discountPercent(original: number, sale: number): number {

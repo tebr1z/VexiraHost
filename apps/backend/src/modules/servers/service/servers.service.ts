@@ -21,6 +21,8 @@ function initialExpiry(cycle: ServerPlan["billingCycle"]): Date | null {
   if (cycle === "ONE_TIME") return null;
   const date = new Date();
   if (cycle === "YEARLY") date.setFullYear(date.getFullYear() + 1);
+  else if (cycle === "SEMIANNUAL") date.setMonth(date.getMonth() + 6);
+  else if (cycle === "QUARTERLY") date.setMonth(date.getMonth() + 3);
   else date.setMonth(date.getMonth() + 1);
   return date;
 }
