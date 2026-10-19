@@ -42,9 +42,9 @@ export interface TicketEmailCopy {
   };
   autoClosed: {
     title: string;
-    subtitle: (name: string, subject: string) => string;
+    subtitle: (name: string, subject: string, hours: number) => string;
     noticeTitle: string;
-    noticeBody: string;
+    noticeBody: (hours: number) => string;
     subjectLabel: string;
     statusLabel: string;
     openButton: string;
@@ -128,11 +128,11 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     autoClosed: {
       title: "Ticket closed automatically",
-      subtitle: (name, subject) =>
-        `Hi ${name}, your ticket “${subject}” was closed because we did not receive a reply within 12 hours.`,
-      noticeTitle: "No customer reply",
-      noticeBody:
-        "Our last support message went unanswered for 12 hours, so this ticket was closed automatically. You can open a new ticket anytime if you still need help.",
+      subtitle: (name, subject, hours) =>
+        `Hi ${name}, your ticket “${subject}” was closed automatically ${hours} hours after it was opened.`,
+      noticeTitle: "Automatic ticket lifetime",
+      noticeBody: (hours) =>
+        `Tickets close automatically ${hours} hours after creation, whether or not a reply was added. You can open a new ticket anytime if you still need help.`,
       subjectLabel: "Subject",
       statusLabel: "Status",
       openButton: "View ticket",
@@ -182,11 +182,11 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     autoClosed: {
       title: "Talep otomatik kapatıldı",
-      subtitle: (name, subject) =>
-        `Merhaba ${name}, “${subject}” talebiniz 12 saat içinde yanıt gelmediği için otomatik kapatıldı.`,
-      noticeTitle: "Müşteri yanıtı gelmedi",
-      noticeBody:
-        "Son destek mesajımıza 12 saat boyunca yanıt gelmediği için talep otomatik kapatıldı. Hâlâ yardıma ihtiyacınız varsa yeni bir talep açabilirsiniz.",
+      subtitle: (name, subject, hours) =>
+        `Merhaba ${name}, “${subject}” talebiniz açıldıktan ${hours} saat sonra otomatik kapatıldı.`,
+      noticeTitle: "Otomatik talep süresi",
+      noticeBody: (hours) =>
+        `Talepler, yanıt verilip verilmediğine bakılmaksızın oluşturulduktan ${hours} saat sonra otomatik kapatılır. Hâlâ yardıma ihtiyacınız varsa yeni bir talep açabilirsiniz.`,
       subjectLabel: "Konu",
       statusLabel: "Durum",
       openButton: "Talebi görüntüle",
@@ -235,11 +235,11 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     autoClosed: {
       title: "Тикет закрыт автоматически",
-      subtitle: (name, subject) =>
-        `Здравствуйте, ${name}! Тикет «${subject}» закрыт автоматически, так как мы не получили ответа в течение 12 часов.`,
-      noticeTitle: "Нет ответа клиента",
-      noticeBody:
-        "На последнее сообщение поддержки не было ответа 12 часов, поэтому тикет закрыт автоматически. Если помощь всё ещё нужна — создайте новый тикет.",
+      subtitle: (name, subject, hours) =>
+        `Здравствуйте, ${name}! Тикет «${subject}» автоматически закрыт через ${hours} ч. после открытия.`,
+      noticeTitle: "Автоматический срок тикета",
+      noticeBody: (hours) =>
+        `Тикеты автоматически закрываются через ${hours} ч. после создания независимо от наличия ответов. Если помощь всё ещё нужна — создайте новый тикет.`,
       subjectLabel: "Тема",
       statusLabel: "Статус",
       openButton: "Открыть тикет",
@@ -287,11 +287,11 @@ const COPY: Record<AuthEmailLocale, TicketEmailCopy> = {
     },
     autoClosed: {
       title: "Bilet avtomatik bağlandı",
-      subtitle: (name, subject) =>
-        `Salam ${name}, “${subject}” biletiniz 12 saat ərzində cavab gəlmədiyi üçün avtomatik bağlandı.`,
-      noticeTitle: "Müştəri cavabı gəlmədi",
-      noticeBody:
-        "Son dəstək mesajımıza 12 saat ərzində cavab gəlmədiyi üçün bilet avtomatik bağlandı. Hələ kömək lazımdırsa yeni bilet aça bilərsiniz.",
+      subtitle: (name, subject, hours) =>
+        `Salam ${name}, “${subject}” biletiniz açıldıqdan ${hours} saat sonra avtomatik bağlandı.`,
+      noticeTitle: "Avtomatik bilet müddəti",
+      noticeBody: (hours) =>
+        `Biletlər cavab yazılıb-yazılmamasından asılı olmayaraq yaradıldıqdan ${hours} saat sonra avtomatik bağlanır. Hələ kömək lazımdırsa yeni bilet aça bilərsiniz.`,
       subjectLabel: "Mövzu",
       statusLabel: "Status",
       openButton: "Biletə bax",

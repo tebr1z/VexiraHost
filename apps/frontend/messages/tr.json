@@ -2738,9 +2738,9 @@
         },
         "tickets": {
           "title": "Destek ticketleri",
-          "description": "Personel yanıtından sonra müşteri cevap vermezse ticket otomatik kapanır.",
+          "description": "Ticket, açıldıktan sonra belirlenen süre dolduğunda otomatik kapanır.",
           "autoCloseHours": "Otomatik kapanma (saat)",
-          "autoCloseHoursHint": "Personel yanıtından sonra müşteri bu kadar saat içinde cevap vermezse ticket kapanır. Kapalı ticketi müşteri yeniden açamaz. Aralık: 1–720."
+          "autoCloseHoursHint": "Ticket açıldığı andan itibaren, yanıt verilip verilmediğine bakılmaksızın bu süre dolunca otomatik kapanır. Müşteriye panel ve e-posta bildirimi gönderilir. Aralık: 1–720."
         },
         "adminOnly": "Yalnızca yöneticiler sistem ayarlarını yönetebilir.",
         "maintenance": {

@@ -1,13 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { TicketStatus } from "@prisma/client";
+import { NotificationType } from "@prisma/client";
 
+import { getTicketEmailCopy } from "../email/ticket-email.i18n";
 import { TicketsRepository } from "../repository/tickets.repository";
 
 import { TicketEmailService } from "./ticket-email.service";
 
 import { PrismaService } from "@/database/database.module";
+import { resolveUserEmailLocale } from "@/modules/auth/email/auth-email.locale";
 
-/** Default: close when the customer does not reply after the last staff message. */
+/** Default lifetime for an open ticket, measured from its creation time. */
 export const DEFAULT_TICKET_AUTO_CLOSE_HOURS = 12;
 export const TICKET_AUTO_CLOSE_HOURS_KEY = "ticket_auto_close_hours";
 
@@ -40,31 +42,62 @@ export class TicketAutoCloseJobService {
     try {
       const { hours, ms } = await this.resolveTimeoutMs();
       const cutoff = new Date(Date.now() - ms);
-      const stale = await this.ticketsRepository.findStaleAwaitingCustomer(cutoff);
-      if (stale.length === 0) return;
+      const expired = await this.ticketsRepository.findExpiredOpenTickets(cutoff);
+      if (expired.length === 0) return;
 
-      this.logger.log(
-        `Auto-closing ${stale.length} ticket(s) with no customer reply for ${hours}h`,
-      );
+      this.logger.log(`Auto-closing ${expired.length} ticket(s) older than ${hours}h`);
 
-      for (const ticket of stale) {
+      for (const ticket of expired) {
         try {
-          const previousStatus = ticket.status;
-          if (previousStatus === TicketStatus.CLOSED || previousStatus === TicketStatus.RESOLVED) {
-            continue;
-          }
+          const updated = await this.ticketsRepository.closeIfActive(ticket.id);
+          if (!updated) continue;
 
-          const updated = await this.ticketsRepository.updateStatus(ticket.id, TicketStatus.CLOSED);
           if (updated.user) {
-            await this.ticketEmailService.sendTicketAutoClosedEmail({
-              to: updated.user.email,
-              firstName: updated.user.firstName,
-              lastName: updated.user.lastName,
-              preferredCurrency: updated.user.preferredCurrency,
+            const locale = resolveUserEmailLocale({
               localeHistory: updated.user.localeHistory,
-              ticketId: updated.id,
-              subject: updated.subject,
             });
+            const copy = getTicketEmailCopy(locale).autoClosed;
+            const name =
+              [updated.user.firstName, updated.user.lastName].filter(Boolean).join(" ").trim() ||
+              updated.user.email.split("@")[0] ||
+              updated.user.email;
+
+            const [notificationResult] = await Promise.allSettled([
+              this.prisma.notification.create({
+                data: {
+                  userId: updated.user.id,
+                  type: NotificationType.SYSTEM,
+                  title: copy.title,
+                  body: copy.subtitle(name, updated.subject, hours),
+                  reference: updated.id,
+                  href: `/dashboard/tickets/${updated.id}`,
+                  meta: {
+                    ticketId: updated.id,
+                    reason: "AUTO_CLOSE_LIFETIME",
+                    autoCloseHours: hours,
+                  },
+                },
+              }),
+              this.ticketEmailService.sendTicketAutoClosedEmail({
+                to: updated.user.email,
+                firstName: updated.user.firstName,
+                lastName: updated.user.lastName,
+                preferredCurrency: updated.user.preferredCurrency,
+                localeHistory: updated.user.localeHistory,
+                ticketId: updated.id,
+                subject: updated.subject,
+                hours,
+              }),
+            ]);
+            if (notificationResult.status === "rejected") {
+              this.logger.warn(
+                `Ticket close notification ${updated.id} failed: ${
+                  notificationResult.reason instanceof Error
+                    ? notificationResult.reason.message
+                    : String(notificationResult.reason)
+                }`,
+              );
+            }
           }
         } catch (error) {
           this.logger.warn(

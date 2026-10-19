@@ -2737,9 +2737,9 @@
         },
         "tickets": {
           "title": "Dəstək ticketləri",
-          "description": "Staff cavabından sonra müştəri cavab verməzsə ticket avtomatik bağlanır.",
+          "description": "Ticket açıldıqdan sonra təyin edilən müddət tamam olduqda avtomatik bağlanır.",
           "autoCloseHours": "Avtomatik bağlanma (saat)",
-          "autoCloseHoursHint": "Staff cavabından sonra müştəri bu qədər saat ərzində cavab verməsə ticket bağlanır. Bağlı ticketi müştəri yenidən aça bilməz. Aralıq: 1–720."
+          "autoCloseHoursHint": "Ticket açıldığı andan etibarən, cavab verilib-verilməməsindən asılı olmayaraq bu müddət tamam olduqda avtomatik bağlanır. Müştəriyə panel və e-poçt bildirişi göndərilir. Aralıq: 1–720."
         },
         "adminOnly": "Yalnız admin sistem ayarlarını idarə edə bilər.",
         "maintenance": {

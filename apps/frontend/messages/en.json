@@ -2836,9 +2836,9 @@
         },
         "tickets": {
           "title": "Support tickets",
-          "description": "Auto-close waiting tickets when the customer does not reply after staff.",
+          "description": "Automatically close tickets when their configured lifetime expires.",
           "autoCloseHours": "Auto-close after (hours)",
-          "autoCloseHoursHint": "After a staff reply, if the customer does not answer within this many hours, the ticket closes automatically. Closed tickets cannot be reopened by the customer. Range: 1–720."
+          "autoCloseHoursHint": "The ticket closes this many hours after it is opened, whether or not anyone replied. The customer receives an in-app and email notification. Range: 1–720."
         },
         "adminOnly": "Only administrators can manage system settings.",
         "maintenance": {

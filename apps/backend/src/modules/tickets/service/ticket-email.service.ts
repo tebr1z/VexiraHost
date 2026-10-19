@@ -280,6 +280,7 @@ export class TicketEmailService {
     input: TicketMailUser & {
       ticketId: string;
       subject: string;
+      hours: number;
     },
   ): Promise<void> {
     // Prefer the customer's last UI locale from localeHistory.
@@ -294,7 +295,7 @@ export class TicketEmailService {
     const ticketUrl = `${appUrl}/dashboard/tickets/${input.ticketId}`;
 
     const bodyHtml = [
-      noticeBlock(c.noticeTitle, c.noticeBody, "warning"),
+      noticeBlock(c.noticeTitle, c.noticeBody(input.hours), "warning"),
       infoTable(
         infoRow(c.subjectLabel, input.subject) + infoRow(c.statusLabel, copy.statusLabel("CLOSED")),
       ),
@@ -306,7 +307,7 @@ export class TicketEmailService {
       tagline: copy.brandTagline,
       appUrl,
       title: c.title,
-      subtitle: c.subtitle(name, input.subject),
+      subtitle: c.subtitle(name, input.subject, input.hours),
       bodyHtml,
       footer: c.footer,
     });
@@ -314,7 +315,7 @@ export class TicketEmailService {
     content.subject = `Vexira Host • ${c.title} — ${input.subject}`;
     content.text = this.buildText(
       c.title,
-      c.subtitle(name, input.subject),
+      c.subtitle(name, input.subject, input.hours),
       [
         `${c.subjectLabel}: ${input.subject}`,
         `${c.statusLabel}: ${copy.statusLabel("CLOSED")}`,

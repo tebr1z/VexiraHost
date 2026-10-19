@@ -7,6 +7,7 @@ import { LifecycleWorkerService } from "./lifecycle-worker.service";
 
 import { LIFECYCLE_QUEUE } from "@/queue/queue.module";
 
+const ONE_MINUTE = 60 * 1000;
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -34,7 +35,7 @@ export class LifecycleSchedulerService implements OnModuleInit, OnModuleDestroy 
       this.scheduleFallback(LifecycleJob.ADDON_EXPIRY, ONE_HOUR);
       this.scheduleFallback(LifecycleJob.SERVER_EXPIRY, ONE_HOUR);
       this.scheduleFallback(LifecycleJob.SYSTEM_HOURLY_REPORT, ONE_HOUR);
-      this.scheduleFallback(LifecycleJob.TICKET_AUTO_CLOSE, FIFTEEN_MINUTES);
+      this.scheduleFallback(LifecycleJob.TICKET_AUTO_CLOSE, ONE_MINUTE);
       return;
     }
 
@@ -77,7 +78,7 @@ export class LifecycleSchedulerService implements OnModuleInit, OnModuleDestroy 
       ),
       this.queue.upsertJobScheduler(
         LifecycleJob.TICKET_AUTO_CLOSE,
-        { every: FIFTEEN_MINUTES },
+        { every: ONE_MINUTE },
         { name: LifecycleJob.TICKET_AUTO_CLOSE, data: {}, opts: options },
       ),
     ]);
