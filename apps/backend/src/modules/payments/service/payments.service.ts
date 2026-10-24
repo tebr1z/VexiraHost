@@ -745,6 +745,11 @@ export class PaymentsService {
       throw new NotFoundException("Payment not found");
     const base = { invoiceId: payment.invoiceId, orderId: payment.invoice.orderId };
     if (payment.invoice.status === InvoiceStatus.PAID) return { ...base, state: "paid" as const };
+    if (
+      payment.invoice.status === InvoiceStatus.VOID ||
+      payment.invoice.status === InvoiceStatus.DRAFT
+    )
+      return { ...base, state: "failed" as const };
     if (payment.status === PaymentStatus.FAILED) return { ...base, state: "failed" as const };
     const parsed = this.kapitalGateway.parseGatewayRef(payment.gatewayRef);
     if (!parsed) return { ...base, state: "pending" as const, verificationUnavailable: true };

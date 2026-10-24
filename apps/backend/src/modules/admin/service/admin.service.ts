@@ -492,24 +492,39 @@ export class AdminService {
 
   async listInvoices() {
     const invoices = await this.adminRepository.listInvoices();
-    return invoices.map((invoice) => ({
-      id: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      status: invoice.status,
-      subtotal: Number(invoice.subtotal),
-      total: Number(invoice.total),
-      currency: invoice.currency,
-      dueDate: invoice.dueDate,
-      paidAt: invoice.paidAt,
-      customer: mapCustomer(invoice.user),
-      orderId: invoice.order?.id ?? null,
-      orderStatus: invoice.order?.status ?? null,
-      hostingAccountId: invoice.hostingAccountId ?? null,
-      hostingDomain: invoice.hostingAccount?.primaryDomain ?? null,
-      domainId: invoice.domainId ?? null,
-      domainName: invoice.domain?.name ?? null,
-      createdAt: invoice.createdAt,
-    }));
+    return invoices.map((invoice) => {
+      const amountPaid = Number(
+        invoice.payments
+          .filter((payment) => payment.status === "COMPLETED")
+          .reduce((sum, payment) => sum + Number(payment.amount), 0)
+          .toFixed(2),
+      );
+      return {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        status: invoice.status,
+        subtotal: Number(invoice.subtotal),
+        total: Number(invoice.total),
+        currency: invoice.currency,
+        amountPaid,
+        amountDue:
+          invoice.status === "VOID" || invoice.status === "PAID"
+            ? 0
+            : Math.max(0, Number((Number(invoice.total) - amountPaid).toFixed(2))),
+        pendingPaymentCount: invoice.payments.filter((payment) => payment.status === "PENDING")
+          .length,
+        dueDate: invoice.dueDate,
+        paidAt: invoice.paidAt,
+        customer: mapCustomer(invoice.user),
+        orderId: invoice.order?.id ?? null,
+        orderStatus: invoice.order?.status ?? null,
+        hostingAccountId: invoice.hostingAccountId ?? null,
+        hostingDomain: invoice.hostingAccount?.primaryDomain ?? null,
+        domainId: invoice.domainId ?? null,
+        domainName: invoice.domain?.name ?? null,
+        createdAt: invoice.createdAt,
+      };
+    });
   }
 
   async markInvoicePaid(invoiceId: string) {
@@ -525,10 +540,10 @@ export class AdminService {
     }
 
     if (invoice.status === InvoiceStatus.VOID || invoice.status === InvoiceStatus.DRAFT) {
-      throw new BadRequestException(`Cannot mark ${invoice.status.toLowerCase()} invoice as paid`);
+      throw new ConflictException("INVOICE_NOT_PAYABLE");
     }
 
-    await this.paymentsRepository.markInvoicePaidManually({
+    const result = await this.paymentsRepository.markInvoicePaidManually({
       userId: invoice.userId,
       invoiceId: invoice.id,
       orderId: invoice.orderId,
@@ -537,6 +552,8 @@ export class AdminService {
       note: `admin_mark_paid:${invoice.id}`,
     });
 
+    if (result?.alreadyPaid)
+      return { id: invoice.id, status: InvoiceStatus.PAID, message: "Invoice is already paid" };
     await this.hostingBilling.activateAfterRenewalPayment(invoice.id);
     await this.domainBilling.activateAfterRenewalPayment(invoice.id);
 
@@ -556,6 +573,10 @@ export class AdminService {
       domainId: invoice.domainId,
       orderId: invoice.orderId,
     };
+  }
+
+  voidInvoice(invoiceId: string) {
+    return this.paymentsRepository.voidInvoice(invoiceId);
   }
 
   async getFxRates() {

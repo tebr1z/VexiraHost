@@ -238,3 +238,12 @@ This does **not** override bank framing restrictions. Kapital must permit the me
 Authenticated `GET /api/v1/payments/kapital/:paymentId/status` checks payment ownership and re-verifies the bank order ID, fully paid state, amount and currency. Responses are `no-store`, in-flight checks are combined and short cached per user/payment. The window checks every 5 seconds while visible, then pauses automatic checks after 10 minutes; manual checks remain possible. Returning iframe messages only trigger a server check and never authorize fulfilment.
 
 Closing the window does not cancel or mark a payment failed. Cart users return to the existing invoice. Paying that invoice again reopens its pending Kapital order; failed/expired orders may start a new one after server verification. An unreadable pending reference or changed amount stops a new charge for manual review. Callback/poll races claim completion atomically, so only one fulfils the payment. Deploy backend and frontend together; no database migration or credential changes are required for this feature.
+
+
+### Manual invoice closure
+
+Admin/Staff → Invoices provides **Confirm payment** and **Void invoice**, with separate confirmation dialogs, status filters and invoice/email/domain search in all nine storefront languages. Manual confirmation is for money actually received offline; it records only the outstanding amount and starts existing service activation. It does not charge a bank card. Repeated confirmation does not create another payment or repeat activation.
+
+`POST /api/v1/admin/invoices/:id/void` allows Admin/Staff to void an unpaid OPEN, OVERDUE or DRAFT invoice. VOID invoices remain in history and customer PDFs, show zero payable balance, and cannot accept a new payment. Invoice cancellation does not cancel the service itself or issue a refund. Paid or partially paid invoices cannot be voided. Both manual actions are blocked while a payment is PENDING: verify/reconcile that bank payment first; closing a local window alone does not cancel it at the bank.
+
+Invoice row locks serialize these actions with balance payments and payment creation/completion. Late callbacks cannot revive VOID/DRAFT invoices. Existing `VOID` status and tables are used; no database migration or key changes are required. Deploy backend and frontend together.

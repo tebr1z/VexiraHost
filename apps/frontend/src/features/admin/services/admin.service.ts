@@ -142,6 +142,9 @@ export interface AdminInvoice {
   currency: string;
   dueDate: string;
   paidAt: string | null;
+  amountPaid?: number;
+  amountDue?: number;
+  pendingPaymentCount?: number;
   customer: AdminCustomer;
   orderId: string | null;
   orderStatus: string | null;
@@ -308,6 +311,14 @@ export async function markAdminInvoicePaid(
     { method: "POST", body: {} },
   );
   return res.data as { id: string; status: string; message: string };
+}
+
+export async function voidAdminInvoice(invoiceId: string): Promise<{ id: string; status: string }> {
+  const res = await apiClient.request<{ id: string; status: string }>(
+    `/admin/invoices/${invoiceId}/void`,
+    { method: "POST", body: {} },
+  );
+  return res.data as { id: string; status: string };
 }
 
 export interface AdminFxConvertResult {

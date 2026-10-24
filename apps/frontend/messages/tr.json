@@ -3672,5 +3672,30 @@
     "checking": "Kontrol ediliyor…",
     "failed": "Ödeme onaylanmadı",
     "returnInvoice": "Faturaya dön"
+  },
+  "invoiceActions": {
+    "description": "Çevrimdışı ödemeyi onaylayın veya ödenmemiş faturayı iptal edip kapatın.",
+    "confirmPaid": "Ödemeyi onayla",
+    "confirmVoid": "Faturayı iptal et",
+    "paidTitle": "Faturayı ödenmiş olarak kapat",
+    "voidTitle": "Faturayı iptal edip kapat",
+    "paidDescription": "Kalan tutar çevrimdışı ödeme olarak kaydedilecek. Fatura ödenmiş sayılacak ve ilgili hizmetin etkinleştirilmesi başlayacak.",
+    "voidDescription": "Fatura geçmişte kalacak ve ödeme kabul etmeyecek. Hizmetin kendisine ait değişiklikler ayrıca yönetilir.",
+    "receiptConfirmed": "Bu tutarın havale, nakit veya üzerinde anlaşılan başka bir yöntemle gerçekten alındığını onaylıyorum.",
+    "remaining": "Kalan tutar",
+    "customer": "Müşteri",
+    "back": "Geri",
+    "saving": "Kaydediliyor…",
+    "voidSuccess": "Fatura iptal edildi ve ödemeye kapatıldı.",
+    "actionFailed": "İşlem tamamlanamadı.",
+    "pendingHint": "Bankada bekleyen bir ödeme var. Önce sonucunu kontrol edin.",
+    "partialHint": "Bu faturada kısmi ödeme var. İptalden önce bu tutarın mutabakatını yapın.",
+    "alreadyPaid": "Fatura zaten ödenmiş ve iptal edilemez.",
+    "notPayable": "Faturanın durumu değişti. Listeyi yenileyip kontrol edin.",
+    "filterLabel": "Fatura durumu",
+    "paidFilter": "Ödenmiş",
+    "voidFilter": "İptal edilmiş",
+    "search": "Fatura, e-posta veya alan adı ara",
+    "closedNotice": "Bu fatura iptal edilmiştir ve ödemeye kapalıdır. Yardım için fatura numarasıyla desteğe başvurun."
   }
 }

@@ -3757,5 +3757,30 @@
     "checking": "Comprobando…",
     "failed": "Pago no confirmado",
     "returnInvoice": "Volver a la factura"
+  },
+  "invoiceActions": {
+    "description": "Confirma un pago externo o anula una factura pendiente.",
+    "confirmPaid": "Confirmar pago",
+    "confirmVoid": "Anular factura",
+    "paidTitle": "Cerrar factura como pagada",
+    "voidTitle": "Anular y cerrar factura",
+    "paidDescription": "El importe pendiente se registrará como pago externo. La factura quedará pagada y comenzará la activación del servicio asociado.",
+    "voidDescription": "La factura permanecerá en el historial y dejará de aceptar pagos. Los cambios del servicio se gestionan por separado.",
+    "receiptConfirmed": "Confirmo que este importe se ha recibido realmente por transferencia, efectivo u otro método acordado.",
+    "remaining": "Importe pendiente",
+    "customer": "Cliente",
+    "back": "Volver",
+    "saving": "Guardando…",
+    "voidSuccess": "Factura anulada y cerrada para pagos.",
+    "actionFailed": "No se pudo completar la acción.",
+    "pendingHint": "Hay un pago bancario pendiente. Comprueba primero su resultado.",
+    "partialHint": "Esta factura tiene un pago parcial. Concilia ese importe antes de anularla.",
+    "alreadyPaid": "La factura ya está pagada y no se puede anular.",
+    "notPayable": "El estado de la factura ha cambiado. Actualiza la lista y comprueba de nuevo.",
+    "filterLabel": "Estado de factura",
+    "paidFilter": "Pagadas",
+    "voidFilter": "Anuladas",
+    "search": "Buscar factura, correo o dominio",
+    "closedNotice": "Esta factura está anulada y cerrada para pagos. Contacta con soporte e indica el número de factura si necesitas ayuda."
   }
 }

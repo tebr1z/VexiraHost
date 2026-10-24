@@ -3757,5 +3757,30 @@
     "checking": "Wird geprüft…",
     "failed": "Zahlung nicht bestätigt",
     "returnInvoice": "Zur Rechnung"
+  },
+  "invoiceActions": {
+    "description": "Bestätigen Sie eine externe Zahlung oder stornieren Sie eine unbezahlte Rechnung.",
+    "confirmPaid": "Zahlung bestätigen",
+    "confirmVoid": "Rechnung stornieren",
+    "paidTitle": "Rechnung als bezahlt abschließen",
+    "voidTitle": "Rechnung stornieren und schließen",
+    "paidDescription": "Der offene Betrag wird als externe Zahlung erfasst. Die Rechnung gilt als bezahlt und die Aktivierung des zugehörigen Dienstes beginnt.",
+    "voidDescription": "Die Rechnung bleibt im Verlauf und nimmt keine Zahlungen mehr an. Änderungen am Dienst werden separat verwaltet.",
+    "receiptConfirmed": "Ich bestätige, dass dieser Betrag tatsächlich per Überweisung, in bar oder auf einem anderen vereinbarten Weg eingegangen ist.",
+    "remaining": "Offener Betrag",
+    "customer": "Kunde",
+    "back": "Zurück",
+    "saving": "Wird gespeichert…",
+    "voidSuccess": "Rechnung storniert und für Zahlungen geschlossen.",
+    "actionFailed": "Die Aktion konnte nicht abgeschlossen werden.",
+    "pendingHint": "Eine Bankzahlung steht noch aus. Prüfen Sie zuerst deren Ergebnis.",
+    "partialHint": "Diese Rechnung wurde teilweise bezahlt. Klären Sie den Betrag vor der Stornierung.",
+    "alreadyPaid": "Die Rechnung ist bereits bezahlt und kann nicht storniert werden.",
+    "notPayable": "Der Rechnungsstatus hat sich geändert. Laden Sie die Liste neu.",
+    "filterLabel": "Rechnungsstatus",
+    "paidFilter": "Bezahlt",
+    "voidFilter": "Storniert",
+    "search": "Rechnung, E-Mail oder Domain suchen",
+    "closedNotice": "Diese Rechnung wurde storniert und ist für Zahlungen geschlossen. Wenden Sie sich bei Fragen mit der Rechnungsnummer an den Support."
   }
 }

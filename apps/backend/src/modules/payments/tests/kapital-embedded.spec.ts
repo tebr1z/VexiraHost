@@ -168,11 +168,12 @@ describe("embedded Kapital verification", () => {
 describe("pending completion atomic claim", () => {
   function repo(count: number) {
     const tx = {
+      $queryRaw: jest.fn(),
       payment: {
         updateMany: jest.fn().mockResolvedValue({ count }),
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "pay", method: null }),
       },
-      invoice: { update: jest.fn() },
+      invoice: { update: jest.fn(), findUnique: jest.fn().mockResolvedValue({ status: "OPEN" }) },
       order: { update: jest.fn() },
     };
     const repository = new PaymentsRepository({

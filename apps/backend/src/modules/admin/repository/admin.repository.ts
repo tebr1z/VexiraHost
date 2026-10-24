@@ -224,6 +224,7 @@ export class AdminRepository {
     return this.prisma.invoice.findMany({
       orderBy: { createdAt: "desc" },
       include: {
+        payments: { select: { status: true, amount: true } },
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         order: { select: { id: true, status: true } },
         hostingAccount: { select: { id: true, primaryDomain: true, status: true } },

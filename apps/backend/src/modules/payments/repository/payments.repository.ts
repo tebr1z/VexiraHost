@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   InvoiceStatus,
   OrderStatus,
@@ -98,21 +98,26 @@ export class PaymentsRepository {
     currency: string;
     gatewayRef: string;
   }) {
-    return this.prisma.payment.create({
-      data: {
-        userId: data.userId,
-        invoiceId: data.invoiceId,
-        methodId: data.methodId,
-        amount: data.amount,
-        currency: data.currency,
-        status: PaymentStatus.PENDING,
-        gatewayRef: data.gatewayRef,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "invoices" WHERE "id" = ${data.invoiceId} FOR UPDATE`;
+      const invoice = await tx.invoice.findUnique({ where: { id: data.invoiceId } });
+      if (!invoice || invoice.userId !== data.userId || invoice.status !== InvoiceStatus.OPEN)
+        throw new ConflictException("INVOICE_NOT_PAYABLE");
+      return tx.payment.create({ data: { ...data, status: PaymentStatus.PENDING } });
     });
   }
 
   completePendingPayment(data: { paymentId: string; invoiceId: string; orderId?: string | null }) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "invoices" WHERE "id" = ${data.invoiceId} FOR UPDATE`;
+      const invoice = await tx.invoice.findUnique({ where: { id: data.invoiceId } });
+      if (
+        !invoice ||
+        invoice.status === InvoiceStatus.VOID ||
+        invoice.status === InvoiceStatus.DRAFT
+      )
+        throw new ConflictException("INVOICE_NOT_PAYABLE");
+
       // Callback and embedded-window polling may complete together. Only the winner fulfils.
       const claimed = await tx.payment.updateMany({
         where: { id: data.paymentId, invoiceId: data.invoiceId, status: PaymentStatus.PENDING },
@@ -179,6 +184,11 @@ export class PaymentsRepository {
     gatewayRef: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "invoices" WHERE "id" = ${data.invoiceId} FOR UPDATE`;
+      const invoice = await tx.invoice.findUnique({ where: { id: data.invoiceId } });
+      if (!invoice || invoice.userId !== data.userId || invoice.status !== InvoiceStatus.OPEN)
+        throw new ConflictException("INVOICE_NOT_PAYABLE");
+
       const payment = await tx.payment.create({
         data: {
           userId: data.userId,
@@ -220,38 +230,68 @@ export class PaymentsRepository {
     note: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
-      const invoice = await tx.invoice.findUnique({ where: { id: data.invoiceId } });
-      if (!invoice) return null;
-
-      if (invoice.status !== InvoiceStatus.PAID) {
-        await tx.invoice.update({
-          where: { id: data.invoiceId },
-          data: {
-            status: InvoiceStatus.PAID,
-            paidAt: new Date(),
-          },
-        });
-
-        await tx.payment.create({
-          data: {
-            userId: data.userId,
-            invoiceId: data.invoiceId,
-            amount: data.amount,
-            currency: data.currency,
-            status: PaymentStatus.COMPLETED,
-            gatewayRef: data.note,
-          },
-        });
-      }
-
-      if (data.orderId) {
+      await tx.$queryRaw`SELECT "id" FROM "invoices" WHERE "id" = ${data.invoiceId} FOR UPDATE`;
+      const invoice = await tx.invoice.findUnique({
+        where: { id: data.invoiceId },
+        include: { payments: true },
+      });
+      if (!invoice) throw new NotFoundException("Invoice not found");
+      if (invoice.status === InvoiceStatus.PAID) return { id: invoice.id, alreadyPaid: true };
+      if (invoice.status !== InvoiceStatus.OPEN && invoice.status !== InvoiceStatus.OVERDUE)
+        throw new ConflictException("INVOICE_NOT_PAYABLE");
+      if (invoice.payments.some((payment) => payment.status === PaymentStatus.PENDING))
+        throw new ConflictException("INVOICE_PENDING_PAYMENT");
+      const paid = invoice.payments
+        .filter((payment) => payment.status === PaymentStatus.COMPLETED)
+        .reduce((sum, payment) => sum.plus(payment.amount), new Prisma.Decimal(0));
+      const remaining = Prisma.Decimal.max(0, invoice.total.minus(paid));
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { status: InvoiceStatus.PAID, paidAt: new Date() },
+      });
+      await tx.payment.create({
+        data: {
+          userId: invoice.userId,
+          invoiceId: invoice.id,
+          amount: remaining,
+          currency: invoice.currency,
+          status: PaymentStatus.COMPLETED,
+          gatewayRef: data.note,
+        },
+      });
+      if (invoice.orderId)
         await tx.order.update({
-          where: { id: data.orderId },
+          where: { id: invoice.orderId },
           data: { status: OrderStatus.COMPLETED },
         });
-      }
+      return { id: invoice.id, alreadyPaid: false };
+    });
+  }
 
-      return true;
+  voidInvoice(invoiceId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "invoices" WHERE "id" = ${invoiceId} FOR UPDATE`;
+      const invoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { payments: true },
+      });
+      if (!invoice) throw new NotFoundException("Invoice not found");
+      if (invoice.status === InvoiceStatus.VOID) return { id: invoice.id, status: invoice.status };
+      if (invoice.status === InvoiceStatus.PAID)
+        throw new ConflictException("INVOICE_ALREADY_PAID");
+      if (invoice.payments.some((payment) => payment.status === PaymentStatus.PENDING))
+        throw new ConflictException("INVOICE_PENDING_PAYMENT");
+      if (
+        invoice.payments.some(
+          (payment) => payment.status === PaymentStatus.COMPLETED && payment.amount.greaterThan(0),
+        )
+      )
+        throw new ConflictException("INVOICE_HAS_PAYMENTS");
+      return tx.invoice.update({
+        where: { id: invoice.id },
+        data: { status: InvoiceStatus.VOID },
+        select: { id: true, status: true },
+      });
     });
   }
 

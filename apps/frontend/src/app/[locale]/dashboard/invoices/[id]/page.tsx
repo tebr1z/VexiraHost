@@ -33,6 +33,7 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
   const t = useTranslations("dashboard");
   const tc = useTranslations("dashboard.common");
   const tp = useTranslations("dashboard.pages.invoices");
+  const ta = useTranslations("invoiceActions");
   const { format: formatDisplay } = useDisplayMoney();
   const rates = useExchangeRates();
   const id = params.id as string;
@@ -203,6 +204,14 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
         ]}
       />
 
+      {invoice.status === "VOID" && (
+        <p
+          role="status"
+          className="rounded-xl border border-[var(--separator)] bg-[var(--fill-secondary)] p-4 text-sm text-[var(--label-secondary)]"
+        >
+          {ta("closedNotice")}
+        </p>
+      )}
       {balance && (
         <p className="text-on-surface-variant text-sm">
           {tc("accountBalance")}:{" "}

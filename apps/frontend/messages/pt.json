@@ -3725,5 +3725,30 @@
     "checking": "A verificar…",
     "failed": "Pagamento não confirmado",
     "returnInvoice": "Voltar à fatura"
+  },
+  "invoiceActions": {
+    "description": "Confirme um pagamento externo ou anule uma fatura por pagar.",
+    "confirmPaid": "Confirmar pagamento",
+    "confirmVoid": "Anular fatura",
+    "paidTitle": "Fechar fatura como paga",
+    "voidTitle": "Anular e fechar fatura",
+    "paidDescription": "O valor em falta será registado como pagamento externo. A fatura ficará paga e a ativação do serviço associado será iniciada.",
+    "voidDescription": "A fatura ficará no histórico e deixará de aceitar pagamentos. As alterações ao serviço são geridas separadamente.",
+    "receiptConfirmed": "Confirmo que este valor foi realmente recebido por transferência, dinheiro ou outro meio acordado.",
+    "remaining": "Valor em falta",
+    "customer": "Cliente",
+    "back": "Voltar",
+    "saving": "A guardar…",
+    "voidSuccess": "Fatura anulada e fechada para pagamentos.",
+    "actionFailed": "Não foi possível concluir a ação.",
+    "pendingHint": "Existe um pagamento bancário pendente. Verifique primeiro o resultado.",
+    "partialHint": "Esta fatura tem um pagamento parcial. Reconcilie esse valor antes de a anular.",
+    "alreadyPaid": "A fatura já está paga e não pode ser anulada.",
+    "notPayable": "O estado da fatura mudou. Atualize a lista e verifique novamente.",
+    "filterLabel": "Estado da fatura",
+    "paidFilter": "Pagas",
+    "voidFilter": "Anuladas",
+    "search": "Pesquisar fatura, e-mail ou domínio",
+    "closedNotice": "Esta fatura foi anulada e está fechada para pagamentos. Contacte o apoio com o número da fatura se precisar de ajuda."
   }
 }

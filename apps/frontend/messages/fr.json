@@ -3725,5 +3725,30 @@
     "checking": "Vérification…",
     "failed": "Paiement non confirmé",
     "returnInvoice": "Revenir à la facture"
+  },
+  "invoiceActions": {
+    "description": "Confirmez un paiement externe ou annulez une facture impayée.",
+    "confirmPaid": "Confirmer le paiement",
+    "confirmVoid": "Annuler la facture",
+    "paidTitle": "Clore la facture comme payée",
+    "voidTitle": "Annuler et clore la facture",
+    "paidDescription": "Le solde sera enregistré comme paiement externe. La facture sera payée et l’activation du service associé commencera.",
+    "voidDescription": "La facture restera dans l’historique et n’acceptera plus de paiements. Les changements du service sont gérés séparément.",
+    "receiptConfirmed": "Je confirme que ce montant a réellement été reçu par virement, en espèces ou par un autre moyen convenu.",
+    "remaining": "Solde à payer",
+    "customer": "Client",
+    "back": "Retour",
+    "saving": "Enregistrement…",
+    "voidSuccess": "Facture annulée et fermée aux paiements.",
+    "actionFailed": "Impossible de terminer cette action.",
+    "pendingHint": "Un paiement bancaire est en attente. Vérifiez d’abord son résultat.",
+    "partialHint": "Cette facture est partiellement payée. Régularisez ce montant avant de l’annuler.",
+    "alreadyPaid": "La facture est déjà payée et ne peut pas être annulée.",
+    "notPayable": "Le statut de la facture a changé. Actualisez la liste et vérifiez à nouveau.",
+    "filterLabel": "Statut de facture",
+    "paidFilter": "Payées",
+    "voidFilter": "Annulées",
+    "search": "Rechercher facture, e-mail ou domaine",
+    "closedNotice": "Cette facture a été annulée et fermée aux paiements. Contactez le support avec son numéro si nécessaire."
   }
 }

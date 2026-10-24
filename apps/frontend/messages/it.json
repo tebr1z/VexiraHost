@@ -3725,5 +3725,30 @@
     "checking": "Verifica…",
     "failed": "Pagamento non confermato",
     "returnInvoice": "Torna alla fattura"
+  },
+  "invoiceActions": {
+    "description": "Conferma un pagamento esterno o annulla una fattura non pagata.",
+    "confirmPaid": "Conferma pagamento",
+    "confirmVoid": "Annulla fattura",
+    "paidTitle": "Chiudi fattura come pagata",
+    "voidTitle": "Annulla e chiudi fattura",
+    "paidDescription": "Il saldo verrà registrato come pagamento esterno. La fattura risulterà pagata e inizierà l’attivazione del servizio collegato.",
+    "voidDescription": "La fattura resterà nello storico e non accetterà altri pagamenti. Le modifiche al servizio sono gestite separatamente.",
+    "receiptConfirmed": "Confermo che questo importo è stato realmente ricevuto tramite bonifico, contanti o un altro metodo concordato.",
+    "remaining": "Importo dovuto",
+    "customer": "Cliente",
+    "back": "Indietro",
+    "saving": "Salvataggio…",
+    "voidSuccess": "Fattura annullata e chiusa ai pagamenti.",
+    "actionFailed": "Impossibile completare l’operazione.",
+    "pendingHint": "Un pagamento bancario è in attesa. Verifica prima il suo esito.",
+    "partialHint": "Questa fattura ha un pagamento parziale. Riconcilia l’importo prima di annullarla.",
+    "alreadyPaid": "La fattura è già pagata e non può essere annullata.",
+    "notPayable": "Lo stato della fattura è cambiato. Aggiorna l’elenco e verifica di nuovo.",
+    "filterLabel": "Stato fattura",
+    "paidFilter": "Pagate",
+    "voidFilter": "Annullate",
+    "search": "Cerca fattura, e-mail o dominio",
+    "closedNotice": "Questa fattura è stata annullata ed è chiusa ai pagamenti. Se serve aiuto, contatta l’assistenza indicando il numero."
   }
 }

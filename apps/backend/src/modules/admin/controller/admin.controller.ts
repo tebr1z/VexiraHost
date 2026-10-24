@@ -227,6 +227,12 @@ export class AdminController {
     return this.adminService.markInvoicePaid(id);
   }
 
+  @Post("invoices/:id/void")
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  voidInvoice(@Param("id") id: string) {
+    return this.adminService.voidInvoice(id);
+  }
+
   @Get("fx/rates")
   @Roles(UserRole.ADMIN, UserRole.STAFF)
   getFxRates() {

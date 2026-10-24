@@ -176,6 +176,8 @@ export class BalanceService {
     });
     if (!invoice) throw new NotFoundException("Invoice not found");
 
+    if (invoice.status !== InvoiceStatus.OPEN && invoice.status !== InvoiceStatus.PAID)
+      throw new BadRequestException("Invoice is not payable");
     const invoiceTotal = Number(invoice.total);
     const alreadyPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
     const amountDue = Math.max(0, Number((invoiceTotal - alreadyPaid).toFixed(2)));
@@ -240,6 +242,11 @@ export class BalanceService {
       });
       if (!lockedInvoice) throw new NotFoundException("Invoice not found");
 
+      if (
+        lockedInvoice.status !== InvoiceStatus.OPEN &&
+        lockedInvoice.status !== InvoiceStatus.PAID
+      )
+        throw new BadRequestException("Invoice is not payable");
       const lockedInvoiceTotal = Number(lockedInvoice.total);
       const lockedAlreadyPaid = lockedInvoice.payments.reduce(
         (sum, item) => sum + Number(item.amount),

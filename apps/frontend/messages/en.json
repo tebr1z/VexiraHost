@@ -3675,5 +3675,30 @@
     "checking": "Checking…",
     "failed": "Payment was not confirmed",
     "returnInvoice": "Return to invoice"
+  },
+  "invoiceActions": {
+    "description": "Confirm an offline payment or void an unpaid invoice.",
+    "confirmPaid": "Confirm payment",
+    "confirmVoid": "Void invoice",
+    "paidTitle": "Close invoice as paid",
+    "voidTitle": "Void and close invoice",
+    "paidDescription": "The outstanding amount will be recorded as an offline payment. The invoice will be paid and activation of the related service will begin.",
+    "voidDescription": "The invoice will remain in the history and stop accepting payments. Changes to the service itself are managed separately.",
+    "receiptConfirmed": "I confirm that this amount has actually been received by bank transfer, cash or another agreed method.",
+    "remaining": "Outstanding amount",
+    "customer": "Customer",
+    "back": "Back",
+    "saving": "Saving…",
+    "voidSuccess": "Invoice voided and closed for payment.",
+    "actionFailed": "The action could not be completed.",
+    "pendingHint": "A bank payment is pending. Verify its result first.",
+    "partialHint": "This invoice has a partial payment. Reconcile that amount before voiding it.",
+    "alreadyPaid": "The invoice is already paid and cannot be voided.",
+    "notPayable": "The invoice status has changed. Refresh the list and check again.",
+    "filterLabel": "Invoice status",
+    "paidFilter": "Paid",
+    "voidFilter": "Voided",
+    "search": "Search invoice, email or domain",
+    "closedNotice": "This invoice has been voided and is closed for payment. Contact support with the invoice number if you need help."
   }
 }

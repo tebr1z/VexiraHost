@@ -3669,5 +3669,30 @@
     "checking": "Yoxlanılır…",
     "failed": "Ödəniş təsdiqlənmədi",
     "returnInvoice": "Fakturaya qayıt"
+  },
+  "invoiceActions": {
+    "description": "Ödənişi əl ilə təsdiqləyin və ya ödənilməmiş fakturanı ləğv edib bağlayın.",
+    "confirmPaid": "Ödənişi təsdiqlə",
+    "confirmVoid": "Fakturanı ləğv et",
+    "paidTitle": "Fakturanı ödənilmiş kimi bağla",
+    "voidTitle": "Fakturanı ləğv edib bağla",
+    "paidDescription": "Qalan məbləğ əl ilə daxil olmuş ödəniş kimi qeydə alınacaq. Faktura ödənilmiş sayılacaq və aid xidmətin aktivləşməsi başladılacaq.",
+    "voidDescription": "Faktura tarixçədə saxlanacaq və yeni ödəniş qəbul etməyəcək. Xidmətin özünə aid dəyişikliklər ayrıca idarə olunur.",
+    "receiptConfirmed": "Bu məbləğin bank köçürməsi, nağd və ya digər razılaşdırılmış üsulla həqiqətən alındığını təsdiqləyirəm.",
+    "remaining": "Qalan məbləğ",
+    "customer": "Müştəri",
+    "back": "Geri",
+    "saving": "Saxlanılır…",
+    "voidSuccess": "Faktura ləğv edildi və ödənişə bağlandı.",
+    "actionFailed": "Əməliyyatı tamamlamaq mümkün olmadı.",
+    "pendingHint": "Bankda gözləyən ödəniş var. Əvvəlcə həmin ödənişin nəticəsini yoxlayın.",
+    "partialHint": "Qismən ödəniş var. Ləğvdən əvvəl həmin məbləğ ayrıca uzlaşdırılmalıdır.",
+    "alreadyPaid": "Faktura artıq ödənilib və ləğv edilə bilməz.",
+    "notPayable": "Fakturanın statusu dəyişib. Siyahını yeniləyib yoxlayın.",
+    "filterLabel": "Faktura statusu",
+    "paidFilter": "Ödənilmiş",
+    "voidFilter": "Ləğv edilmiş",
+    "search": "Faktura, e-poçt və ya domen axtar",
+    "closedNotice": "Bu faktura ləğv edilib və ödənişə bağlıdır. Sualınız varsa, faktura nömrəsi ilə dəstəyə yazın."
   }
 }
