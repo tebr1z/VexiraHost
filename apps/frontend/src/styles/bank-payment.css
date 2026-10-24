@@ -1,0 +1,159 @@
+.bank-payment-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(1120px, calc(100vw - 24px));
+  height: min(900px, calc(100dvh - 24px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--separator);
+  border-radius: 22px;
+  background: var(--bg-elevated);
+  color: var(--label);
+  overflow: hidden;
+  box-shadow: 0 30px 100px #0006;
+}
+.bank-payment-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.bank-payment-dialog::backdrop {
+  background: rgb(3 9 20 / 0.78);
+  backdrop-filter: blur(7px);
+}
+.bank-payment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.35rem;
+  border-bottom: 1px solid var(--separator);
+}
+.bank-payment-eyebrow {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  color: var(--accent);
+}
+.bank-payment-header h2 {
+  font-size: 1.2rem;
+  font-weight: 750;
+  margin-top: 0.2rem;
+}
+.bank-payment-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--separator);
+  border-radius: 50%;
+  font-size: 1.5rem;
+  color: var(--label-secondary);
+}
+.bank-payment-privacy {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.7rem 1.35rem;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.bank-payment-privacy > span {
+  color: var(--accent);
+  font-size: 1.5rem;
+}
+.bank-payment-fallback {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 1.35rem;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--separator);
+}
+.bank-payment-fallback p {
+  color: var(--label-secondary);
+}
+.bank-payment-fallback a {
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bank-payment-frame {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  flex: 1;
+  border: 0;
+  background: white;
+}
+.bank-payment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.35rem;
+  border-top: 1px solid var(--separator);
+  font-size: 0.8rem;
+}
+.bank-payment-footer strong {
+  font-size: 0.85rem;
+}
+.bank-payment-footer p {
+  margin-top: 0.25rem;
+  color: var(--label-secondary);
+  font-size: 0.75rem;
+}
+.bank-payment-footer button {
+  padding: 0.75rem 1rem;
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.bank-payment-dialog button:focus-visible,
+.bank-payment-dialog a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.bank-payment-dialog button:disabled {
+  opacity: 0.6;
+}
+@media (max-width: 600px) {
+  .bank-payment-dialog {
+    width: calc(100vw - 12px);
+    height: calc(100dvh - 12px);
+    border-radius: 15px;
+  }
+  .bank-payment-header,
+  .bank-payment-privacy,
+  .bank-payment-fallback,
+  .bank-payment-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .bank-payment-fallback,
+  .bank-payment-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .bank-payment-header h2 {
+    font-size: 1rem;
+  }
+  .bank-payment-fallback a {
+    align-self: flex-end;
+  }
+  .bank-payment-footer button {
+    align-self: flex-end;
+  }
+  .bank-payment-privacy {
+    font-size: 0.75rem;
+  }
+}

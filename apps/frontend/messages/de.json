@@ -174,7 +174,8 @@
     "dashboard": "Go to dashboard",
     "backToCart": "Back to cart",
     "bankStatus": "Bank status: {status}",
-    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page)."
+    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page).",
+    "embeddedReturn": "Von der Bank zurückgekehrt. Das Hauptfenster prüft das Zahlungsergebnis."
   },
   "homeRedesign": {
     "viewAllProducts": "Alle Produkte anzeigen ({count})",
@@ -780,8 +781,8 @@
     "paymentMethodTitle": "Zahlungsart",
     "paymentMethodDesc": "Ausreichendes Guthaben wird automatisch gewählt. Sie können auch per Karte bezahlen.",
     "paymentMethodCard": "Mit Karte bezahlen",
-    "paymentMethodCardDesc": "Zur Zahlung werden Sie zu Kapital Bank weitergeleitet.",
-    "paymentMethodCardDescAzn": "Sie bezahlen {amount} über Kapital Bank.",
+    "paymentMethodCardDesc": "Geben Sie Ihre Karte im Kapital-Bank-Fenster ein.",
+    "paymentMethodCardDescAzn": "Sie zahlen {amount} über die Kapital Bank.",
     "paymentMethodBalance": "Mit Guthaben bezahlen",
     "paymentMethodBalanceDesc": "Verfügbares Guthaben: {balance}",
     "paymentMethodBalanceAzn": "≈ {balance} · Belastung: {charge}",
@@ -3739,5 +3740,22 @@
     "change": "Ändern",
     "orderTitle": "Domainbestellung",
     "orderNote": "Domainbestellungen bearbeitet unser Team nach Zahlung. Kontaktieren Sie den Support mit Ihrer Bestellnummer."
+  },
+  "bankPayment": {
+    "title": "Sichere Kartenzahlung",
+    "privacy": "Geben Sie Ihre Karte jedes Mal im Formular der Kapital Bank ein. Kartennummer und CVV werden weder an Vexira Host gesendet noch dort gespeichert.",
+    "close": "Zahlungsfenster schließen",
+    "loadingHint": "Die sichere Zahlungsseite der Bank öffnet sich unten.",
+    "blocked": "Bleibt das Fenster leer oder wird es blockiert, setzen Sie dieselbe Zahlung auf der Bankseite fort.",
+    "openBank": "Bankseite öffnen",
+    "frameTitle": "Sicheres Zahlungsformular der Kapital Bank",
+    "waiting": "Bankbestätigung ausstehend",
+    "checkFailed": "Zahlung konnte nicht geprüft werden. Bitte erneut prüfen.",
+    "paused": "Automatische Prüfung pausiert. Sie können das Ergebnis manuell prüfen.",
+    "closeHint": "Schließen storniert die Zahlung nicht. Über die Rechnung können Sie die bestehende Zahlung fortsetzen.",
+    "check": "Zahlung prüfen",
+    "checking": "Wird geprüft…",
+    "failed": "Zahlung nicht bestätigt",
+    "returnInvoice": "Zur Rechnung"
   }
 }

@@ -174,7 +174,8 @@
     "dashboard": "Go to dashboard",
     "backToCart": "Back to cart",
     "bankStatus": "Bank status: {status}",
-    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page)."
+    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page).",
+    "embeddedReturn": "Retour de la banque. La fenêtre principale vérifie le résultat."
   },
   "homeRedesign": {
     "viewAllProducts": "Voir tous les produits ({count})",
@@ -769,7 +770,7 @@
     "paymentMethodTitle": "Moyen de paiement",
     "paymentMethodDesc": "Un solde suffisant est sélectionné automatiquement. Vous pouvez choisir la carte.",
     "paymentMethodCard": "Carte bancaire",
-    "paymentMethodCardDesc": "Vous serez redirigé vers Kapital Bank pour payer.",
+    "paymentMethodCardDesc": "Saisissez la carte dans la fenêtre de Kapital Bank.",
     "paymentMethodCardDescAzn": "Vous paierez {amount} via Kapital Bank.",
     "paymentMethodBalance": "Solde du compte",
     "paymentMethodBalanceDesc": "Solde disponible : {balance}",
@@ -3707,5 +3708,22 @@
     "change": "Modifier",
     "orderTitle": "Commande de domaine",
     "orderNote": "Notre équipe traite les commandes de domaine après paiement. Contactez l’assistance avec votre numéro de commande."
+  },
+  "bankPayment": {
+    "title": "Paiement sécurisé par carte",
+    "privacy": "Saisissez votre carte à chaque fois dans le formulaire de Kapital Bank. Le numéro et le CVV ne sont ni envoyés ni stockés sur le serveur Vexira Host.",
+    "close": "Fermer la fenêtre de paiement",
+    "loadingHint": "La page sécurisée de la banque s’ouvre ci-dessous.",
+    "blocked": "Si la fenêtre est vide ou bloquée, poursuivez le même paiement sur la page de la banque.",
+    "openBank": "Ouvrir la page bancaire",
+    "frameTitle": "Formulaire sécurisé de Kapital Bank",
+    "waiting": "En attente de confirmation bancaire",
+    "checkFailed": "Impossible de vérifier le paiement. Réessayez.",
+    "paused": "Vérification automatique suspendue. Vous pouvez vérifier manuellement.",
+    "closeHint": "Fermer n’annule pas le paiement. Reprenez le paiement existant depuis votre facture.",
+    "check": "Vérifier le paiement",
+    "checking": "Vérification…",
+    "failed": "Paiement non confirmé",
+    "returnInvoice": "Revenir à la facture"
   }
 }

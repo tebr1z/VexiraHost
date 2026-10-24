@@ -174,7 +174,8 @@
     "dashboard": "Go to dashboard",
     "backToCart": "Back to cart",
     "bankStatus": "Bank status: {status}",
-    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page)."
+    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page).",
+    "embeddedReturn": "Has vuelto del banco. La ventana principal comprueba el resultado."
   },
   "homeRedesign": {
     "viewAllProducts": "Ver todos los productos ({count})",
@@ -780,8 +781,8 @@
     "paymentMethodTitle": "Método de pago",
     "paymentMethodDesc": "Si tu saldo es suficiente, se seleccionará automáticamente. También puedes pagar con tarjeta.",
     "paymentMethodCard": "Pagar con tarjeta",
-    "paymentMethodCardDesc": "Se te redirigirá a Kapital Bank para completar el pago.",
-    "paymentMethodCardDescAzn": "Pagarás {amount} a través de Kapital Bank.",
+    "paymentMethodCardDesc": "Introduce la tarjeta en la ventana de Kapital Bank.",
+    "paymentMethodCardDescAzn": "Pagarás {amount} mediante Kapital Bank.",
     "paymentMethodBalance": "Pagar con saldo",
     "paymentMethodBalanceDesc": "Saldo disponible: {balance}",
     "paymentMethodBalanceAzn": "≈ {balance} · Cargo: {charge}",
@@ -3739,5 +3740,22 @@
     "change": "Cambiar",
     "orderTitle": "Pedido de dominio",
     "orderNote": "El equipo procesa los pedidos de dominio tras el pago. Contacta con soporte indicando el número de pedido."
+  },
+  "bankPayment": {
+    "title": "Pago seguro con tarjeta",
+    "privacy": "Introduce la tarjeta cada vez en el formulario de Kapital Bank. El número y CVV no se envían ni se guardan en el servidor de Vexira Host.",
+    "close": "Cerrar ventana de pago",
+    "loadingHint": "La página segura del banco se abre debajo.",
+    "blocked": "Si la ventana está vacía o bloqueada, continúa el mismo pago en la página del banco.",
+    "openBank": "Abrir página del banco",
+    "frameTitle": "Formulario de pago seguro de Kapital Bank",
+    "waiting": "Esperando confirmación del banco",
+    "checkFailed": "No se pudo verificar el pago. Compruébalo de nuevo.",
+    "paused": "Comprobación automática pausada. Puedes consultar el resultado manualmente.",
+    "closeHint": "Cerrar no cancela el pago. Puedes retomarlo desde la factura.",
+    "check": "Comprobar pago",
+    "checking": "Comprobando…",
+    "failed": "Pago no confirmado",
+    "returnInvoice": "Volver a la factura"
   }
 }

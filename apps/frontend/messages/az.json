@@ -622,8 +622,8 @@
     "paymentMethodTitle": "Ödəniş üsulu",
     "paymentMethodDesc": "Kifayət qədər balans varsa avtomatik seçilir; istəsəniz bank kartı ilə də ödəyə bilərsiniz.",
     "paymentMethodCard": "Kartla ödə",
-    "paymentMethodCardDesc": "Kapital Bank ödəniş səhifəsinə yönləndiriləcəksiniz.",
-    "paymentMethodCardDescAzn": "Kapital Bank ilə {amount} ödəyəcəksiniz.",
+    "paymentMethodCardDesc": "Kartı açılan Kapital Bank pəncərəsində daxil edin.",
+    "paymentMethodCardDescAzn": "Kapital Bank vasitəsilə {amount} ödəyəcəksiniz.",
     "paymentMethodBalance": "Balansla ödə",
     "paymentMethodBalanceDesc": "Mövcud balans: {balance}",
     "paymentMethodBalanceAzn": "≈ {balance} · Ödəniş: {charge}",
@@ -3459,7 +3459,8 @@
     "dashboard": "Panelə keç",
     "backToCart": "Səbətə qayıt",
     "bankStatus": "Bank statusu: {status}",
-    "testCardHint": "Test kartı: 4169741330151778 — Bitmə 06/25 — CVV 119 (Kapital test səhifəsində məhz bunları yazın)."
+    "testCardHint": "Test kartı: 4169741330151778 — Bitmə 06/25 — CVV 119 (Kapital test səhifəsində məhz bunları yazın).",
+    "embeddedReturn": "Bankdan qayıdış alındı. Ödənişin nəticəsi əsas pəncərədə yoxlanılır."
   },
   "catalogPage": {
     "eyebrow": "Kataloq",
@@ -3651,5 +3652,22 @@
     "change": "Dəyiş",
     "orderTitle": "Domen sifarişi",
     "orderNote": "Domen sifarişlərini komanda ödənişdən sonra emal edir. Vəziyyəti öyrənmək üçün sifariş nömrəsi ilə dəstəyə yazın."
+  },
+  "bankPayment": {
+    "title": "Kartla təhlükəsiz ödəniş",
+    "privacy": "Kartı hər dəfə Kapital Bank-ın öz formasına daxil edin. Kart nömrəsi və CVV Vexira Host serverinə göndərilmir və burada saxlanmır.",
+    "close": "Ödəniş pəncərəsini bağla",
+    "loadingHint": "Bankın təhlükəsiz ödəniş səhifəsi aşağıda açılır.",
+    "blocked": "Pəncərə boşdursa və ya bank tərəfindən bloklanıbsa, eyni ödənişi bank səhifəsində davam etdirin.",
+    "openBank": "Bank səhifəsində aç",
+    "frameTitle": "Kapital Bank-ın təhlükəsiz ödəniş forması",
+    "waiting": "Bank təsdiqi gözlənilir",
+    "checkFailed": "Təsdiqi yoxlamaq mümkün olmadı. Yenidən yoxlayın.",
+    "paused": "Avtomatik yoxlama dayandı. Nəticəni əl ilə yoxlaya bilərsiniz.",
+    "closeHint": "Bağlamaq ödənişi ləğv etmir. Fakturadan mövcud ödənişə qayıda bilərsiniz.",
+    "check": "Ödənişi yoxla",
+    "checking": "Yoxlanılır…",
+    "failed": "Ödəniş təsdiqlənmədi",
+    "returnInvoice": "Fakturaya qayıt"
   }
 }

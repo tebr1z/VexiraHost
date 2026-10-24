@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { useBankPayment } from "@/components/billing/bank-payment-provider";
 import { InvoiceDocument } from "@/components/billing/invoice-document";
 import { LoadingSkeletonList, PageHeader } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
@@ -26,6 +27,7 @@ function roundMoney(value: number): number {
 
 export default function InvoiceDetailPage(): React.ReactElement | null {
   useRequireAuth();
+  const openBankPayment = useBankPayment();
   const params = useParams();
   const locale = useLocale();
   const t = useTranslations("dashboard");
@@ -103,6 +105,23 @@ export default function InvoiceDetailPage(): React.ReactElement | null {
       const payment = await chargeInvoice(id, { useBalance, amount });
 
       if (payment?.mode === "redirect" && payment.redirectUrl) {
+        if (payment.provider === "kapital" && payment.id) {
+          const outcome = await openBankPayment({
+            url: payment.redirectUrl,
+            paymentId: payment.id,
+            invoiceId: id,
+            orderId: payment.orderId,
+          });
+          const [updated, bal] = await Promise.all([
+            getInvoice(id),
+            getAccountBalance().catch(() => null),
+          ]);
+          setInvoice(updated);
+          setBalance(bal);
+          setMessageOk(outcome === "paid" && updated.status === "PAID");
+          setMessage(outcome === "paid" && updated.status === "PAID" ? tc("paymentSuccess") : null);
+          return;
+        }
         setMessage(tc("redirectingToBank"));
         window.location.assign(payment.redirectUrl);
         return;

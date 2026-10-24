@@ -1,3 +1,4 @@
+import "@/styles/bank-payment.css";
 import type { Metadata, Viewport } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 

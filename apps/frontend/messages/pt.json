@@ -174,7 +174,8 @@
     "dashboard": "Go to dashboard",
     "backToCart": "Back to cart",
     "bankStatus": "Bank status: {status}",
-    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page)."
+    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page).",
+    "embeddedReturn": "Regressou do banco. A janela principal verifica o resultado."
   },
   "homeRedesign": {
     "viewAllProducts": "Ver todos os produtos ({count})",
@@ -769,8 +770,8 @@
     "paymentMethodTitle": "Método de pagamento",
     "paymentMethodDesc": "O saldo é selecionado se for suficiente. Pode escolher cartão.",
     "paymentMethodCard": "Cartão bancário",
-    "paymentMethodCardDesc": "Será redirecionado para o Kapital Bank para pagar.",
-    "paymentMethodCardDescAzn": "Pagará {amount} pelo Kapital Bank.",
+    "paymentMethodCardDesc": "Introduza o cartão na janela do Kapital Bank.",
+    "paymentMethodCardDescAzn": "Pagará {amount} através do Kapital Bank.",
     "paymentMethodBalance": "Saldo da conta",
     "paymentMethodBalanceDesc": "Saldo disponível: {balance}",
     "paymentMethodBalanceAzn": "≈ {balance} · Cobrança: {charge}",
@@ -3707,5 +3708,22 @@
     "change": "Alterar",
     "orderTitle": "Encomenda de domínio",
     "orderNote": "A equipa processa as encomendas de domínio após o pagamento. Contacte o apoio com o número da encomenda."
+  },
+  "bankPayment": {
+    "title": "Pagamento seguro com cartão",
+    "privacy": "Introduza o cartão sempre no formulário do Kapital Bank. O número e CVV não são enviados nem guardados no servidor Vexira Host.",
+    "close": "Fechar janela de pagamento",
+    "loadingHint": "A página segura do banco abre abaixo.",
+    "blocked": "Se a janela estiver vazia ou bloqueada, continue o mesmo pagamento na página do banco.",
+    "openBank": "Abrir página do banco",
+    "frameTitle": "Formulário seguro do Kapital Bank",
+    "waiting": "A aguardar confirmação do banco",
+    "checkFailed": "Não foi possível verificar o pagamento. Tente novamente.",
+    "paused": "Verificação automática em pausa. Pode verificar manualmente.",
+    "closeHint": "Fechar não cancela o pagamento. Retome o pagamento existente a partir da fatura.",
+    "check": "Verificar pagamento",
+    "checking": "A verificar…",
+    "failed": "Pagamento não confirmado",
+    "returnInvoice": "Voltar à fatura"
   }
 }

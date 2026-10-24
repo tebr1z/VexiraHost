@@ -120,7 +120,8 @@
     "dashboard": "Go to dashboard",
     "backToCart": "Back to cart",
     "bankStatus": "Bank status: {status}",
-    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page)."
+    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page).",
+    "embeddedReturn": "Returned from the bank. The main window is checking the payment result."
   },
   "homeRedesign": {
     "viewAllProducts": "View all products ({count})",
@@ -726,7 +727,7 @@
     "paymentMethodTitle": "Payment method",
     "paymentMethodDesc": "A sufficient account balance is selected automatically; you can still choose bank card.",
     "paymentMethodCard": "Pay by card",
-    "paymentMethodCardDesc": "You will be redirected to Kapital Bank to complete payment.",
+    "paymentMethodCardDesc": "Enter your card in the Kapital Bank window.",
     "paymentMethodCardDescAzn": "You will pay {amount} via Kapital Bank.",
     "paymentMethodBalance": "Pay with balance",
     "paymentMethodBalanceDesc": "Available balance: {balance}",
@@ -3657,5 +3658,22 @@
     "change": "Change",
     "orderTitle": "Domain order",
     "orderNote": "Domain orders are processed by our team after payment. Contact support with your order number for updates."
+  },
+  "bankPayment": {
+    "title": "Secure card payment",
+    "privacy": "Enter your card each time in Kapital Bank’s own form. Card number and CVV are not sent to or stored on Vexira Host’s server.",
+    "close": "Close payment window",
+    "loadingHint": "The bank’s secure payment page opens below.",
+    "blocked": "If the window is blank or blocked by the bank, continue the same payment on the bank’s page.",
+    "openBank": "Open bank page",
+    "frameTitle": "Kapital Bank secure payment form",
+    "waiting": "Waiting for bank confirmation",
+    "checkFailed": "Could not verify the payment. Please check again.",
+    "paused": "Automatic checks paused. You can check the result manually.",
+    "closeHint": "Closing does not cancel the payment. Resume the existing payment from your invoice.",
+    "check": "Check payment",
+    "checking": "Checking…",
+    "failed": "Payment was not confirmed",
+    "returnInvoice": "Return to invoice"
   }
 }

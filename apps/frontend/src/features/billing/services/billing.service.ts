@@ -113,6 +113,7 @@ export async function chargeInvoice(
     status: string;
     amount?: number;
     redirectUrl?: string;
+    provider?: string;
     orderId?: string | null;
     invoiceId?: string;
     paidWithBalance?: boolean;
@@ -195,4 +196,18 @@ export async function downloadInvoicePdf(
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export interface BankPaymentStatus {
+  state: "pending" | "paid" | "failed";
+  invoiceId: string;
+  orderId: string | null;
+  verificationUnavailable?: boolean;
+}
+export async function getKapitalPaymentStatus(paymentId: string): Promise<BankPaymentStatus> {
+  const response = await apiClient.request<BankPaymentStatus>(
+    `/payments/kapital/${encodeURIComponent(paymentId)}/status`,
+  );
+  if (!response.data) throw new Error("Payment status unavailable");
+  return response.data;
 }

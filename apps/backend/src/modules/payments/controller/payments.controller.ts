@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Header,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+} from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 import type { Request, Response } from "express";
 
@@ -20,6 +31,12 @@ export class PaymentsController {
   @Get("balance")
   getBalance(@User() user: AuthUser) {
     return this.paymentsService.getBalance(user.id);
+  }
+
+  @Get("kapital/:id/status")
+  @Header("Cache-Control", "no-store")
+  kapitalStatus(@Param("id") id: string, @User() user: AuthUser) {
+    return this.paymentsService.getKapitalPaymentStatus(user.id, id);
   }
 
   @Post("charge")

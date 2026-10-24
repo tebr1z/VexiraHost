@@ -625,8 +625,8 @@
     "paymentMethodTitle": "Ödeme yöntemi",
     "paymentMethodDesc": "Yeterli bakiye varsa otomatik seçilir; isterseniz banka kartını da seçebilirsiniz.",
     "paymentMethodCard": "Kartla öde",
-    "paymentMethodCardDesc": "Ödeme için Kapital Bank sayfasına yönlendirileceksiniz.",
-    "paymentMethodCardDescAzn": "Kapital Bank ile {amount} ödeyeceksiniz.",
+    "paymentMethodCardDesc": "Kartı açılan Kapital Bank penceresine girin.",
+    "paymentMethodCardDescAzn": "Kapital Bank üzerinden {amount} ödeyeceksiniz.",
     "paymentMethodBalance": "Bakiyeden öde",
     "paymentMethodBalanceDesc": "Mevcut bakiye: {balance}",
     "paymentMethodBalanceAzn": "≈ {balance} · Ödeme: {charge}",
@@ -3462,7 +3462,8 @@
     "dashboard": "Panele git",
     "backToCart": "Sepete dön",
     "bankStatus": "Banka durumu: {status}",
-    "testCardHint": "Test kartı: 4169741330151778 — SKT 06/25 — CVV 119 (Kapital test sayfasında tam bu değerleri kullanın)."
+    "testCardHint": "Test kartı: 4169741330151778 — SKT 06/25 — CVV 119 (Kapital test sayfasında tam bu değerleri kullanın).",
+    "embeddedReturn": "Bankadan dönüş alındı. Ödeme sonucu ana pencerede kontrol ediliyor."
   },
   "catalogPage": {
     "eyebrow": "Katalog",
@@ -3654,5 +3655,22 @@
     "change": "Değiştir",
     "orderTitle": "Alan adı siparişi",
     "orderNote": "Alan adı siparişleri ödeme sonrası ekibimizce işlenir. Bilgi için sipariş numaranızla desteğe ulaşın."
+  },
+  "bankPayment": {
+    "title": "Güvenli kart ödemesi",
+    "privacy": "Kartı her seferinde Kapital Bank’ın kendi formuna girin. Kart numarası ve CVV Vexira Host sunucusuna gönderilmez ve burada saklanmaz.",
+    "close": "Ödeme penceresini kapat",
+    "loadingHint": "Bankanın güvenli ödeme sayfası aşağıda açılır.",
+    "blocked": "Pencere boşsa veya banka tarafından engellendiyse aynı ödemeyi bankanın sayfasında sürdürün.",
+    "openBank": "Banka sayfasını aç",
+    "frameTitle": "Kapital Bank güvenli ödeme formu",
+    "waiting": "Banka onayı bekleniyor",
+    "checkFailed": "Ödeme doğrulanamadı. Tekrar kontrol edin.",
+    "paused": "Otomatik kontrol duraklatıldı. Sonucu elle kontrol edebilirsiniz.",
+    "closeHint": "Kapatmak ödemeyi iptal etmez. Faturadan mevcut ödemeye dönebilirsiniz.",
+    "check": "Ödemeyi kontrol et",
+    "checking": "Kontrol ediliyor…",
+    "failed": "Ödeme onaylanmadı",
+    "returnInvoice": "Faturaya dön"
   }
 }

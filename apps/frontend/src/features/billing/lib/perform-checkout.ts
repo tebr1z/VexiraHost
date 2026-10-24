@@ -88,6 +88,9 @@ export async function performCheckout(
   orderId: string;
   hasHosting: boolean;
   redirectUrl?: string;
+  paymentId?: string;
+  invoiceId?: string;
+  paymentProvider?: string;
 }> {
   const requireBilling = options?.requireBillingAddress !== false;
 
@@ -162,6 +165,9 @@ export async function performCheckout(
         orderId: order.id,
         hasHosting: items.some((item) => item.category === "HOSTING"),
         redirectUrl: payment.redirectUrl,
+        paymentId: payment.id ?? undefined,
+        invoiceId: order.invoice.id,
+        paymentProvider: payment.provider,
       };
     }
 
@@ -178,6 +184,9 @@ export async function performCheckout(
       orderId: order.id,
       hasHosting: items.some((item) => item.category === "HOSTING"),
       redirectUrl: payment.redirectUrl,
+      paymentId: payment.id ?? undefined,
+      invoiceId: order.invoice.id,
+      paymentProvider: payment.provider,
     };
   }
 

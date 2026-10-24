@@ -46,6 +46,25 @@ export class PaymentsRepository {
     });
   }
 
+  findPaymentByIdForUser(id: string, userId: string) {
+    return this.prisma.payment.findFirst({
+      where: { id, userId },
+      include: { invoice: { include: { order: true } } },
+    });
+  }
+
+  findKapitalPendingForInvoice(invoiceId: string, userId: string) {
+    return this.prisma.payment.findFirst({
+      where: {
+        invoiceId,
+        userId,
+        status: PaymentStatus.PENDING,
+        gatewayRef: { startsWith: "kapital:" },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   findPendingByGatewayRefPrefix(prefix: string) {
     return this.prisma.payment.findFirst({
       where: {
@@ -94,11 +113,16 @@ export class PaymentsRepository {
 
   completePendingPayment(data: { paymentId: string; invoiceId: string; orderId?: string | null }) {
     return this.prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.update({
-        where: { id: data.paymentId },
+      // Callback and embedded-window polling may complete together. Only the winner fulfils.
+      const claimed = await tx.payment.updateMany({
+        where: { id: data.paymentId, invoiceId: data.invoiceId, status: PaymentStatus.PENDING },
         data: { status: PaymentStatus.COMPLETED },
+      });
+      const payment = await tx.payment.findUniqueOrThrow({
+        where: { id: data.paymentId },
         include: { method: true },
       });
+      if (!claimed.count) return { ...payment, alreadyProcessed: true };
 
       await tx.invoice.update({
         where: { id: data.invoiceId },
@@ -115,13 +139,13 @@ export class PaymentsRepository {
         });
       }
 
-      return payment;
+      return { ...payment, alreadyProcessed: false };
     });
   }
 
   failPendingPayment(paymentId: string, failureReason: string) {
-    return this.prisma.payment.update({
-      where: { id: paymentId },
+    return this.prisma.payment.updateMany({
+      where: { id: paymentId, status: PaymentStatus.PENDING },
       data: {
         status: PaymentStatus.FAILED,
         failureReason,

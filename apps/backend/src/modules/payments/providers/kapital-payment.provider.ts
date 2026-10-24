@@ -61,6 +61,11 @@ export class KapitalPaymentProvider {
     return url.toString();
   }
 
+  async getHostedPaymentUrl(id: number, password: string): Promise<string> {
+    const config = await this.kapitalConfigService.resolve();
+    return this.buildHppUrl(config.baseUrl, id, password);
+  }
+
   async createPurchaseOrder(input: KapitalCreateOrderInput): Promise<KapitalCreateOrderResult> {
     const config = await this.kapitalConfigService.resolve();
     if (!config.username || !config.password) {
@@ -194,6 +199,7 @@ export class KapitalPaymentProvider {
 
     const response = await fetch(url.toString(), {
       method: "GET",
+      signal: AbortSignal.timeout(10000),
       headers: {
         Authorization: this.authHeader(config),
         Accept: "application/json",
@@ -242,6 +248,7 @@ export class KapitalPaymentProvider {
 
     const response = await fetch(url.toString(), {
       method: "GET",
+      signal: AbortSignal.timeout(10000),
       headers: {
         Authorization: this.authHeader(config),
         Accept: "application/json",

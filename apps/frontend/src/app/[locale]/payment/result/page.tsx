@@ -1,32 +1,49 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
+
+import { Link } from "@/i18n/navigation";
 
 function PaymentResultContent(): React.ReactElement {
   const searchParams = useSearchParams();
+  const [embedded, setEmbedded] = useState(false);
+  useEffect(() => {
+    if (window.parent !== window) {
+      setEmbedded(true);
+      // A notification only. The parent still verifies the owned payment through the backend.
+      window.parent.postMessage({ type: "vexira:bank-return" }, window.location.origin);
+    }
+  }, []);
   const t = useTranslations("paymentResult");
   const ok = searchParams.get("ok") === "1";
   const orderId = searchParams.get("orderId");
   const reason = searchParams.get("reason");
   const bankStatus = searchParams.get("bankStatus");
 
+  if (embedded)
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-8 text-center">
+        <p>{t("embeddedReturn")}</p>
+      </div>
+    );
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center px-4 text-center">
-      <h1 className="text-2xl font-bold text-primary">{ok ? t("successTitle") : t("failedTitle")}</h1>
-      <p className="mt-3 text-on-surface-variant">
-        {ok ? t("successBody") : t("failedBody")}
-      </p>
+      <h1 className="text-primary text-2xl font-bold">
+        {ok ? t("successTitle") : t("failedTitle")}
+      </h1>
+      <p className="text-on-surface-variant mt-3">{ok ? t("successBody") : t("failedBody")}</p>
       {!ok && bankStatus ? (
-        <p className="mt-2 text-sm font-medium text-error">{t("bankStatus", { status: bankStatus })}</p>
+        <p className="text-error mt-2 text-sm font-medium">
+          {t("bankStatus", { status: bankStatus })}
+        </p>
       ) : null}
       {!ok && reason ? (
-        <p className="mt-2 text-sm text-on-surface-variant/80">{t("reason", { reason })}</p>
+        <p className="text-on-surface-variant/80 mt-2 text-sm">{t("reason", { reason })}</p>
       ) : null}
       {!ok ? (
-        <p className="mt-4 rounded-xl bg-surface-container-low px-4 py-3 text-left text-sm text-on-surface-variant">
+        <p className="bg-surface-container-low text-on-surface-variant mt-4 rounded-xl px-4 py-3 text-left text-sm">
           {t("testCardHint")}
         </p>
       ) : null}
@@ -34,21 +51,21 @@ function PaymentResultContent(): React.ReactElement {
         {ok && orderId ? (
           <Link
             href={`/dashboard/orders/${orderId}`}
-            className="inline-flex h-11 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-on-primary"
+            className="bg-primary text-on-primary inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold"
           >
             {t("viewOrder")}
           </Link>
         ) : null}
         <Link
           href="/dashboard"
-          className="inline-flex h-11 items-center rounded-xl border border-outline-variant px-5 text-sm font-semibold"
+          className="border-outline-variant inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold"
         >
           {t("dashboard")}
         </Link>
         {!ok ? (
           <Link
             href="/cart"
-            className="inline-flex h-11 items-center rounded-xl border border-outline-variant px-5 text-sm font-semibold"
+            className="border-outline-variant inline-flex h-11 items-center rounded-xl border px-5 text-sm font-semibold"
           >
             {t("backToCart")}
           </Link>
@@ -60,7 +77,7 @@ function PaymentResultContent(): React.ReactElement {
 
 export default function PaymentResultPage(): React.ReactElement {
   return (
-    <Suspense fallback={<p className="p-8 text-center text-on-surface-variant">…</p>}>
+    <Suspense fallback={<p className="text-on-surface-variant p-8 text-center">…</p>}>
       <PaymentResultContent />
     </Suspense>
   );

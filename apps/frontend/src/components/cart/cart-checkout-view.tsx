@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
+import { useBankPayment } from "@/components/billing/bank-payment-provider";
 import { CartYearlyUpsell } from "@/components/cart/cart-yearly-upsell";
 import { AccessClosedNotice } from "@/components/layout/access-closed-notice";
 import { PreferredCurrencyPicker } from "@/components/layout/preferred-currency-picker";
@@ -66,6 +67,7 @@ export function CartCheckoutView({
   emptyActionHref?: string;
 }): React.ReactElement {
   const router = useRouter();
+  const openBankPayment = useBankPayment();
   const locale = useLocale();
   const t = useTranslations("cart");
   const tp = useTranslations("productPurchase");
@@ -456,6 +458,25 @@ export function CartCheckoutView({
 
       if (result.redirectUrl) {
         clearCart();
+        if (result.paymentProvider === "kapital" && result.paymentId && result.invoiceId) {
+          let outcome;
+          try {
+            outcome = await openBankPayment({
+              url: result.redirectUrl,
+              paymentId: result.paymentId,
+              invoiceId: result.invoiceId,
+              orderId: result.orderId,
+            });
+          } catch {
+            router.push(`/dashboard/invoices/${result.invoiceId}`);
+            return;
+          }
+          if (outcome === "paid") {
+            toast(t("paymentSuccess"), "success");
+            router.push(`/dashboard/orders/${result.orderId}`);
+          } else router.push(`/dashboard/invoices/${result.invoiceId}`);
+          return;
+        }
         window.location.assign(result.redirectUrl);
         return;
       }

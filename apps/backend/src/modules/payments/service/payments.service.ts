@@ -18,6 +18,12 @@ import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfill
 import { decryptSecret, encryptSecret, hashToken } from "@/utils/crypto.util";
 
 const PAYMENT_PROVIDER_SETTING_KEY = "payment_provider";
+type EmbeddedPaymentStatus = {
+  state: "pending" | "paid" | "failed";
+  invoiceId: string;
+  orderId: string | null;
+  verificationUnavailable?: boolean;
+};
 
 function mapPaymentMethod(method: {
   id: string;
@@ -50,6 +56,10 @@ function mapPaymentMethod(method: {
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly kapitalStatusChecks = new Map<
+    string,
+    { expiresAt: number; result: Promise<EmbeddedPaymentStatus> }
+  >();
 
   constructor(
     private readonly paymentsRepository: PaymentsRepository,
@@ -457,7 +467,7 @@ export class PaymentsService {
       where: { id: method.id },
       data: { lastUsedAt: new Date(), failureReason: null },
     });
-    await this.fulfillPaidInvoice(invoice.id, invoice.orderId);
+    if (!payment.alreadyProcessed) await this.fulfillPaidInvoice(invoice.id, invoice.orderId);
 
     return {
       mode: "completed" as const,
@@ -599,12 +609,13 @@ export class PaymentsService {
       return { ok: false, reason: "amount_mismatch" };
     }
 
-    await this.paymentsRepository.completePendingPayment({
+    const completed = await this.paymentsRepository.completePendingPayment({
       paymentId: pending.id,
       invoiceId: pending.invoiceId,
       orderId: pending.invoice.orderId,
     });
-    await this.fulfillPaidInvoice(pending.invoiceId, pending.invoice.orderId);
+    if (!completed.alreadyProcessed)
+      await this.fulfillPaidInvoice(pending.invoiceId, pending.invoice.orderId);
     return { ok: true, type: "payment" };
   }
 
@@ -625,6 +636,42 @@ export class PaymentsService {
     }
 
     const chargeAmount = new Prisma.Decimal(amount.toFixed(2));
+    // Reopening/refreshing an unpaid invoice resumes the same bank order.
+    const previous = await this.paymentsRepository.findKapitalPendingForInvoice(invoice.id, userId);
+    if (previous?.gatewayRef) {
+      const parsed = this.kapitalGateway.parseGatewayRef(previous.gatewayRef);
+      if (parsed && Number(previous.amount) === amount && previous.currency === invoice.currency) {
+        const state = await this.getKapitalPaymentStatus(userId, previous.id);
+        if (state.state === "paid")
+          return {
+            mode: "completed" as const,
+            id: previous.id,
+            status: PaymentStatus.COMPLETED,
+            invoiceId: invoice.id,
+            orderId: invoice.orderId,
+          };
+        if (state.state !== "failed")
+          return {
+            mode: "redirect" as const,
+            provider: "kapital",
+            id: previous.id,
+            status: previous.status,
+            invoiceId: invoice.id,
+            orderId: invoice.orderId,
+            amount,
+            currency: invoice.currency,
+            redirectUrl: await this.kapitalGateway.getHostedPaymentUrl(
+              parsed.kapitalOrderId,
+              parsed.password,
+            ),
+          };
+      } else {
+        // An unreadable reference or changed invoice amount must not silently create another payable order.
+        throw new BadRequestException(
+          "An existing bank payment needs review before starting another payment",
+        );
+      }
+    }
 
     let created;
     try {
@@ -658,6 +705,7 @@ export class PaymentsService {
 
     return {
       mode: "redirect" as const,
+      provider: "kapital",
       id: pending.id,
       status: pending.status,
       amount,
@@ -667,6 +715,54 @@ export class PaymentsService {
       orderId: invoice.orderId,
       redirectUrl: created.redirectUrl,
       createdAt: pending.createdAt,
+    };
+  }
+
+  async getKapitalPaymentStatus(userId: string, paymentId: string): Promise<EmbeddedPaymentStatus> {
+    const key = `${userId}:${paymentId}`;
+    const cached = this.kapitalStatusChecks.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.result;
+    if (this.kapitalStatusChecks.size >= 512)
+      this.kapitalStatusChecks.delete(this.kapitalStatusChecks.keys().next().value!);
+    const entry = { expiresAt: Infinity, result: this.loadKapitalPaymentStatus(userId, paymentId) };
+    this.kapitalStatusChecks.set(key, entry);
+    try {
+      const result = await entry.result;
+      entry.expiresAt = Date.now() + 3000;
+      return result;
+    } catch (error) {
+      if (this.kapitalStatusChecks.get(key) === entry) this.kapitalStatusChecks.delete(key);
+      throw error;
+    }
+  }
+
+  private async loadKapitalPaymentStatus(
+    userId: string,
+    paymentId: string,
+  ): Promise<EmbeddedPaymentStatus> {
+    const payment = await this.paymentsRepository.findPaymentByIdForUser(paymentId, userId);
+    if (!payment || !payment.gatewayRef?.startsWith("kapital:"))
+      throw new NotFoundException("Payment not found");
+    const base = { invoiceId: payment.invoiceId, orderId: payment.invoice.orderId };
+    if (payment.invoice.status === InvoiceStatus.PAID) return { ...base, state: "paid" as const };
+    if (payment.status === PaymentStatus.FAILED) return { ...base, state: "failed" as const };
+    const parsed = this.kapitalGateway.parseGatewayRef(payment.gatewayRef);
+    if (!parsed) return { ...base, state: "pending" as const, verificationUnavailable: true };
+    const result = await this.handleKapitalCallback(String(parsed.kapitalOrderId));
+    const current = await this.paymentsRepository.findPaymentByIdForUser(paymentId, userId);
+    return {
+      ...base,
+      state:
+        current?.invoice.status === InvoiceStatus.PAID
+          ? ("paid" as const)
+          : current?.status === PaymentStatus.FAILED
+            ? ("failed" as const)
+            : ("pending" as const),
+      verificationUnavailable:
+        result.reason === "status_check_failed" ||
+        result.reason === "amount_mismatch" ||
+        result.reason === "currency_mismatch" ||
+        result.reason === "order_mismatch",
     };
   }
 
@@ -704,6 +800,32 @@ export class PaymentsService {
         parsed.password,
       );
       bankStatus = remote.status;
+      if (remote.id !== parsed.kapitalOrderId)
+        return {
+          ok: false,
+          reason: "order_mismatch",
+          invoiceId: pending.invoiceId,
+          orderId: pending.invoice.orderId,
+        };
+      if (this.kapitalGateway.isPaidStatus(bankStatus)) {
+        if (
+          !Number.isFinite(remote.amount) ||
+          Math.round(remote.amount * 100) !== Math.round(Number(pending.amount) * 100)
+        )
+          return {
+            ok: false,
+            reason: "amount_mismatch",
+            invoiceId: pending.invoiceId,
+            orderId: pending.invoice.orderId,
+          };
+        if (remote.currency !== pending.currency)
+          return {
+            ok: false,
+            reason: "currency_mismatch",
+            invoiceId: pending.invoiceId,
+            orderId: pending.invoice.orderId,
+          };
+      }
     } catch (error) {
       this.logger.error(
         `Kapital status check failed for ${kapitalOrderId}: ${
@@ -724,19 +846,26 @@ export class PaymentsService {
       );
 
       let declineReason: string | undefined;
-      try {
-        const detailed = await this.kapitalGateway.getDetailedOrderStatus(
-          parsed.kapitalOrderId,
-          parsed.password,
-        );
-        declineReason = detailed.declineReason;
-      } catch {
-        // optional enrichment
-      }
+      const terminal = [
+        "Cancelled",
+        "Canceled",
+        "Declined",
+        "Expired",
+        "Refused",
+        "Rejected",
+      ].includes(bankStatus);
+      if (terminal)
+        try {
+          const detailed = await this.kapitalGateway.getDetailedOrderStatus(
+            parsed.kapitalOrderId,
+            parsed.password,
+          );
+          declineReason = detailed.declineReason;
+        } catch {
+          // optional enrichment
+        }
 
-      if (
-        ["Cancelled", "Canceled", "Declined", "Expired", "Refused", "Rejected"].includes(bankStatus)
-      ) {
+      if (terminal) {
         await this.paymentsRepository.failPendingPayment(
           pending.id,
           declineReason
@@ -762,12 +891,19 @@ export class PaymentsService {
       };
     }
 
-    await this.paymentsRepository.completePendingPayment({
+    const completed = await this.paymentsRepository.completePendingPayment({
       paymentId: pending.id,
       invoiceId: pending.invoiceId,
       orderId: pending.invoice.orderId,
     });
 
+    if (completed.alreadyProcessed)
+      return {
+        ok: true,
+        reason: "already_paid",
+        invoiceId: pending.invoiceId,
+        orderId: pending.invoice.orderId,
+      };
     if (pending.invoice.orderId) {
       await this.orderFulfillmentService.fulfillOrder(pending.invoice.orderId);
     } else {

@@ -174,7 +174,8 @@
     "dashboard": "Go to dashboard",
     "backToCart": "Back to cart",
     "bankStatus": "Bank status: {status}",
-    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page)."
+    "testCardHint": "Test card: 4169741330151778 — Exp 06/25 — CVV 119 (use exactly these values on the Kapital test page).",
+    "embeddedReturn": "Ritorno dalla banca. La finestra principale verifica il risultato."
   },
   "homeRedesign": {
     "viewAllProducts": "Tutti i prodotti ({count})",
@@ -769,7 +770,7 @@
     "paymentMethodTitle": "Metodo di pagamento",
     "paymentMethodDesc": "Se sufficiente, il saldo viene selezionato automaticamente. Puoi scegliere la carta.",
     "paymentMethodCard": "Carta bancaria",
-    "paymentMethodCardDesc": "Sarai reindirizzato a Kapital Bank per pagare.",
+    "paymentMethodCardDesc": "Inserisci la carta nella finestra di Kapital Bank.",
     "paymentMethodCardDescAzn": "Pagherai {amount} tramite Kapital Bank.",
     "paymentMethodBalance": "Saldo dell’account",
     "paymentMethodBalanceDesc": "Saldo disponibile: {balance}",
@@ -3707,5 +3708,22 @@
     "change": "Modifica",
     "orderTitle": "Ordine del dominio",
     "orderNote": "Il team elabora gli ordini dei domini dopo il pagamento. Contatta l’assistenza con il numero d’ordine."
+  },
+  "bankPayment": {
+    "title": "Pagamento sicuro con carta",
+    "privacy": "Inserisci la carta ogni volta nel modulo di Kapital Bank. Numero e CVV non vengono inviati né salvati sul server Vexira Host.",
+    "close": "Chiudi finestra di pagamento",
+    "loadingHint": "La pagina sicura della banca si apre sotto.",
+    "blocked": "Se la finestra è vuota o bloccata, continua lo stesso pagamento sulla pagina della banca.",
+    "openBank": "Apri pagina della banca",
+    "frameTitle": "Modulo di pagamento sicuro di Kapital Bank",
+    "waiting": "In attesa della conferma bancaria",
+    "checkFailed": "Impossibile verificare il pagamento. Riprova.",
+    "paused": "Verifica automatica sospesa. Puoi controllare manualmente.",
+    "closeHint": "Chiudere non annulla il pagamento. Riprendilo dalla fattura.",
+    "check": "Verifica pagamento",
+    "checking": "Verifica…",
+    "failed": "Pagamento non confermato",
+    "returnInvoice": "Torna alla fattura"
   }
 }

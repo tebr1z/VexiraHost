@@ -1,5 +1,6 @@
 "use client";
 
+import { BankPaymentProvider } from "@/components/billing/bank-payment-provider";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import { ClientErrorBoundary } from "@/components/errors/client-error-boundary";
 import { MaintenanceGate } from "@/components/layout/maintenance-gate";
@@ -10,14 +11,16 @@ import { SiteAnnouncement } from "@/components/layout/site-announcement";
 
 export function LocaleShell({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
-    <ClientErrorBoundary>
-      <PricingBootstrap>
-        <NavigationProgressListener />
-        <NavigationProgress />
-        <ImpersonationBanner />
-        <SiteAnnouncement />
-        <MaintenanceGate>{children}</MaintenanceGate>
-      </PricingBootstrap>
-    </ClientErrorBoundary>
+    <BankPaymentProvider>
+      <ClientErrorBoundary>
+        <PricingBootstrap>
+          <NavigationProgressListener />
+          <NavigationProgress />
+          <ImpersonationBanner />
+          <SiteAnnouncement />
+          <MaintenanceGate>{children}</MaintenanceGate>
+        </PricingBootstrap>
+      </ClientErrorBoundary>
+    </BankPaymentProvider>
   );
 }
