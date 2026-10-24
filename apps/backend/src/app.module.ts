@@ -36,6 +36,7 @@ import { NavigationModule } from "./modules/navigation/navigation.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { ProjectPricingModule } from "./modules/project-pricing/project-pricing.module";
 import { ServersModule } from "./modules/servers/servers.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -98,6 +99,7 @@ import { StorageModule } from "./shared/storage/storage.module";
     NavigationModule,
     CmsModule,
     ContactModule,
+    ProjectPricingModule,
     GeoModule,
     MarketingModule,
     ManagedServersModule,

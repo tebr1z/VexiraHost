@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { DomainOrderSummary } from "@/components/domains/domain-order-summary";
 import { PageHeader, StatusBadge } from "@/components/ui";
 import {
   deliverAdminLicense,
@@ -205,6 +206,7 @@ export default function AdminOrderDetailPage(): React.ReactElement | null {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{item.productName}</p>
+                    <DomainOrderSummary metadata={item.metadata} />
                     {item.productCategory && (
                       <p className="text-on-surface-variant text-xs">{item.productCategory}</p>
                     )}

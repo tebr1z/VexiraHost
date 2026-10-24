@@ -1,22 +1,39 @@
 "use client";
 
+import type { ProjectQuoteRequest } from "@vexira/types";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   TurnstileWidget,
   type TurnstileWidgetHandle,
 } from "@/components/security/turnstile-widget";
+import { useRouter } from "@/i18n/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { apiClient } from "@/services/api-client";
 import { useMaintenanceStore } from "@/stores/maintenance-store";
 
-export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.ReactElement {
+export function InquiryForm({
+  kind,
+  context,
+  submitLabel,
+}: {
+  kind: "contact" | "support";
+  context?: { subject: string; message: string; projectQuote?: ProjectQuoteRequest };
+  submitLabel?: string;
+}): React.ReactElement {
   const t = useTranslations("inquiry");
   const ta = useTranslations("auth");
+  const tq = useTranslations("projectQuote");
+  const router = useRouter();
+  const [pricingChanged, setPricingChanged] = useState(false);
+  useEffect(() => {
+    setPricingChanged(false);
+    setError(null);
+  }, [context?.projectQuote?.pricingUpdatedAt]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(context?.subject ?? "");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,15 +54,21 @@ export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.Re
           name: name.trim(),
           email: email.trim(),
           subject: subject.trim() || undefined,
-          message: message.trim(),
+          message:
+            context && !context.projectQuote
+              ? `${context.message}\n\n${message.trim()}`
+              : message.trim(),
+          projectQuote: context?.projectQuote,
           turnstileToken: turnstileToken || undefined,
         },
       });
       setDone(true);
     } catch (err) {
+      setPricingChanged(err instanceof Error && err.message.startsWith("Project pricing changed"));
       setError(
         getApiErrorMessage(err, t("failed"), {
           turnstileFailed: ta("turnstileFailed"),
+          projectPricingChanged: tq("pricingChanged"),
         }),
       );
     } finally {
@@ -76,6 +99,7 @@ export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.Re
           onChange={(e) => setName(e.target.value)}
           required
           minLength={2}
+          maxLength={80}
           className="border-outline-variant bg-surface-container-lowest h-12 w-full rounded-xl border px-4 text-sm"
           autoComplete="name"
         />
@@ -101,6 +125,7 @@ export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.Re
         <input
           id="inquiry-subject"
           value={subject}
+          maxLength={160}
           onChange={(e) => setSubject(e.target.value)}
           className="border-outline-variant bg-surface-container-lowest h-12 w-full rounded-xl border px-4 text-sm"
         />
@@ -115,6 +140,10 @@ export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.Re
           onChange={(e) => setMessage(e.target.value)}
           required
           minLength={10}
+          maxLength={Math.max(
+            10,
+            4000 - (context && !context.projectQuote ? context.message.length + 2 : 0),
+          )}
           rows={6}
           className="border-outline-variant bg-surface-container-lowest w-full rounded-xl border px-4 py-3 text-sm"
         />
@@ -123,6 +152,15 @@ export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.Re
       {error ? (
         <div className="border-error/20 bg-error-container text-error rounded-xl border px-4 py-3 text-sm">
           {error}
+          {pricingChanged && (
+            <button
+              type="button"
+              onClick={() => router.refresh()}
+              className="mt-2 block font-semibold underline"
+            >
+              {tq("refreshPricing")}
+            </button>
+          )}
         </div>
       ) : null}
 
@@ -133,7 +171,7 @@ export function InquiryForm({ kind }: { kind: "contact" | "support" }): React.Re
         disabled={loading || !turnstile.ready || (turnstile.enabled && !turnstileToken)}
         className="bg-primary text-on-primary h-12 w-full rounded-xl font-semibold disabled:opacity-60"
       >
-        {loading ? t("sending") : t("submit")}
+        {loading ? t("sending") : (submitLabel ?? t("submit"))}
       </button>
     </form>
   );

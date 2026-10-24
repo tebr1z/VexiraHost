@@ -19,6 +19,11 @@ import { CreateDeploymentDto, CreateUploadDeploymentDto } from "../dto/create-de
 import { UpdateDeploymentEnvDto } from "../dto/update-deployment-env.dto";
 import { DeployRepository } from "../repository/deploy.repository";
 import { stripCustomerPort } from "../utils/deploy-env.util";
+import {
+  readDeploymentEnv,
+  requireDeploymentEnv,
+  DEPLOY_ENV_RECOVERY_MESSAGE,
+} from "../utils/deployment-env.util";
 import { sanitizeDockerImageRef } from "../utils/docker-image.util";
 import { defaultContainerPort } from "../utils/docker-templates.util";
 
@@ -30,19 +35,11 @@ import { PortAllocationService } from "./port-allocation.service";
 import { RemoteDeployService } from "./remote-deploy.service";
 
 import { HostingRepository } from "@/modules/hosting/repository/hosting.repository";
-import { decryptSecret, encryptSecret } from "@/utils/crypto.util";
-
-function parseEnvVars(enc: string | null | undefined): Record<string, string> {
-  if (!enc) return {};
-  try {
-    return JSON.parse(decryptSecret(enc)) as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
+import { encryptSecret } from "@/utils/crypto.util";
 
 function serializeDeployment(deployment: Awaited<ReturnType<DeployRepository["findByIdForUser"]>>) {
   if (!deployment) return null;
+  const environment = readDeploymentEnv(deployment.envVarsEnc);
   return {
     id: deployment.id,
     hostingAccountId: deployment.hostingAccountId,
@@ -68,7 +65,8 @@ function serializeDeployment(deployment: Awaited<ReturnType<DeployRepository["fi
     lastDeployedAt: deployment.lastDeployedAt,
     createdAt: deployment.createdAt,
     updatedAt: deployment.updatedAt,
-    envVars: parseEnvVars(deployment.envVarsEnc),
+    envVars: environment.envVars,
+    envVarsState: environment.state,
     runs: deployment.runs?.map((run) => ({
       id: run.id,
       status: run.status,
@@ -115,6 +113,7 @@ export class DeployService {
       lastDeployedAt: row.lastDeployedAt,
       createdAt: row.createdAt,
       latestRun: row.runs[0] ?? null,
+      envVarsState: readDeploymentEnv(row.envVarsEnc).state,
     }));
   }
 
@@ -400,6 +399,7 @@ export class DeployService {
     if (!deployment || deployment.hostingAccountId !== accountId) {
       throw new NotFoundException("Deployment not found");
     }
+    requireDeploymentEnv(deployment.envVarsEnc);
     if (deployment.status === "RUNNING") {
       const inFlight = this.deployRunner.abort(deploymentId, { requeue: true });
       await this.deployRepository.update(deploymentId, {
@@ -536,6 +536,16 @@ export class DeployService {
     }
     if (deployment.status === "RUNNING") {
       throw new BadRequestException("Wait for the current deploy to finish before changing env");
+    }
+
+    if (
+      readDeploymentEnv(deployment.envVarsEnc).state === "unreadable" &&
+      !dto.replaceUnreadableEnv
+    ) {
+      throw new BadRequestException({
+        code: "DEPLOY_ENV_UNREADABLE",
+        message: DEPLOY_ENV_RECOVERY_MESSAGE,
+      });
     }
 
     const { env: envVars, ignoredPort } = stripCustomerPort(dto.envVars);

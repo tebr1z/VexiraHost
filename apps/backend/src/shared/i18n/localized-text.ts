@@ -1,10 +1,11 @@
-export const SITE_LOCALES = ["az", "en", "tr", "ru"] as const;
+export const SITE_LOCALES = ["az", "en", "tr", "ru", "de", "es", "fr", "it", "pt"] as const;
 export type SiteLocale = (typeof SITE_LOCALES)[number];
 
-export type LocalizedText = Record<SiteLocale, string>;
+export type LocalizedText = Record<"az" | "en" | "tr" | "ru", string> &
+  Partial<Record<"de" | "es" | "fr" | "it" | "pt", string>>;
 
 export function emptyLocalizedText(): LocalizedText {
-  return { az: "", en: "", tr: "", ru: "" };
+  return { az: "", en: "", tr: "", ru: "", de: "", es: "", fr: "", it: "", pt: "" };
 }
 
 export function parseLocalizedText(raw: unknown): LocalizedText {
@@ -17,7 +18,17 @@ export function parseLocalizedText(raw: unknown): LocalizedText {
     try {
       return parseLocalizedText(JSON.parse(trimmed));
     } catch {
-      return { az: trimmed, en: trimmed, tr: trimmed, ru: trimmed };
+      return {
+        az: trimmed,
+        en: trimmed,
+        tr: trimmed,
+        ru: trimmed,
+        de: trimmed,
+        es: trimmed,
+        fr: trimmed,
+        it: trimmed,
+        pt: trimmed,
+      };
     }
   }
 
@@ -25,6 +36,11 @@ export function parseLocalizedText(raw: unknown): LocalizedText {
 
   const record = raw as Record<string, unknown>;
   return {
+    fr: typeof record.fr === "string" ? record.fr : "",
+    it: typeof record.it === "string" ? record.it : "",
+    pt: typeof record.pt === "string" ? record.pt : "",
+    de: typeof record.de === "string" ? record.de : "",
+    es: typeof record.es === "string" ? record.es : "",
     az: typeof record.az === "string" ? record.az : "",
     en: typeof record.en === "string" ? record.en : "",
     tr: typeof record.tr === "string" ? record.tr : "",
@@ -34,6 +50,11 @@ export function parseLocalizedText(raw: unknown): LocalizedText {
 
 export function stringifyLocalizedText(value: LocalizedText): string {
   return JSON.stringify({
+    fr: value.fr?.trim() ?? "",
+    it: value.it?.trim() ?? "",
+    pt: value.pt?.trim() ?? "",
+    de: value.de?.trim() ?? "",
+    es: value.es?.trim() ?? "",
     az: value.az.trim(),
     en: value.en.trim(),
     tr: value.tr.trim(),
@@ -43,11 +64,11 @@ export function stringifyLocalizedText(value: LocalizedText): string {
 
 export function pickLocalizedText(value: LocalizedText, locale?: string): string {
   const short = (locale ?? "").toLowerCase().slice(0, 2) as SiteLocale;
-  if (SITE_LOCALES.includes(short) && value[short].trim()) {
-    return value[short].trim();
+  if (SITE_LOCALES.includes(short) && value[short]?.trim()) {
+    return value[short]?.trim() ?? "";
   }
   for (const code of SITE_LOCALES) {
-    if (value[code].trim()) return value[code].trim();
+    if (value[code]?.trim()) return value[code]?.trim() ?? "";
   }
   return "";
 }

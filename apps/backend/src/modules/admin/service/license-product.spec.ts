@@ -28,6 +28,7 @@ describe("admin license product pricing", () => {
     };
     const repository = {
       findProductBySlug: jest.fn().mockResolvedValue(null),
+      findProductByPublicSlug: jest.fn().mockResolvedValue(null),
       createProduct: jest.fn().mockResolvedValue(product),
       findProductById: jest.fn().mockResolvedValue(product),
       updateProduct: jest.fn().mockResolvedValue(product),
@@ -52,7 +53,7 @@ describe("admin license product pricing", () => {
       prices,
     });
     expect(repository.createProduct).toHaveBeenCalledWith(
-      expect.objectContaining({ billingCycle: "ONE_TIME" }),
+      expect.objectContaining({ billingCycle: "ONE_TIME", publicSlug: "test-key" }),
     );
     const saved = repository.replaceProductPrices.mock.calls[0][1];
     expect(saved).toHaveLength(3);

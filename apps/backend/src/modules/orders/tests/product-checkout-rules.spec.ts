@@ -13,6 +13,10 @@ function makeService(product: object) {
     {} as Args[5],
     {} as Args[6],
     {} as Args[7],
+    {
+      getRates: jest.fn().mockResolvedValue({ usdToAzn: 1.7, usdToEur: 0.9 }),
+    } as unknown as Args[8],
+    {} as Args[9],
   );
 }
 

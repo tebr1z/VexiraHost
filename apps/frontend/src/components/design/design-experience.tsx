@@ -9,6 +9,8 @@ import { useRef } from "react";
 import { DesignNav } from "./design-nav";
 import { ProjectMock } from "./design-visuals";
 
+import { Link } from "@/i18n/navigation";
+
 import "./design.css";
 
 if (typeof window !== "undefined") {
@@ -496,6 +498,9 @@ export function DesignExperience({ fontClassName }: { fontClassName: string }): 
         <div className="vd-cta-row">
           <p className="vd-cta-lead">{t("ctaLead")}</p>
           <div className="flex flex-wrap items-center gap-4">
+            <Link href="/project-quote" className="vd-btn">
+              {t("quoteButton")}
+            </Link>
             <a
               className="vd-btn"
               href="https://wa.me/994709646466"

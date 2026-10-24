@@ -5,6 +5,7 @@ import { DeployRepository } from "../repository/deploy.repository";
 import { DEPLOY_STAGES } from "../types/deploy-stage";
 import { redactSshTargets } from "../utils/deploy-env.util";
 import { resolveDeployRuntime } from "../utils/deploy-runtime.util";
+import { requireDeploymentEnv } from "../utils/deployment-env.util";
 
 import { GitHubDeployService } from "./github-deploy.service";
 import { PleskSiteService } from "./plesk-site.service";
@@ -13,7 +14,6 @@ import { RemoteDeployService } from "./remote-deploy.service";
 import { ServerBootstrapService } from "./server-bootstrap.service";
 
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
-import { decryptSecret } from "@/utils/crypto.util";
 
 @Injectable()
 export class DeployRunner {
@@ -215,6 +215,8 @@ export class DeployRunner {
 
       const serverLabel = server.name?.trim() || "hosting server";
       await log(`Using ${serverLabel}`);
+      // Validate secrets before changing ports, domains or remote processes.
+      const envVars = requireDeploymentEnv(deployment.envVarsEnc);
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.ALLOCATING_PORT);
       await log("Stage: allocating host port…");
@@ -277,9 +279,6 @@ export class DeployRunner {
       }
 
       await this.setStage(deploymentId, run.id, DEPLOY_STAGES.PREPARING_SERVER);
-      const envVars = deployment.envVarsEnc
-        ? (JSON.parse(decryptSecret(deployment.envVarsEnc)) as Record<string, string>)
-        : {};
 
       const isDockerImage = deployment.source === "DOCKER_IMAGE";
       const isUpload = deployment.source === "UPLOAD";

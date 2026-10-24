@@ -9,7 +9,7 @@ import {
   MinLength,
 } from "class-validator";
 
-import { AUTH_EMAIL_LOCALES } from "../email/auth-email.locale";
+import { SITE_AUTH_LOCALES } from "../email/auth-email.locale";
 
 import { SUPPORTED_CURRENCIES } from "@/shared/pricing/currency.util";
 
@@ -44,7 +44,7 @@ export class RegisterDto {
   phone?: string;
 
   @IsOptional()
-  @IsIn([...AUTH_EMAIL_LOCALES])
+  @IsIn([...SITE_AUTH_LOCALES])
   locale?: string;
 
   /** Default true — campaign / promo email subscription */

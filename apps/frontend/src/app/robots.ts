@@ -1,10 +1,26 @@
 import type { MetadataRoute } from "next";
 
+import { locales } from "@/i18n/routing";
 import { getSiteUrl } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = getSiteUrl();
-  const disallow = ["/dashboard/", "/auth/", "/payment/", "/cart/", "/api/", "/unsubscribe/"];
+  const privatePaths = [
+    "/dashboard",
+    "/t4abriz",
+    "/auth/",
+    "/payment/",
+    "/cart",
+    "/unsubscribe",
+    "/login",
+    "/register",
+  ];
+  const disallow = [
+    "/api/",
+    ...locales.flatMap((locale) =>
+      privatePaths.map((path) => (locale === "en" ? path : `/${locale}${path}`)),
+    ),
+  ];
 
   const sharedRule = {
     allow: "/" as const,

@@ -2,8 +2,9 @@
 
 import { NextIntlClientProvider } from "next-intl";
 
+import en from "../../messages/en.json";
+
 import { NotFoundView } from "@/components/errors/not-found-view";
-import { localeMessages } from "@/lib/i18n/messages";
 
 /**
  * Root-level 404 (outside [locale] layout). Provide a minimal intl context
@@ -11,7 +12,7 @@ import { localeMessages } from "@/lib/i18n/messages";
  */
 export default function RootNotFoundPage(): React.ReactElement {
   return (
-    <NextIntlClientProvider locale="en" messages={localeMessages.en} timeZone="Asia/Baku">
+    <NextIntlClientProvider locale="en" messages={{ errors: en.errors }} timeZone="Asia/Baku">
       <NotFoundView />
     </NextIntlClientProvider>
   );

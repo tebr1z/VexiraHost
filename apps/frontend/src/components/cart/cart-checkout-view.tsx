@@ -22,7 +22,12 @@ import {
   type BillingAddressInput,
   type CheckoutPaymentMethod,
 } from "@/features/billing/lib/perform-checkout";
-import { getAccountBalance, validatePromoCode } from "@/features/billing/services/billing.service";
+import {
+  getAccountBalance,
+  validatePromoCode,
+  quoteCheckout,
+  type CheckoutQuote,
+} from "@/features/billing/services/billing.service";
 import { getCatalogProduct } from "@/features/catalog";
 import { convertAmount } from "@/features/catalog/services/exchange-rates.service";
 import { useExchangeRates } from "@/hooks/use-display-money";
@@ -34,8 +39,10 @@ import {
   isMonthlyBilling,
   resolveCheckoutPeriod,
 } from "@/lib/cart-pricing";
+import { hostingDomainMetadata } from "@/lib/hosting-domain";
 import { formatMoney } from "@/lib/i18n/format";
 import { pickLocalizedText } from "@/lib/localized-text";
+import { productPath } from "@/lib/product-path";
 import { useAuthStore } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
 import { useMaintenanceStore } from "@/stores/maintenance-store";
@@ -61,6 +68,8 @@ export function CartCheckoutView({
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("cart");
+  const tp = useTranslations("productPurchase");
+  const td = useTranslations("hostingDomain");
   const tAuth = useTranslations("auth");
   const ta = useTranslations("access");
   const tv = useTranslations("validation");
@@ -117,11 +126,69 @@ export function CartCheckoutView({
   const hasSavedBilling = isCompleteBillingAddress(user?.billingAddress ?? null);
   const showBillingForm = !skipBillingAddress && (!hasSavedBilling || editingBilling);
   const showBillingSection = isAuthenticated;
+  const [quote, setQuote] = useState<{ key: string; value: CheckoutQuote } | null>(null);
+  const [quoteError, setQuoteError] = useState(false);
+  const quoteKey = JSON.stringify({
+    userId: user?.id,
+    verified: user?.emailVerified,
+    items: items.map((i) => [
+      i.productId,
+      i.quantity,
+      i.billingCycle,
+      i.primaryDomain,
+      i.domainChoice?.mode,
+    ]),
+    period: pricingPeriod,
+    promo: appliedPromo?.code,
+  });
+  const currentQuote = isAuthenticated && quote?.key === quoteKey ? quote.value : null;
+  useEffect(() => {
+    if (!isAuthenticated || items.length === 0) return;
+    let cancelled = false;
+    setQuoteError(false);
+    quoteCheckout({
+      items: items.map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        metadata: hostingDomainMetadata(i),
+      })),
+      currency: "AZN",
+      period: resolveCheckoutPeriod(items, pricingPeriod),
+      promoCode: appliedPromo?.code,
+    })
+      .then((value) => {
+        if (!cancelled) setQuote({ key: quoteKey, value });
+      })
+      .catch(() => {
+        if (!cancelled) setQuoteError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [quoteKey, isAuthenticated]);
 
-  const checkoutTotal = Math.max(0, total() - (appliedPromo?.discountAmount ?? 0));
-  const cartCurrency = items[0]?.currency ?? pricingCurrency;
+  const rawCartCurrency = items[0]?.currency ?? pricingCurrency;
+  const cartCurrency =
+    rawCartCurrency === "EUR" || rawCartCurrency === "AZN" ? rawCartCurrency : "USD";
   const rates = useExchangeRates();
-  const settleAzn = convertAmount(checkoutTotal, cartCurrency, "AZN", rates);
+  const domainFees = items.reduce(
+    (sum, item) =>
+      sum +
+      (item.domainChoice && item.domainChoice.mode !== "existing"
+        ? convertAmount(item.domainChoice.price, item.domainChoice.currency, cartCurrency, rates)
+        : 0),
+    0,
+  );
+  const checkoutTotal = currentQuote
+    ? convertAmount(currentQuote.total, currentQuote.currency, cartCurrency, rates)
+    : Math.max(0, total() + domainFees - (appliedPromo?.discountAmount ?? 0));
+  const displayedDiscount = currentQuote
+    ? convertAmount(currentQuote.discountAmount, currentQuote.currency, cartCurrency, rates)
+    : (appliedPromo?.discountAmount ?? 0);
+  const displayedSubtotal = currentQuote
+    ? convertAmount(currentQuote.subtotal, currentQuote.currency, cartCurrency, rates)
+    : total() + domainFees;
+  const settleAzn = currentQuote?.total ?? convertAmount(checkoutTotal, cartCurrency, "AZN", rates);
   const balanceInAzn =
     balance != null ? convertAmount(balance.balance, balance.currency, "AZN", rates) : 0;
   const canPayWithBalance =
@@ -425,606 +492,669 @@ export function CartCheckoutView({
   }
 
   return (
-    <div className="space-y-6">
-      {hostingItems.length > 0 ? (
-        <div className="rounded-2xl border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] p-5">
-          <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
-              {t("domainSectionBadge")}
-            </p>
-            <h2 className="font-jakarta text-primary mt-1 text-lg font-semibold">
-              {t("domainSectionTitle")}
-            </h2>
-            <p className="text-on-surface-variant mt-1 text-sm">{t("domainSectionDesc")}</p>
+    <div className="checkout-layout">
+      <div className="checkout-main space-y-6">
+        {hostingItems.length > 0 ? (
+          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,var(--bg-elevated))] p-5">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
+                {t("domainSectionBadge")}
+              </p>
+              <h2 className="font-jakarta text-primary mt-1 text-lg font-semibold">
+                {t("domainSectionTitle")}
+              </h2>
+              <p className="text-on-surface-variant mt-1 text-sm">{t("domainSectionDesc")}</p>
+            </div>
+            <div className="space-y-4">
+              {hostingItems.map((item) => (
+                <div key={`domain-${item.productId}`}>
+                  <label
+                    htmlFor={`cart-domain-${item.productId}`}
+                    className="text-on-surface mb-1.5 block text-sm font-medium"
+                  >
+                    {t("domainForPlan", { name: item.name })}
+                  </label>
+                  {item.domainChoice ? (
+                    <div className="hosting-selected-domain">
+                      <div>
+                        <strong>{item.primaryDomain}</strong>
+                        <small>{td(item.domainChoice.mode)}</small>
+                      </div>
+                      <Link
+                        href={productPath({
+                          slug: item.slug,
+                          category: "HOSTING",
+                          hostingPlanSlug: item.hostingPlanSlug,
+                        })}
+                      >
+                        {td("change")}
+                      </Link>
+                    </div>
+                  ) : (
+                    <input
+                      id={`cart-domain-${item.productId}`}
+                      value={item.primaryDomain ?? ""}
+                      onChange={(e) => setPrimaryDomain(item.productId, e.target.value)}
+                      placeholder={t("domainPlaceholder")}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-secondary/30 h-12 w-full rounded-xl border px-4 text-base font-medium tracking-wide focus:ring-2"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-4">
-            {hostingItems.map((item) => (
-              <div key={`domain-${item.productId}`}>
-                <label
-                  htmlFor={`cart-domain-${item.productId}`}
-                  className="text-on-surface mb-1.5 block text-sm font-medium"
+        ) : null}
+
+        <ul className="space-y-4">
+          {items.map((item) => (
+            <li
+              key={item.productId}
+              className="border-outline-variant/50 bg-surface rounded-2xl border p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Link
+                    className="checkout-item-name"
+                    href={productPath({
+                      slug: item.slug,
+                      category: item.category ?? "",
+                      hostingPlanSlug: item.hostingPlanSlug,
+                    })}
+                  >
+                    {item.name}
+                  </Link>
+                  <p className="text-on-surface-variant text-sm">
+                    {item.quantity} × {formatMoney(item.price, item.currency, locale)} /{" "}
+                    {billingLabel(item.category === "LICENSE" ? "ONE_TIME" : item.billingCycle)}
+                  </p>
+                  {item.category === "HOSTING" && item.primaryDomain?.trim() ? (
+                    <p className="mt-1 text-sm text-[var(--accent)]">{item.primaryDomain.trim()}</p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.productId)}
+                  className="text-error text-sm hover:underline"
                 >
-                  {t("domainForPlan", { name: item.name })}
-                </label>
-                <input
-                  id={`cart-domain-${item.productId}`}
-                  value={item.primaryDomain ?? ""}
-                  onChange={(e) => setPrimaryDomain(item.productId, e.target.value)}
-                  placeholder={t("domainPlaceholder")}
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="border-outline-variant bg-surface-container-lowest focus:border-secondary focus:ring-secondary/30 h-12 w-full rounded-xl border px-4 text-base font-medium tracking-wide focus:ring-2"
-                />
+                  {t("remove")}
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
-      <ul className="space-y-4">
-        {items.map((item) => (
-          <li
-            key={item.productId}
-            className="border-outline-variant/50 bg-surface rounded-2xl border p-4 shadow-sm"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-primary font-semibold">{item.name}</p>
-                <p className="text-on-surface-variant text-sm">
-                  {item.quantity} × {formatMoney(item.price, item.currency, locale)} /{" "}
-                  {billingLabel(item.category === "LICENSE" ? "ONE_TIME" : item.billingCycle)}
-                </p>
-                {item.category === "HOSTING" && item.primaryDomain?.trim() ? (
-                  <p className="mt-1 text-sm text-[var(--accent)]">{item.primaryDomain.trim()}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={() => removeItem(item.productId)}
-                className="text-error text-sm hover:underline"
-              >
-                {t("remove")}
-              </button>
-            </div>
+              {item.domainChoice && item.domainChoice.mode !== "existing" && (
+                <div className="checkout-domain-fee">
+                  <div>
+                    <strong>
+                      {td(item.domainChoice.mode)} · {item.domainChoice.name}
+                    </strong>
+                    <span>
+                      {formatMoney(
+                        convertAmount(
+                          item.domainChoice.price,
+                          item.domainChoice.currency,
+                          cartCurrency,
+                          rates,
+                        ),
+                        cartCurrency,
+                        locale,
+                      )}{" "}
+                      / {td("year")}
+                    </span>
+                  </div>
+                  <p>
+                    {td(item.domainChoice.mode === "transfer" ? "transferNote" : "processingNote")}
+                  </p>
+                </div>
+              )}
+              <CartYearlyUpsell item={item} />
+            </li>
+          ))}
+        </ul>
 
-            <CartYearlyUpsell item={item} />
-          </li>
-        ))}
-      </ul>
-
-      <div className="border-outline-variant/40 bg-surface space-y-3 rounded-2xl border p-4">
-        <p className="text-primary text-sm font-semibold">{t("promoTitle")}</p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            value={promoInput}
-            onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-            placeholder={t("promoPlaceholder")}
-            disabled={Boolean(appliedPromo)}
-            className="border-outline-variant bg-surface-container-lowest h-11 flex-1 rounded-xl border px-4 text-sm uppercase tracking-wide disabled:opacity-60"
-          />
-          {appliedPromo ? (
-            <button
-              type="button"
-              onClick={() => {
-                setAppliedPromo(null);
-                setPromoError(null);
-                setPromoProgress(null);
-                setPromoInput("");
-              }}
-              className="border-outline-variant inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold"
-            >
-              {t("promoRemove")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={promoLoading || !promoInput.trim()}
-              onClick={async () => {
-                setPromoLoading(true);
-                setPromoError(null);
-                setPromoProgress(null);
-                try {
-                  const period = resolveCheckoutPeriod(items, pricingPeriod);
-                  const result = await validatePromoCode({
-                    code: promoInput.trim(),
-                    items: items.map((item) => ({
-                      productId: item.productId,
-                      quantity: item.quantity,
-                    })),
-                    currency: pricingCurrency,
-                    period,
-                  });
-                  if (!result.valid) {
-                    setAppliedPromo(null);
-                    if (result.messageKey === "min_order") {
-                      const currency = String(result.messageParams.currency ?? pricingCurrency);
-                      setPromoProgress({
-                        code: String(result.messageParams.code ?? promoInput.trim().toUpperCase()),
-                        progressPercent: Number(result.messageParams.progressPercent ?? 0),
-                        remainingAmount: Number(result.messageParams.remainingAmount ?? 0),
-                        minOrderAmount: Number(result.messageParams.minOrderAmount ?? 0),
-                        potentialDiscount: Number(result.messageParams.potentialDiscount ?? 0),
-                        currency,
-                      });
-                      setPromoError(null);
-                    } else {
-                      setPromoProgress(null);
-                      setPromoError(
-                        promoMessageFromKey(t, result.messageKey, result.messageParams, locale),
-                      );
-                    }
-                    return;
-                  }
-                  setAppliedPromo({
-                    code: result.code ?? promoInput.trim().toUpperCase(),
-                    discountAmount: result.discountAmount,
-                    messageKey: result.messageKey,
-                    messageParams: result.messageParams,
-                  });
-                  setPromoError(null);
-                  setPromoProgress(null);
-                } catch {
-                  setPromoError(t("promoValidateFailed"));
-                } finally {
-                  setPromoLoading(false);
-                }
-              }}
-              className="bg-primary text-on-primary inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
-            >
-              {t("promoApply")}
-            </button>
-          )}
-        </div>
-        {promoError ? <p className="text-error text-sm">{promoError}</p> : null}
-        {promoProgress ? (
-          <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3">
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="font-medium text-amber-950 dark:text-amber-100">
-                {t("promoMinOrderProgress", {
-                  remaining: formatMoney(
-                    promoProgress.remainingAmount,
-                    promoProgress.currency,
-                    locale,
-                  ),
-                  discount: formatMoney(
-                    promoProgress.potentialDiscount,
-                    promoProgress.currency,
-                    locale,
-                  ),
-                })}
-              </span>
-              <span className="shrink-0 text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {promoProgress.progressPercent}%
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-amber-500/20">
-              <div
-                className="h-full rounded-full bg-amber-500 transition-all"
-                style={{ width: `${Math.min(100, Math.max(0, promoProgress.progressPercent))}%` }}
-              />
-            </div>
-            <p className="text-xs text-amber-900/80 dark:text-amber-100/80">
-              {t("promoMinOrderHint", {
-                current: formatMoney(
-                  Math.max(0, promoProgress.minOrderAmount - promoProgress.remainingAmount),
-                  promoProgress.currency,
-                  locale,
-                ),
-                min: formatMoney(promoProgress.minOrderAmount, promoProgress.currency, locale),
-              })}
-            </p>
-          </div>
-        ) : null}
-        {appliedPromo ? (
-          <p className="text-sm font-medium text-[var(--success)]">
-            {t("promoAppliedAmount", {
-              code: appliedPromo.code,
-              discount: formatMoney(
-                appliedPromo.discountAmount,
-                items[0]?.currency ?? pricingCurrency,
-                locale,
-              ),
-            })}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="bg-surface-container-low space-y-2 rounded-2xl p-4">
-        {appliedPromo ? (
-          <>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-on-surface-variant">{t("promoSubtotal")}</span>
-              <span>{formatMoney(total(), items[0]?.currency ?? "USD", locale)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm text-[var(--success)]">
-              <span>
-                {t("promoDiscount")} ({appliedPromo.code})
-              </span>
-              <span>
-                −{formatMoney(appliedPromo.discountAmount, items[0]?.currency ?? "USD", locale)}
-              </span>
-            </div>
-          </>
-        ) : null}
-        <div className="flex items-center justify-between">
-          <span className="font-semibold">{t("total")}</span>
-          <span className="text-xl font-bold">
-            {formatMoney(
-              Math.max(0, total() - (appliedPromo?.discountAmount ?? 0)),
-              items[0]?.currency ?? "USD",
-              locale,
-            )}
-          </span>
-        </div>
-        {checkoutTotal > 0 ? (
-          <div className="border-outline-variant/40 space-y-1 border-t pt-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-on-surface-variant">{t("settleAmount")}</span>
-              <span className="font-semibold text-[var(--accent)]">
-                {formatMoney(settleAzn, "AZN", locale)}
-              </span>
-            </div>
-            <p className="text-on-surface-variant text-xs">
-              {t("settleRate", {
-                rate: rates.usdToAzn.toFixed(4),
-                date: rates.date,
-              })}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      {quickAccount && !isAuthenticated ? (
-        access.registerEnabled ? (
-          <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
-            <h2 className="font-jakarta text-primary text-lg font-semibold">
-              {t("quickAccountTitle")}
-            </h2>
-            <p className="text-on-surface-variant mt-1 text-sm">{t("quickAccountDesc")}</p>
-            <div className="mt-4">
-              <OAuthButtons
-                intent="signup"
-                turnstileToken={turnstileToken}
-                disabled={turnstile.enabled && (!turnstile.ready || !turnstileToken)}
-              />
-            </div>
-            <p className="text-on-surface-variant mt-4 text-sm">
-              {t("alreadyHaveAccount")}{" "}
-              <Link
-                href="/login?next=%2Fcart"
-                className="text-secondary font-semibold hover:underline"
-              >
-                {t("loginLink")}
-              </Link>
-            </p>
-            <div className="my-4 flex items-center gap-3">
-              <div className="bg-outline-variant/40 h-px flex-1" />
-              <span className="text-on-surface-variant text-xs">{tAuth("orEmail")}</span>
-              <div className="bg-outline-variant/40 h-px flex-1" />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium">{tAuth("firstName")}</label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="given-name"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">{tAuth("lastName")}</label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="family-name"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">{tAuth("email")}</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="email"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <PreferredCurrencyPicker
-                  value={preferredCurrency}
-                  onChange={setPreferredCurrency}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">{tAuth("password")}</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">{tAuth("confirmPassword")}</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-            <label className="text-on-surface-variant mt-3 flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="border-outline-variant mt-0.5 h-4 w-4 rounded"
-              />
-              <span>
-                {tAuth("acceptTermsPrefix")}{" "}
-                <Link href="/terms" className="text-secondary font-semibold hover:underline">
-                  {tAuth("acceptTermsLink")}
-                </Link>{" "}
-                {tAuth("acceptTermsAnd")}{" "}
-                <Link href="/privacy" className="text-secondary font-semibold hover:underline">
-                  {tAuth("privacyLink")}
-                </Link>
-                .
-              </span>
-            </label>
-            {turnstile.enabled ? (
+        {quickAccount && !isAuthenticated ? (
+          access.registerEnabled ? (
+            <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+              <h2 className="font-jakarta text-primary text-lg font-semibold">
+                {t("quickAccountTitle")}
+              </h2>
+              <p className="text-on-surface-variant mt-1 text-sm">{t("quickAccountDesc")}</p>
               <div className="mt-4">
-                <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
+                <OAuthButtons
+                  intent="signup"
+                  turnstileToken={turnstileToken}
+                  disabled={turnstile.enabled && (!turnstile.ready || !turnstileToken)}
+                />
               </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
-            <AccessClosedNotice
-              compact
-              message={pickLocalizedText(access.registerMessage, locale)}
-            />
-            {access.loginEnabled ? (
-              <p className="text-on-surface-variant mt-4 text-center text-sm">
+              <p className="text-on-surface-variant mt-4 text-sm">
                 {t("alreadyHaveAccount")}{" "}
                 <Link
-                  href="/login?next=/cart"
+                  href="/login?next=%2Fcart"
                   className="text-secondary font-semibold hover:underline"
                 >
-                  {tAuth("signIn")}
+                  {t("loginLink")}
                 </Link>
               </p>
-            ) : null}
-          </div>
-        )
-      ) : (
-        isAuthenticated &&
-        user && (
-          <p className="text-on-surface-variant text-sm">
-            {t("loggedInAs", { email: user.email })}
-          </p>
-        )
-      )}
-
-      {showBillingSection ? (
-        <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-jakarta text-primary text-lg font-semibold">
-                {t("billingAddressTitle")}
-              </h2>
-              <p className="text-on-surface-variant mt-1 text-sm">
-                {skipBillingAddress
-                  ? t("billingAddressSkippedDesc")
-                  : hasSavedBilling && !editingBilling
-                    ? t("billingAddressSavedDesc")
-                    : t("billingAddressDesc")}
-              </p>
+              <div className="my-4 flex items-center gap-3">
+                <div className="bg-outline-variant/40 h-px flex-1" />
+                <span className="text-on-surface-variant text-xs">{tAuth("orEmail")}</span>
+                <div className="bg-outline-variant/40 h-px flex-1" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{tAuth("firstName")}</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="given-name"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{tAuth("lastName")}</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="family-name"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">{tAuth("email")}</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <PreferredCurrencyPicker
+                    value={preferredCurrency}
+                    onChange={setPreferredCurrency}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">{tAuth("password")}</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">
+                    {tAuth("confirmPassword")}
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+              <label className="text-on-surface-variant mt-3 flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="border-outline-variant mt-0.5 h-4 w-4 rounded"
+                />
+                <span>
+                  {tAuth("acceptTermsPrefix")}{" "}
+                  <Link href="/terms" className="text-secondary font-semibold hover:underline">
+                    {tAuth("acceptTermsLink")}
+                  </Link>{" "}
+                  {tAuth("acceptTermsAnd")}{" "}
+                  <Link href="/privacy" className="text-secondary font-semibold hover:underline">
+                    {tAuth("privacyLink")}
+                  </Link>
+                  .
+                </span>
+              </label>
+              {turnstile.enabled ? (
+                <div className="mt-4">
+                  <TurnstileWidget ref={turnstileRef} action="signup" onToken={setTurnstileToken} />
+                </div>
+              ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {hasSavedBilling && !skipBillingAddress ? (
+          ) : (
+            <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+              <AccessClosedNotice
+                compact
+                message={pickLocalizedText(access.registerMessage, locale)}
+              />
+              {access.loginEnabled ? (
+                <p className="text-on-surface-variant mt-4 text-center text-sm">
+                  {t("alreadyHaveAccount")}{" "}
+                  <Link
+                    href="/login?next=/cart"
+                    className="text-secondary font-semibold hover:underline"
+                  >
+                    {tAuth("signIn")}
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          )
+        ) : (
+          isAuthenticated &&
+          user && (
+            <p className="text-on-surface-variant text-sm">
+              {t("loggedInAs", { email: user.email })}
+            </p>
+          )
+        )}
+
+        {showBillingSection ? (
+          <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-jakarta text-primary text-lg font-semibold">
+                  {t("billingAddressTitle")}
+                </h2>
+                <p className="text-on-surface-variant mt-1 text-sm">
+                  {skipBillingAddress
+                    ? t("billingAddressSkippedDesc")
+                    : hasSavedBilling && !editingBilling
+                      ? t("billingAddressSavedDesc")
+                      : t("billingAddressDesc")}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {hasSavedBilling && !skipBillingAddress ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingBilling && isCompleteBillingAddress(user?.billingAddress)) {
+                        setBillingAddress(user!.billingAddress!);
+                      }
+                      setEditingBilling((v) => !v);
+                    }}
+                    className="text-secondary text-sm font-semibold hover:underline"
+                  >
+                    {editingBilling ? t("billingAddressCancelEdit") : t("billingAddressChange")}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
-                    if (editingBilling && isCompleteBillingAddress(user?.billingAddress)) {
-                      setBillingAddress(user!.billingAddress!);
-                    }
-                    setEditingBilling((v) => !v);
+                    setSkipBillingAddress((v) => !v);
+                    setEditingBilling(false);
                   }}
-                  className="text-secondary text-sm font-semibold hover:underline"
+                  className="border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl border px-3 py-1.5 text-sm font-medium transition"
                 >
-                  {editingBilling ? t("billingAddressCancelEdit") : t("billingAddressChange")}
+                  {skipBillingAddress ? t("billingAddressAdd") : t("billingAddressSkip")}
                 </button>
-              ) : null}
+              </div>
+            </div>
+
+            {skipBillingAddress ? null : showBillingForm ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">{t("billingFullName")}</label>
+                  <input
+                    value={billingAddress.fullName}
+                    onChange={(e) =>
+                      setBillingAddress((prev) => ({ ...prev, fullName: e.target.value }))
+                    }
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">{t("billingLine1")}</label>
+                  <input
+                    value={billingAddress.line1}
+                    onChange={(e) =>
+                      setBillingAddress((prev) => ({ ...prev, line1: e.target.value }))
+                    }
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="address-line1"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("billingCity")}</label>
+                  <input
+                    value={billingAddress.city}
+                    onChange={(e) =>
+                      setBillingAddress((prev) => ({ ...prev, city: e.target.value }))
+                    }
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="address-level2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("billingRegion")}</label>
+                  <input
+                    value={billingAddress.region}
+                    onChange={(e) =>
+                      setBillingAddress((prev) => ({ ...prev, region: e.target.value }))
+                    }
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="address-level1"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("billingPostalCode")}</label>
+                  <input
+                    value={billingAddress.postalCode}
+                    onChange={(e) =>
+                      setBillingAddress((prev) => ({ ...prev, postalCode: e.target.value }))
+                    }
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="postal-code"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t("billingCountry")}</label>
+                  <input
+                    value={billingAddress.country}
+                    onChange={(e) =>
+                      setBillingAddress((prev) => ({ ...prev, country: e.target.value }))
+                    }
+                    className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
+                    autoComplete="country-name"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-on-surface mt-4 space-y-1 text-sm">
+                <p className="font-medium">{billingAddress.fullName}</p>
+                <p>{billingAddress.line1}</p>
+                <p>
+                  {[billingAddress.postalCode, billingAddress.city, billingAddress.region]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+                <p>{billingAddress.country}</p>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {isAuthenticated ? (
+          <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
+            <h2 className="font-jakarta text-primary text-lg font-semibold">
+              {t("paymentMethodTitle")}
+            </h2>
+            <p className="text-on-surface-variant mt-1 text-sm">{t("paymentMethodDesc")}</p>
+            <div className="mt-4 space-y-3">
+              <label className="border-outline-variant hover:bg-surface-container-low flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition">
+                <input
+                  type="radio"
+                  name="cart-payment-method"
+                  checked={paymentMethod === "card"}
+                  onChange={() => setPaymentMethod("card")}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium">{t("paymentMethodCard")}</p>
+                  <p className="text-on-surface-variant text-sm">
+                    {t("paymentMethodCardDescAzn", {
+                      amount: formatMoney(settleAzn, "AZN", locale),
+                    })}
+                  </p>
+                </div>
+              </label>
+              <label
+                className={`border-outline-variant flex items-start gap-3 rounded-xl border p-4 transition ${
+                  canPayWithBalance
+                    ? "hover:bg-surface-container-low cursor-pointer"
+                    : "cursor-not-allowed opacity-60"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="cart-payment-method"
+                  checked={paymentMethod === "balance"}
+                  onChange={() => canPayWithBalance && setPaymentMethod("balance")}
+                  disabled={!canPayWithBalance}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium">{t("paymentMethodBalance")}</p>
+                  <p className="text-on-surface-variant text-sm">
+                    {balance
+                      ? t("paymentMethodBalanceDesc", {
+                          balance: formatMoney(balance.balance, balance.currency, locale),
+                        })
+                      : t("paymentMethodBalanceUnavailable")}
+                  </p>
+                  {balance && cartCurrency.toUpperCase() !== "AZN" ? (
+                    <p className="text-on-surface-variant mt-1 text-xs">
+                      {t("paymentMethodBalanceAzn", {
+                        balance: formatMoney(balanceInAzn, "AZN", locale),
+                        charge: formatMoney(settleAzn, "AZN", locale),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+              </label>
+            </div>
+          </div>
+        ) : null}
+
+        {error && (
+          <p className="border-error/20 bg-error-container text-error rounded-xl border px-4 py-3 text-sm">
+            {error}
+          </p>
+        )}
+        {quoteError ? (
+          <p role="alert" className="text-error text-sm">
+            {t("promoValidateFailed")}
+          </p>
+        ) : null}
+      </div>
+      <aside className="checkout-summary">
+        <h2>{tp("orderSummary")}</h2>
+        <div className="border-outline-variant/40 bg-surface space-y-3 rounded-2xl border p-4">
+          <p className="text-primary text-sm font-semibold">{t("promoTitle")}</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={promoInput}
+              onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+              placeholder={t("promoPlaceholder")}
+              disabled={Boolean(appliedPromo)}
+              className="border-outline-variant bg-surface-container-lowest h-11 flex-1 rounded-xl border px-4 text-sm uppercase tracking-wide disabled:opacity-60"
+            />
+            {appliedPromo ? (
               <button
                 type="button"
                 onClick={() => {
-                  setSkipBillingAddress((v) => !v);
-                  setEditingBilling(false);
+                  setAppliedPromo(null);
+                  setPromoError(null);
+                  setPromoProgress(null);
+                  setPromoInput("");
                 }}
-                className="border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl border px-3 py-1.5 text-sm font-medium transition"
+                className="border-outline-variant inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold"
               >
-                {skipBillingAddress ? t("billingAddressAdd") : t("billingAddressSkip")}
+                {t("promoRemove")}
               </button>
-            </div>
+            ) : (
+              <button
+                type="button"
+                disabled={promoLoading || !promoInput.trim()}
+                onClick={async () => {
+                  setPromoLoading(true);
+                  setPromoError(null);
+                  setPromoProgress(null);
+                  try {
+                    const period = resolveCheckoutPeriod(items, pricingPeriod);
+                    const result = await validatePromoCode({
+                      code: promoInput.trim(),
+                      items: items.map((item) => ({
+                        productId: item.productId,
+                        quantity: item.quantity,
+                        metadata: hostingDomainMetadata(item),
+                      })),
+                      currency: pricingCurrency,
+                      period,
+                    });
+                    if (!result.valid) {
+                      setAppliedPromo(null);
+                      if (result.messageKey === "min_order") {
+                        const currency = String(result.messageParams.currency ?? pricingCurrency);
+                        setPromoProgress({
+                          code: String(
+                            result.messageParams.code ?? promoInput.trim().toUpperCase(),
+                          ),
+                          progressPercent: Number(result.messageParams.progressPercent ?? 0),
+                          remainingAmount: Number(result.messageParams.remainingAmount ?? 0),
+                          minOrderAmount: Number(result.messageParams.minOrderAmount ?? 0),
+                          potentialDiscount: Number(result.messageParams.potentialDiscount ?? 0),
+                          currency,
+                        });
+                        setPromoError(null);
+                      } else {
+                        setPromoProgress(null);
+                        setPromoError(
+                          promoMessageFromKey(t, result.messageKey, result.messageParams, locale),
+                        );
+                      }
+                      return;
+                    }
+                    setAppliedPromo({
+                      code: result.code ?? promoInput.trim().toUpperCase(),
+                      discountAmount: result.discountAmount,
+                      messageKey: result.messageKey,
+                      messageParams: result.messageParams,
+                    });
+                    setPromoError(null);
+                    setPromoProgress(null);
+                  } catch {
+                    setPromoError(t("promoValidateFailed"));
+                  } finally {
+                    setPromoLoading(false);
+                  }
+                }}
+                className="bg-primary text-on-primary inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold disabled:opacity-60"
+              >
+                {t("promoApply")}
+              </button>
+            )}
           </div>
-
-          {skipBillingAddress ? null : showBillingForm ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">{t("billingFullName")}</label>
-                <input
-                  value={billingAddress.fullName}
-                  onChange={(e) =>
-                    setBillingAddress((prev) => ({ ...prev, fullName: e.target.value }))
-                  }
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="name"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium">{t("billingLine1")}</label>
-                <input
-                  value={billingAddress.line1}
-                  onChange={(e) =>
-                    setBillingAddress((prev) => ({ ...prev, line1: e.target.value }))
-                  }
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="address-line1"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">{t("billingCity")}</label>
-                <input
-                  value={billingAddress.city}
-                  onChange={(e) => setBillingAddress((prev) => ({ ...prev, city: e.target.value }))}
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="address-level2"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">{t("billingRegion")}</label>
-                <input
-                  value={billingAddress.region}
-                  onChange={(e) =>
-                    setBillingAddress((prev) => ({ ...prev, region: e.target.value }))
-                  }
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="address-level1"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">{t("billingPostalCode")}</label>
-                <input
-                  value={billingAddress.postalCode}
-                  onChange={(e) =>
-                    setBillingAddress((prev) => ({ ...prev, postalCode: e.target.value }))
-                  }
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="postal-code"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">{t("billingCountry")}</label>
-                <input
-                  value={billingAddress.country}
-                  onChange={(e) =>
-                    setBillingAddress((prev) => ({ ...prev, country: e.target.value }))
-                  }
-                  className="border-outline-variant h-11 w-full rounded-xl border px-4 text-sm"
-                  autoComplete="country-name"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="text-on-surface mt-4 space-y-1 text-sm">
-              <p className="font-medium">{billingAddress.fullName}</p>
-              <p>{billingAddress.line1}</p>
-              <p>
-                {[billingAddress.postalCode, billingAddress.city, billingAddress.region]
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-              <p>{billingAddress.country}</p>
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {isAuthenticated ? (
-        <div className="border-outline-variant/50 bg-surface rounded-2xl border p-5">
-          <h2 className="font-jakarta text-primary text-lg font-semibold">
-            {t("paymentMethodTitle")}
-          </h2>
-          <p className="text-on-surface-variant mt-1 text-sm">{t("paymentMethodDesc")}</p>
-          <div className="mt-4 space-y-3">
-            <label className="border-outline-variant hover:bg-surface-container-low flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition">
-              <input
-                type="radio"
-                name="cart-payment-method"
-                checked={paymentMethod === "card"}
-                onChange={() => setPaymentMethod("card")}
-                className="mt-1"
-              />
-              <div>
-                <p className="font-medium">{t("paymentMethodCard")}</p>
-                <p className="text-on-surface-variant text-sm">
-                  {t("paymentMethodCardDescAzn", {
-                    amount: formatMoney(settleAzn, "AZN", locale),
+          {promoError ? <p className="text-error text-sm">{promoError}</p> : null}
+          {promoProgress ? (
+            <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium text-amber-950 dark:text-amber-100">
+                  {t("promoMinOrderProgress", {
+                    remaining: formatMoney(
+                      promoProgress.remainingAmount,
+                      promoProgress.currency,
+                      locale,
+                    ),
+                    discount: formatMoney(
+                      promoProgress.potentialDiscount,
+                      promoProgress.currency,
+                      locale,
+                    ),
                   })}
-                </p>
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                  {promoProgress.progressPercent}%
+                </span>
               </div>
-            </label>
-            <label
-              className={`border-outline-variant flex items-start gap-3 rounded-xl border p-4 transition ${
-                canPayWithBalance
-                  ? "hover:bg-surface-container-low cursor-pointer"
-                  : "cursor-not-allowed opacity-60"
-              }`}
-            >
-              <input
-                type="radio"
-                name="cart-payment-method"
-                checked={paymentMethod === "balance"}
-                onChange={() => canPayWithBalance && setPaymentMethod("balance")}
-                disabled={!canPayWithBalance}
-                className="mt-1"
-              />
-              <div>
-                <p className="font-medium">{t("paymentMethodBalance")}</p>
-                <p className="text-on-surface-variant text-sm">
-                  {balance
-                    ? t("paymentMethodBalanceDesc", {
-                        balance: formatMoney(balance.balance, balance.currency, locale),
-                      })
-                    : t("paymentMethodBalanceUnavailable")}
-                </p>
-                {balance && cartCurrency.toUpperCase() !== "AZN" ? (
-                  <p className="text-on-surface-variant mt-1 text-xs">
-                    {t("paymentMethodBalanceAzn", {
-                      balance: formatMoney(balanceInAzn, "AZN", locale),
-                      charge: formatMoney(settleAzn, "AZN", locale),
-                    })}
-                  </p>
-                ) : null}
+              <div className="h-2 overflow-hidden rounded-full bg-amber-500/20">
+                <div
+                  className="h-full rounded-full bg-amber-500 transition-all"
+                  style={{ width: `${Math.min(100, Math.max(0, promoProgress.progressPercent))}%` }}
+                />
               </div>
-            </label>
-          </div>
+              <p className="text-xs text-amber-900/80 dark:text-amber-100/80">
+                {t("promoMinOrderHint", {
+                  current: formatMoney(
+                    Math.max(0, promoProgress.minOrderAmount - promoProgress.remainingAmount),
+                    promoProgress.currency,
+                    locale,
+                  ),
+                  min: formatMoney(promoProgress.minOrderAmount, promoProgress.currency, locale),
+                })}
+              </p>
+            </div>
+          ) : null}
+          {appliedPromo ? (
+            <p className="text-sm font-medium text-[var(--success)]">
+              {t("promoAppliedAmount", {
+                code: appliedPromo.code,
+                discount: formatMoney(
+                  appliedPromo.discountAmount,
+                  items[0]?.currency ?? pricingCurrency,
+                  locale,
+                ),
+              })}
+            </p>
+          ) : null}
         </div>
-      ) : null}
 
-      {error && (
-        <p className="border-error/20 bg-error-container text-error rounded-xl border px-4 py-3 text-sm">
-          {error}
-        </p>
-      )}
-
-      <button
-        type="button"
-        disabled={
-          loading ||
-          (quickAccount &&
-            !isAuthenticated &&
-            (!turnstile.ready || (turnstile.enabled && !turnstileToken)))
-        }
-        onClick={handleCheckout}
-        className="bg-primary text-on-primary h-12 w-full rounded-xl font-semibold disabled:opacity-60"
-      >
-        {loading
-          ? t("processing")
-          : quickAccount && !isAuthenticated
-            ? t("checkoutPay")
-            : paymentMethod === "balance"
-              ? t("checkoutPayBalance")
-              : t("checkoutPayCard")}
-      </button>
+        <div className="bg-surface-container-low space-y-2 rounded-2xl p-4">
+          {displayedDiscount > 0 ? (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-on-surface-variant">{t("promoSubtotal")}</span>
+                <span>{formatMoney(displayedSubtotal, cartCurrency, locale)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-[var(--success)]">
+                <span>
+                  {t("promoDiscount")} ({currentQuote?.discountName ?? appliedPromo?.code})
+                </span>
+                <span>−{formatMoney(displayedDiscount, cartCurrency, locale)}</span>
+              </div>
+            </>
+          ) : null}
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">{t("total")}</span>
+            <span className="text-xl font-bold">
+              {formatMoney(checkoutTotal, items[0]?.currency ?? "USD", locale)}
+            </span>
+          </div>
+          {checkoutTotal > 0 ? (
+            <div className="border-outline-variant/40 space-y-1 border-t pt-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-on-surface-variant">{t("settleAmount")}</span>
+                <span className="font-semibold text-[var(--accent)]">
+                  {formatMoney(settleAzn, "AZN", locale)}
+                </span>
+              </div>
+              <p className="text-on-surface-variant text-xs">
+                {t("settleRate", {
+                  rate: rates.usdToAzn.toFixed(4),
+                  date: rates.date,
+                })}
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          disabled={
+            loading ||
+            (isAuthenticated && (!currentQuote || quoteError)) ||
+            (quickAccount &&
+              !isAuthenticated &&
+              (!turnstile.ready || (turnstile.enabled && !turnstileToken)))
+          }
+          onClick={handleCheckout}
+          className="bg-primary text-on-primary h-12 w-full rounded-xl font-semibold disabled:opacity-60"
+        >
+          {loading
+            ? t("processing")
+            : quickAccount && !isAuthenticated
+              ? t("checkoutPay")
+              : paymentMethod === "balance"
+                ? t("checkoutPayBalance")
+                : t("checkoutPayCard")}
+        </button>
+        <p className="purchase-secure">{tp("secureCheckout")}</p>
+      </aside>
     </div>
   );
 }

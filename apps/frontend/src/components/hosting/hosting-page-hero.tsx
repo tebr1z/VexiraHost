@@ -6,28 +6,35 @@ import { useTranslations } from "next-intl";
 import { MaterialIcon } from "@/components/landing/material-icon";
 import { Link } from "@/i18n/navigation";
 
-export function HostingPageHero(): React.ReactElement {
+export function HostingPageHero({
+  savingsPercent = 0,
+}: {
+  savingsPercent?: number;
+}): React.ReactElement {
   const t = useTranslations("publicHosting");
 
   const perks = [t("perk1"), t("perk2"), t("perk3"), t("perk4")];
 
   return (
     <section className="relative overflow-hidden pb-10 pt-4 sm:pb-14">
-      <div className="hero-spectacle-mesh pointer-events-none absolute inset-0 opacity-80" aria-hidden />
+      <div
+        className="hero-spectacle-mesh pointer-events-none absolute inset-0 opacity-80"
+        aria-hidden
+      />
 
-      <div className="relative mx-auto max-w-container-max px-5 text-center md:px-8">
-        {t("discountBadge") && (
+      <div className="max-w-container-max relative mx-auto px-5 text-center md:px-8">
+        {savingsPercent > 0 && (
           <motion.span
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-1.5 text-sm font-semibold text-white"
           >
-            {t("discountBadge")}
+            {t("discountPercent", { percent: savingsPercent })}
           </motion.span>
         )}
 
         <motion.h1
-          initial={{ opacity: 0, y: 16 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
           className="text-[clamp(2.25rem,6vw,3.5rem)] font-semibold leading-tight tracking-[-0.03em] text-[var(--label)]"
@@ -51,8 +58,14 @@ export function HostingPageHero(): React.ReactElement {
           className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-2"
         >
           {perks.map((perk) => (
-            <li key={perk} className="flex items-start gap-2.5 text-[15px] text-[var(--label-secondary)]">
-              <MaterialIcon name="check_circle" className="mt-0.5 shrink-0 text-[18px] text-[var(--success)]" />
+            <li
+              key={perk}
+              className="flex items-start gap-2.5 text-[15px] text-[var(--label-secondary)]"
+            >
+              <MaterialIcon
+                name="check_circle"
+                className="mt-0.5 shrink-0 text-[18px] text-[var(--success)]"
+              />
               <span>{perk}</span>
             </li>
           ))}

@@ -51,6 +51,12 @@ export const ADMIN_PANEL_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "groupBilling",
     items: [
       {
+        href: "/t4abriz/panel/project-pricing",
+        labelKey: "projectPricing",
+        icon: "price_change",
+        adminOnly: true,
+      },
+      {
         href: "/t4abriz/panel/orders",
         labelKey: "orders",
         icon: "receipt_long",

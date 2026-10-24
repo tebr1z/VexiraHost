@@ -6,7 +6,7 @@ import { setRequestLocale } from "next-intl/server";
 import { LocaleHtmlUpdater } from "@/components/i18n/locale-html-updater";
 import { LocaleShell } from "@/components/layout/locale-shell";
 import { routing, type AppLocale } from "@/i18n/routing";
-import { localeMessages } from "@/lib/i18n/messages";
+import { getLocaleMessages } from "@/lib/i18n/messages";
 
 type Props = {
   children: React.ReactNode;
@@ -31,7 +31,7 @@ export default async function LocaleLayout({
 
   const resolvedLocale = locale as AppLocale;
   setRequestLocale(resolvedLocale);
-  const messages = localeMessages[resolvedLocale];
+  const messages = await getLocaleMessages(resolvedLocale);
 
   return (
     <NextIntlClientProvider

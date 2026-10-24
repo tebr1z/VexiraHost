@@ -59,7 +59,9 @@ export function LanguageSwitcher({
     }
 
     startTransition(() => {
-      router.replace(pathname, { locale: next });
+      router.replace(`${pathname}${window.location.search}${window.location.hash}`, {
+        locale: next,
+      });
       router.refresh();
     });
   };

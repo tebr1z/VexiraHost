@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { DomainOrderSummary } from "@/components/domains/domain-order-summary";
 import { ProvisionProgress } from "@/components/hosting/provision-progress";
 import { LoadingSkeletonList, PageHeader, StatusBadge } from "@/components/ui";
 import { useRequireAuth } from "@/features/auth";
@@ -119,6 +120,7 @@ export default function OrderDetailPage(): React.ReactElement | null {
               <li key={item.id} className="flex justify-between gap-3 py-3 first:pt-0 last:pb-0">
                 <div>
                   <p className="font-medium">{item.productName}</p>
+                  <DomainOrderSummary metadata={item.metadata} />
                   {meta?.primaryDomain && (
                     <p className="text-on-surface-variant text-sm">
                       {tc("domainLabel", { name: meta.primaryDomain })}

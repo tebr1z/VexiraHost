@@ -1,6 +1,7 @@
 import { chargeInvoice, checkout } from "../services/billing.service";
 
 import { resolveCheckoutPeriod } from "@/lib/cart-pricing";
+import { hostingDomainMetadata } from "@/lib/hosting-domain";
 import type { CartItem } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 
@@ -122,9 +123,7 @@ export async function performCheckout(
       productId: item.productId,
       quantity: item.quantity,
       metadata: {
-        ...(item.category === "HOSTING" && item.primaryDomain
-          ? { primaryDomain: item.primaryDomain.trim().toLowerCase() }
-          : {}),
+        ...hostingDomainMetadata(item),
         ...(normalizedBillingAddress ? { billingAddress: normalizedBillingAddress } : {}),
       },
     })),

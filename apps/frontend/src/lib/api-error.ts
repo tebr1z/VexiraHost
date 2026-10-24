@@ -13,13 +13,20 @@ function isInternalAdminMessage(message: string): boolean {
 export function getApiErrorMessage(
   err: unknown,
   fallback: string,
-  options?: { accountExists?: string; turnstileFailed?: string; domainTaken?: string },
+  options?: {
+    accountExists?: string;
+    turnstileFailed?: string;
+    domainTaken?: string;
+    projectPricingChanged?: string;
+  },
 ): string {
   if (options?.turnstileFailed && isTurnstileRejected(err)) {
     return options.turnstileFailed;
   }
 
   const mapKnown = (message: string): string => {
+    if (options?.projectPricingChanged && message.startsWith("Project pricing changed"))
+      return options.projectPricingChanged;
     if (isInternalAdminMessage(message)) {
       return fallback;
     }

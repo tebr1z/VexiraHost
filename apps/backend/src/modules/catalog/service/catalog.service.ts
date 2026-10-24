@@ -24,6 +24,7 @@ function mapProduct(
   product: {
     id: string;
     slug: string;
+    publicSlug?: string | null;
     name: string;
     description: string | null;
     category: ProductCategory;
@@ -83,6 +84,7 @@ function mapProduct(
   return {
     id: product.id,
     slug: product.slug,
+    publicSlug: product.publicSlug ?? product.slug,
     name: product.name,
     description: product.description,
     category: product.category,

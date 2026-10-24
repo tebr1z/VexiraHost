@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 
 import {
+  DomainCheckoutQuoteDto,
   InitiateTransferDto,
   RegisterDomainDto,
   SearchDomainsQueryDto,
@@ -10,6 +11,7 @@ import {
   UpdateNameserversDto,
   UpdateNsGlueDto,
 } from "../dto";
+import { DomainCheckoutService } from "../service/domain-checkout.service";
 import { DomainsService } from "../service/domains.service";
 
 import { Public } from "@/decorators/auth.decorators";
@@ -17,12 +19,21 @@ import { User } from "@/decorators/user.decorator";
 
 @Controller("domains")
 export class DomainsController {
-  constructor(private readonly domainsService: DomainsService) {}
+  constructor(
+    private readonly domainsService: DomainsService,
+    private readonly domainCheckout: DomainCheckoutService,
+  ) {}
 
   @Public()
   @Get("search")
   search(@Query() query: SearchDomainsQueryDto) {
     return this.domainsService.search(query.q);
+  }
+
+  @Public()
+  @Get("checkout-quote")
+  checkoutQuote(@Query() query: DomainCheckoutQuoteDto) {
+    return this.domainCheckout.quote(query.name, query.mode, query.currency);
   }
 
   @Get()

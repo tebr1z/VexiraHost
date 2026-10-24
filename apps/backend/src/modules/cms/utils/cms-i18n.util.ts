@@ -3,12 +3,22 @@ export type I18nText = {
   en?: string;
   az?: string;
   ru?: string;
+  de?: string;
+  es?: string;
+  fr?: string;
+  it?: string;
+  pt?: string;
 };
 
 export function resolveI18nText(labels: unknown, locale: string): string {
   const record = labels as I18nText;
   const normalized = locale.toLowerCase().split("-")[0];
   const value =
+    (normalized === "fr" && record.fr) ||
+    (normalized === "it" && record.it) ||
+    (normalized === "pt" && record.pt) ||
+    (normalized === "de" && record.de) ||
+    (normalized === "es" && record.es) ||
     (normalized === "tr" && record.tr) ||
     (normalized === "en" && record.en) ||
     (normalized === "az" && record.az) ||

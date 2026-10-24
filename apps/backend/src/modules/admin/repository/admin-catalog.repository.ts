@@ -188,6 +188,10 @@ export class AdminCatalogRepository {
     return this.prisma.product.findUnique({ where: { slug } });
   }
 
+  findProductByPublicSlug(publicSlug: string) {
+    return this.prisma.product.findUnique({ where: { publicSlug } });
+  }
+
   createProduct(data: Prisma.ProductCreateInput) {
     return this.prisma.product.create({ data });
   }

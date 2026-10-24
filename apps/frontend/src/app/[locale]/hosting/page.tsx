@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { CmsPageView } from "@/components/cms/cms-page-view";
+import { CmsSectionRenderer } from "@/components/cms/cms-section-renderer";
+import { HostingFaq } from "@/components/hosting/hosting-faq";
+import { HostingFeatureSections } from "@/components/hosting/hosting-feature-sections";
+import { HostingIncludedStrip } from "@/components/hosting/hosting-included-strip";
+import { HostingPlansSection } from "@/components/hosting/hosting-plans-section";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { JsonLd } from "@/components/seo/json-ld";
 import { fetchCmsPage } from "@/features/cms/services/cms.service";
 import type { PublicCmsSection } from "@/features/cms/types";
+import { mergePlansWithCatalogProducts } from "@/lib/hosting-catalog";
 import {
   breadcrumbJsonLd,
   buildPageMetadata,
@@ -13,6 +18,7 @@ import {
   organizationJsonLd,
   serviceJsonLd,
 } from "@/lib/seo";
+import { publicProducts, publicPlans } from "@/lib/server-catalog";
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -39,8 +45,25 @@ export default async function PublicHostingPage({
 }: PageProps): Promise<React.ReactElement> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "seoPages" });
-  const page = await fetchCmsPage("hosting", locale);
-  const faqData = faqJsonLd(faqItemsFromSections(page?.sections ?? []));
+  const [page, products, plans] = await Promise.all([
+    fetchCmsPage("hosting", locale),
+    publicProducts(),
+    publicPlans(),
+  ]);
+  const entries = mergePlansWithCatalogProducts(
+    plans,
+    products.filter((product) => product.category === "HOSTING"),
+  );
+  const newLocale = locale === "de" || locale === "es";
+  const th = await getTranslations({ locale, namespace: "publicHosting" });
+  const faqData = faqJsonLd(
+    newLocale
+      ? ["q1", "q2", "q3", "q4"].map((key) => ({
+          question: th(`faq.${key}.question`),
+          answer: th(`faq.${key}.answer`),
+        }))
+      : faqItemsFromSections(page?.sections ?? []),
+  );
 
   return (
     <MarketingShell>
@@ -63,7 +86,18 @@ export default async function PublicHostingPage({
           ...(faqData ? [faqData] : []),
         ]}
       />
-      <CmsPageView slug="hosting" initialPage={page} />
+      <HostingPlansSection initialData={entries} />
+      {newLocale ? (
+        <>
+          <HostingIncludedStrip />
+          <HostingFeatureSections />
+          <HostingFaq />
+        </>
+      ) : (
+        page?.sections
+          .filter((section) => !["PLANS", "HERO"].includes(section.type))
+          .map((section) => <CmsSectionRenderer key={section.id} section={section} />)
+      )}
     </MarketingShell>
   );
 }

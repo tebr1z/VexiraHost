@@ -12,6 +12,11 @@ import { useMaintenanceStore } from "@/stores/maintenance-store";
 const CART_LABEL: Record<string, string> = {
   az: "Səbət",
   en: "Cart",
+  de: "Warenkorb",
+  es: "Carrito",
+  fr: "Panier",
+  it: "Carrello",
+  pt: "Carrinho",
   tr: "Sepet",
   ru: "Корзина",
 };

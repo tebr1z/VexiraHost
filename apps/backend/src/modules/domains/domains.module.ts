@@ -9,6 +9,7 @@ import { DomainsRepository } from "./repository/domains.repository";
 import { TldPricingRepository } from "./repository/tld-pricing.repository";
 import { AuthoritativeDnsService } from "./service/authoritative-dns.service";
 import { DomainBillingService } from "./service/domain-billing.service";
+import { DomainCheckoutService } from "./service/domain-checkout.service";
 import { DomainEmailService } from "./service/domain-email.service";
 import { DomainsService } from "./service/domains.service";
 import { RegistrarService } from "./service/registrar.service";
@@ -20,6 +21,7 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
   imports: [AuthModule],
   controllers: [DomainsController],
   providers: [
+    DomainCheckoutService,
     DomainsService,
     DomainsRepository,
     TldPricingRepository,
@@ -35,6 +37,7 @@ import { SmtpMailService } from "@/shared/email/smtp-mail.service";
     SmtpMailService,
   ],
   exports: [
+    DomainCheckoutService,
     DomainsService,
     DomainsRepository,
     TldPricingRepository,

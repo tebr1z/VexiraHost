@@ -681,10 +681,14 @@ export class AdminCatalogService {
       }
     }
 
+    const publicSlug = await resolveUniqueSlug(dto.name, async (candidate) =>
+      Boolean(await this.catalogRepository.findProductByPublicSlug(candidate)),
+    );
     const digital = digitalFieldsFromDto({ ...dto, category: dto.category });
 
     const product = await this.catalogRepository.createProduct({
       slug,
+      publicSlug,
       name: dto.name.trim(),
       description: dto.description?.trim() || null,
       category: dto.category,

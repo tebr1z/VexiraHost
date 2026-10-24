@@ -177,3 +177,53 @@ docker compose -f docker/docker-compose.yml --env-file deploy/.env.docker down
 5. `docker compose ... up -d --build`
 6. Plesk proxy: `:3000` və `:4000`
 7. SSL
+
+## Məhsul səhifələri və dillər
+
+Məhsulların sabit, ada uyğun URL-i `products.publicSlug` sahəsində saxlanır. `20261024150000_product_public_slugs` miqrasiyası əvvəlki məhsullar üçün bu sahəni doldurur, eyni adlı məhsulları fərqləndirir və sifarişlərin istifadə etdiyi daxili `slug`/ID-ni dəyişmir. Backend konteyneri başladıqda mövcud entrypoint miqrasiyanı avtomatik tətbiq edir; həm backend, həm frontend image-lərini yeniləyin. Köhnə məhsul ünvanları yeni canonical ünvana yönləndirilir.
+
+AZ, EN, RU, TR, DE və ES marşrutları dəstəklənir. İngilis dili əsas URL-dədir; digər dillər `/az`, `/ru`, `/tr`, `/de`, `/es` prefikslərindən istifadə edir. Yeni dillərdə CMS-ə daxil edilmiş mətn tərcüməsi yoxdursa, mövcud ingilis məzmunu göstərilir. Alman və ispan dili üçün alış, hosting və naviqasiya mətnləri tərcümə olunub; idarəetmə paneli və mövcud e-poçt şablonlarında ingilis dili ehtiyat variantdır.
+
+Serverdən kataloq sorğuları Docker şəbəkəsində `API_INTERNAL_URL=http://backend:4000/api/v1` ünvanından istifadə edir. Bu ünvan brauzerə ötürülmür.
+
+
+### Project proposals and deploy secret recovery
+
+The homepage development cards link to `/project-quote?service=web|mobile|desktop`.
+The six-language configurator sends the selected scope and preliminary AZN estimate with the customer's message through the existing protected contact form. It does not charge or create a cart order.
+Initial defaults live in `packages/types/src/project-quote.ts`; after the first admin save, database settings are authoritative: landing 399, company 799, store 1499, web MVP 2499, mobile MVP 2999, desktop MVP 1999 AZN. Extra pages/screens are 35 AZN, each additional UI language is 100 AZN (content translation separate); feature prices are listed in the same module. Included features are never charged twice.
+All packages include one non-premium .com/.net domain and standard hosting with SSL for the first year. Landing/company include 6 months of agreed-scope defect and security support; other packages include 12 months. Renewals, new features and third-party subscriptions are separate and require agreement.
+Pricing rationale (24 October 2026): entry-level local providers advertise 299/599/1299 AZN at https://c0der.pro/az/qiymetler; https://techgroup.az/bloq/veb-sayt-hazirlanmasi-ne-qederdir-2026-ci-ilde-qiymetler-ve-esas-amiller-ac5f lists landing 300–800, small business 500–1500 and stores 1500–5000+ AZN. These are Vexira's proposed starting prices, not promises of a fully custom enterprise system.
+
+If Auto Deploy fails after `Runtime: PM2` with `Unsupported state or unable to authenticate data` after changing `HOSTING_CREDENTIALS_KEY`, the stored application `envVarsEnc` may still use the old key. Plesk/SSH passwords and application environment variables are separate encrypted records.
+
+1. Keep the active encryption key stable. Restore the original valid key from a secure backup if all old values must be recovered. Changing keys again can make newly saved values unreadable.
+2. Open the affected application's Environment settings. Unreadable saved variables now have a warning and require explicit replacement confirmation; they are never silently presented as an empty environment.
+3. Re-enter the complete original application `.env`, including database URLs and signing secrets, confirm replacement, and choose **Save & redeploy**. This encrypts the replacement with the active key and rebuilds public frontend variables too. Do not submit backend/server credentials in the application form unless the application actually needs them.
+4. If the next error names the GitHub token, reconnect GitHub through Auto Deploy. Server SSH/Plesk credentials are re-entered separately in the admin hosting-server settings.
+
+Deploy validates the encrypted environment before remote port/domain changes, including jobs already in the queue. Recovery requires the old key or original plaintext values; unreadable ciphertext cannot be recovered by retries.
+
+
+### Admin-managed project pricing
+
+Open **Admin → Project pricing** at `/az/t4abriz/panel/project-pricing` (also available in EN/TR/RU/DE/ES). The area and its GET/PUT API `/api/v1/admin/project-pricing` require an authenticated administrator; staff/customer sessions cannot change these rates.
+
+- Edit each package's base AZN price, a percentage or fixed-AZN discount, included pages/screens, free features, and support period. Discounts apply only to the base package. Additional pages, languages and features use their separate rates; included features are not charged again.
+- The Add-ons & gifts tab manages the seven extra rates and domain/hosting gift periods. A zero gift/support period removes that benefit. Scope descriptions and the customer preview follow the selected package's saved configuration.
+- Save publishes one complete, validated price list atomically to the existing `system_settings` table under `project_pricing_v1`. This feature needs no new database migration. Concurrent edits are rejected instead of overwriting a newer version. Revert only discards the current draft.
+- Public `/api/v1/project-pricing` reads the database without a cache. The server-rendered calculator fetches it with `no-store`: publishing a price requires no frontend rebuild or redeploy. Defaults are used only before any settings have been saved. A missing API or unreadable saved list pauses pricing instead of advertising stale defaults.
+- Proposal submissions carry the selection and pricing revision, never a trusted client total. The backend recalculates from the saved list. If prices changed, the form asks the visitor to refresh and review the estimate before sending, keeping their brief and selections.
+
+Deploy the new backend API before or together with the frontend. Existing live prices stay at the initial defaults until an admin saves changes. UI test fixtures and their example discounts are local scratch data and are not production settings.
+
+
+### Hosting domain selection and additional locales
+
+Hosting details first ask for a new domain, transfer or existing domain, then billing duration and cart. New registration and transfer quotes require an active matching TLD price and confirmed registrar availability. Zero or missing prices, premium names and unsupported extensions are rejected. Existing domains carry no purchase fee.
+
+Domain registration/transfer is a **team-processed service after payment**. It is not an immediate registrar API call from checkout. The operator must confirm the invoice is PAID, process the registration or transfer in the registrar, record it under the customer's Domains, and contact the customer for an unlocked domain and EPP code for transfers. Never put EPP codes in order notes. Domain requests and their separate one-time fees appear in customer and admin order details and invoice lines. Hosting renewal prices and product promotions exclude these fees. Availability at checkout is not a reservation; resolve registrar failures with the customer before delivering the domain.
+
+French (`fr`), Italian (`it`) and Portuguese (`pt`) routes, language selection and public purchase/proposal messages are included. Admin and untranslated CMS/editorial content retain the English fallback. Authentication email templates still use the four original languages, with English fallback for other locales. Language changes retain query parameters and anchors.
+
+Auto Deploy storage prerequisite: `DEPLOY_BASE_PATH` (default `/var/www/vexira-deploy`) must resolve to an XFS filesystem with **both user and project quota accounting and enforcement enabled** (`uquota,prjquota`). Inspect first with `findmnt -T /var/www/vexira-deploy -o TARGET,SOURCE,FSTYPE,OPTIONS` and `lsblk -f`. On XFS, inspect `xfs_quota -x -c 'state' <mountpoint>`. Do not format an existing Plesk filesystem or blindly remount a shared server. Existing ext4 storage requires a planned move to a suitable separate XFS volume/node; XFS with disabled accounting requires a planned mount/boot configuration change. Restarting the application alone does not enable filesystem quotas.

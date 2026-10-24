@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import type { HostingDomainChoice } from "@/lib/hosting-domain";
+
 export interface CartItem {
   productId: string;
   slug: string;
@@ -13,13 +15,14 @@ export interface CartItem {
   quantity: number;
   minimumQuantity?: number;
   primaryDomain?: string;
+  domainChoice?: HostingDomainChoice;
   yearlyPrice?: number;
   yearlySavingsPercent?: number;
 }
 
 interface CartState {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, "quantity" | "primaryDomain">) => void;
+  addItem: (item: Omit<CartItem, "quantity">) => void;
   removeItem: (productId: string) => void;
   setPrimaryDomain: (productId: string, primaryDomain: string) => void;
   updateItemBilling: (productId: string, billingCycle: string, price: number) => void;
@@ -50,7 +53,11 @@ export const useCartStore = create<CartState>()(
             return {
               items: state.items.map((i) =>
                 i.productId === item.productId
-                  ? normalizeLicenseCartItem({ ...i, ...item, quantity: i.quantity + 1 })
+                  ? normalizeLicenseCartItem({
+                      ...i,
+                      ...item,
+                      quantity: item.category === "HOSTING" ? 1 : i.quantity + 1,
+                    })
                   : i,
               ),
             };
@@ -66,7 +73,7 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.map((i) =>
             i.productId === productId
-              ? { ...i, primaryDomain: primaryDomain.trim().toLowerCase() }
+              ? { ...i, primaryDomain: primaryDomain.trim().toLowerCase(), domainChoice: undefined }
               : i,
           ),
         })),

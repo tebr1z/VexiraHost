@@ -6,7 +6,9 @@ import { HomeIcon } from "./home-icon";
 
 import type { CatalogProduct } from "@/features/catalog";
 import type { HostingPlan } from "@/features/hosting";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
+import { productPath } from "@/lib/product-path";
 
 const CATEGORY_FEATURES: Record<string, string[]> = {
   HOSTING: ["f1", "f2", "f3"],
@@ -37,7 +39,6 @@ export function PricingCard({
   product,
   featured,
   index,
-  onSelect,
   plan,
   showDetails = false,
 }: {
@@ -75,7 +76,7 @@ export function PricingCard({
               { value: String(plan.autoDeployMaxApps ?? 0), label: th("deployApps") },
             ]
           : []),
-        ...(showDetails && plan.autoDeployAiEnabled
+        ...(showDetails && plan.autoDeployAiEnabled && (plan.autoDeployAiMonthlyCredits ?? 0) > 0
           ? [{ value: String(plan.autoDeployAiMonthlyCredits ?? 0), label: td("specAiCredits") }]
           : []),
       ]
@@ -107,7 +108,9 @@ export function PricingCard({
         <span className="home-plan-number">{String(index + 1).padStart(2, "0")}</span>
         {featured ? <span className="home-plan-recommended">{t("popular")}</span> : null}
       </div>
-      <h3>{plan?.name ?? product.name}</h3>
+      <h3>
+        <Link href={productPath(product)}>{product.name}</Link>
+      </h3>
       <p className="home-plan-description">
         {planDescription ? th(planDescription) : (lines[0] ?? "")}
       </p>
@@ -144,7 +147,7 @@ export function PricingCard({
         ) : null}
       </div>
       {plan ? (
-        <ul className="home-plan-specs">
+        <ul className="home-plan-specs home-plan-resource-grid">
           {specs.map((spec) => (
             <li key={spec.label}>
               <HomeIcon name="check" />
@@ -170,18 +173,17 @@ export function PricingCard({
           ))}
         </ul>
       )}
-      <button
-        type="button"
-        onClick={onSelect}
+      <Link
+        href={quoteOnly ? "/contact" : productPath(product)}
         className={cn(
           "home-button home-plan-button",
           featured ? "home-button-primary" : "home-button-outline",
         )}
-        aria-label={`${quoteOnly ? t("contactSales") : t("selectPlan")} — ${plan?.name ?? product.name}`}
+        aria-label={`${quoteOnly ? t("contactSales") : t("selectPlan")} — ${product.name}`}
       >
         {quoteOnly ? t("contactSales") : t("selectPlan")}
         <HomeIcon name="arrow" />
-      </button>
+      </Link>
     </article>
   );
 }

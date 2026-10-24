@@ -176,20 +176,49 @@
     "heroLead": "Yazılım, ürün ve arayüz için bir stüdyo — taşıyan altyapıyla aynı hassasiyetle.",
     "scroll": "Girmek için kaydır",
     "manifesto": [
-      { "text": "Kaçınılmaz" },
-      { "text": "hisseden" },
-      { "text": "yazılım" },
-      { "text": "inşa" },
-      { "text": "ederiz.", "accent": true }
+      {
+        "text": "Kaçınılmaz"
+      },
+      {
+        "text": "hisseden"
+      },
+      {
+        "text": "yazılım"
+      },
+      {
+        "text": "inşa"
+      },
+      {
+        "text": "ederiz.",
+        "accent": true
+      }
     ],
     "buildWith": "Bunlarla inşa ederiz",
     "tech": [
-      { "name": ".NET", "role": "Sakin güç. Yük altında bile dengeli sistemler." },
-      { "name": "React", "role": "Ağırlığı, ritmi ve ölçüsü olan arayüzler." },
-      { "name": "Next.js", "role": "Ürünün yüzeyi — hızlı, sinematik, net." },
-      { "name": "NestJS", "role": "Özür dilemeniz gerekmeyen mimari." },
-      { "name": "Kotlin", "role": "Bitmiş bir nesne gibi duran native Android." },
-      { "name": "ASP.NET", "role": "Kurumsal form, çağdaş bitiş." }
+      {
+        "name": ".NET",
+        "role": "Sakin güç. Yük altında bile dengeli sistemler."
+      },
+      {
+        "name": "React",
+        "role": "Ağırlığı, ritmi ve ölçüsü olan arayüzler."
+      },
+      {
+        "name": "Next.js",
+        "role": "Ürünün yüzeyi — hızlı, sinematik, net."
+      },
+      {
+        "name": "NestJS",
+        "role": "Özür dilemeniz gerekmeyen mimari."
+      },
+      {
+        "name": "Kotlin",
+        "role": "Bitmiş bir nesne gibi duran native Android."
+      },
+      {
+        "name": "ASP.NET",
+        "role": "Kurumsal form, çağdaş bitiş."
+      }
     ],
     "workLabel": "Seçili işler",
     "projects": [
@@ -224,7 +253,8 @@
     "ctaLead": "Brief sıradansa yanlış stüdyodayız. Kaçınılmaz hissetmesi gerekiyorsa — başlayın.",
     "ctaPrimary": "Konuşmaya başla",
     "ctaSecondary": "Yazın",
-    "footerNote": "Vexira Labs stüdyosu"
+    "footerNote": "Vexira Labs stüdyosu",
+    "quoteButton": "Fiyatı hesapla"
   },
   "hero": {
     "badge": "YANINIZDAYIZ",
@@ -852,7 +882,12 @@
     "en": "English",
     "tr": "Türkçe",
     "ru": "Русский",
-    "az": "Azərbaycan"
+    "az": "Azərbaycan",
+    "de": "Deutsch",
+    "es": "Español",
+    "fr": "Français",
+    "it": "Italiano",
+    "pt": "Português"
   },
   "dashboard": {
     "brand": "Vexira Host",
@@ -1506,7 +1541,10 @@
           "healthCheck_container": "Runtime",
           "healthCheck_port": "Yerel port",
           "healthCheck_domain": "Domain / Apache",
-          "healthCheck_public": "Genel URL"
+          "healthCheck_public": "Genel URL",
+          "envUnreadable": "Şifreleme anahtarı değiştiği için kayıtlı değişkenler açılamıyor. Bu, boş oldukları anlamına gelmez. Uygulamanın tüm .env değerlerini yeniden girin veya eski anahtarı geri yükleyin.",
+          "envReplaceConfirm": "Kaydetmenin eski değişkenlerin tamamını aşağıdaki değerlerle değiştireceğini anlıyorum.",
+          "envRecover": "Değişkenleri kurtar"
         },
         "paywallHint": "Ücretsiz provisioning kapalı. Bir plan seçip sepete ekleyin ve ödemeyi tamamlayın. Kapital Bank onayı sonrası hesap otomatik oluşturulur.",
         "browsePlans": "Hosting planlarına göz at",
@@ -1871,7 +1909,8 @@
       "groupCatalog": "Katalog",
       "groupInfrastructure": "Altyapı",
       "groupWebsiteContent": "Web sitesi",
-      "groupSystemGroup": "Sistem"
+      "groupSystemGroup": "Sistem",
+      "projectPricing": "Proje fiyatları"
     },
     "login": {
       "title": "Admin Girişi",
@@ -3339,8 +3378,9 @@
     "desktopDescription": "İş süreçleri, iç yönetim ve özel akışlar için Windows, macOS ve Linux uygulamaları.",
     "ctaTitle": "Projenizi birlikte planlayalım",
     "ctaDescription": "İhtiyaçları analiz edip aşamaları, teknolojiyi ve gerçekçi uygulama planını hazırlayalım.",
-    "ctaButton": "Projeyi görüşelim",
-    "technologyLabel": "Kullandığımız teknolojiler"
+    "ctaButton": "Özel teklif al",
+    "technologyLabel": "Kullandığımız teknolojiler",
+    "cardAction": "Fiyatı hesapla"
   },
   "managedServers": {
     "title": "Sunucu yönetimi",
@@ -3433,5 +3473,186 @@
     "guarantee1": "Küresel teslimat",
     "guarantee2": "Güvenli ödeme",
     "guarantee3": "7/24 destek"
+  },
+  "productPurchase": {
+    "title": "Planınızı seçin",
+    "seoDescription": "{name}: kaynakları karşılaştırın, ödeme dönemini seçin ve Vexira Host ile çevrimiçi sipariş verin.",
+    "breadcrumb": "Sayfa yolu",
+    "allPlans": "Tüm planlar",
+    "hostingDescription": "Web siteniz için güvenilir hosting. Kaynakları karşılaştırın ve size uygun süreyi seçin.",
+    "included": "Hosting planınıza dahil",
+    "benefitSsl": "SSL sertifikası",
+    "benefitSupport": "Müşteri desteği",
+    "benefitPanel": "Hosting kontrol paneli",
+    "step": "PLANINIZI HAZIRLAYIN",
+    "chooseTerm": "Ödeme süresini seçin",
+    "termDescription": "Planı sepete eklemeden önce toplam fiyatı karşılaştırın.",
+    "oneTime": "Tek seferlik ödeme",
+    "months": "{count} ay",
+    "monthlyEquivalent": "{price} / ay",
+    "savePercent": "%{percent} tasarruf",
+    "dueToday": "Bugün ödenecek toplam",
+    "savingAmount": "Aylık ödemeye kıyasla {amount} tasarruf edersiniz.",
+    "minimumQuantity": "Minimum adet: {count}",
+    "sharedPeriod": "Seçilen ödeme süresi sepetinizdeki tüm abonelik ürünlerine uygulanır.",
+    "loadFailed": "Fiyatlar yenilenemedi. Tekrar deneyin.",
+    "unavailable": "Bu ürün için bu para biriminde fiyat bulunmuyor.",
+    "addToCart": "Sepete devam et",
+    "adding": "Ekleniyor…",
+    "contactSales": "Satışla iletişime geç",
+    "secureCheckout": "Güvenli ödeme · Ödemeden önce kontrol edin",
+    "orderSummary": "Sipariş özeti",
+    "bandwidth": "Trafik limiti",
+    "currency": "Para birimi"
+  },
+  "projectQuote": {
+    "eyebrow": "PROJE YAPILANDIRICI",
+    "title": "Fikrinize uygun proje, açık fiyat.",
+    "description": "Proje türünü seçin, gerekli özellikleri ekleyin ve özel teklif için ihtiyaçlarınızı yazın.",
+    "metaTitle": "Web sitesi ve uygulama geliştirme fiyatları",
+    "chooseType": "Proje türünü seçin",
+    "customize": "İhtiyaçlarınıza uyarlayın",
+    "packageLabel": "Paket",
+    "pages": "Sayfa sayısı",
+    "screens": "Ekran sayısı",
+    "languages": "Diller",
+    "pageHint": "{count} dahil · her ek +{price}",
+    "languageHint": "1 dil dahil · her ek +{price}; metin çevirisi ayrıca ücretlendirilir.",
+    "languageCount": "{count} dil",
+    "from": "{price} başlangıç",
+    "included": "Dahil",
+    "estimate": "Tahmini toplam",
+    "oneTime": "Tek seferlik geliştirme",
+    "summary": "PROJENİZ",
+    "base": "Temel paket",
+    "extraPages": "Ek sayfa / ekranlar",
+    "extraLanguages": "Ek diller",
+    "gifts": "Paketinize hediye",
+    "giftDomain": "1 yıllık standart .com veya .net alan adı",
+    "giftHosting": "1 yıllık standart hosting + SSL",
+    "giftSupport": "{months} ay teknik destek",
+    "briefTitle": "Projenizi anlatın",
+    "briefDescription": "İşinizi, istediğiniz özellikleri ve beğendiğiniz örnekleri yazın. Seçimleriniz ve tahmini tutar başvuruya otomatik eklenecek.",
+    "subject": "Proje geliştirme teklifi",
+    "submit": "Teklif isteği gönder",
+    "getProposal": "Özel teklif al",
+    "estimateNote": "Bu bir ön hesaplamadır. İşe başlamadan kapsamı, süreyi ve son fiyatı kararlaştırırız. Burada ödeme alınmaz.",
+    "terms": "Destek, kararlaştırılan kapsamdaki hataların düzeltilmesini ve güvenlik güncellemelerini içerir; yeni özellikler ayrıca fiyatlandırılır. Hediye süresinden sonra alan adı ve hosting önceden anlaşılan güncel fiyatla yenilenir. Premium alan adları, harici servis abonelikleri ve metin çevirisi ayrıdır.",
+    "packages": {
+      "landing": {
+        "title": "Landing sayfası",
+        "description": "Hizmet veya kampanya için {pages} sayfa, mobil tasarım ve iletişim formu."
+      },
+      "company": {
+        "title": "Şirket sitesi",
+        "description": "Şirket ve hizmet tanıtımı için {pages} sayfaya kadar."
+      },
+      "store": {
+        "title": "Online mağaza",
+        "description": "{pages} sayfa şablonuna kadar ürün kataloğu, sepet ve sipariş akışı."
+      },
+      "platform": {
+        "title": "Web platformu / MVP",
+        "description": "Özel bir iş akışı için {pages} temel ekrana kadar."
+      },
+      "mobile": {
+        "title": "Mobil uygulama / MVP",
+        "description": "Ortak iOS/Android kod tabanıyla {pages} ekrana kadar."
+      },
+      "desktop": {
+        "title": "Masaüstü uygulama / MVP",
+        "description": "{pages} ekrana kadar ve seçilen masaüstü sistem için 1 iş akışı."
+      }
+    },
+    "features": {
+      "cms": "İçerik yönetimi (CMS)",
+      "booking": "Rezervasyon / randevular",
+      "payments": "Online ödeme entegrasyonu",
+      "account": "Müşteri hesapları",
+      "api": "Harici API entegrasyonu"
+    },
+    "discount": "İndirim",
+    "giftDomainMonths": "{months} ay standart .com veya .net alan adı",
+    "giftHostingMonths": "{months} ay standart hosting + SSL",
+    "unavailable": "Fiyatlar şu an yüklenemiyor. Eski fiyat göstermemek için hesaplama duraklatıldı.",
+    "refreshPricing": "Fiyatları yenile",
+    "pricingChanged": "Fiyatlar değişti. Seçimleriniz korunur; fiyatları yenileyip yeni tutarı inceleyin ve sonra gönderin."
+  },
+  "projectPricingAdmin": {
+    "eyebrow": "HİZMET FİYATLARI",
+    "title": "Proje fiyatları",
+    "description": "Paketleri, indirimleri ve hediyeleri tek yerden yönetin. Kaydedilen fiyatlar hesaplayıcıya hemen uygulanır.",
+    "unsaved": "Kaydedilmemiş değişiklikler",
+    "upToDate": "Fiyatlar güncel",
+    "packagesCount": "Proje paketi",
+    "addonsCount": "Ek hizmet",
+    "discountsCount": "İndirimli paket",
+    "editorTabs": "Fiyat düzenleyici",
+    "packagesTab": "Paketler ve indirimler",
+    "extrasTab": "Ek hizmetler ve hediyeler",
+    "editing": "DÜZENLENİYOR",
+    "basePrice": "Temel fiyat",
+    "discountType": "İndirim türü",
+    "none": "İndirim yok",
+    "percent": "Yüzde (%)",
+    "amount": "Sabit tutar (AZN)",
+    "discountValue": "İndirim değeri",
+    "discountHint": "İndirim yalnız temel pakete uygulanır. Ek hizmetler ayrıca hesaplanır.",
+    "includedPages": "Dahil sayfa / ekran",
+    "supportMonths": "Teknik destek süresi",
+    "countUnit": "adet",
+    "monthUnit": "ay",
+    "zeroDisables": "Bu hediyeyi kapatmak için 0 girin.",
+    "includedFeatures": "Dahil özellikler",
+    "includedHint": "Seçilen özellikler ek ücret alınmadan sunulur.",
+    "sharedRates": "ORTAK TARİFELER",
+    "extraPage": "Ek sayfa / ekran",
+    "extraLanguage": "Ek dil",
+    "gifts": "Hediyeler",
+    "giftsHint": "Alan adı ve hosting süreleri tüm paketler için geçerlidir. Desteği paket bazında düzenleyin. Hediyeyi kapatmak için 0 girin.",
+    "domainGift": "Alan adı hediyesi",
+    "hostingGift": "Hosting + SSL hediyesi",
+    "preview": "MÜŞTERİ ÖNİZLEMESİ",
+    "customerSaves": "Müşteri {amount} tasarruf eder",
+    "pagesPreview": "{count} sayfa / ekran dahil",
+    "previewHint": "Bu önizleme kaydedilmemiş değişiklikleri de gösterir. Site yalnız kaydedilmiş fiyatları kullanır.",
+    "openCalculator": "Hesaplayıcıyı aç",
+    "notSaved": "Kaydedilmedi",
+    "saved": "Fiyatlar kaydedildi",
+    "savedAt": "Son kayıt: {date}",
+    "defaultList": "Başlangıç fiyatları gösteriliyor. İlk kayıtta veritabanına yazılacak.",
+    "revert": "Değişiklikleri geri al",
+    "save": "Fiyatları kaydet",
+    "saving": "Kaydediliyor…",
+    "failed": "Fiyatlar yüklenemedi veya kaydedilemedi.",
+    "conflict": "Fiyatlar başka yerde değiştirildi. Düzenlemelerinizi saklayın, sayfayı yenileyip güncel fiyatlarla karşılaştırın.",
+    "invalidDiscount": "İndirim %100'ü veya temel fiyatı aşamaz.",
+    "adminOnly": "Bu alan yalnız yöneticiler içindir.",
+    "retry": "Tekrar dene",
+    "loading": "Fiyatlar yükleniyor…"
+  },
+  "hostingDomain": {
+    "steps": "Sipariş adımları",
+    "title": "Alan adınızı seçin",
+    "cart": "Sepet",
+    "firstStep": "ADIM 1 · ALAN ADINIZ",
+    "register": "Yeni alan adı al",
+    "registerDescription": "Uygun bir adres bulun ve bizden kaydedin.",
+    "transfer": "Alan adını transfer et",
+    "transferDescription": "Kayıtlı alan adınızı Vexira Host’a taşıyın.",
+    "existing": "Kendi alan adımı kullan",
+    "existingDescription": "Mevcut kayıt firmanızı koruyun ve DNS’i hostinge yönlendirin.",
+    "domain": "Alan adı",
+    "check": "Alan adını kontrol et",
+    "checking": "Kontrol ediliyor…",
+    "continue": "Devam et",
+    "invalid": "Geçerli bir alan adı girin, örneğin example.com.",
+    "unavailable": "Alan adı ve fiyat doğrulanamadı. Başka bir ad seçin veya mevcut alan adınızı kullanın.",
+    "processingNote": "Bir yıllık alan adı ücreti hostingden ayrıdır. Ödeme sonrası ekibimiz kaydı işler; uygunluk ödeme sırasında tekrar kontrol edilir ve kayıt yapılana kadar rezerve edilmez.",
+    "transferNote": "Transfer ücreti hostingden ayrıdır. Ekibimiz ödeme sonrası işlemi başlatır ve EPP kodu için size ulaşır. Alan adı kilitsiz ve transfere uygun olmalıdır.",
+    "year": "yıl",
+    "change": "Değiştir",
+    "orderTitle": "Alan adı siparişi",
+    "orderNote": "Alan adı siparişleri ödeme sonrası ekibimizce işlenir. Bilgi için sipariş numaranızla desteğe ulaşın."
   }
 }

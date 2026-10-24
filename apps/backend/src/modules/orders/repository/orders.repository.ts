@@ -86,6 +86,12 @@ export class OrdersRepository {
       productName: string;
       metadata?: Prisma.InputJsonValue;
     }[];
+    domainLines?: {
+      description: string;
+      quantity: number;
+      unitPrice: Prisma.Decimal;
+      totalPrice: Prisma.Decimal;
+    }[];
     invoiceNumber: string;
     dueDate: Date;
   }) {
@@ -125,13 +131,16 @@ export class OrdersRepository {
           currency: data.currency,
           dueDate: data.dueDate,
           items: {
-            create: data.items.map((item) => ({
-              productId: item.productId,
-              description: item.productName,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              totalPrice: item.totalPrice,
-            })),
+            create: [
+              ...data.items.map((item) => ({
+                productId: item.productId,
+                description: item.productName,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+              })),
+              ...(data.domainLines ?? []),
+            ],
           },
         },
       });

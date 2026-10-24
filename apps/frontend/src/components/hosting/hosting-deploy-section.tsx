@@ -107,6 +107,8 @@ export function HostingDeploySection({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [envEditId, setEnvEditId] = useState<string | null>(null);
   const [envEditText, setEnvEditText] = useState("");
+  const [envUnreadable, setEnvUnreadable] = useState(false);
+  const [envReplacementConfirmed, setEnvReplacementConfirmed] = useState(false);
   const [savingEnvId, setSavingEnvId] = useState<string | null>(null);
   const [healthById, setHealthById] = useState<Record<string, DeployHealthResult>>({});
   const [checkingHealthId, setCheckingHealthId] = useState<string | null>(null);
@@ -464,6 +466,8 @@ export function HostingDeploySection({
     }
     try {
       const detail = await getDeployment(accountId, id);
+      setEnvUnreadable(detail.envVarsState === "unreadable");
+      setEnvReplacementConfirmed(false);
       setEnvEditText(formatEnvVars(detail.envVars ?? {}));
       setEnvEditId(id);
     } catch (err) {
@@ -474,7 +478,13 @@ export function HostingDeploySection({
   const onSaveEnv = async (id: string, redeploy: boolean) => {
     setSavingEnvId(id);
     try {
-      const result = await updateDeploymentEnv(accountId, id, parseEnvText(envEditText), redeploy);
+      const result = await updateDeploymentEnv(
+        accountId,
+        id,
+        parseEnvText(envEditText),
+        redeploy,
+        envUnreadable && envReplacementConfirmed,
+      );
       if (result.ignoredPort != null && result.containerPort != null) {
         toast(t("envPortIgnored", { port: String(result.containerPort) }), "success");
       } else {
@@ -1011,6 +1021,20 @@ export function HostingDeploySection({
                       {item.lastError ? (
                         <div className="mt-2 space-y-2 rounded-lg bg-red-500/10 px-2 py-1.5">
                           <p className="text-xs text-[var(--danger)]">{item.lastError}</p>
+                          {(item.envVarsState === "unreadable" ||
+                            item.lastError.includes("Stored application environment")) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivePanelById((prev) => ({ ...prev, [item.id]: "env" }));
+                                void onOpenEnv(item.id, true);
+                              }}
+                              className="mt-2 text-xs font-semibold text-[var(--accent)] underline"
+                            >
+                              {t("envRecover")}
+                            </button>
+                          )}
+
                           {githubAuthFailed ? (
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-[11px] text-[var(--label-secondary)]">
@@ -1179,7 +1203,25 @@ export function HostingDeploySection({
                         {t("envEditHint")}
                       </p>
                     </div>
+                    {envUnreadable && (
+                      <div
+                        role="alert"
+                        className="my-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-6"
+                      >
+                        <p>{t("envUnreadable")}</p>
+                        <label className="mt-2 flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={envReplacementConfirmed}
+                            onChange={(event) => setEnvReplacementConfirmed(event.target.checked)}
+                            className="mt-1"
+                          />
+                          {t("envReplaceConfirm")}
+                        </label>
+                      </div>
+                    )}
                     <textarea
+                      aria-label={t("envVars")}
                       value={envEditText}
                       onChange={(e) => setEnvEditText(e.target.value)}
                       rows={5}
@@ -1189,7 +1231,11 @@ export function HostingDeploySection({
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        disabled={savingEnvId === item.id || isRunning}
+                        disabled={
+                          savingEnvId === item.id ||
+                          isRunning ||
+                          (envUnreadable && !envReplacementConfirmed)
+                        }
                         onClick={() => void onSaveEnv(item.id, false)}
                         className="inline-flex h-9 items-center rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-white disabled:opacity-50"
                       >
@@ -1197,7 +1243,11 @@ export function HostingDeploySection({
                       </button>
                       <button
                         type="button"
-                        disabled={savingEnvId === item.id || isRunning}
+                        disabled={
+                          savingEnvId === item.id ||
+                          isRunning ||
+                          (envUnreadable && !envReplacementConfirmed)
+                        }
                         onClick={() => void onSaveEnv(item.id, true)}
                         className="inline-flex h-9 items-center rounded-lg border border-[var(--separator)] px-3 text-xs font-semibold disabled:opacity-50"
                       >

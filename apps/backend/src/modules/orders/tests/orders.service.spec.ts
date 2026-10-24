@@ -1,4 +1,4 @@
-﻿import { Test, TestingModule } from "@nestjs/testing";
+import { Test, TestingModule } from "@nestjs/testing";
 
 import { OrdersRepository } from "../repository/orders.repository";
 import { OrderEmailService } from "../service/order-email.service";
@@ -6,9 +6,11 @@ import { OrdersService } from "../service/orders.service";
 
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
 import { SiteAccessService } from "@/modules/auth/service/site-access.service";
+import { DomainCheckoutService } from "@/modules/domains/service/domain-checkout.service";
 import { HostingRepository } from "@/modules/hosting/repository/hosting.repository";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
+import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
 import { StaffAlertService } from "@/shared/staff-alerts/staff-alert.service";
 
 describe("OrdersService", () => {
@@ -18,6 +20,11 @@ describe("OrdersService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
+        { provide: DomainCheckoutService, useValue: {} },
+        {
+          provide: CbarExchangeService,
+          useValue: { getRates: jest.fn().mockResolvedValue({ usdToAzn: 1.7, usdToEur: 0.9 }) },
+        },
         { provide: OrdersRepository, useValue: {} },
         { provide: AuthRepository, useValue: {} },
         { provide: OrderEmailService, useValue: {} },

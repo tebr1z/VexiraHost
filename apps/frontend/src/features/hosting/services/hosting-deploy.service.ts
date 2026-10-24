@@ -47,6 +47,7 @@ export interface DeploymentSummary {
   status: DeployStatus;
   stage: string | null;
   lastError: string | null;
+  envVarsState?: "missing" | "readable" | "unreadable";
   lastDeployedAt: string | null;
   createdAt: string;
   latestRun: {
@@ -66,7 +67,7 @@ export interface DeploymentDetail extends DeploymentSummary {
   hostPort: number;
   containerName: string | null;
   deployPath: string | null;
-  envVars: Record<string, string>;
+  envVars: Record<string, string> | null;
   runs: Array<{
     id: string;
     status: DeployStatus;
@@ -189,6 +190,7 @@ export async function updateDeploymentEnv(
   deploymentId: string,
   envVars: Record<string, string>,
   redeploy = false,
+  replaceUnreadableEnv = false,
 ): Promise<{
   id: string;
   message: string;
@@ -204,7 +206,7 @@ export async function updateDeploymentEnv(
     queuePosition?: number;
   }>(`/hosting/${accountId}/deployments/${deploymentId}/env`, {
     method: "PATCH",
-    body: { envVars, redeploy },
+    body: { envVars, redeploy, replaceUnreadableEnv },
   });
   return res.data!;
 }

@@ -2,7 +2,11 @@ import type { MetadataRoute } from "next";
 
 import { BLOG_SLUGS } from "@/content/blog";
 import { locales } from "@/i18n/routing";
+import { productPath } from "@/lib/product-path";
 import { getSiteUrl, SEO_PUBLIC_PATHS } from "@/lib/seo";
+import { publicProducts, publicCategories } from "@/lib/server-catalog";
+
+export const dynamic = "force-dynamic";
 
 function localizedUrl(baseUrl: string, locale: string, path: string): string {
   const normalizedPath = path === "/" ? "" : path;
@@ -18,7 +22,7 @@ function alternates(baseUrl: string, path: string): Record<string, string> {
   };
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getSiteUrl();
   const lastModified = new Date();
 
@@ -43,5 +47,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }));
   });
 
-  return [...staticEntries, ...blogEntries];
+  const [products, categories] = await Promise.all([publicProducts(), publicCategories()]);
+  const paths = [
+    ...new Set([
+      ...products.map(productPath),
+      ...categories.map((category) => `/products/${encodeURIComponent(category.slug)}`),
+    ]),
+  ];
+  const productEntries = paths.flatMap((path) =>
+    locales.map((locale) => ({
+      url: localizedUrl(baseUrl, locale, path),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: { languages: alternates(baseUrl, path) },
+    })),
+  );
+  return [...staticEntries, ...blogEntries, ...productEntries];
 }

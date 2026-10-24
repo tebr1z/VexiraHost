@@ -3,7 +3,7 @@ import { getLocale } from "next-intl/server";
 
 import { NotFoundView } from "@/components/errors/not-found-view";
 import { routing, type AppLocale } from "@/i18n/routing";
-import { localeMessages } from "@/lib/i18n/messages";
+import { getLocaleMessages } from "@/lib/i18n/messages";
 
 export default async function NotFoundPage(): Promise<React.ReactElement> {
   const requestedLocale = await getLocale();
@@ -12,7 +12,11 @@ export default async function NotFoundPage(): Promise<React.ReactElement> {
     : routing.defaultLocale;
 
   return (
-    <NextIntlClientProvider locale={locale} messages={localeMessages[locale]} timeZone="Asia/Baku">
+    <NextIntlClientProvider
+      locale={locale}
+      messages={await getLocaleMessages(locale)}
+      timeZone="Asia/Baku"
+    >
       <NotFoundView />
     </NextIntlClientProvider>
   );

@@ -8,7 +8,7 @@ import {
   MinLength,
 } from "class-validator";
 
-import { AUTH_EMAIL_LOCALES } from "../email/auth-email.locale";
+import { SITE_AUTH_LOCALES } from "../email/auth-email.locale";
 
 export class LoginDto {
   @IsEmail()
@@ -23,7 +23,7 @@ export class LoginDto {
   rememberMe?: boolean;
 
   @IsOptional()
-  @IsIn([...AUTH_EMAIL_LOCALES])
+  @IsIn([...SITE_AUTH_LOCALES])
   locale?: string;
 
   @IsOptional()

@@ -22,7 +22,11 @@ import { useCartStore } from "@/stores/cart-store";
 import { usePricingStore } from "@/stores/pricing-store";
 import { toast } from "@/stores/toast-store";
 
-export function HostingPlansSection(): React.ReactElement {
+export function HostingPlansSection({
+  initialData,
+}: {
+  initialData?: Array<{ plan: HostingPlan; product: CatalogProduct }>;
+}): React.ReactElement {
   const locale = useLocale();
   const t = useTranslations("publicHosting");
   const addItem = useCartStore((s) => s.addItem);
@@ -31,12 +35,12 @@ export function HostingPlansSection(): React.ReactElement {
   const period = usePricingStore((s) => s.period);
   const [planEntries, setPlanEntries] = useState<
     Array<{ plan: HostingPlan; product: CatalogProduct }>
-  >([]);
-  const [loading, setLoading] = useState(true);
+  >(initialData ?? []);
+  const [loading, setLoading] = useState(!initialData);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (!initialData || currency !== "USD" || period !== "MONTHLY") setLoading(true);
 
     void (async () => {
       try {
@@ -77,7 +81,7 @@ export function HostingPlansSection(): React.ReactElement {
 
   return (
     <>
-      <HostingPageHero />
+      <HostingPageHero savingsPercent={maxYearlySavings} />
 
       <section className="apple-grouped py-12 sm:py-16" id="hosting-plans">
         <div className="home-container">

@@ -27,6 +27,31 @@ export class LocalizedTextDto {
   @IsOptional()
   @IsString()
   @MaxLength(4000)
+  fr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  it?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  pt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  de?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  es?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
   az?: string;
 
   @IsOptional()

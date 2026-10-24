@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/landing";
 import { AccessGate } from "@/components/layout/access-gate";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { cn } from "@/lib/cn";
 
 export function MarketingShell({
   children,
@@ -11,7 +12,10 @@ export function MarketingShell({
 }): React.ReactElement {
   return (
     <div
-      className={`apple-page public-marketing relative min-h-screen${variant === "home" ? "home-marketing" : ""}`}
+      className={cn(
+        "apple-page public-marketing relative min-h-screen",
+        variant === "home" && "home-marketing",
+      )}
     >
       <Navbar />
       <main className="relative z-10 pt-[calc(4.25rem+env(safe-area-inset-top))]">

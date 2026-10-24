@@ -71,7 +71,7 @@ export type PromoValidateResult = {
 
 export async function validatePromoCode(input: {
   code: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; quantity: number; metadata?: Record<string, unknown> }[];
   currency?: string;
   period?: string;
 }): Promise<PromoValidateResult> {
@@ -80,6 +80,27 @@ export async function validatePromoCode(input: {
     body: input,
   });
   return res.data as PromoValidateResult;
+}
+
+export interface CheckoutQuote {
+  subtotal: number;
+  total: number;
+  currency: "USD" | "AZN" | "EUR";
+  discountAmount: number;
+  discountName: string | null;
+}
+
+export async function quoteCheckout(input: {
+  items: { productId: string; quantity: number; metadata?: Record<string, unknown> }[];
+  currency: string;
+  period: string;
+  promoCode?: string;
+}): Promise<CheckoutQuote> {
+  const res = await apiClient.request<CheckoutQuote>("/orders/quote", {
+    method: "POST",
+    body: input,
+  });
+  return res.data!;
 }
 
 export async function chargeInvoice(

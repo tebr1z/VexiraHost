@@ -7,6 +7,7 @@ import { AppProviders } from "@/providers/app-providers";
 import "@/styles/globals.css";
 import "@/styles/home.css";
 import "@/styles/platform.css";
+import "@/styles/purchase.css";
 
 export const viewport: Viewport = {
   width: "device-width",

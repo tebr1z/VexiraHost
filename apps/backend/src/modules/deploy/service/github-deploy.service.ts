@@ -176,7 +176,7 @@ export class GitHubDeployService {
       return repoUrl;
     }
 
-    const token = decryptSecret(connection.accessTokenEnc);
+    const token = this.decryptAccessToken(connection.accessTokenEnc);
     return buildGitHubAuthenticatedCloneUrl(repoUrl, token);
   }
 
@@ -184,11 +184,21 @@ export class GitHubDeployService {
     return normalizeGitHubRepoUrl(fullName);
   }
 
+  private decryptAccessToken(payload: string): string {
+    try {
+      return decryptSecret(payload);
+    } catch {
+      throw new BadRequestException(
+        "Stored GitHub token cannot be decrypted. Reconnect GitHub in Auto Deploy settings, then retry.",
+      );
+    }
+  }
+
   private async getAccessToken(userId: string): Promise<string> {
     const row = await this.prisma.userGitHubConnection.findUnique({ where: { userId } });
     if (!row) {
       throw new NotFoundException("GitHub is not connected");
     }
-    return decryptSecret(row.accessTokenEnc);
+    return this.decryptAccessToken(row.accessTokenEnc);
   }
 }

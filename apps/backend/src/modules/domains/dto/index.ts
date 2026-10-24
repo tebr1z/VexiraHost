@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsArray,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -114,4 +115,15 @@ export class UpdateNsGlueDto {
   @ArrayMinSize(2)
   @IsString({ each: true })
   nameservers!: string[];
+}
+
+export class DomainCheckoutQuoteDto {
+  @IsString()
+  @MaxLength(253)
+  name!: string;
+  @IsIn(["register", "transfer"])
+  mode!: string;
+  @IsOptional()
+  @IsIn(["USD", "EUR", "AZN"])
+  currency?: string;
 }

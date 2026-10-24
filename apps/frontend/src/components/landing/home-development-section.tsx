@@ -65,7 +65,11 @@ export function HomeDevelopmentSection(): React.ReactElement {
         </div>
         <div className="home-development-grid">
           {services.map((service, index) => (
-            <article key={service.key} className="home-development-card">
+            <Link
+              key={service.key}
+              href={`/project-quote?service=${service.key}`}
+              className="home-development-card home-development-link"
+            >
               <div className="home-development-card-top">
                 <span className="home-feature-icon">
                   <HomeIcon name={service.icon} />
@@ -75,7 +79,11 @@ export function HomeDevelopmentSection(): React.ReactElement {
               <h3>{t(`${service.key}Title`)}</h3>
               <p>{t(`${service.key}Description`)}</p>
               <div className="home-development-stack">{service.stack}</div>
-            </article>
+              <span className="home-development-action">
+                {t("cardAction")}
+                <HomeIcon name="arrow" />
+              </span>
+            </Link>
           ))}
         </div>
         <div className="home-tech-banner" aria-label={t("technologyLabel")}>
@@ -95,7 +103,7 @@ export function HomeDevelopmentSection(): React.ReactElement {
             <strong>{t("ctaTitle")}</strong>
             <p>{t("ctaDescription")}</p>
           </div>
-          <Link href="/contact" className="home-button home-button-primary">
+          <Link href="/project-quote" className="home-button home-button-primary">
             {t("ctaButton")}
             <HomeIcon name="arrow" />
           </Link>

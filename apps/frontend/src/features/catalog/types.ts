@@ -9,6 +9,7 @@ export interface CatalogProductPrice {
 export interface CatalogProduct {
   id: string;
   slug: string;
+  publicSlug?: string;
   name: string;
   description: string | null;
   category: string;
@@ -45,6 +46,7 @@ export interface CatalogProduct {
 export interface CatalogCategory {
   id: string;
   slug: string;
+  publicSlug?: string;
   name: string;
   systemType: string | null;
   productCount: number;

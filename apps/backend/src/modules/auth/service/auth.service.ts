@@ -22,7 +22,11 @@ import type {
   ResendLoginOtpDto,
   VerifyLoginOtpDto,
 } from "../dto";
-import { resolveAuthEmailLocale, mergeLocaleHistory } from "../email/auth-email.locale";
+import {
+  resolveAuthEmailLocale,
+  resolveSiteLocale,
+  mergeLocaleHistory,
+} from "../email/auth-email.locale";
 import { AuthRepository } from "../repository/auth.repository";
 import type { AuthResponse, AuthUserResponse, LoginResult } from "../types";
 
@@ -94,7 +98,7 @@ export class AuthService {
       currencyLocked: currencyPrefs.locked,
       marketingOptIn: dto.marketingOptIn ?? true,
       unsubscribeToken: generateSecureToken(24),
-      localeHistory: mergeLocaleHistory([], locale),
+      localeHistory: mergeLocaleHistory([], dto.locale),
       phone,
     });
 
@@ -317,7 +321,7 @@ export class AuthService {
     const updated = await this.recordLocaleQuietly(user.id, user.localeHistory, locale);
     const history = updated?.localeHistory ?? user.localeHistory ?? [];
     return {
-      preferredLocale: resolveAuthEmailLocale(history[0]),
+      preferredLocale: resolveSiteLocale(history[0]),
       localeHistory: history.slice(0, 3),
     };
   }
@@ -698,7 +702,7 @@ export class AuthService {
       totpEnabled: user.totpEnabled,
       accountBalance: Number(user.accountBalance ?? 0),
       balanceCurrency: user.balanceCurrency ?? "USD",
-      preferredLocale: resolveAuthEmailLocale(user.localeHistory?.[0]),
+      preferredLocale: resolveSiteLocale(user.localeHistory?.[0]),
       localeHistory: (user.localeHistory ?? []).slice(0, 3),
     };
   }

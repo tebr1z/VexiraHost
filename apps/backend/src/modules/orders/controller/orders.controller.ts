@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import type { AuthUser } from "@vexira/types";
 
 import { CheckoutDto, ValidatePromoDto } from "../dto";
@@ -14,6 +14,11 @@ export class OrdersController {
   @Post("checkout")
   checkout(@Body() dto: CheckoutDto, @User() user: AuthUser) {
     return this.ordersService.checkout(user.id, dto);
+  }
+
+  @Post("quote")
+  quote(@Body() dto: CheckoutDto, @User() user: AuthUser) {
+    return this.ordersService.quote(user.id, dto);
   }
 
   @Public()

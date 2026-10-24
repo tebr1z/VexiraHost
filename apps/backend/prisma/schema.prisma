@@ -369,6 +369,7 @@ model CatalogCategory {
 model Product {
   id                      String              @id @default(cuid())
   slug                    String              @unique
+  publicSlug              String?             @unique
   name                    String
   description             String?
   category                ProductCategory

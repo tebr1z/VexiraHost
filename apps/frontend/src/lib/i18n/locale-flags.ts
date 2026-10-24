@@ -6,6 +6,11 @@ export const LOCALE_COUNTRY: Record<AppLocale, string> = {
   tr: "tr",
   ru: "ru",
   az: "az",
+  de: "de",
+  es: "es",
+  fr: "fr",
+  it: "it",
+  pt: "pt",
 };
 
 export function flagUrl(locale: AppLocale, width = 40): string {

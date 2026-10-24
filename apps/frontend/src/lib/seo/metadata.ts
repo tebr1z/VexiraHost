@@ -16,7 +16,7 @@ type BuildPageMetadataInput = {
   absoluteTitle?: boolean;
 };
 
-const SEO_LOCALES = ["en", "tr", "ru", "az"] as const;
+const SEO_LOCALES = ["en", "tr", "ru", "az", "de", "es", "fr", "it", "pt"] as const;
 
 function localizedPath(path: string, locale: string): string {
   const normalizedPath = path === "/" ? "" : path.startsWith("/") ? path : `/${path}`;
@@ -165,7 +165,7 @@ export function websiteJsonLd(description: string): Record<string, unknown> {
     url: siteUrl,
     description,
     publisher: { "@id": `${siteUrl}/#organization` },
-    inLanguage: ["az", "tr", "en", "ru"],
+    inLanguage: ["az", "tr", "en", "ru", "de", "es", "fr", "it", "pt"],
   };
 }
 

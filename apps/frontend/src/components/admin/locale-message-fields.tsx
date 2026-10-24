@@ -23,7 +23,7 @@ export function LocaleMessageFields({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
         {SITE_LOCALES.map((code) => {
-          const filled = Boolean(value[code].trim());
+          const filled = Boolean(value[code]?.trim());
           return (
             <button
               key={code}
@@ -44,14 +44,14 @@ export function LocaleMessageFields({
       {singleLine ? (
         <input
           type="text"
-          value={value[locale]}
+          value={value[locale] ?? ""}
           onChange={(e) => onChange({ ...value, [locale]: e.target.value })}
           placeholder={placeholder}
           className="border-outline-variant/40 bg-surface w-full max-w-xl rounded-xl border px-4 py-2.5 text-sm"
         />
       ) : (
         <textarea
-          value={value[locale]}
+          value={value[locale] ?? ""}
           onChange={(e) => onChange({ ...value, [locale]: e.target.value })}
           rows={rows}
           placeholder={placeholder}

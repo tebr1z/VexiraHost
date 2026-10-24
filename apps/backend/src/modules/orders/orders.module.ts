@@ -6,12 +6,13 @@ import { OrderEmailService } from "./service/order-email.service";
 import { OrdersService } from "./service/orders.service";
 
 import { AuthModule } from "@/modules/auth/auth.module";
+import { DomainsModule } from "@/modules/domains/domains.module";
 import { HostingModule } from "@/modules/hosting/hosting.module";
 import { PaymentsModule } from "@/modules/payments/payments.module";
 import { SmtpMailService } from "@/shared/email/smtp-mail.service";
 
 @Module({
-  imports: [AuthModule, HostingModule, PaymentsModule],
+  imports: [DomainsModule, AuthModule, HostingModule, PaymentsModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrdersRepository, OrderEmailService, SmtpMailService],
   exports: [OrdersService],

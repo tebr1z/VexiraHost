@@ -2,6 +2,16 @@ export const AUTH_EMAIL_LOCALES = ["en", "tr", "ru", "az"] as const;
 
 export type AuthEmailLocale = (typeof AUTH_EMAIL_LOCALES)[number];
 
+export const SITE_AUTH_LOCALES = [...AUTH_EMAIL_LOCALES, "de", "es", "fr", "it", "pt"] as const;
+export function normalizeSiteLocale(locale?: string | null): string | null {
+  const normalized = locale?.trim().toLowerCase().slice(0, 2);
+  return SITE_AUTH_LOCALES.includes(normalized as (typeof SITE_AUTH_LOCALES)[number])
+    ? normalized!
+    : null;
+}
+export function resolveSiteLocale(locale?: string | null): string {
+  return normalizeSiteLocale(locale) ?? "en";
+}
 const MAX_LOCALE_HISTORY = 3;
 
 export function normalizeEmailLocale(locale?: string | null): AuthEmailLocale | null {
@@ -43,10 +53,10 @@ export function mergeLocaleHistory(
   current: string[] | null | undefined,
   next?: string | null,
 ): string[] {
-  const normalized = normalizeEmailLocale(next);
+  const normalized = normalizeSiteLocale(next);
   const existing = (Array.isArray(current) ? current : [])
-    .map((entry) => normalizeEmailLocale(entry))
-    .filter((entry): entry is AuthEmailLocale => entry != null);
+    .map((entry) => normalizeSiteLocale(entry))
+    .filter((entry): entry is string => entry != null);
 
   if (!normalized) {
     return existing.slice(0, MAX_LOCALE_HISTORY);

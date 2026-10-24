@@ -1,6 +1,6 @@
 import { getRequestConfig } from "next-intl/server";
 
-import { localeMessages } from "./messages";
+import { getLocaleMessages } from "./messages";
 
 import { routing, type AppLocale } from "@/i18n/routing";
 
@@ -17,7 +17,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   return {
     locale: locale as AppLocale,
-    messages: localeMessages[locale as AppLocale],
+    messages: await getLocaleMessages(locale as AppLocale),
     timeZone: "Asia/Baku",
   };
 });

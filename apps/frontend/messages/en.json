@@ -36,8 +36,9 @@
     "desktopDescription": "Windows, macOS and Linux software for business processes, internal management and custom workflows.",
     "ctaTitle": "Let’s plan your project",
     "ctaDescription": "We will analyse the requirements and prepare the phases, technology and a realistic delivery plan.",
-    "ctaButton": "Discuss the project",
-    "technologyLabel": "Technologies we work with"
+    "ctaButton": "Get a personal proposal",
+    "technologyLabel": "Technologies we work with",
+    "cardAction": "Calculate your price"
   },
   "managedServers": {
     "title": "Server management",
@@ -273,21 +274,52 @@
     "heroLead": "A studio for software, product, and interface — built with the same precision as the infrastructure that carries it.",
     "scroll": "Scroll to enter",
     "manifesto": [
-      { "text": "We" },
-      { "text": "build" },
-      { "text": "software" },
-      { "text": "that" },
-      { "text": "feels" },
-      { "text": "inevitable.", "accent": true }
+      {
+        "text": "We"
+      },
+      {
+        "text": "build"
+      },
+      {
+        "text": "software"
+      },
+      {
+        "text": "that"
+      },
+      {
+        "text": "feels"
+      },
+      {
+        "text": "inevitable.",
+        "accent": true
+      }
     ],
     "buildWith": "We build with",
     "tech": [
-      { "name": ".NET", "role": "Quiet power. Systems that stay composed under load." },
-      { "name": "React", "role": "Interfaces with weight, rhythm, and restraint." },
-      { "name": "Next.js", "role": "The surface of the product — fast, cinematic, exact." },
-      { "name": "NestJS", "role": "Architecture you never have to apologise for." },
-      { "name": "Kotlin", "role": "Native Android with the feel of a finished object." },
-      { "name": "ASP.NET", "role": "Enterprise form, contemporary finish." }
+      {
+        "name": ".NET",
+        "role": "Quiet power. Systems that stay composed under load."
+      },
+      {
+        "name": "React",
+        "role": "Interfaces with weight, rhythm, and restraint."
+      },
+      {
+        "name": "Next.js",
+        "role": "The surface of the product — fast, cinematic, exact."
+      },
+      {
+        "name": "NestJS",
+        "role": "Architecture you never have to apologise for."
+      },
+      {
+        "name": "Kotlin",
+        "role": "Native Android with the feel of a finished object."
+      },
+      {
+        "name": "ASP.NET",
+        "role": "Enterprise form, contemporary finish."
+      }
     ],
     "workLabel": "Selected work",
     "projects": [
@@ -322,7 +354,8 @@
     "ctaLead": "If the brief is ordinary, we are the wrong studio. If it needs to feel inevitable — begin.",
     "ctaPrimary": "Start a conversation",
     "ctaSecondary": "Write to us",
-    "footerNote": "A Vexira Labs studio"
+    "footerNote": "A Vexira Labs studio",
+    "quoteButton": "Calculate your price"
   },
   "hero": {
     "badge": "WE'VE GOT YOUR BACK",
@@ -950,7 +983,12 @@
     "en": "English",
     "tr": "Türkçe",
     "ru": "Русский",
-    "az": "Azərbaycan"
+    "az": "Azərbaycan",
+    "de": "Deutsch",
+    "es": "Español",
+    "fr": "Français",
+    "it": "Italiano",
+    "pt": "Português"
   },
   "dashboard": {
     "brand": "Vexira Host",
@@ -1607,7 +1645,10 @@
           "healthCheck_container": "Runtime",
           "healthCheck_port": "Local port",
           "healthCheck_domain": "Domain / Apache",
-          "healthCheck_public": "Public URL"
+          "healthCheck_public": "Public URL",
+          "envUnreadable": "Saved environment variables cannot be opened after an encryption key change. They are not empty. Re-enter the complete application .env or restore the original key before deploying.",
+          "envReplaceConfirm": "I understand that saving replaces all previously stored variables with the values entered below.",
+          "envRecover": "Recover environment variables"
         }
       },
       "servers": {
@@ -1969,7 +2010,8 @@
       "groupCatalog": "Catalog",
       "groupInfrastructure": "Infrastructure",
       "groupWebsiteContent": "Website",
-      "groupSystemGroup": "System"
+      "groupSystemGroup": "System",
+      "projectPricing": "Project pricing"
     },
     "login": {
       "title": "Admin Access",
@@ -3434,5 +3476,186 @@
     "guarantee1": "Global delivery",
     "guarantee2": "Secure checkout",
     "guarantee3": "24/7 support"
+  },
+  "productPurchase": {
+    "title": "Choose your plan",
+    "seoDescription": "Explore {name}: compare resources, choose a billing period and order online with Vexira Host.",
+    "breadcrumb": "Breadcrumb",
+    "allPlans": "All plans",
+    "hostingDescription": "Reliable hosting for your website. Compare the resources and choose the term that works for you.",
+    "included": "Included with your hosting",
+    "benefitSsl": "SSL certificate",
+    "benefitSupport": "Customer support",
+    "benefitPanel": "Hosting control panel",
+    "step": "CONFIGURE YOUR PLAN",
+    "chooseTerm": "Choose your billing period",
+    "termDescription": "Compare the total price before adding your plan to the cart.",
+    "oneTime": "One-time payment",
+    "months": "{count, plural, one {# month} other {# months}}",
+    "monthlyEquivalent": "{price} / month",
+    "savePercent": "Save {percent}%",
+    "dueToday": "Total due today",
+    "savingAmount": "You save {amount} compared with monthly billing.",
+    "minimumQuantity": "Minimum quantity: {count}",
+    "sharedPeriod": "The selected billing period applies to all recurring products in your cart.",
+    "loadFailed": "Could not refresh prices. Please try again.",
+    "unavailable": "This product has no available price in this currency.",
+    "addToCart": "Continue to cart",
+    "adding": "Adding…",
+    "contactSales": "Contact sales",
+    "secureCheckout": "Secure checkout · Review before payment",
+    "orderSummary": "Order summary",
+    "bandwidth": "Bandwidth",
+    "currency": "Currency"
+  },
+  "projectQuote": {
+    "eyebrow": "PROJECT BUILDER",
+    "title": "Your idea. A clear starting price.",
+    "description": "Choose your project, add the features you need and send a brief for a personal proposal.",
+    "metaTitle": "Website & app development pricing",
+    "chooseType": "Choose a project",
+    "customize": "Make it yours",
+    "packageLabel": "Package",
+    "pages": "Pages",
+    "screens": "Screens",
+    "languages": "Languages",
+    "pageHint": "{count} included · each extra +{price}",
+    "languageHint": "1 included · each extra +{price}; translation of content is separate.",
+    "languageCount": "{count} language(s)",
+    "from": "From {price}",
+    "included": "Included",
+    "estimate": "Estimated total",
+    "oneTime": "One-time development",
+    "summary": "YOUR PROJECT",
+    "base": "Base package",
+    "extraPages": "Additional pages / screens",
+    "extraLanguages": "Additional languages",
+    "gifts": "Included as a gift",
+    "giftDomain": "1 year non-premium .com or .net domain",
+    "giftHosting": "1 year standard hosting + SSL",
+    "giftSupport": "{months} months technical support",
+    "briefTitle": "Tell us about your project",
+    "briefDescription": "Describe your business, desired features and examples you like. Your selected package and estimate will be attached automatically.",
+    "subject": "Project development proposal",
+    "submit": "Request my proposal",
+    "getProposal": "Get a personal proposal",
+    "estimateNote": "This is an initial estimate. We confirm scope, schedule and the final price before work starts. No payment is taken here.",
+    "terms": "Support covers defects and security updates within the agreed scope; new features are quoted separately. Domain and hosting renewals after the gift period are paid at the then-current price, agreed in advance. Premium domains, third-party subscriptions and content translation are separate.",
+    "packages": {
+      "landing": {
+        "title": "Landing page",
+        "description": "{pages} page(s) for a service or campaign, mobile layout and contact form."
+      },
+      "company": {
+        "title": "Business website",
+        "description": "Up to {pages} pages presenting your company and services."
+      },
+      "store": {
+        "title": "Online store",
+        "description": "Up to {pages} page templates, product catalog, cart and ordering flow."
+      },
+      "platform": {
+        "title": "Web platform / MVP",
+        "description": "Up to {pages} core screens for a custom business workflow."
+      },
+      "mobile": {
+        "title": "Mobile app / MVP",
+        "description": "Up to {pages} screens with one shared iOS/Android codebase."
+      },
+      "desktop": {
+        "title": "Desktop app / MVP",
+        "description": "Up to {pages} screens and one business workflow for a chosen desktop OS."
+      }
+    },
+    "features": {
+      "cms": "Content management (CMS)",
+      "booking": "Booking / appointments",
+      "payments": "Online payment integration",
+      "account": "Customer accounts",
+      "api": "External API integration"
+    },
+    "discount": "Discount",
+    "giftDomainMonths": "{months} months non-premium .com or .net domain",
+    "giftHostingMonths": "{months} months standard hosting + SSL",
+    "unavailable": "Prices cannot be loaded right now. The estimate is paused to avoid showing outdated prices.",
+    "refreshPricing": "Refresh prices",
+    "pricingChanged": "Prices changed. Your selections are kept; refresh the prices, review the new estimate and then submit."
+  },
+  "projectPricingAdmin": {
+    "eyebrow": "SERVICE PRICING",
+    "title": "Project pricing",
+    "description": "Manage packages, discounts and gifts in one place. Saved prices apply to the calculator immediately.",
+    "unsaved": "Unsaved changes",
+    "upToDate": "Prices are up to date",
+    "packagesCount": "Project packages",
+    "addonsCount": "Additional services",
+    "discountsCount": "Discounted packages",
+    "editorTabs": "Pricing editor",
+    "packagesTab": "Packages & discounts",
+    "extrasTab": "Add-ons & gifts",
+    "editing": "NOW EDITING",
+    "basePrice": "Base price",
+    "discountType": "Discount type",
+    "none": "No discount",
+    "percent": "Percentage (%)",
+    "amount": "Fixed amount (AZN)",
+    "discountValue": "Discount value",
+    "discountHint": "Discounts apply to the base package only. Add-ons are priced separately.",
+    "includedPages": "Included pages / screens",
+    "supportMonths": "Technical support period",
+    "countUnit": "items",
+    "monthUnit": "months",
+    "zeroDisables": "Enter 0 to disable this gift.",
+    "includedFeatures": "Included features",
+    "includedHint": "Selected features are included without an additional charge.",
+    "sharedRates": "SHARED RATES",
+    "extraPage": "Extra page / screen",
+    "extraLanguage": "Extra language",
+    "gifts": "Gifts",
+    "giftsHint": "Domain and hosting periods apply to every package. Edit support per package. Enter 0 to disable a gift.",
+    "domainGift": "Domain gift",
+    "hostingGift": "Hosting + SSL gift",
+    "preview": "CUSTOMER PREVIEW",
+    "customerSaves": "Customer saves {amount}",
+    "pagesPreview": "{count} pages / screens included",
+    "previewHint": "This preview includes unsaved changes. The website uses saved prices only.",
+    "openCalculator": "Open calculator",
+    "notSaved": "Not saved",
+    "saved": "Prices saved",
+    "savedAt": "Last saved: {date}",
+    "defaultList": "Starting defaults are shown. The first save persists them to the database.",
+    "revert": "Revert changes",
+    "save": "Save prices",
+    "saving": "Saving…",
+    "failed": "Could not load or save pricing.",
+    "conflict": "Pricing was changed elsewhere. Keep your edits, reload the page and compare with the latest prices.",
+    "invalidDiscount": "A discount cannot exceed 100% or the base price.",
+    "adminOnly": "This area is for administrators only.",
+    "retry": "Try again",
+    "loading": "Loading prices…"
+  },
+  "hostingDomain": {
+    "steps": "Purchase steps",
+    "title": "Choose your domain",
+    "cart": "Cart",
+    "firstStep": "STEP 1 · YOUR DOMAIN",
+    "register": "Buy a new domain",
+    "registerDescription": "Find an available address and register it with us.",
+    "transfer": "Transfer your domain",
+    "transferDescription": "Bring your registered domain to Vexira Host.",
+    "existing": "Use my own domain",
+    "existingDescription": "Keep your current registrar and point DNS to your hosting.",
+    "domain": "Domain name",
+    "check": "Check domain",
+    "checking": "Checking…",
+    "continue": "Continue",
+    "invalid": "Enter a valid domain, for example example.com.",
+    "unavailable": "Could not confirm this domain and price. Try another name or use your existing domain.",
+    "processingNote": "The one-year domain fee is separate from hosting. After payment, our team processes registration; availability is checked again at checkout and is not reserved until registration.",
+    "transferNote": "The transfer fee is separate from hosting. Our team processes it after payment and contacts you for the EPP code. The domain must be unlocked and eligible for transfer.",
+    "year": "year",
+    "change": "Change",
+    "orderTitle": "Domain order",
+    "orderNote": "Domain orders are processed by our team after payment. Contact support with your order number for updates."
   }
 }

@@ -10,10 +10,16 @@ import { OrderEmailService } from "./order-email.service";
 
 import { AuthRepository } from "@/modules/auth/repository/auth.repository";
 import { SiteAccessService } from "@/modules/auth/service/site-access.service";
+import {
+  DomainCheckoutService,
+  DOMAIN_PATTERN,
+} from "@/modules/domains/service/domain-checkout.service";
 import { HostingRepository } from "@/modules/hosting/repository/hosting.repository";
 import { OrderFulfillmentService } from "@/modules/hosting/service/order-fulfillment.service";
 import { PaymentsRepository } from "@/modules/payments/repository/payments.repository";
 import { normalizeBillingAddress } from "@/shared/billing/billing-address.util";
+import { CbarExchangeService } from "@/shared/pricing/cbar-exchange.service";
+import { convertLedgerAmount } from "@/shared/pricing/currency-convert.util";
 import { parseCurrency, parsePeriod } from "@/shared/pricing/currency.util";
 import { resolveProductPrice } from "@/shared/pricing/product-price.util";
 import {
@@ -163,6 +169,8 @@ export class OrdersService {
     private readonly hostingRepository: HostingRepository,
     private readonly orderFulfillmentService: OrderFulfillmentService,
     private readonly paymentsRepository: PaymentsRepository,
+    private readonly exchange: CbarExchangeService,
+    private readonly domainCheckout: DomainCheckoutService,
   ) {}
 
   private async assertHostingDomainsAvailable(
@@ -207,6 +215,7 @@ export class OrdersService {
     const period = parsePeriod(dto.period ?? user?.billingPeriod);
 
     const productMap = new Map(products.map((product) => [product.id, product]));
+    const rates = await this.exchange.getRates();
     const lineItems = productIds.map((productId) => {
       const product = productMap.get(productId)!;
       const quantity = merged.get(productId)!;
@@ -232,7 +241,14 @@ export class OrdersService {
           campaignEndsAt: product.campaignEndsAt,
         },
       );
-      const unitPrice = new Decimal(resolved?.salePrice ?? Number(product.price));
+      const unitPrice = new Decimal(
+        convertLedgerAmount(
+          resolved?.salePrice ?? Number(product.price),
+          resolved?.currency ?? product.currency,
+          currency,
+          rates,
+        ),
+      );
       const totalPrice = unitPrice.mul(quantity);
       const checkoutItem = dto.items.find((item) => item.productId === productId);
 
@@ -245,7 +261,7 @@ export class OrdersService {
         category: product.category,
         metadata: {
           ...(checkoutItem?.metadata ?? {}),
-          currency: resolved?.currency ?? currency,
+          currency,
           period: oneTime ? "ONE_TIME" : (resolved?.period ?? period),
           ...(oneTime ? { billingCycle: "ONE_TIME", autoRenew: false } : {}),
           originalPrice: resolved?.originalPrice,
@@ -254,9 +270,58 @@ export class OrdersService {
       };
     });
 
+    // Domain fees are one-time invoice lines; hosting renewal prices and discounts exclude them.
+    const domainLines: {
+      description: string;
+      quantity: number;
+      unitPrice: Decimal;
+      totalPrice: Decimal;
+    }[] = [];
+    const seenDomains = new Set<string>();
+    for (const item of lineItems) {
+      const metadata = item.metadata as Record<string, unknown>;
+      // Never trust client-supplied quote/status/amount metadata.
+      delete metadata.domainOrder;
+      if (item.category !== ProductCategory.HOSTING) continue;
+      if (
+        typeof metadata.primaryDomain !== "string" ||
+        !DOMAIN_PATTERN.test(metadata.primaryDomain.trim()) ||
+        metadata.primaryDomain.length > 253
+      )
+        throw new BadRequestException("A valid domain is required for hosting");
+      metadata.primaryDomain = metadata.primaryDomain.trim().toLowerCase();
+      const mode = metadata.domainMode ?? "existing";
+      if (!["existing", "register", "transfer"].includes(String(mode)))
+        throw new BadRequestException("Invalid domain purchase option");
+      if (mode !== "existing") {
+        if (item.quantity !== 1 || seenDomains.has(String(metadata.primaryDomain)))
+          throw new BadRequestException("Choose a separate domain for each hosting account");
+        seenDomains.add(String(metadata.primaryDomain));
+        const quote = await this.domainCheckout.quote(
+          String(metadata.primaryDomain),
+          String(mode),
+          currency,
+        );
+        metadata.domainOrder = { ...quote, status: "AWAITING_PAYMENT" };
+        domainLines.push({
+          description: `${quote.mode === "register" ? "Domain registration" : "Domain transfer"} · ${quote.name} · 1 year (team processing after payment)`,
+          quantity: 1,
+          unitPrice: new Decimal(quote.price),
+          totalPrice: new Decimal(quote.price),
+        });
+      }
+    }
+    const domainTotal = domainLines.reduce((sum, item) => sum.add(item.totalPrice), new Decimal(0));
     const subtotal = lineItems.reduce((sum, item) => sum.add(item.totalPrice), new Decimal(0));
 
-    return { lineItems, subtotal, currency, period };
+    return {
+      lineItems,
+      subtotal: subtotal.add(domainTotal),
+      productSubtotal: subtotal,
+      domainLines,
+      currency,
+      period,
+    };
   }
 
   private async evaluatePromo(
@@ -302,13 +367,14 @@ export class OrdersService {
   }
 
   async validatePromo(userId: string | null, dto: ValidatePromoDto) {
-    const { lineItems, subtotal, currency } = await this.buildLineItems(userId, dto);
-    const result = await this.evaluatePromo(dto.code, userId, lineItems, subtotal, currency);
+    const { lineItems, productSubtotal, currency } = await this.buildLineItems(userId, dto);
+    const result = await this.evaluatePromo(dto.code, userId, lineItems, productSubtotal, currency);
     return mapPromoResponse(result);
   }
 
   async checkout(userId: string, dto: CheckoutDto) {
-    const { lineItems, subtotal, currency } = await this.buildLineItems(userId, dto);
+    const { lineItems, subtotal, productSubtotal, domainLines, currency } =
+      await this.buildLineItems(userId, dto);
     await this.siteAccessService.assertCheckoutOpen(lineItems.map((item) => item.category));
     await this.assertHostingDomainsAvailable(userId, lineItems);
 
@@ -317,7 +383,13 @@ export class OrdersService {
     let promoCode: string | null = null;
 
     if (dto.promoCode?.trim()) {
-      const result = await this.evaluatePromo(dto.promoCode, userId, lineItems, subtotal, currency);
+      const result = await this.evaluatePromo(
+        dto.promoCode,
+        userId,
+        lineItems,
+        productSubtotal,
+        currency,
+      );
       if (!result.valid || !result.promo) {
         throw new BadRequestException({
           message: "Promo code could not be applied",
@@ -343,6 +415,7 @@ export class OrdersService {
       promoCodeId,
       promoCode,
       items: lineItems.map(({ category: _c, ...item }) => item),
+      domainLines,
       invoiceNumber: generateInvoiceNumber(),
       dueDate,
     });
@@ -402,6 +475,15 @@ export class OrdersService {
         `Email: ${user?.email ?? "unknown"}`,
         `Məbləğ: ${Number(checkoutOrder.total).toFixed(2)} ${checkoutOrder.currency}`,
         `Məhsul: ${checkoutOrder.items.map((item) => `${item.productName} ×${item.quantity}`).join(", ")}`,
+        ...lineItems.flatMap((item) => {
+          const domain = (item.metadata as Record<string, unknown>).domainOrder as
+            { name: string; mode: string } | undefined;
+          return domain
+            ? [
+                `Domen sifarişi: ${domain.name} (${domain.mode}) — yalnız ödənişdən sonra emal edin; transfer üçün EPP kodunu müştəridən alın.`,
+              ]
+            : [];
+        }),
       ],
       url: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/t4abriz/panel/orders/${checkoutOrder.id}`,
     });
@@ -412,6 +494,25 @@ export class OrdersService {
   async listForUser(userId: string) {
     const orders = await this.ordersRepository.findByUserId(userId);
     return orders.map(mapOrder);
+  }
+
+  async quote(userId: string, dto: CheckoutDto) {
+    const { lineItems, subtotal, productSubtotal, currency } = await this.buildLineItems(
+      userId,
+      dto,
+    );
+    const promo = dto.promoCode
+      ? await this.evaluatePromo(dto.promoCode, userId, lineItems, productSubtotal, currency)
+      : null;
+    const usePromo = promo?.valid;
+    const discountAmount = usePromo ? promo.discountAmount : new Decimal(0);
+    return {
+      subtotal: Number(subtotal),
+      currency,
+      discountAmount: Number(discountAmount),
+      total: Number(Decimal.max(subtotal.sub(discountAmount), 0)),
+      discountName: usePromo ? promo.promo?.code : null,
+    };
   }
 
   async getForUser(id: string, userId: string) {
