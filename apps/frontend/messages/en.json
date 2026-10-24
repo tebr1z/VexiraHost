@@ -3184,6 +3184,8 @@
       "serverGeneralSection": "Server",
       "panelApiSection": "Panel API",
       "panelApiSectionHint": "Used for provisioning, mail, and Plesk XML API — not for SSH deploy.",
+      "pleskPasswordReplacementHint": "Entering a new Plesk password with the API token blank removes the old token and uses the new password for connections. Update the SSH password separately.",
+      "saveBeforeConnectionTest": "Save your changes before testing the connection.",
       "pleskAdminUsername": "Plesk admin username",
       "pleskAdminPassword": "Plesk admin password",
       "deploySshSection": "Auto-deploy SSH",

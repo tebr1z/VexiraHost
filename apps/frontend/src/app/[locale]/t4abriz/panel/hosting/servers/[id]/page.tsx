@@ -171,6 +171,8 @@ export default function EditHostingServerPage(): React.ReactElement | null {
       <HostingServerForm
         initialValues={initialValues}
         sshPasswordConfigured={server.sshPasswordConfigured}
+        panelPasswordRequired={server.credentialHealth.panelPassword === "unreadable"}
+        sshPasswordRequired={server.credentialHealth.sshPassword === "unreadable"}
         submitLabel={tf("updateServer")}
         onSubmit={async (values) => {
           const updated = await updateHostingServer(server.id, toServerPayload(values, true));

@@ -3086,6 +3086,8 @@
       "serverGeneralSection": "Sunucu",
       "panelApiSection": "Panel API",
       "panelApiSectionHint": "Provisioning, mail ve Plesk XML API için — SSH deploy için değil.",
+      "pleskPasswordReplacementHint": "Yeni Plesk şifresi girip API tokenini boş bırakırsanız eski token silinir ve bağlantıda yeni şifre kullanılır. SSH şifresini ayrıca güncelleyin.",
+      "saveBeforeConnectionTest": "Bağlantıyı test etmeden önce değişiklikleri kaydedin.",
       "pleskAdminUsername": "Plesk admin kullanıcı adı",
       "pleskAdminPassword": "Plesk admin şifresi",
       "deploySshSection": "Otomatik deploy SSH",

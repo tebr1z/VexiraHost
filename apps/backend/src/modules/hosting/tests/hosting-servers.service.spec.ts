@@ -5,6 +5,7 @@ import { validate } from "class-validator";
 import { CreateHostingServerDto, UpdateHostingServerDto } from "../dto/hosting-server.dto";
 import { HostingServersService } from "../service/hosting-servers.service";
 
+import { resolveHostingServerSshOptions } from "@/modules/deploy/utils/server-ssh.util";
 import { decryptSecret, encryptSecret } from "@/utils/crypto.util";
 
 const existingServer = {
@@ -129,6 +130,82 @@ describe("Hosting server / Auto Deploy workflow", () => {
       service.updateServer("server-1", { deployNodeEnabled: true }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("replaces Plesk and SSH credentials encrypted before a key change", async () => {
+    const originalKey = process.env.HOSTING_CREDENTIALS_KEY;
+    try {
+      process.env.HOSTING_CREDENTIALS_KEY = "previous-hosting-encryption-key-at-least-32-chars";
+      const oldPassword = encryptSecret("old-panel-password");
+      const oldSshPassword = encryptSecret("old-ssh-password");
+      const oldToken = encryptSecret("old-api-token");
+      process.env.HOSTING_CREDENTIALS_KEY = "current-hosting-encryption-key-at-least-32-chars";
+      const { service, repository } = setup({
+        whmPasswordEnc: oldPassword,
+        apiTokenEnc: oldToken,
+        sshUsername: "root",
+        sshPasswordEnc: oldSshPassword,
+      });
+
+      const result = await service.updateServer("server-1", {
+        whmPassword: " new-panel<&password> ",
+        sshPassword: " new-ssh&password ",
+      });
+      const stored = (await repository.update.mock.results[0]!.value) as HostingServer;
+      expect(decryptSecret(stored.whmPasswordEnc)).toBe(" new-panel<&password> ");
+      expect(stored.apiTokenEnc).toBeNull();
+      expect(resolveHostingServerSshOptions(stored).password).toBe(" new-ssh&password ");
+      expect(result.credentialHealth).toEqual({
+        panelPassword: "readable",
+        apiToken: "missing",
+        sshPassword: "readable",
+        rotationRequired: false,
+      });
+      expect(JSON.stringify(result)).not.toContain("password");
+      repository.findById.mockResolvedValue(stored);
+      await expect(service.getServer("server-1")).resolves.toMatchObject({
+        credentialHealth: { rotationRequired: false },
+      });
+    } finally {
+      if (originalKey === undefined) delete process.env.HOSTING_CREDENTIALS_KEY;
+      else process.env.HOSTING_CREDENTIALS_KEY = originalKey;
+    }
+  });
+
+  it("uses a new Plesk password instead of a previously saved API token", async () => {
+    const { service, repository } = setup({ apiTokenEnc: encryptSecret("previous-api-token") });
+    await service.updateServer("server-1", { whmPassword: "replacement-panel-password" });
+    expect(repository.update.mock.calls[0]![1].apiTokenEnc).toBeNull();
+  });
+
+  it("keeps an explicitly supplied new API token when both credentials are replaced", async () => {
+    const { service, repository } = setup({ apiTokenEnc: "unreadable:old:token" });
+    await service.updateServer("server-1", {
+      whmPassword: "replacement-panel-password",
+      apiToken: "replacement-api-token",
+    });
+    expect(decryptSecret(repository.update.mock.calls[0]![1].apiTokenEnc)).toBe(
+      "replacement-api-token",
+    );
+  });
+
+  it("preserves stored credentials when the password inputs are left blank", async () => {
+    const { service, repository } = setup({ apiTokenEnc: encryptSecret("saved-api-token") });
+    await service.updateServer("server-1", { name: "Renamed", whmPassword: "", sshPassword: "" });
+    expect(repository.update.mock.calls[0]![1]).toMatchObject({
+      whmPasswordEnc: undefined,
+      sshPasswordEnc: undefined,
+      apiTokenEnc: undefined,
+    });
+  });
+
+  it("preserves the cPanel API token when only its password is updated", async () => {
+    const { service, repository } = setup({
+      panel: HostingPanel.CPANEL,
+      apiTokenEnc: encryptSecret("cpanel-token"),
+    });
+    await service.updateServer("server-1", { whmPassword: "replacement-panel-password" });
+    expect(repository.update.mock.calls[0]![1].apiTokenEnc).toBeUndefined();
   });
 
   it("keeps an existing encrypted SSH password when enabling Auto Deploy", async () => {

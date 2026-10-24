@@ -48,12 +48,16 @@ export function HostingServerForm({
   onSubmit,
   onTest,
   sshPasswordConfigured = false,
+  panelPasswordRequired = false,
+  sshPasswordRequired = false,
 }: {
   initialValues?: Partial<HostingServerFormValues>;
   submitLabel: string;
   onSubmit: (values: HostingServerFormValues) => Promise<void>;
   onTest?: () => Promise<void>;
   sshPasswordConfigured?: boolean;
+  panelPasswordRequired?: boolean;
+  sshPasswordRequired?: boolean;
 }): React.ReactElement {
   const tf = useTranslations("admin.forms");
   const tw = useTranslations("admin.forms.serverWorkflow");
@@ -62,13 +66,16 @@ export function HostingServerForm({
     ...initialValues,
   });
   const [loading, setLoading] = useState(false);
+  const [savedValues, setSavedValues] = useState(values);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const needsSsh = values.deployNodeEnabled && !initialValues?.deployNodeEnabled;
+  const hasUnsavedChanges = JSON.stringify(values) !== JSON.stringify(savedValues);
 
   const update = (key: keyof HostingServerFormValues, value: string | boolean) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+    setTestMessage(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,6 +84,15 @@ export function HostingServerForm({
     setError(null);
     try {
       await onSubmit(values);
+      const saved = { ...values, whmPassword: "", sshPassword: "", apiToken: "" };
+      setSavedValues(saved);
+      setValues((current) => ({
+        ...current,
+        whmPassword: current.whmPassword === values.whmPassword ? "" : current.whmPassword,
+        sshPassword: current.sshPassword === values.sshPassword ? "" : current.sshPassword,
+        apiToken: current.apiToken === values.apiToken ? "" : current.apiToken,
+      }));
+      setTestMessage(null);
     } catch (err) {
       setError(getApiErrorMessage(err, tf("saveFailed")));
     } finally {
@@ -86,6 +102,10 @@ export function HostingServerForm({
 
   const handleTest = async () => {
     if (!onTest) return;
+    if (hasUnsavedChanges) {
+      setTestMessage(tf("saveBeforeConnectionTest"));
+      return;
+    }
     setTesting(true);
     setTestMessage(null);
     try {
@@ -202,19 +222,25 @@ export function HostingServerForm({
               value={values.whmPassword}
               minLength={4}
               onChange={(e) => update("whmPassword", e.target.value)}
-              required={!initialValues}
+              autoComplete="new-password"
+              required={!initialValues || panelPasswordRequired}
               className={inputClass}
-              placeholder={initialValues ? tf("whmPasswordKeep") : ""}
+              placeholder={panelPasswordRequired ? "" : initialValues ? tf("whmPasswordKeep") : ""}
             />
           </Field>
           <Field label={tf("apiTokenOptional")}>
             <input
               value={values.apiToken}
+              type="password"
+              autoComplete="new-password"
               onChange={(e) => update("apiToken", e.target.value)}
               className={inputClass}
             />
           </Field>
         </div>
+        {values.panel === "PLESK" && (
+          <p className="text-on-surface-variant text-xs">{tf("pleskPasswordReplacementHint")}</p>
+        )}
       </section>
 
       <section className="border-outline-variant/40 space-y-4 border-t pt-6">
@@ -238,12 +264,14 @@ export function HostingServerForm({
               type="password"
               value={values.sshPassword}
               onChange={(e) => update("sshPassword", e.target.value)}
-              required={needsSsh && !sshPasswordConfigured}
+              required={sshPasswordRequired || (needsSsh && !sshPasswordConfigured)}
               minLength={4}
               autoComplete="new-password"
               className={inputClass}
               placeholder={
-                sshPasswordConfigured ? tf("sshPasswordKeep") : tw("sshPasswordPlaceholder")
+                sshPasswordConfigured && !sshPasswordRequired
+                  ? tf("sshPasswordKeep")
+                  : tw("sshPasswordPlaceholder")
               }
             />
           </Field>
@@ -318,12 +346,17 @@ export function HostingServerForm({
         </p>
       )}
       {testMessage && <p className="text-on-surface-variant text-sm">{testMessage}</p>}
+      {onTest && hasUnsavedChanges && (
+        <p role="status" className="text-on-surface-variant text-sm">
+          {tf("saveBeforeConnectionTest")}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {onTest && (
           <button
             type="button"
-            disabled={testing}
+            disabled={testing || loading || hasUnsavedChanges}
             onClick={handleTest}
             className="border-outline-variant hover:bg-surface-container-low h-11 rounded-xl border px-5 text-sm font-semibold disabled:opacity-60"
           >
@@ -332,7 +365,7 @@ export function HostingServerForm({
         )}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || testing}
           className="bg-primary text-on-primary h-11 rounded-xl px-5 text-sm font-semibold disabled:opacity-60"
         >
           {loading ? tf("saving") : submitLabel}

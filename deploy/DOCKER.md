@@ -55,6 +55,8 @@ Dəyiş:
 - `HOSTING_CREDENTIALS_KEY`
 - Epoint / Kapital / SMTP / OAuth (lazımdırsa)
 
+`HOSTING_CREDENTIALS_KEY` dəyərini bütün backend proseslərində eyni saxlayın və yeniləmə zamanı dəyişməyin: bazadakı Plesk, API token və SSH şifrələri bu açarla şifrələnir. Mövcud `deploy/.env.docker` faylını yeniləmədə nümunə faylla əvəz etməyin. Açar artıq dəyişibsə, əvvəlki açarı bərpa edin və ya admin → Hosting serverləri → serveri redaktə et bölməsində cari Plesk və SSH şifrələrini yenidən daxil edib yadda saxlayın. Yeni Plesk şifrəsi ilə API tokeni boş buraxıldıqda köhnə token silinir; yeni token də daxil edilərsə, API bağlantısı həmin tokendən istifadə edir. Sonra bağlantını və SSH-ni yoxlayın. Bu forma serverin öz şifrəsini dəyişmir; Plesk/SSH-də hazırda qüvvədə olan şifrəni daxil edin.
+
 ---
 
 ## 5) Docker start

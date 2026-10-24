@@ -3096,6 +3096,8 @@
       "serverGeneralSection": "Сервер",
       "panelApiSection": "Panel API",
       "panelApiSectionHint": "Для provisioning, почты и Plesk XML API — не для SSH deploy.",
+      "pleskPasswordReplacementHint": "Если ввести новый пароль Plesk и оставить API-токен пустым, старый токен будет удалён, а для подключения будет использоваться новый пароль. Пароль SSH обновляется отдельно.",
+      "saveBeforeConnectionTest": "Сохраните изменения перед проверкой подключения.",
       "pleskAdminUsername": "Имя админа Plesk",
       "pleskAdminPassword": "Пароль админа Plesk",
       "deploySshSection": "SSH для auto-deploy",

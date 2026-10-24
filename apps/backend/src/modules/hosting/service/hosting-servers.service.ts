@@ -319,8 +319,12 @@ export class HostingServersService {
       panel: dto.panel,
       whmUsername: dto.whmUsername?.trim(),
       whmPasswordEnc: dto.whmPassword ? encryptSecret(dto.whmPassword) : undefined,
-      apiTokenEnc:
-        dto.apiToken === null ? null : dto.apiToken ? encryptSecret(dto.apiToken) : undefined,
+      apiTokenEnc: dto.apiToken
+        ? encryptSecret(dto.apiToken)
+        : dto.apiToken === null ||
+            (dto.whmPassword && (dto.panel ?? existing.panel) === HostingPanelEnum.PLESK)
+          ? null
+          : undefined,
       osVersion: dto.osVersion === null ? null : dto.osVersion?.trim(),
       sshUsername: dto.sshUsername === null ? null : dto.sshUsername?.trim(),
       sshPasswordEnc: dto.sshPassword ? encryptSecret(dto.sshPassword) : undefined,
